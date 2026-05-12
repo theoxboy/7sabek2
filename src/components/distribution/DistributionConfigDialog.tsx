@@ -1051,7 +1051,7 @@ export function DistributionConfigDialog({
   const stepFlow = onboardingSetupOnlyMode
     ? ([3, 4, 5] as const)
     : ([1, 2, 3, 4, 5] as const);
-  const displayStepIndex = stepFlow.indexOf(effectiveWizardStep) + 1;
+  const displayStepIndex = (stepFlow as readonly number[]).indexOf(effectiveWizardStep) + 1;
   const displayStepTotal = stepFlow.length;
   const stepTitleByStep: Record<1 | 2 | 3 | 4 | 5, string> = {
     1: copy.fixedSelectionTitle,

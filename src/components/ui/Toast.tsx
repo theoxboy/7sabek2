@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type ToastActionElement = React.ReactElement<typeof ToastAction>;
-type ToastVariant = "default" | "success" | "danger";
+type ToastVariant = "default" | "success" | "danger" | "warning";
 
 const ToastProvider = ToastPrimitives.Provider;
 
