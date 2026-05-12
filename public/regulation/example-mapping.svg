@@ -1,0 +1,17 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" rx="32" fill="#F8FAFC"/>
+  <rect x="40" y="48" width="220" height="48" rx="16" fill="#E2E8F0"/>
+  <rect x="40" y="116" width="220" height="48" rx="16" fill="#E2E8F0"/>
+  <rect x="40" y="184" width="220" height="48" rx="16" fill="#E2E8F0"/>
+  <rect x="380" y="80" width="220" height="56" rx="18" fill="#DCFCE7"/>
+  <rect x="380" y="160" width="220" height="56" rx="18" fill="#DCFCE7"/>
+  <path d="M270 80H360" stroke="#64748B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M350 72L370 80L350 88" fill="#64748B"/>
+  <path d="M270 144H360" stroke="#64748B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M350 136L370 144L350 152" fill="#64748B"/>
+  <path d="M270 208H360" stroke="#64748B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M350 200L370 208L350 216" fill="#64748B"/>
+  <text x="60" y="78" font-family="Inter, Arial" font-size="14" fill="#475569">Catégories</text>
+  <text x="400" y="112" font-family="Inter, Arial" font-size="14" fill="#166534">Enveloppes</text>
+  <text x="400" y="192" font-family="Inter, Arial" font-size="14" fill="#166534">Budget</text>
+</svg>
