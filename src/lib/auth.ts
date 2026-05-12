@@ -93,10 +93,26 @@ export async function fetchMe(options: FetchMeOptions = {}): Promise<AuthUser> {
   return fetchMeInFlight;
 }
 
+const SENSITIVE_LOCALSTORAGE_KEYS = [
+  "floussy.superadmin.act_as",
+  "floussy.register.prefill",
+  "floussy.register.onboarding_v2",
+  "floussy.register.onboarding_v2.completed",
+  "floussy.register.force_onboarding_v2",
+];
+
+function clearSensitiveLocalStorage(): void {
+  if (typeof window === "undefined") return;
+  for (const key of SENSITIVE_LOCALSTORAGE_KEYS) {
+    window.localStorage.removeItem(key);
+  }
+}
+
 export async function logout(): Promise<void> {
   fetchMeCache = null;
   fetchMeInFlight = null;
   clearAuthSessionHint();
+  clearSensitiveLocalStorage();
   try {
     await apiFetch("/auth/logout", { method: "POST" });
   } finally {
