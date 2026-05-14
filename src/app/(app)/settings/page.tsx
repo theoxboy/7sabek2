@@ -9,6 +9,7 @@ import {
   Palette,
   Settings2,
   ShieldAlert,
+  SlidersHorizontal,
   UserRound,
 } from "lucide-react";
 
@@ -1854,6 +1855,32 @@ export default function SettingsPage() {
           </p>
           <Button asChild variant="secondary">
             <Link href="/logs">{copy.openLogs}</Link>
+          </Button>
+        </div>
+        </Section>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
+          <SlidersHorizontal className="h-4 w-4" />
+          <span>{locale === "ar" ? "التوزيع" : locale === "fr" ? "Distribution" : "Distribution"}</span>
+        </div>
+        <Section
+          title={locale === "ar" ? "إعدادات التوزيع" : locale === "fr" ? "Paramètres de distribution" : "Distribution settings"}
+          subtitle={locale === "ar" ? "عدّل قواعد التوزيع والأتمتة." : locale === "fr" ? "Modifie les règles de répartition et l'automatisation." : "Edit distribution rules and automation."}
+        >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-[var(--muted)]">
+            {locale === "ar"
+              ? "عدّل الأظرفة الثابتة والنسب المئوية، شغّل المحاكاة وطبّق التوزيع."
+              : locale === "fr"
+              ? "Ajuste les enveloppes fixes et pourcentages, lance une simulation et applique la répartition."
+              : "Adjust fixed envelopes and percentages, run a simulation and apply distribution."}
+          </p>
+          <Button asChild variant="secondary">
+            <Link href="/settings/distribution">
+              {locale === "ar" ? "فتح إعدادات التوزيع" : locale === "fr" ? "Ouvrir les paramètres" : "Open settings"}
+            </Link>
           </Button>
         </div>
         </Section>

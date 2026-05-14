@@ -2178,7 +2178,7 @@ function DashboardContent() {
     } catch {
       // ignore
     }
-    router.push("/distribution?quick_tx_resume=income");
+    router.push("/envelopes?quick_tx_resume=income");
   }, [quickTxDraft, quickTxReminderIdsToMark, router]);
 
   const handleSubmitQuickTransaction = async () => {
@@ -2817,7 +2817,7 @@ function DashboardContent() {
       anomalies.push({
         key: "distribution-config",
         text: copy.widgetAnomalyNoConfig,
-        href: "/distribution",
+        href: "/envelopes",
         help: copy.widgetAnomalyNoConfigHelp,
       });
     }
@@ -3937,7 +3937,7 @@ function DashboardContent() {
           actions={
             <div className="flex gap-2">
               <Button asChild variant="secondary" size="sm">
-                <Link href="/distribution">{copy.widgetOpenDistribution}</Link>
+                <Link href="/envelopes">{copy.widgetOpenDistribution}</Link>
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/sweeps">{copy.widgetOpenSweeps}</Link>
