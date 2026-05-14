@@ -853,6 +853,7 @@ export function DistributionConfigDialog({
   const [userName, setUserName] = useState("");
   const [rebalanceCut1Pct, setRebalanceCut1Pct] = useState(34);
   const [rebalanceCut2Pct, setRebalanceCut2Pct] = useState(67);
+  const [rebalanceTouched, setRebalanceTouched] = useState(false);
   const rebalanceAutoApplySignatureRef = useRef<string>("");
   const rebalanceCutsInitializedForOpenRef = useRef(false);
   const rebalanceAutoApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1093,7 +1094,8 @@ export function DistributionConfigDialog({
   const rebalanceConfigFlexAmount = Math.max(0, Number(rebalanceConfig?.flexAmount ?? 0) || 0);
   const percentPreviewIncome = useMemo(() => {
     if (onboardingSetupOnlyMode) {
-      return rebalanceEnabled ? rebalanceFlexAmount : onboardingSimulationBaseAmount;
+      if (!rebalanceEnabled) return onboardingSimulationBaseAmount;
+      return rebalanceTouched ? rebalanceFlexAmount : onboardingSimulationBaseAmount;
     }
     const parsed = parseNumber(incomeInput);
     return parsed > 0 ? parsed : null;
@@ -1102,6 +1104,7 @@ export function DistributionConfigDialog({
     onboardingSetupOnlyMode,
     onboardingSimulationBaseAmount,
     rebalanceEnabled,
+    rebalanceTouched,
     rebalanceFlexAmount,
   ]);
   const percentPreviewAmountByRowId = useMemo(() => {
@@ -1872,6 +1875,7 @@ export function DistributionConfigDialog({
     }
     rebalanceAutoApplySignatureRef.current = "";
     rebalanceCutsInitializedForOpenRef.current = false;
+    setRebalanceTouched(false);
   }, [open]);
 
   useEffect(() => {
@@ -2415,6 +2419,7 @@ export function DistributionConfigDialog({
                                 }}
                                 onChange={(event) => {
                                   const next = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+                                  setRebalanceTouched(true);
                                   setRebalanceCut1Pct(next);
                                   if (next > rebalanceCut2Pct) setRebalanceCut2Pct(next);
                                 }}
@@ -2446,6 +2451,7 @@ export function DistributionConfigDialog({
                                 }}
                                 onChange={(event) => {
                                   const next = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+                                  setRebalanceTouched(true);
                                   setRebalanceCut2Pct(next);
                                   if (next < rebalanceCut1Pct) setRebalanceCut1Pct(next);
                                 }}
@@ -2529,12 +2535,25 @@ export function DistributionConfigDialog({
                               ? "Montant morona à distribuer"
                               : "Morona amount to distribute"}
                           </p>
-                          <span className="text-sm font-black text-emerald-900">
-                            {formatMoney(percentPreviewIncome ?? 0)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {onboardingSetupOnlyMode && rebalanceEnabled && rebalanceTouched ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                {locale === "ar" ? "محسوب بعد التعديل" : locale === "fr" ? "Recalculé" : "Recalculated"}
+                              </span>
+                            ) : null}
+                            <span className="text-sm font-black text-emerald-900">
+                              {formatMoney(percentPreviewIncome ?? 0)}
+                            </span>
+                          </div>
                         </div>
                         <p className="mt-1 text-[11px] text-emerald-800/80">
-                          {locale === "ar"
+                          {onboardingSetupOnlyMode
+                            ? locale === "ar"
+                              ? "المبلغ الأصلي كيبان أولاً، ومن بعد أي تعديل على إعادة التوزيع كيبان المبلغ المحسوب الجديد."
+                              : locale === "fr"
+                              ? "Le montant planifié s'affiche d'abord, puis le montant recalculé après modification du rééquilibrage."
+                              : "The planned amount is shown first, then the recalculated amount after rebalance changes."
+                            : locale === "ar"
                             ? "هاد المبلغ كيتبدل أوتوماتيكياً وكيبقى متزامن مع رݣلة الديون/الأهداف/المرونة لفوق."
                             : locale === "fr"
                             ? "Ce montant se met à jour automatiquement et reste synchronisé avec la réglette dettes/objectifs/morona ci-dessus."
