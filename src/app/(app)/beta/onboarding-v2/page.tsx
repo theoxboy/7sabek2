@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Cairo } from "next/font/google";
+import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
+import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import {
   Camera,
   Check,
@@ -97,8 +99,11 @@ const REGISTER_ONBOARDING_COMPLETED_KEY = "floussy.register.onboarding_v2.comple
 const REGISTER_FORCE_ONBOARDING_KEY = "floussy.register.force_onboarding_v2";
 const REGISTER_ONBOARDING_MESSAGE_TYPE = "floussy.register.onboarding_v2.complete";
 const ONBOARDING_MANUAL_BACK_OVERRIDE_KEY = "floussy.onboarding.manual_back_override";
+const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const MONEY_PLAN_ROUTE = "/khatat-lflous";
+const DISTRIBUTION_ROUTE = "/distribution";
 const ONBOARDING_ROUTE = "/beta/onboarding-v2";
+const MONEY_PLAN_GUARD_BYPASS_KEY = "floussy.money_plan.guard_bypass";
 const MONEY_PLAN_QUESTION_IDS = new Set([
   "F0_financial_summary",
   "F1_interactive_guidance",
@@ -11245,10 +11250,31 @@ export function BetaOnboardingV2PageContent({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Keep SSR and first client render identical to avoid hydration mismatch.
+  // Then sync to browser preference after mount (same pattern as login/register).
+  const [locale, setLocale] = useState<FloussyLocale>("fr");
+  const pageDir = getLocaleDirection(locale);
+  const pageAlign = pageDir === "rtl" ? "text-right" : "text-left";
+  const isStandaloneDistributionRoute =
+    pathname === DISTRIBUTION_ROUTE || pathname?.startsWith(`${DISTRIBUTION_ROUTE}/`);
   const resolvedJourneyMode: JourneyMode =
-    pathname === MONEY_PLAN_ROUTE || pathname?.startsWith(`${MONEY_PLAN_ROUTE}/`)
+    pathname === MONEY_PLAN_ROUTE ||
+    pathname?.startsWith(`${MONEY_PLAN_ROUTE}/`) ||
+    isStandaloneDistributionRoute
       ? "money_plan"
       : journeyMode;
+  const requestedMoneyPlanStepId = (() => {
+    if (isStandaloneDistributionRoute) return "E11b_distribution_setup";
+    const stepId = searchParams?.get("step");
+    if (
+      resolvedJourneyMode === "money_plan" &&
+      typeof stepId === "string" &&
+      MONEY_PLAN_QUESTION_IDS.has(stepId)
+    ) {
+      return stepId;
+    }
+    return null;
+  })();
   const isRegisterGuestMode = searchParams?.get("register") === "1";
   const isPostRegisterMode = searchParams?.get("post_register") === "1";
   const isForcedReviewMode =
@@ -11257,6 +11283,9 @@ export function BetaOnboardingV2PageContent({
     resolvedJourneyMode === "onboarding" && searchParams?.get("stay_on_onboarding") === "1";
   const [manualBackOverride, setManualBackOverride] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
+    if (new URLSearchParams(window.location.search).get("forced_review") === "1") {
+      return false;
+    }
     return window.sessionStorage.getItem(ONBOARDING_MANUAL_BACK_OVERRIDE_KEY) === "1";
   });
   const showProposalDebug = searchParams?.get("debug") === "1";
@@ -11282,6 +11311,10 @@ export function BetaOnboardingV2PageContent({
         resolvedJourneyMode
       )
     : null;
+  const initialMoneyPlanQuestions = buildQuestions(initialRegisterAnswers, resolvedJourneyMode);
+  const requestedInitialMoneyPlanStepIndex = requestedMoneyPlanStepId
+    ? initialMoneyPlanQuestions.findIndex((question) => question.id === requestedMoneyPlanStepId)
+    : -1;
   const initialRegisterProposalState = isRegisterGuestMode
     ? extractRestoredProposalState(initialRegisterDraft?.draft_objects)
     : null;
@@ -11303,7 +11336,11 @@ export function BetaOnboardingV2PageContent({
         : "collect_user"
   );
   const [answers, setAnswers] = useState<Answers>(initialRegisterAnswers);
-  const [stepIndex, setStepIndex] = useState(initialRegisterResumeState?.stepIndex ?? 0);
+  const [stepIndex, setStepIndex] = useState(
+    requestedInitialMoneyPlanStepIndex >= 0
+      ? requestedInitialMoneyPlanStepIndex
+      : initialRegisterResumeState?.stepIndex ?? 0
+  );
   const [uiError, setUiError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [fixedOtherDraftName, setFixedOtherDraftName] = useState("");
@@ -11438,10 +11475,28 @@ export function BetaOnboardingV2PageContent({
     [proposalEditedNames, proposalEditedRollover, proposalExcludedIds, proposalCustomEnvelopes]
   );
 
-  const questions = useMemo(
-    () => buildQuestions(answers, resolvedJourneyMode),
-    [answers, resolvedJourneyMode]
-  );
+  useEffect(() => {
+    const syncLocale = () => setLocale(getBrowserLocalePreference() ?? "fr");
+    syncLocale();
+    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
+    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isStandaloneDistributionRoute) return;
+    // Visiting /distribution explicitly is a user intent signal: allow exiting the
+    // global money-plan redirect guard for this session.
+    window.sessionStorage.setItem(MONEY_PLAN_GUARD_BYPASS_KEY, "1");
+  }, [isStandaloneDistributionRoute]);
+
+  const questions = useMemo(() => {
+    const nextQuestions = buildQuestions(answers, resolvedJourneyMode);
+    if (!isStandaloneDistributionRoute) {
+      return nextQuestions;
+    }
+    return nextQuestions.filter((question) => question.id === "E11b_distribution_setup");
+  }, [answers, isStandaloneDistributionRoute, resolvedJourneyMode]);
   const maxStepIndex = Math.max(questions.length - 1, 0);
   const safeStepIndex = Math.min(stepIndex, maxStepIndex);
   const currentQuestion = questions[safeStepIndex];
@@ -11907,6 +11962,8 @@ export function BetaOnboardingV2PageContent({
   const onboardingTransition = getOnboardingTransition(reduceMotion);
   const isPackRecommendation = currentQuestion?.id === "E10_keep_suggestions";
   const isMessageQuestion = currentQuestion?.kind === "message";
+  const shouldHideQuestionHero =
+    isStandaloneDistributionRoute && currentQuestion?.kind === "distribution_setup";
   const currentQuestionId = currentQuestion?.id ?? "";
   const isSalaryFrequencyQuestion = currentQuestionId === "S3_frequency";
   const isPayoutDayQuestion =
@@ -14148,8 +14205,12 @@ export function BetaOnboardingV2PageContent({
       };
     });
   }, [answers, currentQuestion?.id, effectiveFlowStage, resolvedJourneyMode, questions]);
-  const onboardingShellClass = `${cairo.className} onboarding-arabic-font onboarding-copy`;
-  const onboardingShellStyle = { fontFamily: `var(--font-cairo), "Cairo", sans-serif` };
+  const onboardingShellClass =
+    locale === "ar"
+      ? `${cairo.className} onboarding-arabic-font onboarding-copy`
+      : "onboarding-copy";
+  const onboardingShellStyle =
+    locale === "ar" ? { fontFamily: `var(--font-cairo), "Cairo", sans-serif` } : undefined;
   const isInteractiveGuidanceScreen =
     currentQuestion?.kind === "interactive_guidance" ||
     currentQuestion?.kind === "priority_profile";
@@ -14232,6 +14293,7 @@ export function BetaOnboardingV2PageContent({
 
   useEffect(() => {
     if (typeof document === "undefined") return;
+    if (locale !== "ar") return;
     const root = document.documentElement;
     const body = document.body;
     const previousLang = root.lang;
@@ -14273,7 +14335,7 @@ export function BetaOnboardingV2PageContent({
       const runtimeStyle = document.getElementById(styleId);
       if (runtimeStyle) runtimeStyle.remove();
     };
-  }, []);
+  }, [locale]);
 
   const clearAssistantTimers = useCallback(() => {
     if (assistantTypingRef.current) {
@@ -14789,7 +14851,11 @@ export function BetaOnboardingV2PageContent({
         if (cancelled) return;
         const latest = Array.isArray(records) ? records[0] ?? null : null;
         setHasRestoredPersistedRecord(Boolean(latest));
-        if (resolvedJourneyMode === "money_plan" && latest?.stage === "completed") {
+        if (
+          resolvedJourneyMode === "money_plan" &&
+          latest?.stage === "completed" &&
+          !isStandaloneDistributionRoute
+        ) {
           router.replace("/dashboard");
           return;
         }
@@ -14833,6 +14899,20 @@ export function BetaOnboardingV2PageContent({
           setIsCompletionScreen(false);
         } else {
           const resumedQuestions = buildQuestions(restoredAnswers, resolvedJourneyMode);
+          const requestedQuestionIndex = requestedMoneyPlanStepId
+            ? resumedQuestions.findIndex((question) => question.id === requestedMoneyPlanStepId)
+            : -1;
+          if (resolvedJourneyMode === "money_plan" && requestedQuestionIndex >= 0) {
+            setFlowStage("questions");
+            setStepIndex(requestedQuestionIndex);
+            setIsReadyScreen(false);
+            setIsFinancialReviewScreen(false);
+            setIsExpenseReviewScreen(false);
+            setIsRolloverConfigScreen(false);
+            setIsSweepSetupScreen(false);
+            setIsCompletionScreen(false);
+            return;
+          }
           if (
             resolvedJourneyMode === "onboarding" &&
             (shouldStayOnOnboarding || manualBackOverride)
@@ -14895,7 +14975,9 @@ export function BetaOnboardingV2PageContent({
   }, [
     isForcedReviewMode,
     isRegisterGuestMode,
+    isStandaloneDistributionRoute,
     manualBackOverride,
+    requestedMoneyPlanStepId,
     resolvedJourneyMode,
     router,
     shouldStayOnOnboarding,
@@ -16353,6 +16435,14 @@ export function BetaOnboardingV2PageContent({
       };
       clearValidationState();
       setAnswers(nextAnswers);
+      if (isStandaloneDistributionRoute) {
+        try {
+          await persistOnboardingRecord(true);
+        } catch {
+          // UI state is already valid; the standard autosave cycle can retry later.
+        }
+        return;
+      }
       proceedWithAssistantReaction(question.id, nextAnswers, undefined, 300);
       return;
     }
@@ -16381,6 +16471,14 @@ export function BetaOnboardingV2PageContent({
     }
 
     clearValidationState();
+    if (isStandaloneDistributionRoute) {
+      try {
+        await persistOnboardingRecord(true);
+      } catch {
+        // UI state is already valid; the standard autosave cycle can retry later.
+      }
+      return;
+    }
     proceedWithAssistantReaction(question.id, answers, undefined, 300);
   };
 
@@ -16721,6 +16819,10 @@ export function BetaOnboardingV2PageContent({
     clearAutoAdvance();
     clearAssistantTimers();
     clearValidationState();
+    if (isStandaloneDistributionRoute && currentQuestion?.kind === "distribution_setup") {
+      router.push(`${MONEY_PLAN_ROUTE}?step=E11_envelope_setup`);
+      return;
+    }
     if (isExpenseReviewScreen) {
       setTransitionDirection(-1);
       setIsExpenseReviewScreen(false);
@@ -16895,6 +16997,15 @@ export function BetaOnboardingV2PageContent({
     );
   }, [answers, isRegisterGuestMode, recordDraftObjects]);
 
+  useEffect(() => {
+    if (resolvedJourneyMode !== "onboarding" || typeof window === "undefined") return;
+    if (!isForcedReviewMode) return;
+    window.sessionStorage.removeItem(ONBOARDING_MANUAL_BACK_OVERRIDE_KEY);
+    if (manualBackOverride) {
+      setManualBackOverride(false);
+    }
+  }, [isForcedReviewMode, manualBackOverride, resolvedJourneyMode]);
+
   const continueOnboardingJourney = useCallback(() => {
     if (resolvedJourneyMode !== "onboarding") return;
     if (onboardingJourneyRedirectingRef.current) return;
@@ -16919,6 +17030,11 @@ export function BetaOnboardingV2PageContent({
 
   useEffect(() => {
     if (resolvedJourneyMode !== "onboarding" || typeof window === "undefined") return;
+    if (isForcedReviewMode) {
+      window.sessionStorage.removeItem(ONBOARDING_MANUAL_BACK_OVERRIDE_KEY);
+      if (manualBackOverride) setManualBackOverride(false);
+      return;
+    }
     if (shouldStayOnOnboarding) {
       window.sessionStorage.setItem(ONBOARDING_MANUAL_BACK_OVERRIDE_KEY, "1");
       if (!manualBackOverride) setManualBackOverride(true);
@@ -16928,7 +17044,7 @@ export function BetaOnboardingV2PageContent({
     if (persisted !== manualBackOverride) {
       setManualBackOverride(persisted);
     }
-  }, [manualBackOverride, resolvedJourneyMode, shouldStayOnOnboarding]);
+  }, [isForcedReviewMode, manualBackOverride, resolvedJourneyMode, shouldStayOnOnboarding]);
 
   useEffect(() => {
     if (!showJourneyReadyScreen || shouldStayOnOnboarding || manualBackOverride) return;
@@ -17012,28 +17128,243 @@ export function BetaOnboardingV2PageContent({
     await handleGoToDashboard();
   }, [handleGoToDashboard, validateSweepSetupFields]);
 
+  const shellCopy = {
+    fr: {
+      loadingOnboardingTitle: "Préparation de votre configuration…",
+      loadingOnboardingBody: "Encore quelques secondes.",
+      loadingMoneyPlanTitle: "Préparation de votre plan…",
+      loadingMoneyPlanBody: "Encore quelques secondes.",
+      loadingDistributionTitle: "Préparation de la page Distribution…",
+      loadingDistributionBody: "Encore quelques secondes.",
+      loginRequiredMoneyPlan: "Connectez-vous pour continuer votre plan.",
+      loginRequiredDistribution: "Connectez-vous pour accéder à la page Distribution.",
+      redirectingToLogin: "Redirection vers la page de connexion.",
+      goToLogin: "Aller à la connexion",
+    },
+    en: {
+      loadingOnboardingTitle: "Preparing your setup…",
+      loadingOnboardingBody: "Just a few seconds.",
+      loadingMoneyPlanTitle: "Preparing your plan…",
+      loadingMoneyPlanBody: "Just a few seconds.",
+      loadingDistributionTitle: "Preparing Distribution…",
+      loadingDistributionBody: "Just a few seconds.",
+      loginRequiredMoneyPlan: "Sign in to continue your plan.",
+      loginRequiredDistribution: "Sign in to access the Distribution page.",
+      redirectingToLogin: "Redirecting to the sign-in page.",
+      goToLogin: "Go to sign-in",
+    },
+    ar: {
+      loadingOnboardingTitle: "كنوجد الإعداد ديالك…",
+      loadingOnboardingBody: "غير ثواني ونبيّنو ليك جميع المراحل.",
+      loadingMoneyPlanTitle: "كنوجد خطة الفلوس ديالك…",
+      loadingMoneyPlanBody: "غير ثواني ونبيّنو ليك مراحل الخطة.",
+      loadingDistributionTitle: "كنوجد صفحة التوزيع ديالك…",
+      loadingDistributionBody: "غير ثواني ونبيّنو ليك قواعد توزيع الدخل ديالك.",
+      loginRequiredMoneyPlan: "خاصك تسجّل الدخول باش تكمل خطة الفلوس.",
+      loginRequiredDistribution: "خاصك تسجّل الدخول باش تدخل لصفحة التوزيع.",
+      redirectingToLogin: "غادي نحوّلوك لصفحة الدخول.",
+      goToLogin: "مشي لتسجيل الدخول",
+    },
+  } as const satisfies Record<
+    FloussyLocale,
+    Record<
+      | "loadingOnboardingTitle"
+      | "loadingOnboardingBody"
+      | "loadingMoneyPlanTitle"
+      | "loadingMoneyPlanBody"
+      | "loadingDistributionTitle"
+      | "loadingDistributionBody"
+      | "loginRequiredMoneyPlan"
+      | "loginRequiredDistribution"
+      | "redirectingToLogin"
+      | "goToLogin",
+      string
+    >
+  >;
+
+  const loadingTitle = isStandaloneDistributionRoute
+    ? shellCopy[locale].loadingDistributionTitle
+    : resolvedJourneyMode === "money_plan"
+    ? shellCopy[locale].loadingMoneyPlanTitle
+    : shellCopy[locale].loadingOnboardingTitle;
+  const loadingBody = isStandaloneDistributionRoute
+    ? shellCopy[locale].loadingDistributionBody
+    : resolvedJourneyMode === "money_plan"
+    ? shellCopy[locale].loadingMoneyPlanBody
+    : shellCopy[locale].loadingOnboardingBody;
+  const loginRequiredTitle = isStandaloneDistributionRoute
+    ? shellCopy[locale].loginRequiredDistribution
+    : shellCopy[locale].loginRequiredMoneyPlan;
+
+  const distributionCopy = {
+    fr: {
+      ruleBase: "Règle de distribution",
+      titleStandalone: "Configurer les règles de distribution",
+      introStandalone:
+        "Ici tu règles seulement comment le montant flexible est réparti sur les enveloppes non fixes, sans modifier le plan original.",
+      targetsLabel: (count: number) => `Enveloppes ciblées : ${count}`,
+      statusLabel: "Statut :",
+      statusReady: "Prêt",
+      statusNeedsSetup: "À compléter",
+      statusNotSaved: "Non configuré",
+      whatNow: "Que faire maintenant ?",
+      steps: [
+        "Ouvre la configuration de distribution.",
+        "Enregistre la configuration.",
+        "Après l’enregistrement, la règle est active sur cette page.",
+      ],
+      important: "À savoir",
+      notes: (amountLabel: string) => [
+        "La distribution ici s’applique seulement au montant flexible, pas au revenu total.",
+        `Le montant mensuel distribué maintenant : ${amountLabel}.`,
+        "Dans la configuration, ce montant sert juste à simuler pour comprendre le résultat.",
+        "Le système répartit ce montant sur les enveloppes flexibles selon les pourcentages choisis.",
+      ],
+      unresolvedPrefix: "Certaines enveloppes ne sont pas encore synchronisées :",
+      noTargets: "Aucune enveloppe flexible ne nécessite de règles de distribution sur cette page.",
+      targetsTitle: "Enveloppes concernées par la distribution",
+      targetsSubtitle: [
+        "Ce sont les enveloppes flexibles sans montant fixe.",
+        "La distribution provient uniquement du montant flexible.",
+      ],
+      ctaUnresolved:
+        "Certaines enveloppes n’existent pas encore. On les crée d’abord, puis on configure la distribution.",
+      ctaReady:
+        "Ouvre la configuration et enregistre-la pour valider les règles sur cette page.",
+      btnSyncing: "Synchronisation…",
+      btnFixAndSetup: "Créer les enveloppes manquantes et configurer",
+      btnSetup: "Configurer la distribution",
+      savedTitle: "Configurations enregistrées (compatibles)",
+      savedSubtitle:
+        "Seules les configurations correspondant aux enveloppes actuelles s’affichent ici.",
+      savedEmpty: "Aucune configuration enregistrée ne correspond à ces enveloppes.",
+      savedAt: (label: string) => `Enregistré : ${label}`,
+      activeNow: "Active",
+      delete: "Supprimer",
+      deleting: "Suppression…",
+      footerHint: "Enregistre la configuration pour activer le bouton.",
+      footerSave: "Enregistrer",
+    },
+    en: {
+      ruleBase: "Distribution rule",
+      titleStandalone: "Set up distribution rules",
+      introStandalone:
+        "This only configures how the flexible amount is split across non-fixed envelopes, without changing the original plan.",
+      targetsLabel: (count: number) => `Targeted envelopes: ${count}`,
+      statusLabel: "Status:",
+      statusReady: "Ready",
+      statusNeedsSetup: "Needs setup",
+      statusNotSaved: "Not configured",
+      whatNow: "What to do now?",
+      steps: [
+        "Open distribution setup.",
+        "Save the configuration.",
+        "After saving, the rule is active on this page.",
+      ],
+      important: "Important",
+      notes: (amountLabel: string) => [
+        "Distribution here applies only to the flexible amount, not total income.",
+        `Monthly amount distributed now: ${amountLabel}.`,
+        "In the setup screen, this amount is only used for simulation.",
+        "The system splits this amount across flexible envelopes based on your percentages.",
+      ],
+      unresolvedPrefix: "Some envelopes are not synced yet:",
+      noTargets: "No flexible envelopes need distribution rules on this page right now.",
+      targetsTitle: "Envelopes needing distribution rules",
+      targetsSubtitle: [
+        "These are flexible envelopes without a fixed amount.",
+        "Distribution comes only from the flexible amount.",
+      ],
+      ctaUnresolved:
+        "Some envelopes do not exist yet. We’ll create them first, then configure distribution.",
+      ctaReady:
+        "Open the setup and save it to validate rules for this page.",
+      btnSyncing: "Syncing…",
+      btnFixAndSetup: "Create missing envelopes and configure",
+      btnSetup: "Configure distribution",
+      savedTitle: "Saved matching configs",
+      savedSubtitle: "Only configs matching the current envelopes are shown here.",
+      savedEmpty: "No saved config matches the current envelopes.",
+      savedAt: (label: string) => `Saved: ${label}`,
+      activeNow: "Active",
+      delete: "Delete",
+      deleting: "Deleting…",
+      footerHint: "Finish distribution setup to enable the button.",
+      footerSave: "Save",
+    },
+    ar: {
+      ruleBase: "قاعدة التوزيع",
+      titleStandalone: "إعداد قواعد توزيع الدخل",
+      introStandalone:
+        "هنا كتضبط غير كيفاش فلوس المرونة غادي تتقسم على الأظرفة غير الثابتة، بلا ما نبدلو الخطة الأصلية.",
+      targetsLabel: (count: number) => `الأظرفة المستهدفة: ${count}`,
+      statusLabel: "الحالة:",
+      statusReady: "جاهز",
+      statusNeedsSetup: "خاصك تكمل الإعداد",
+      statusNotSaved: "مازال ما تسجلش الإعداد",
+      whatNow: "شنو غادي نديرو دابا؟",
+      steps: [
+        "إعداد طريقة التوزيع.",
+        "حفظ الإعداد.",
+        "من بعد الحفظ، القواعد غادي تولّي جاهزة للاستعمال فهاد الصفحة.",
+      ],
+      important: "توضيح مهم على هاد المرحلة:",
+      notes: (amountLabel: string) => [
+        "التوزيع هنا كيتطبق غير على فلوس ظرف المرونة، ماشي على الدخل كامل.",
+        `المبلغ الشهري اللي غادي يتوزع دابا هو: ${amountLabel}.`,
+        "فـ إعداد التوزيع، هاد المبلغ كيبان غير للمحاكاة باش تفهم النتيجة، وما كتبدلوش من هنا.",
+        "النظام كيقسم هاد المبلغ كل شهر على الأظرفة المرنة حسب النسب اللي اخترتي.",
+      ],
+      unresolvedPrefix: "بعض الأظرفة مازال ما تزامنوش:",
+      noTargets: "حالياً ما كايناش أظرفة مرنة محتاجة قواعد توزيع فهاد الصفحة.",
+      targetsTitle: "الأظرفة اللي خاصها قواعد التوزيع",
+      targetsSubtitle: [
+        "هادو غير الأظرفة المرنة اللي ما عندهاش مبلغ ثابت.",
+        "التوزيع هنا كيكون غير من فلوس ظرف المرونة.",
+      ],
+      ctaUnresolved:
+        "بعض الأظرفة مازال ما كايناش فالحساب. غادي نصاوبها أولاً ومن بعد نوجدّو طريقة التوزيع.",
+      ctaReady:
+        "دخل لإعداد طريقة التوزيع وحفظها باش نثبتو القواعد ديال هاد الصفحة.",
+      btnSyncing: "كنديرو مزامنة للأظرفة...",
+      btnFixAndSetup: "صاوب الأظرفة الناقصة وإعداد طريقة التوزيع",
+      btnSetup: "إعداد طريقة التوزيع",
+      savedTitle: "الكونفيكات المحفوظة المناسبة",
+      savedSubtitle: "كيبانو هنا غير الكونفيكات اللي كيناسبو هاد الأظرفة الحالية.",
+      savedEmpty: "ما لقيناش حتى كونفيك محفوظ كيناسب هاد الأظرفة الحالية.",
+      savedAt: (label: string) => `تحفظ فـ ${label}`,
+      activeNow: "النشط دابا",
+      delete: "حذف",
+      deleting: "كيتحيد...",
+      footerHint: "كمّل إعداد قواعد التوزيع باش يتفعل الزر.",
+      footerSave: "حفظ الإعداد",
+    },
+  } as const;
+
+  const distributionUiCopy = distributionCopy[locale];
+  const distributionStatusLabel =
+    distributionOnboardingStatus?.setup_status === "saved_valid" ||
+    distributionOnboardingStatus?.setup_status === "applied" ||
+    distributionOnboardingStatus?.setup_status === "legacy_rules_detected"
+      ? distributionUiCopy.statusReady
+      : distributionOnboardingStatus?.setup_status === "invalidated"
+      ? distributionUiCopy.statusNeedsSetup
+      : distributionUiCopy.statusNotSaved;
+
   if (!authResolved && !isRegisterGuestMode && !isPostRegisterMode) {
     return (
       <div
         id="onboarding-cairo-shell"
-        data-onboarding-locale="ar"
-        dir="rtl"
+        data-onboarding-locale={locale}
+        dir={pageDir}
         className={`min-h-screen bg-[var(--surface)] text-[#111111] ${onboardingShellClass}`.trim()}
         style={onboardingShellStyle}
       >
-        {onboardingArabicStyleTag}
+        {locale === "ar" ? onboardingArabicStyleTag : null}
         <div className="flex min-h-screen items-center justify-center px-6">
           <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] px-6 py-8 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)]">
-            <p className="text-[15px] font-semibold text-[#111111]">
-              {resolvedJourneyMode === "money_plan"
-                ? "كنوجد خطة الفلوس ديالك…"
-                : "كنوجد الإعداد ديالك…"}
-            </p>
-            <p className="mt-2 text-[14px] text-[#6e6e73]">
-              {resolvedJourneyMode === "money_plan"
-                ? "غير ثواني ونبيّنو ليك مراحل الخطة."
-                : "غير ثواني ونبيّنو ليك جميع المراحل."}
-            </p>
+            <p className="text-[15px] font-semibold text-[#111111]">{loadingTitle}</p>
+            <p className="mt-2 text-[14px] text-[#6e6e73]">{loadingBody}</p>
           </div>
         </div>
       </div>
@@ -17044,26 +17375,24 @@ export function BetaOnboardingV2PageContent({
     return (
       <div
         id="onboarding-cairo-shell"
-        data-onboarding-locale="ar"
-        dir="rtl"
+        data-onboarding-locale={locale}
+        dir={pageDir}
         className={`min-h-screen bg-[var(--surface)] text-[#111111] ${onboardingShellClass}`.trim()}
         style={onboardingShellStyle}
       >
-        {onboardingArabicStyleTag}
+        {locale === "ar" ? onboardingArabicStyleTag : null}
         <div className="flex min-h-screen items-center justify-center px-6">
           <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] px-6 py-8 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)]">
-            <p className="text-[15px] font-semibold text-[#111111]">
-              خاصك تسجّل الدخول باش تكمل خطة الفلوس.
-            </p>
+            <p className="text-[15px] font-semibold text-[#111111]">{loginRequiredTitle}</p>
             <p className="mt-2 text-[14px] text-[#6e6e73]">
-              غادي نحوّلوك لصفحة الدخول.
+              {shellCopy[locale].redirectingToLogin}
             </p>
             <button
               type="button"
               className="mt-4 rounded-full border border-[#111111] px-4 py-2 text-[13px] font-semibold text-[#111111]"
               onClick={() => router.push("/login")}
             >
-              مشي لتسجيل الدخول
+              {shellCopy[locale].goToLogin}
             </button>
           </div>
         </div>
@@ -17075,12 +17404,12 @@ export function BetaOnboardingV2PageContent({
     return (
       <div
         id="onboarding-cairo-shell"
-        data-onboarding-locale="ar"
-        dir="rtl"
+        data-onboarding-locale={locale}
+        dir={pageDir}
         className={`min-h-screen bg-[var(--surface)] text-[#111111] ${onboardingShellClass}`.trim()}
         style={onboardingShellStyle}
       >
-        {onboardingArabicStyleTag}
+        {locale === "ar" ? onboardingArabicStyleTag : null}
         <div className="grid min-h-screen w-full grid-rows-[auto_1fr] px-6 pb-10 pt-8 sm:px-10 lg:px-12 2xl:px-16">
           <header className="space-y-4">
             <div className="flex items-center justify-between">
@@ -17197,12 +17526,12 @@ export function BetaOnboardingV2PageContent({
     return (
       <div
         id="onboarding-cairo-shell"
-        data-onboarding-locale="ar"
-        dir="rtl"
+        data-onboarding-locale={locale}
+        dir={pageDir}
         className={`min-h-screen bg-[var(--surface)] text-[#111111] ${onboardingShellClass}`.trim()}
         style={onboardingShellStyle}
       >
-        {onboardingArabicStyleTag}
+        {locale === "ar" ? onboardingArabicStyleTag : null}
         <div className="mx-auto flex min-h-screen w-full max-w-[760px] items-center justify-center px-6 py-10">
           <div className="w-full max-w-xl rounded-[28px] border border-[#e5e5ea] bg-[#fcfcfd] p-8 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.28)]">
             <p className="text-[14px] font-medium text-[#6e6e73]">كنوجد التقدم ديالك…</p>
@@ -17219,12 +17548,12 @@ export function BetaOnboardingV2PageContent({
     return (
       <div
         id="onboarding-cairo-shell"
-        data-onboarding-locale="ar"
-        dir="rtl"
+        data-onboarding-locale={locale}
+        dir={pageDir}
         className={`min-h-screen bg-[var(--surface)] text-[#111111] ${onboardingShellClass}`.trim()}
         style={onboardingShellStyle}
       >
-        {onboardingArabicStyleTag}
+        {locale === "ar" ? onboardingArabicStyleTag : null}
         <div className="grid min-h-screen w-full grid-rows-[auto_1fr] px-6 pb-10 pt-8 sm:px-10 lg:px-12 2xl:px-16">
           <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
             <header className="space-y-3 lg:sticky lg:top-8">
@@ -17374,61 +17703,63 @@ export function BetaOnboardingV2PageContent({
   return (
     <div
       id="onboarding-cairo-shell"
-      data-onboarding-locale="ar"
-      dir="rtl"
+      data-onboarding-locale={locale}
+      dir={pageDir}
       className={`min-h-screen bg-[var(--surface)] text-[#111111] ${onboardingShellClass}`.trim()}
       style={onboardingShellStyle}
     >
-      {onboardingArabicStyleTag}
+      {locale === "ar" ? onboardingArabicStyleTag : null}
       <div className="grid min-h-screen w-full grid-rows-[auto_1fr] px-6 pb-10 pt-8 sm:px-10 lg:px-12 2xl:px-16">
-        <header className="space-y-4">
-          <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={
-                !showJourneyReadyScreen &&
-                !isFinancialReviewScreen &&
-                !isExpenseReviewScreen &&
-                safeStepIndex === 0 &&
-                resolvedJourneyMode !== "money_plan"
-                }
-                className={onboardingBackButtonClass}
-              style={onboardingBackButtonStyle}
-            >
-              <span aria-hidden>←</span>
-              رجوع
-            </button>
-            {!isInteractiveGuidanceScreen && !isMoneyPlanJourney && !isCompactChoiceQuestion ? (
-              <span className="rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
-                {currentVisibleStep}/{totalSteps}
-              </span>
+        {!isStandaloneDistributionRoute ? (
+          <header className="space-y-4">
+            <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={
+                  !showJourneyReadyScreen &&
+                  !isFinancialReviewScreen &&
+                  !isExpenseReviewScreen &&
+                  safeStepIndex === 0 &&
+                  resolvedJourneyMode !== "money_plan"
+                  }
+                  className={onboardingBackButtonClass}
+                style={onboardingBackButtonStyle}
+              >
+                <span aria-hidden>←</span>
+                رجوع
+              </button>
+              {!isInteractiveGuidanceScreen && !isMoneyPlanJourney && !isCompactChoiceQuestion ? (
+                <span className="rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
+                  {currentVisibleStep}/{totalSteps}
+                </span>
+              ) : null}
+            </div>
+            {!isInteractiveGuidanceScreen ? (
+              <>
+                <div className="h-[4px] w-full overflow-hidden rounded-full bg-[#f2f2f7]">
+                  <motion.div
+                    className="h-full rounded-full bg-[#111111]"
+                    animate={{ width: `${progress}%` }}
+                    transition={onboardingTransition}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[12px] text-[#6e6e73]">
+                  <span>{currentVisibleStep}/{totalSteps}</span>
+                  {!isCompactChoiceQuestion ? (
+                    <span>
+                      {onboardingRecordStatus === "saving"
+                        ? "جاري الحفظ..."
+                        : onboardingRecordStatus === "error"
+                        ? "خطأ فالحفظ"
+                        : "محفوظ"}
+                    </span>
+                  ) : null}
+                </div>
+              </>
             ) : null}
-          </div>
-          {!isInteractiveGuidanceScreen ? (
-            <>
-              <div className="h-[4px] w-full overflow-hidden rounded-full bg-[#f2f2f7]">
-                <motion.div
-                  className="h-full rounded-full bg-[#111111]"
-                  animate={{ width: `${progress}%` }}
-                  transition={onboardingTransition}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[12px] text-[#6e6e73]">
-                <span>{currentVisibleStep}/{totalSteps}</span>
-                {!isCompactChoiceQuestion ? (
-                  <span>
-                    {onboardingRecordStatus === "saving"
-                      ? "جاري الحفظ..."
-                      : onboardingRecordStatus === "error"
-                      ? "خطأ فالحفظ"
-                      : "محفوظ"}
-                  </span>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </header>
+          </header>
+        ) : null}
 
         <AnimatePresence mode="wait" initial={false}>
           {isExpenseReviewScreen ? (
@@ -18251,7 +18582,7 @@ export function BetaOnboardingV2PageContent({
               transition={onboardingTransition}
               className="grid min-h-[560px] gap-5 pt-4"
             >
-              {!isPackRecommendation && !isInteractiveGuidanceScreen ? (
+              {!isPackRecommendation && !isInteractiveGuidanceScreen && !shouldHideQuestionHero ? (
                 <div
                   className={`mx-auto flex w-full flex-col items-center text-center ${
                     isGoalBuilderStep ? "max-w-4xl gap-3 pt-6 sm:pt-7" : "max-w-5xl gap-4 pt-8 sm:pt-10"
@@ -18428,7 +18759,7 @@ export function BetaOnboardingV2PageContent({
                       }`;
 
                       return (
-                        <div className="space-y-5" dir="rtl">
+                        <div className="space-y-5" dir={pageDir}>
                           <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 text-center">
                             <div className="w-full rounded-[30px] border border-[#e5e5ea] bg-[var(--surface)] px-5 py-5 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)] sm:px-6">
                               <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[34px]">
@@ -21387,7 +21718,7 @@ export function BetaOnboardingV2PageContent({
                     const hasConcreteGoals = getGoalBuilderEntries(answers).length > 0;
 
                     return (
-                      <div className="space-y-4" dir="rtl">
+                      <div className="space-y-4" dir={pageDir}>
                         <section className="rounded-[28px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] px-5 py-5 text-right shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)]">
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
@@ -22230,69 +22561,79 @@ export function BetaOnboardingV2PageContent({
                 ) : null}
 
                 {currentQuestion.kind === "distribution_setup" ? (
-                  <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
-                    <section className="rounded-[28px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] px-5 py-5 text-right shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)]">
-                      <div className="space-y-2">
-                        <p className="text-[13px] font-semibold text-[#6e6e73]">قاعدة التوزيع</p>
-                        <h2 className="text-[25px] font-semibold tracking-[-0.02em] text-[#111111]">
-                          بقاو خطوات بسيطة قبل الإعدادات الذكية
-                        </h2>
-                        <p className="max-w-3xl text-[13px] leading-6 text-[#6e6e73]">
-                          هاد المرحلة ما فيهاش تقسيم جديد للفلوس. غير كنربطو الأظرفة المرنة بقواعد التوزيع.
-                        </p>
-                      </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
-                          الأظرفة المستهدفة: {distributionTargetItems.length}
-                        </span>
-                        <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
-                          الحالة:{" "}
-                          {distributionOnboardingStatus?.setup_status === "saved_valid" ||
-                          distributionOnboardingStatus?.setup_status === "applied" ||
-                          distributionOnboardingStatus?.setup_status === "legacy_rules_detected"
-                            ? "جاهز"
-                            : distributionOnboardingStatus?.setup_status === "invalidated"
-                            ? "خاصك تكمل الإعداد"
-                            : "مازال ما تسجلش الإعداد"}
-                        </span>
-                      </div>
-                      <div className="mt-3 rounded-xl border border-[#dbeafe] bg-[#eff6ff] px-3 py-3">
-                        <p className="text-[12px] font-semibold text-[#1e3a8a]">شنو غادي نديرو دابا؟</p>
-                        <ul className="mt-1 space-y-1 text-[12px] leading-6 text-[#1e3a8a]">
-                          <li>1. إعداد طريقة التوزيع.</li>
-                          <li>2. حفظ الإعداد.</li>
-                          <li>3. رجع لهنا وكمل للإعدادات الذكية.</li>
-                        </ul>
-                      </div>
-                      <div className="mt-3 rounded-xl border border-[#e5e7eb] bg-[var(--surface)] px-3 py-3">
-                        <p className="text-[12px] font-semibold text-[#111111]">توضيح مهم على هاد المرحلة:</p>
-                        <ul className="mt-1 space-y-1 text-[12px] leading-6 text-[#475569]">
-                          <li>• التوزيع هنا كيتطبق غير على فلوس ظرف المرونة، ماشي على الدخل كامل.</li>
-                          <li>
-                            • المبلغ الشهري اللي غادي يتوزع دابا هو:{" "}
-                            <span className="font-semibold text-[#0f172a]">
-                              {guidanceFlexPlannedAmountEffective > 0
-                                ? formatMad(guidanceFlexPlannedAmountEffective)
-                                : "مازال ما تحددش"}
-                            </span>
-                            .
-                          </li>
-                          <li>• فـ إعداد التوزيع، هاد المبلغ كيبان غير للمحاكاة باش تفهم النتيجة، وما كتبدلوش من هنا.</li>
-                          <li>• النظام كيقسم هاد المبلغ كل شهر على الأظرفة المرنة حسب النسب اللي اخترتي.</li>
-                        </ul>
-                      </div>
-                      {distributionOnboardingStatus?.message ? (
+                  <div className="mx-auto max-w-5xl space-y-5" dir={pageDir}>
+	                    <section className={`rounded-[28px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] px-5 py-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)] ${pageAlign}`}>
+	                      <div className="space-y-2">
+	                        <p className="text-[13px] font-semibold text-[#6e6e73]">
+	                          {isStandaloneDistributionRoute
+	                            ? distributionUiCopy.ruleBase
+	                            : "قاعدة التوزيع"}
+	                        </p>
+	                        <h2 className="text-[25px] font-semibold tracking-[-0.02em] text-[#111111]">
+	                          {isStandaloneDistributionRoute
+	                            ? distributionUiCopy.titleStandalone
+	                            : "بقاو خطوات بسيطة قبل الإعدادات الذكية"}
+	                        </h2>
+	                        <p className="max-w-3xl text-[13px] leading-6 text-[#6e6e73]">
+	                          {isStandaloneDistributionRoute
+	                            ? distributionUiCopy.introStandalone
+	                            : "هاد المرحلة ما فيهاش تقسيم جديد للفلوس. غير كنربطو الأظرفة المرنة بقواعد التوزيع."}
+	                        </p>
+	                      </div>
+	                      <div className="mt-4 flex flex-wrap items-center gap-2">
+	                        <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
+	                          {isStandaloneDistributionRoute
+	                            ? distributionUiCopy.targetsLabel(distributionTargetItems.length)
+	                            : `الأظرفة المستهدفة: ${distributionTargetItems.length}`}
+	                        </span>
+	                        <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
+	                          {isStandaloneDistributionRoute
+	                            ? `${distributionUiCopy.statusLabel} ${distributionStatusLabel}`
+	                            : `الحالة: ${distributionStatusLabel}`}
+	                        </span>
+	                      </div>
+	                      <div className="mt-3 rounded-xl border border-[#dbeafe] bg-[#eff6ff] px-3 py-3">
+	                        <p className="text-[12px] font-semibold text-[#1e3a8a]">
+	                          {isStandaloneDistributionRoute ? distributionUiCopy.whatNow : "شنو غادي نديرو دابا؟"}
+	                        </p>
+	                        <ul className="mt-1 space-y-1 text-[12px] leading-6 text-[#1e3a8a]">
+	                          {distributionUiCopy.steps.map((step, index) => (
+	                            <li key={index}>{index + 1}. {step}</li>
+	                          ))}
+	                        </ul>
+	                      </div>
+	                      <div className="mt-3 rounded-xl border border-[#e5e7eb] bg-[var(--surface)] px-3 py-3">
+	                        <p className="text-[12px] font-semibold text-[#111111]">
+	                          {isStandaloneDistributionRoute ? distributionUiCopy.important : "توضيح مهم على هاد المرحلة:"}
+	                        </p>
+	                        <ul className="mt-1 space-y-1 text-[12px] leading-6 text-[#475569]">
+	                          {distributionUiCopy
+	                            .notes(
+	                              guidanceFlexPlannedAmountEffective > 0
+	                                ? formatMad(guidanceFlexPlannedAmountEffective)
+	                                : locale === "ar"
+	                                ? "مازال ما تحددش"
+	                                : locale === "fr"
+	                                ? "—"
+	                                : "—"
+	                            )
+	                            .map((line, index) => (
+	                              <li key={index}>• {line}</li>
+	                            ))}
+	                        </ul>
+	                      </div>
+                      {distributionOnboardingStatus?.message && locale === "ar" ? (
                         <p className="mt-2 max-w-3xl text-[12px] leading-6 text-[#64748b]">
                           {distributionOnboardingStatus.message}
                         </p>
                       ) : null}
                       {distributionOnboardingStatus &&
-                      distributionOnboardingStatus.unresolved_total > 0 ? (
-                        <p className="mt-2 max-w-3xl rounded-xl border border-[#fecaca] bg-[#fff5f5] px-3 py-2 text-[12px] leading-6 text-[#b91c1c]">
-                          بعض الأظرفة مازال ما تزامنوش:{" "}
+	                      distributionOnboardingStatus.unresolved_total > 0 ? (
+	                        <p className="mt-2 max-w-3xl rounded-xl border border-[#fecaca] bg-[#fff5f5] px-3 py-2 text-[12px] leading-6 text-[#b91c1c]">
+                          {distributionUiCopy.unresolvedPrefix}{" "}
                           {distributionOnboardingStatus.unresolved_envelope_names
                             .map((name) => localizeProposalEnvelopeNameForUi(name))
-                            .join("، ")}
+                            .join(locale === "ar" ? "، " : ", ")}
                         </p>
                       ) : null}
                     </section>
@@ -22309,20 +22650,30 @@ export function BetaOnboardingV2PageContent({
                       <></>
                     ) : null}
 
-                    <section className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                      {distributionTargetItems.length === 0 ? (
-                        <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4 text-[13px] leading-6 text-[#334155]">
-                          ما لقيناش أظرفة مرنة للتوزيع فهاد المرحلة، غادي نكملو مباشرة للإعدادات الذكية.
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-[15px] font-semibold text-[#111111]">الأظرفة اللي خاصها قواعد التوزيع</p>
-                          <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
-                            هادو غير الأظرفة المرنة اللي ما عندهاش مبلغ ثابت.
-                          </p>
-                          <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
-                            التوزيع هنا كيكون غير من فلوس ظرف المرونة.
-                          </p>
+		                    <section className={`rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] ${pageAlign}`}>
+		                      {distributionTargetItems.length === 0 ? (
+		                        <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4 text-[13px] leading-6 text-[#334155]">
+		                          {isStandaloneDistributionRoute
+		                            ? distributionUiCopy.noTargets
+	                            : "ما لقيناش أظرفة مرنة للتوزيع فهاد المرحلة، غادي نكملو مباشرة للإعدادات الذكية."}
+	                        </div>
+	                      ) : (
+	                        <>
+	                          <p className="text-[15px] font-semibold text-[#111111]">
+	                            {isStandaloneDistributionRoute
+	                              ? distributionUiCopy.targetsTitle
+	                              : "الأظرفة اللي خاصها قواعد التوزيع"}
+	                          </p>
+	                          <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
+	                            {(isStandaloneDistributionRoute
+	                              ? distributionUiCopy.targetsSubtitle[0]
+	                              : "هادو غير الأظرفة المرنة اللي ما عندهاش مبلغ ثابت.")}
+	                          </p>
+	                          <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
+	                            {(isStandaloneDistributionRoute
+	                              ? distributionUiCopy.targetsSubtitle[1]
+	                              : "التوزيع هنا كيكون غير من فلوس ظرف المرونة.")}
+	                          </p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             {distributionTargetItems.map((item) => (
                               <span
@@ -22333,76 +22684,86 @@ export function BetaOnboardingV2PageContent({
                               </span>
                             ))}
                           </div>
-                          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#dbeafe] bg-[#eff6ff] px-4 py-4">
-                            <p className="text-[13px] leading-6 text-[#1e3a8a]">
-                              {distributionOnboardingStatus?.unresolved_total
-                                ? "بعض الأظرفة مازال ما كايناش فالحساب. غادي نصاوبها أولاً ومن بعد نوجدّو طريقة التوزيع."
-                                : "إعداد طريقة التوزيع وحفظه باش يتفعّل الزر ديال المتابعة."}
-                            </p>
+	                          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#dbeafe] bg-[#eff6ff] px-4 py-4">
+	                            <p className="text-[13px] leading-6 text-[#1e3a8a]">
+	                              {distributionOnboardingStatus?.unresolved_total
+	                                ? distributionUiCopy.ctaUnresolved
+	                                : isStandaloneDistributionRoute
+	                                ? distributionUiCopy.ctaReady
+	                                : "إعداد طريقة التوزيع وحفظه باش يتفعّل الزر ديال المتابعة."}
+	                            </p>
                             <button
                               type="button"
                               onClick={() => {
                                 void openDistributionSetupDialog();
                               }}
                               className={`h-11 ${onboardingPrimaryButtonClass}`}
-                              style={onboardingPrimaryButtonStyle}
-                              disabled={distributionSyncingTargets}
-                            >
-                              {distributionSyncingTargets
-                                ? "كنديرو مزامنة للأظرفة..."
-                                : distributionOnboardingStatus?.unresolved_total
-                                ? "صاوب الأظرفة الناقصة وإعداد طريقة التوزيع"
-                                : "إعداد طريقة التوزيع"}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </section>
+	                              style={onboardingPrimaryButtonStyle}
+	                              disabled={distributionSyncingTargets}
+	                            >
+	                              {distributionSyncingTargets
+	                                ? distributionUiCopy.btnSyncing
+	                                : distributionOnboardingStatus?.unresolved_total
+	                                ? distributionUiCopy.btnFixAndSetup
+	                                : distributionUiCopy.btnSetup}
+	                            </button>
+	                          </div>
+	                        </>
+	                      )}
+	                    </section>
 
-                    <section className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[15px] font-semibold text-[#111111]">الكونفيكات المحفوظة المناسبة</p>
-                        <span className="rounded-full border border-[#e5e7eb] bg-[#f8fafc] px-3 py-1 text-[12px] font-semibold text-[#111111]">
-                          {scopeMatchingDistributionConfigs.length}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
-                        كيبانو هنا غير الكونفيكات اللي كيناسبو هاد الأظرفة الحالية.
-                      </p>
-                      {scopedDistributionConfigsPreview.length === 0 ? (
-                        <p className="mt-3 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-3 py-3 text-[12px] text-[#64748b]">
-                          ما لقيناش حتى كونفيك محفوظ كيناسب هاد الأظرفة الحالية.
-                        </p>
-                      ) : (
+		                    <section className={`rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] ${pageAlign}`}>
+		                      <div className="flex items-center justify-between gap-3">
+		                        <p className="text-[15px] font-semibold text-[#111111]">
+		                          {isStandaloneDistributionRoute ? distributionUiCopy.savedTitle : "الكونفيكات المحفوظة المناسبة"}
+		                        </p>
+	                        <span className="rounded-full border border-[#e5e7eb] bg-[#f8fafc] px-3 py-1 text-[12px] font-semibold text-[#111111]">
+	                          {scopeMatchingDistributionConfigs.length}
+	                        </span>
+	                      </div>
+	                      <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
+	                        {isStandaloneDistributionRoute ? distributionUiCopy.savedSubtitle : "كيبانو هنا غير الكونفيكات اللي كيناسبو هاد الأظرفة الحالية."}
+	                      </p>
+	                      {scopedDistributionConfigsPreview.length === 0 ? (
+	                        <p className="mt-3 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-3 py-3 text-[12px] text-[#64748b]">
+	                          {isStandaloneDistributionRoute ? distributionUiCopy.savedEmpty : "ما لقيناش حتى كونفيك محفوظ كيناسب هاد الأظرفة الحالية."}
+	                        </p>
+	                      ) : (
                         <div className="mt-3 space-y-2">
                           {scopedDistributionConfigsPreview.map((config) => (
                             <div
                               key={config.id}
                               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-3 py-2"
                             >
-                              <div className="min-w-0">
-                                <p className="truncate text-[13px] font-semibold text-[#0f172a]">{config.name}</p>
-                                <p className="text-[11px] text-[#64748b]">تحفظ فـ {config.savedAtLabel}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {activeScopeDistributionConfigId === config.id ? (
-                                  <span className="rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-1 text-[11px] font-semibold text-[#166534]">
-                                    النشط دابا
-                                  </span>
-                                ) : null}
-                                <button
+	                              <div className="min-w-0">
+	                                <p className="truncate text-[13px] font-semibold text-[#0f172a]">{config.name}</p>
+	                                <p className="text-[11px] text-[#64748b]">
+	                                  {isStandaloneDistributionRoute
+	                                    ? distributionUiCopy.savedAt(config.savedAtLabel)
+	                                    : `تحفظ فـ ${config.savedAtLabel}`}
+	                                </p>
+	                              </div>
+	                              <div className="flex items-center gap-2">
+	                                {activeScopeDistributionConfigId === config.id ? (
+	                                  <span className="rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-1 text-[11px] font-semibold text-[#166534]">
+	                                    {isStandaloneDistributionRoute ? distributionUiCopy.activeNow : "النشط دابا"}
+	                                  </span>
+	                                ) : null}
+	                                <button
                                   type="button"
                                   onClick={() => {
                                     void handleDeleteDistributionConfig(config.id, config.name);
                                   }}
-                                  className="rounded-full border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[11px] font-semibold text-[#b91c1c] transition hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-60"
-                                  disabled={deletingDistributionConfigId === config.id}
-                                >
-                                  {deletingDistributionConfigId === config.id ? "كيتحيد..." : "حذف"}
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+	                                  className="rounded-full border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[11px] font-semibold text-[#b91c1c] transition hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-60"
+	                                  disabled={deletingDistributionConfigId === config.id}
+	                                >
+	                                  {deletingDistributionConfigId === config.id
+	                                    ? distributionUiCopy.deleting
+	                                    : distributionUiCopy.delete}
+	                                </button>
+	                              </div>
+	                            </div>
+	                          ))}
                         </div>
                       )}
                     </section>
@@ -22413,37 +22774,58 @@ export function BetaOnboardingV2PageContent({
 
                     <div className="sticky bottom-3 z-20 mx-auto w-full max-w-4xl px-1">
                       <div className="rounded-[28px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <button
-                            type="button"
-                            onClick={handleBack}
-                            className={`h-12 min-w-[150px] ${onboardingSecondaryButtonClass}`}
-                            style={onboardingSecondaryButtonStyle}
-                          >
-                            رجع نراجع
-                          </button>
-                          <div className="flex-1 text-center sm:text-right">
-                            <p className="text-[14px] font-semibold text-[#111111]">
-                              منين تكمل إعداد التوزيع، غادي نمشيو للإعدادات الذكية.
-                            </p>
-                            {!canContinueFromDistributionSetup ? (
-                              <p className="mt-1 text-[12px] text-[#b91c1c]">
-                                كمّل إعداد قواعد التوزيع باش يتفعل الزر.
+	                        {isStandaloneDistributionRoute ? (
+	                          <div className="flex flex-col items-center gap-3">
+	                            {!canContinueFromDistributionSetup ? (
+	                              <p className="text-center text-[12px] text-[#b91c1c]">
+	                                {distributionUiCopy.footerHint}
+	                              </p>
+	                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void submitDistributionSetupQuestion(currentQuestion);
+                              }}
+                              className={`h-12 min-w-[170px] ${onboardingPrimaryButtonClass}`}
+	                              style={onboardingPrimaryButtonStyle}
+	                              disabled={!canContinueFromDistributionSetup || distributionSyncingTargets}
+	                            >
+	                              {distributionUiCopy.footerSave}
+	                            </button>
+	                          </div>
+	                        ) : (
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <button
+                              type="button"
+                              onClick={handleBack}
+                              className={`h-12 min-w-[150px] ${onboardingSecondaryButtonClass}`}
+                              style={onboardingSecondaryButtonStyle}
+                            >
+                              رجع نراجع
+                            </button>
+                            <div className="flex-1 text-center sm:text-right">
+                              <p className="text-[14px] font-semibold text-[#111111]">
+                                منين تكمل إعداد التوزيع، غادي نمشيو للإعدادات الذكية.
                               </p>
-                            ) : null}
+                              {!canContinueFromDistributionSetup ? (
+                                <p className="mt-1 text-[12px] text-[#b91c1c]">
+                                  كمّل إعداد قواعد التوزيع باش يتفعل الزر.
+                                </p>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void submitDistributionSetupQuestion(currentQuestion);
+                              }}
+                              className={`h-12 min-w-[170px] ${onboardingPrimaryButtonClass}`}
+                              style={onboardingPrimaryButtonStyle}
+                              disabled={!canContinueFromDistributionSetup || distributionSyncingTargets}
+                            >
+                              كمل للإعدادات الذكية
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void submitDistributionSetupQuestion(currentQuestion);
-                            }}
-                            className={`h-12 min-w-[170px] ${onboardingPrimaryButtonClass}`}
-                            style={onboardingPrimaryButtonStyle}
-                            disabled={!canContinueFromDistributionSetup || distributionSyncingTargets}
-                          >
-                            كمل للإعدادات الذكية
-                          </button>
-                        </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -22828,7 +23210,7 @@ export function BetaOnboardingV2PageContent({
             }
           }}
         >
-          <DialogContent className="max-w-sm overflow-hidden border-0 bg-transparent p-0 shadow-none" dir="rtl">
+	          <DialogContent className="max-w-sm overflow-hidden border-0 bg-transparent p-0 shadow-none" dir={pageDir}>
             {guidanceScenarioDetail ? (
               <div className="relative overflow-hidden rounded-[28px] border border-[#dbeafe] bg-[var(--surface)] p-5 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)]">
                 <DialogHeader className="text-right">
@@ -22900,7 +23282,7 @@ export function BetaOnboardingV2PageContent({
             setGuidanceModalOpen(true);
           }}
         >
-          <DialogContent className="max-w-2xl overflow-hidden border-0 bg-transparent p-0 shadow-none" dir="rtl">
+	          <DialogContent className="max-w-2xl overflow-hidden border-0 bg-transparent p-0 shadow-none" dir={pageDir}>
             <div className="relative overflow-hidden rounded-[28px] border border-[#e5e7eb] bg-[var(--surface)] p-5 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)]">
               <DialogHeader className="text-right">
                 <DialogTitle className="text-[22px] font-semibold text-[#111111]">
@@ -23004,8 +23386,8 @@ export function BetaOnboardingV2PageContent({
           </DialogContent>
         </Dialog>
 
-        <Dialog open={proposalCustomDialogOpen} onOpenChange={setProposalCustomDialogOpen}>
-          <DialogContent className="max-w-lg overflow-hidden border-0 bg-transparent p-0 shadow-none" dir="rtl">
+	        <Dialog open={proposalCustomDialogOpen} onOpenChange={setProposalCustomDialogOpen}>
+	          <DialogContent className="max-w-lg overflow-hidden border-0 bg-transparent p-0 shadow-none" dir={pageDir}>
             <motion.div
               initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.96, filter: "blur(8px)" }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
@@ -23167,7 +23549,10 @@ export function BetaOnboardingV2PageContent({
 export default function BetaOnboardingV2Page() {
   const pathname = usePathname();
   const mode: JourneyMode =
-    pathname === MONEY_PLAN_ROUTE || pathname?.startsWith(`${MONEY_PLAN_ROUTE}/`)
+    pathname === MONEY_PLAN_ROUTE ||
+    pathname?.startsWith(`${MONEY_PLAN_ROUTE}/`) ||
+    pathname === DISTRIBUTION_ROUTE ||
+    pathname?.startsWith(`${DISTRIBUTION_ROUTE}/`)
       ? "money_plan"
       : "onboarding";
   return <BetaOnboardingV2PageContent journeyMode={mode} />;

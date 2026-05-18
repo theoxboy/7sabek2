@@ -2178,7 +2178,7 @@ function DashboardContent() {
     } catch {
       // ignore
     }
-    router.push("/distribution?quick_tx_resume=income");
+    router.push("/envelopes");
   }, [quickTxDraft, quickTxReminderIdsToMark, router]);
 
   const handleSubmitQuickTransaction = async () => {
@@ -2817,7 +2817,7 @@ function DashboardContent() {
       anomalies.push({
         key: "distribution-config",
         text: copy.widgetAnomalyNoConfig,
-        href: "/distribution",
+        href: "/envelopes",
         help: copy.widgetAnomalyNoConfigHelp,
       });
     }
@@ -3937,7 +3937,7 @@ function DashboardContent() {
           actions={
             <div className="flex gap-2">
               <Button asChild variant="secondary" size="sm">
-                <Link href="/distribution">{copy.widgetOpenDistribution}</Link>
+                <Link href="/envelopes">{copy.widgetOpenDistribution}</Link>
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/sweeps">{copy.widgetOpenSweeps}</Link>
@@ -3946,24 +3946,24 @@ function DashboardContent() {
           }
         >
           <p className="text-xs text-[var(--muted)]">{copy.widgetCashSplitDesc}</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetPlanDirection}</p>
-              <p className="mt-1 text-sm font-semibold">{planDirectionLabel}</p>
-            </Card>
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetPlanCoverage}</p>
-              <p className="mt-1 text-sm font-semibold">
-                {distributionCoverage.coveredRules}/{distributionCoverage.totalRules}
-              </p>
-            </Card>
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetAutoSweep}</p>
-              <p className="mt-1 text-sm font-semibold">
-                {autoSweepEnabled ? copy.widgetAutoSweepOn : copy.widgetAutoSweepOff}
-              </p>
-            </Card>
-          </div>
+	          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+	            <Card className="dashboard-list-card min-w-0">
+	              <p className="text-xs text-[var(--muted)]">{copy.widgetPlanDirection}</p>
+	              <p className="mt-1 truncate text-sm font-semibold tracking-tight">{planDirectionLabel}</p>
+	            </Card>
+	            <Card className="dashboard-list-card min-w-0">
+	              <p className="text-xs text-[var(--muted)]">{copy.widgetPlanCoverage}</p>
+	              <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
+	                {distributionCoverage.coveredRules}/{distributionCoverage.totalRules}
+	              </p>
+	            </Card>
+	            <Card className="dashboard-list-card min-w-0">
+	              <p className="text-xs text-[var(--muted)]">{copy.widgetAutoSweep}</p>
+	              <p className="mt-1 truncate text-sm font-semibold tracking-tight">
+	                {autoSweepEnabled ? copy.widgetAutoSweepOn : copy.widgetAutoSweepOff}
+	              </p>
+	            </Card>
+	          </div>
           {planRebalance.total > 0 ? (
             <div className="mt-3 rounded-2xl border border-[#e5e7eb] bg-[var(--surface)] p-3">
               <div className="flex h-3 overflow-hidden rounded-full border border-[#e5e7eb]">
@@ -3971,35 +3971,45 @@ function DashboardContent() {
                 <div className="bg-[#6366f1]" style={{ width: `${planRebalance.goalsPct}%` }} />
                 <div className="bg-[#22c55e]" style={{ width: `${planRebalance.moronaPct}%` }} />
               </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <Card className="dashboard-list-card">
-                  <p className="text-xs text-[var(--muted)]">{copy.widgetDebt}</p>
-                  <p className="mt-1 text-sm font-semibold">{formatMoney(planRebalance.debt)}</p>
-                </Card>
-                <Card className="dashboard-list-card">
-                  <p className="text-xs text-[var(--muted)]">{copy.widgetGoals}</p>
-                  <p className="mt-1 text-sm font-semibold">{formatMoney(planRebalance.goals)}</p>
-                </Card>
-                <Card className="dashboard-list-card">
-                  <p className="text-xs text-[var(--muted)]">{copy.widgetMorona}</p>
-                  <p className="mt-1 text-sm font-semibold">{formatMoney(planRebalance.morona)}</p>
-                </Card>
-              </div>
+	              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+	                <Card className="dashboard-list-card min-w-0">
+	                  <p className="text-xs text-[var(--muted)]">{copy.widgetDebt}</p>
+	                  <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
+	                    {formatMoney(planRebalance.debt)}
+	                  </p>
+	                </Card>
+	                <Card className="dashboard-list-card min-w-0">
+	                  <p className="text-xs text-[var(--muted)]">{copy.widgetGoals}</p>
+	                  <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
+	                    {formatMoney(planRebalance.goals)}
+	                  </p>
+	                </Card>
+	                <Card className="dashboard-list-card min-w-0">
+	                  <p className="text-xs text-[var(--muted)]">{copy.widgetMorona}</p>
+	                  <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
+	                    {formatMoney(planRebalance.morona)}
+	                  </p>
+	                </Card>
+	              </div>
             </div>
           ) : (
             <p className="mt-3 text-xs text-[var(--muted)]">{copy.widgetNoPlan}</p>
           )}
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetFixed}</p>
-              <p className="mt-1 text-lg font-semibold">{formatMoney(cashSplitLayerTotals.fixed)}</p>
-            </Card>
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetCashLeft}</p>
-              <p className="mt-1 text-lg font-semibold">{formatMoney(cashSplitLayerTotals.cashLeft)}</p>
-            </Card>
-          </div>
-        </Section>
+	          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+	            <Card className="dashboard-list-card min-w-0">
+	              <p className="text-xs text-[var(--muted)]">{copy.widgetFixed}</p>
+	              <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight">
+	                {formatMoney(cashSplitLayerTotals.fixed)}
+	              </p>
+	            </Card>
+	            <Card className="dashboard-list-card min-w-0">
+	              <p className="text-xs text-[var(--muted)]">{copy.widgetCashLeft}</p>
+	              <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight">
+	                {formatMoney(cashSplitLayerTotals.cashLeft)}
+	              </p>
+	            </Card>
+	          </div>
+	        </Section>
 
         <Section title={copy.widgetRisk} className="dashboard-panel">
           <p className="text-xs text-[var(--muted)]">{copy.widgetRiskDesc}</p>

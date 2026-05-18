@@ -2394,7 +2394,7 @@ function TransactionsContent() {
                       <Alert tone="error">
                         <AlertDescription className="space-y-2">
                           <span className="block">{copy.noDistributionConfig}</span>
-                          <Link href="/distribution">
+                          <Link href="/envelopes">
                             <Button size="sm" variant="secondary" type="button">
                               {copy.createConfig}
                             </Button>

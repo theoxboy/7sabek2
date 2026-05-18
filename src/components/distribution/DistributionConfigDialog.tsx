@@ -203,6 +203,20 @@ const DISTRIBUTION_DIALOG_COPY = {
     fixedCountSummary: (fixedCount: number, percentCount: number) =>
       `Fixes : ${fixedCount} · % : ${percentCount}`,
     percentModeSummary: (mode: string) => `Mode % : ${mode}`,
+    rebalanceTitle: "Rééquilibrage dettes/objectifs/morona",
+    rebalanceDebtGoalsBoundary: "Limite dettes/objectifs",
+    rebalanceGoalsFlexBoundary: "Limite objectifs/morona",
+    rebalanceAutoHint:
+      "Le rééquilibrage s’applique automatiquement dès que vous changez les seuils.",
+    flexAmountToDistribute: "Montant morona à distribuer",
+    flexAmountHint:
+      "Ce montant se met à jour automatiquement et reste synchronisé avec la réglette dettes/objectifs/morona ci-dessus.",
+    onboardingPercentEnvelopesTitle: "Enveloppes flexibles ciblées par la répartition",
+    onboardingNoStandaloneFlexible:
+      "Aucune enveloppe flexible autonome n'est disponible pour ce réglage.",
+    saveAndContinue: "Enregistrer et continuer",
+    toSimulation: "Vers simulation",
+    toSummary: "Vers résumé",
     reviewSimulation: "Revoir la simulation",
     editSettings: "Modifier les paramètres",
     cancel: "Fermer sans enregistrer",
@@ -311,6 +325,20 @@ const DISTRIBUTION_DIALOG_COPY = {
     fixedCountSummary: (fixedCount: number, percentCount: number) =>
       `Fixed: ${fixedCount} · %: ${percentCount}`,
     percentModeSummary: (mode: string) => `% mode: ${mode}`,
+    rebalanceTitle: "Debt/Goals/Flex rebalance",
+    rebalanceDebtGoalsBoundary: "Debt/goals boundary",
+    rebalanceGoalsFlexBoundary: "Goals/flex boundary",
+    rebalanceAutoHint:
+      "Rebalance is applied automatically as soon as you change the thresholds.",
+    flexAmountToDistribute: "Flexible amount to distribute",
+    flexAmountHint:
+      "This amount updates automatically and stays synced with the debt/goals slider above.",
+    onboardingPercentEnvelopesTitle: "Flexible envelopes targeted by distribution",
+    onboardingNoStandaloneFlexible:
+      "No standalone flexible envelopes are available for this setup.",
+    saveAndContinue: "Save and continue",
+    toSimulation: "To simulation",
+    toSummary: "To summary",
     reviewSimulation: "Review simulation",
     editSettings: "Edit settings",
     cancel: "Close without saving",
@@ -419,6 +447,18 @@ const DISTRIBUTION_DIALOG_COPY = {
     fixedCountSummary: (fixedCount: number, percentCount: number) =>
       `الثابت: ${fixedCount} · النسبة: ${percentCount}`,
     percentModeSummary: (mode: string) => `مود %: ${mode}`,
+    rebalanceTitle: "توازن الديون/الأهداف/المرونة",
+    rebalanceDebtGoalsBoundary: "الحد بين الديون والأهداف",
+    rebalanceGoalsFlexBoundary: "الحد بين الأهداف والمرونة",
+    rebalanceAutoHint: "التوازن كيتطبق أوتوماتيكياً مباشرة منين كتبدل الحدود.",
+    flexAmountToDistribute: "مبلغ المرونة اللي غادي يتوزع",
+    flexAmountHint:
+      "هاد المبلغ كيتبدل أوتوماتيكياً وكيبقى متزامن مع رݣلة الديون/الأهداف/المرونة لفوق.",
+    onboardingPercentEnvelopesTitle: "الأظرفة المرنة اللي غادي يطبّق عليهم التوزيع",
+    onboardingNoStandaloneFlexible: "ما لقيناش حتى ظرف مرن مستقل لهاد الإعداد.",
+    saveAndContinue: "حفظ وكمّل",
+    toSimulation: "مشي للمحاكاة",
+    toSummary: "مشي للملخص",
     reviewSimulation: "راجع المحاكاة",
     editSettings: "بدّل الإعدادات",
     cancel: "سد بلا حفظ",
@@ -1063,17 +1103,11 @@ export function DistributionConfigDialog({
   const stepFlowLabels = stepFlow.map((step) => stepTitleByStep[step]);
   const nextButtonLabel =
     effectiveWizardStep === 3
-      ? locale === "ar"
-        ? "للـ Simulation"
-        : locale === "fr"
-        ? "Vers simulation"
-        : "To simulation"
+      ? onboardingSetupOnlyMode
+        ? copy.saveAndContinue
+        : copy.toSimulation
       : effectiveWizardStep === 4
-      ? locale === "ar"
-        ? "للملخص"
-        : locale === "fr"
-        ? "Vers résumé"
-        : "To summary"
+      ? copy.toSummary
       : copy.next;
 
   const userGreeting = copy.bravo(userName);
@@ -2375,15 +2409,15 @@ export function DistributionConfigDialog({
                         <div className="relative overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-sm">
                           <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-amber-200/40 blur-2xl" />
                           <div className="pointer-events-none absolute -left-10 bottom-0 h-28 w-28 rounded-full bg-emerald-200/40 blur-2xl" />
-                          <div className="relative">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-bold text-amber-900">
-                              {locale === "ar" ? "توازن الديون/الأهداف/المرونة" : "Debt/Goals/Flex rebalance"}
-                            </p>
-                            <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 shadow-sm">
-                              {formatMoney(rebalanceTotalPool)}
-                            </span>
-                          </div>
+	                          <div className="relative">
+	                          <div className="flex items-center justify-between gap-2">
+	                            <p className="text-sm font-bold text-amber-900">
+	                              {copy.rebalanceTitle}
+	                            </p>
+	                            <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 shadow-sm">
+	                              {formatMoney(rebalanceTotalPool)}
+	                            </span>
+	                          </div>
                           <div className="mt-4 flex h-3 overflow-hidden rounded-full border border-amber-200 bg-white">
                             <div className="bg-[#ef4444]" style={{ width: `${rebalanceDebtPct}%` }} />
                             <div className="bg-[#6366f1]" style={{ width: `${rebalanceGoalsPct}%` }} />
@@ -2392,15 +2426,9 @@ export function DistributionConfigDialog({
                           <div className="mt-4 space-y-3">
                             <div>
                               <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-amber-900/80">
-                                <span>
-                                  {locale === "ar"
-                                    ? "الحد بين الديون والأهداف"
-                                    : locale === "fr"
-                                    ? "Limite dettes/objectifs"
-                                    : "Debt/goals boundary"}
-                                </span>
-                                <span>{rebalanceDebtPct.toFixed(0)}%</span>
-                              </div>
+	                                <span>{copy.rebalanceDebtGoalsBoundary}</span>
+	                                <span>{rebalanceDebtPct.toFixed(0)}%</span>
+	                              </div>
                               <input
                                 type="range"
                                 min={0}
@@ -2423,15 +2451,9 @@ export function DistributionConfigDialog({
                             </div>
                             <div>
                               <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-amber-900/80">
-                                <span>
-                                  {locale === "ar"
-                                    ? "الحد بين الأهداف والمرونة"
-                                    : locale === "fr"
-                                    ? "Limite objectifs/morona"
-                                    : "Goals/morona boundary"}
-                                </span>
-                                <span>{rebalanceCut2Pct.toFixed(0)}%</span>
-                              </div>
+	                                <span>{copy.rebalanceGoalsFlexBoundary}</span>
+	                                <span>{rebalanceCut2Pct.toFixed(0)}%</span>
+	                              </div>
                               <input
                                 type="range"
                                 min={0}
@@ -2470,16 +2492,17 @@ export function DistributionConfigDialog({
                               <p className="mt-1 text-[11px] text-emerald-700">{flexUiImpact}</p>
                             </div>
                           </div>
-                          <div className="mt-4 rounded-xl border border-amber-200 bg-white/70 px-3 py-2 text-right text-[11px] font-medium text-amber-900">
-                            {locale === "ar"
-                              ? "التوازن كيتطبق أوتوماتيكياً مباشرة منين كتبدل الحدود."
-                              : locale === "fr"
-                              ? "Le rééquilibrage s’applique automatiquement dès que vous changez les seuils."
-                              : "Rebalance is applied automatically as soon as you change the thresholds."}
-                          </div>
-                          </div>
-                        </div>
-                      ) : null}
+	                          <div
+	                            className={cn(
+	                              "mt-4 rounded-xl border border-amber-200 bg-white/70 px-3 py-2 text-[11px] font-medium text-amber-900",
+	                              pageDir === "rtl" ? "text-right" : "text-left"
+	                            )}
+	                          >
+	                            {copy.rebalanceAutoHint}
+	                          </div>
+	                          </div>
+	                        </div>
+	                      ) : null}
 
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
@@ -2522,52 +2545,36 @@ export function DistributionConfigDialog({
 
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-semibold text-emerald-800">
-                            {locale === "ar"
-                              ? "مبلغ المرونة اللي غادي يتوزع"
-                              : locale === "fr"
-                              ? "Montant morona à distribuer"
-                              : "Morona amount to distribute"}
-                          </p>
-                          <span className="text-sm font-black text-emerald-900">
-                            {formatMoney(percentPreviewIncome ?? 0)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-emerald-800/80">
-                          {locale === "ar"
-                            ? "هاد المبلغ كيتبدل أوتوماتيكياً وكيبقى متزامن مع رݣلة الديون/الأهداف/المرونة لفوق."
-                            : locale === "fr"
-                            ? "Ce montant se met à jour automatiquement et reste synchronisé avec la réglette dettes/objectifs/morona ci-dessus."
-                            : "This amount updates automatically and stays synced with the debt/goals/morona slider above."}
-                        </p>
-                      </div>
+	                          <p className="text-xs font-semibold text-emerald-800">
+	                            {copy.flexAmountToDistribute}
+	                          </p>
+	                          <span className="text-sm font-black text-emerald-900">
+	                            {formatMoney(percentPreviewIncome ?? 0)}
+	                          </span>
+	                        </div>
+	                        <p className="mt-1 text-[11px] text-emerald-800/80">
+	                          {copy.flexAmountHint}
+	                        </p>
+	                      </div>
 
                       <div className="grid gap-3">
                         <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-semibold text-[var(--ink)]">
-                            {onboardingSetupOnlyMode
-                              ? locale === "ar"
-                                ? "الأظرفة المرنة اللي غادي يطبّق عليهم التوزيع"
-                                : locale === "fr"
-                                ? "Enveloppes flexibles ciblées par la répartition"
-                                : "Flexible envelopes targeted by distribution"
-                              : copy.percentEnvelopes}
-                                </h3>
+	                            {onboardingSetupOnlyMode
+	                              ? copy.onboardingPercentEnvelopesTitle
+	                              : copy.percentEnvelopes}
+	                                </h3>
                           <Badge tone="muted">
                             {copy.envelopesCount(percentEnvelopeRows.length)}
                           </Badge>
                         </div>
                         {percentEnvelopeRows.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-4 py-6 text-center text-sm text-[var(--muted)]">
-                            {onboardingSetupOnlyMode
-                              ? locale === "ar"
-                                ? "ما لقيناش حتى ظرف مرن مستقل لهاد الإعداد."
-                                : locale === "fr"
-                                ? "Aucune enveloppe flexible autonome n'est disponible pour ce réglage."
-                                : "No standalone flexible envelopes are available for this setup."
-                              : copy.allFixed}
-                          </div>
-                        ) : (
+	                            {onboardingSetupOnlyMode
+	                              ? copy.onboardingNoStandaloneFlexible
+	                              : copy.allFixed}
+	                          </div>
+	                        ) : (
                           <div className="grid gap-3">
                             {autoPercentMode === "ranked" ? (
                               <SortableTableRows

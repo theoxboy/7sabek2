@@ -5,32 +5,32 @@ import { useEffect, useState } from "react";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 
-const MoneyPlanPageContent = dynamic(
+const DistributionPageContent = dynamic(
   () =>
     import("../beta/onboarding-v2/page").then((module) => module.BetaOnboardingV2PageContent),
   {
     ssr: false,
-    loading: () => <MoneyPlanLoadingCard />,
+    loading: () => <DistributionLoadingCard />,
   }
 );
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const LOADING_COPY: Record<FloussyLocale, { title: string; body: string }> = {
   fr: {
-    title: "Préparation de votre plan…",
+    title: "Préparation de la page Distribution…",
     body: "Encore quelques secondes.",
   },
   en: {
-    title: "Preparing your plan…",
+    title: "Preparing Distribution…",
     body: "Just a few seconds.",
   },
   ar: {
-    title: "كنوجد خطة الفلوس ديالك…",
+    title: "كنوجد صفحة التوزيع ديالك…",
     body: "غير ثواني.",
   },
 };
 
-function MoneyPlanLoadingCard() {
+function DistributionLoadingCard() {
   const [locale, setLocale] = useState<FloussyLocale>("fr");
 
   useEffect(() => {
@@ -52,6 +52,6 @@ function MoneyPlanLoadingCard() {
   );
 }
 
-export default function KhatatLflousClient() {
-  return <MoneyPlanPageContent journeyMode="money_plan" />;
+export default function DistributionClient() {
+  return <DistributionPageContent journeyMode="money_plan" />;
 }

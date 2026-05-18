@@ -71,7 +71,7 @@ const DISTRIBUTION_DIALOG_COPY: Record<FloussyLocale, Record<string, string>> = 
     distributed: "distribué",
     applyError: "Erreur d'application",
     simulateError: "Erreur de simulation",
-    configure: "Configurer la repartition",
+    configure: "Configurer la répartition",
     autoOnIncome: "Auto sur revenus",
     adjustTo100: "Ajuster à 100%",
     loading: "Chargement...",

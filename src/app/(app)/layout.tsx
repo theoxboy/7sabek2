@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   Wallet,
-  ChartPie,
   CircleHelp,
   ChartBar,
   Settings,
@@ -23,6 +22,7 @@ import {
   Target,
   FlaskConical,
   Lightbulb,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
@@ -87,6 +87,9 @@ const ONBOARDING_MANUAL_BACK_OVERRIDE_KEY = "floussy.onboarding.manual_back_over
 const TOUR_FORCE_TOKEN_STORAGE_KEY = "floussy.tour.force.applied";
 const DASHBOARD_INTRO_SEEN_KEY = "floussy.dashboard.intro.seen";
 const REGULATION_INTRO_SEEN_KEY = "floussy.regulation.intro.seen";
+// Allow exiting the money-plan guard after visiting /distribution (standalone distribution UI).
+// Session-scoped by design so it doesn't permanently weaken onboarding enforcement.
+const MONEY_PLAN_GUARD_BYPASS_KEY = "floussy.money_plan.guard_bypass";
 const SALARY_KEYWORDS = [
   "salaire",
   "salary",
@@ -124,7 +127,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/envelopes", label: "Envelopes", icon: Wallet },
-  { href: "/distribution", label: "Repartition", icon: ChartPie },
+  { href: "/distribution", label: "Distribution", icon: SlidersHorizontal },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/advisor", label: "Advisor", icon: Lightbulb },
   { href: "/beta", label: "Beta", icon: FlaskConical, betaOnly: true },
@@ -160,16 +163,16 @@ const APP_SHELL_COPY = {
     duplicateAlertMeta: "Action requise",
     userSubtitle: "Envelope-first finance",
     nav: {
-      "/dashboard": "Dashboard",
+      "/dashboard": "Tableau de bord",
       "/transactions": "Transactions",
-      "/envelopes": "Envelopes",
-      "/distribution": "Repartition",
-      "/goals": "Goals",
+      "/envelopes": "Enveloppes",
+      "/distribution": "Distribution",
+      "/goals": "Objectifs",
       "/advisor": "Conseiller",
       "/beta": "Beta",
       "/aide": "Aide",
-      "/reports": "Reports",
-      "/settings": "Settings",
+      "/reports": "Rapports",
+      "/settings": "Parametres",
     } as Record<string, string>,
   },
   en: {
@@ -652,6 +655,7 @@ function AppLayoutContent({
   const isClassicOnboarding = hasPathPrefix("/onboarding");
   const isBetaOnboarding = hasPathPrefix("/beta/onboarding-v2");
   const isMoneyPlanJourney = hasPathPrefix("/khatat-lflous");
+  const isDistributionPage = hasPathPrefix("/distribution");
   const isOnboardingRoute = Boolean(isClassicOnboarding || isBetaOnboarding);
   const shouldStayOnOnboardingFromQuery =
     isOnboardingRoute && searchParams?.get("stay_on_onboarding") === "1";
@@ -760,8 +764,23 @@ function AppLayoutContent({
         const moneyPlanCompleted = hasCompletedMoneyPlanJourney(latestRecord);
 
         if (me.force_onboarding_v2_review) {
-          if (!isClassicOnboarding && !isBetaOnboarding) {
-            router.push("/onboarding?forced_review=1");
+          if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(ONBOARDING_MANUAL_BACK_OVERRIDE_KEY);
+          }
+          if (!onboardingCompleted) {
+            if (!isClassicOnboarding && !isBetaOnboarding) {
+              router.push("/onboarding?forced_review=1");
+            }
+            return;
+          }
+          if (!moneyPlanCompleted) {
+            if (!isMoneyPlanJourney && !isDistributionPage) {
+              router.push("/khatat-lflous");
+            }
+            return;
+          }
+          if (isClassicOnboarding || isBetaOnboarding || isMoneyPlanJourney) {
+            router.replace("/dashboard");
           }
           return;
         }
@@ -774,14 +793,23 @@ function AppLayoutContent({
         }
 
         if (moneyPlanCompleted) {
-          if (isMoneyPlanJourney) {
+          if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(MONEY_PLAN_GUARD_BYPASS_KEY);
+          }
+          if (isMoneyPlanJourney && !isDistributionPage) {
             router.replace("/dashboard");
           }
           return;
         }
 
         if (!moneyPlanCompleted) {
-          if (!isMoneyPlanJourney) {
+          if (!isMoneyPlanJourney && !isDistributionPage) {
+            const bypassGuard =
+              typeof window !== "undefined" &&
+              window.sessionStorage.getItem(MONEY_PLAN_GUARD_BYPASS_KEY) === "1";
+            if (bypassGuard) {
+              return;
+            }
             const hasManualBackOverride =
               typeof window !== "undefined" &&
               window.sessionStorage.getItem(ONBOARDING_MANUAL_BACK_OVERRIDE_KEY) === "1";
@@ -815,6 +843,7 @@ function AppLayoutContent({
   }, [
     isBetaOnboarding,
     isClassicOnboarding,
+    isDistributionPage,
     isGuestRegisterOnboarding,
     isMoneyPlanJourney,
     shouldStayOnOnboardingFromQuery,
