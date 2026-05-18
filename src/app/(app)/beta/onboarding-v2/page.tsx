@@ -16430,7 +16430,7 @@ export function BetaOnboardingV2PageContent({
   const submitDistributionSetupQuestion = async (question: QuestionSpec) => {
     if (distributionEligibleEnvelopeNames.length === 0) {
       const nextAnswers: Answers = {
-        ...answers,
+     ...answers,
         E11b_distribution_setup: "done",
       };
       clearValidationState();
