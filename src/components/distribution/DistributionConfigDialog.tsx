@@ -84,6 +84,8 @@ type SimulationPreview = {
   totalPercent: number;
 };
 
+type WizardStep = 1 | 2 | 3 | 4 | 5;
+
 const EMPTY_BASELINE_FIXED_SIMULATION_ITEMS: Array<{ name: string; amount: number }> = [];
 
 type SortHandleProps = HTMLAttributes<HTMLElement> & {
@@ -873,7 +875,7 @@ export function DistributionConfigDialog({
   const [incomeInput, setIncomeInput] = useState("");
   const [simulation, setSimulation] = useState<SimulationPreview | null>(null);
   const onboardingSetupOnlyMode = hideFixedSelectionStep;
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5>(
+  const [wizardStep, setWizardStep] = useState<WizardStep>(
     onboardingSetupOnlyMode ? 3 : 1
   );
   const [autoPercentMode, setAutoPercentMode] = useState<"equal" | "ranked">(
@@ -1049,7 +1051,7 @@ export function DistributionConfigDialog({
     () => envelopeMeta.filter((env) => !env.rollover_enabled),
     [envelopeMeta]
   );
-  const effectiveWizardStep: 1 | 2 | 3 | 4 | 5 =
+  const effectiveWizardStep: WizardStep =
     onboardingSetupOnlyMode && wizardStep < 3 ? 3 : wizardStep;
 
   const wizardMeta =
@@ -1088,12 +1090,12 @@ export function DistributionConfigDialog({
           subtitle: copy.doneSubtitle,
         };
 
-  const stepFlow = onboardingSetupOnlyMode
-    ? ([3, 4, 5] as const)
-    : ([1, 2, 3, 4, 5] as const);
+  const stepFlow: readonly WizardStep[] = onboardingSetupOnlyMode
+    ? [3, 4, 5]
+    : [1, 2, 3, 4, 5];
   const displayStepIndex = stepFlow.indexOf(effectiveWizardStep) + 1;
   const displayStepTotal = stepFlow.length;
-  const stepTitleByStep: Record<1 | 2 | 3 | 4 | 5, string> = {
+  const stepTitleByStep: Record<WizardStep, string> = {
     1: copy.fixedSelectionTitle,
     2: copy.fixedAmountsTitle,
     3: copy.percentTitle,
