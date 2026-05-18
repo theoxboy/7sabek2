@@ -1196,7 +1196,7 @@ export default function EnvelopesPage() {
                   : locale === "en"
                   ? `Detected ${invalidFixedRollover.length} fixed-amount envelope(s) with rollover OFF. They were auto-corrected to rollover ON: ${names}`
                   : `Le système a détecté ${invalidFixedRollover.length} enveloppe(s) à montant fixe avec rollover OFF. Correction automatique appliquée vers rollover ON : ${names}`,
-              variant: "warning",
+              variant: "default",
             });
             window.localStorage.setItem(
               FIXED_ROLLOVER_AUTOFIX_TOAST_ONCE_KEY,
