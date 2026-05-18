@@ -13,12 +13,17 @@ const isLanHost =
   isPrivateIpv4Address(hostname) ||
   hostname.endsWith(".local") ||
   (/^[a-z0-9-]+$/i.test(hostname) && !isIpv4Address(hostname));
-const rawApiBase = process.env.NEXT_PUBLIC_API_BASE;
+const rawApiBase =
+  process.env.NEXT_PUBLIC_API_BASE ?? process.env.NEXT_PUBLIC_API_URL ?? "";
+const normalizedApiBase = rawApiBase.trim().replace(/\/+$/, "");
+const isDigitalOceanAppHost = hostname.endsWith(".ondigitalocean.app");
 const fallbackApiBase = isLanHost
   ? `http://${hostname}:8000`
+  : isDigitalOceanAppHost
+  ? `${isBrowser ? window.location.origin : `https://${hostname}`}/api`
   : `https://api.${hostname.replace(/^www\\./, "")}`;
 export const API_BASE =
-  rawApiBase && rawApiBase.trim().length > 0 ? rawApiBase : fallbackApiBase;
+  normalizedApiBase.length > 0 ? normalizedApiBase : fallbackApiBase;
 
 type ApiFetchOptions = {
   method?: HttpMethod;
