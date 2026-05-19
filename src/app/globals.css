@@ -261,7 +261,7 @@ body.onboarding-route-ar-body a svg {
 .page-loading {
   --loader-green: #09d56e;
   --loader-dark: #232123;
-  --loader-bg: #010001;
+  --loader-bg: #ffffff;
   width: 100%;
   min-height: 100vh;
   display: flex;
