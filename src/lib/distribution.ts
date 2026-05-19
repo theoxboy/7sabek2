@@ -89,6 +89,10 @@ export type DistributionOnboardingStatus = {
   unresolved_total: number;
   unresolved_envelope_names: string[];
   missing_envelope_names: string[];
+  scoped_target_ids?: string[];
+  scoped_target_keys?: string[];
+  scoped_target_names?: string[];
+  ignored_non_target_names?: string[];
   source: "active_config" | "legacy_rules" | "none";
   active_config?: DistributionSavedConfig | null;
   message: string;

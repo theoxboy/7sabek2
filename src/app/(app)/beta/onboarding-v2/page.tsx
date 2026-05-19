@@ -4677,6 +4677,9 @@ function getProposalReasonForUi(reason: string): string {
 
 function localizeProposalEnvelopeNameForUi(name: string): string {
   const normalized = normalizeTextInput(name);
+  if (normalized === "التسوق" || normalized === "shopping" || normalized === "الشوبينغ") {
+    return "الشوبينغ";
+  }
   const slug = slugify(normalized);
   if (!slug) return name;
   if (slug === "nourriture") return "الماكلة";
@@ -11410,6 +11413,9 @@ export function BetaOnboardingV2PageContent({
   const [distributionEnvelopeIdsByName, setDistributionEnvelopeIdsByName] = useState<
     Record<string, string>
   >({});
+  const [distributionEnvelopeKeysById, setDistributionEnvelopeKeysById] = useState<
+    Record<string, string>
+  >({});
   const [distributionSyncingTargets, setDistributionSyncingTargets] = useState(false);
   const distributionConfigAliasRef = useRef<Record<string, string>>({});
   const [proposalCustomName, setProposalCustomName] = useState("");
@@ -11673,6 +11679,19 @@ export function BetaOnboardingV2PageContent({
       .map((name) => distributionEnvelopeIdsByName[getDistributionNameEquivalentKey(name)])
       .filter((id): id is string => typeof id === "string" && id.length > 0);
   }, [distributionEligibleEnvelopeNames, distributionEnvelopeIdsByName]);
+  const distributionCurrentMoronaTargetKeys = useMemo(
+    () =>
+      distributionEligibleEnvelopeNames
+        .map((name) => getDistributionNameEquivalentKey(name))
+        .filter(Boolean),
+    [distributionEligibleEnvelopeNames]
+  );
+  const distributionCurrentMoronaScopeTokens = useMemo(() => {
+    if (distributionEligibleEnvelopeIds.length > 0) {
+      return distributionEligibleEnvelopeIds.map((id) => `id:${id}`);
+    }
+    return distributionCurrentMoronaTargetKeys.map((key) => `key:${key}`);
+  }, [distributionCurrentMoronaTargetKeys, distributionEligibleEnvelopeIds]);
   const distributionEligibleEnvelopeNameSet = useMemo(() => {
     return new Set(
       distributionEligibleEnvelopeNames.map((name) => normalizeProposalName(name))
@@ -11788,27 +11807,20 @@ export function BetaOnboardingV2PageContent({
     [distributionBaselineFixedNameSet, distributionStructuralEnvelopeNames]
   );
   const currentDistributionScopeHash = useMemo(() => {
-    const normalized = [...distributionEligibleEnvelopeNames]
-      .map((name) => getDistributionNameEquivalentKey(name))
-      .filter(Boolean)
+    const normalized = [...distributionCurrentMoronaScopeTokens]
       .sort((a, b) => a.localeCompare(b, "fr"));
     const canonical = JSON.stringify(normalized);
     if (canonical.length <= 120) return canonical;
     return `h:${hashScopeSignature(canonical)}:${normalized.length}`;
-  }, [distributionEligibleEnvelopeNames]);
+  }, [distributionCurrentMoronaScopeTokens]);
   const sortedSavedDistributionConfigs = useMemo(
     () =>
       [...savedDistributionConfigs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     [savedDistributionConfigs]
   );
   const distributionLegacyEligibleNameSet = useMemo(
-    () =>
-      new Set(
-        distributionEligibleEnvelopeNames
-          .map((name) => getDistributionNameEquivalentKey(name))
-          .filter(Boolean)
-      ),
-    [distributionEligibleEnvelopeNames]
+    () => new Set(distributionCurrentMoronaTargetKeys),
+    [distributionCurrentMoronaTargetKeys]
   );
   const scopeMatchingDistributionConfigs = useMemo(() => {
     if (distributionLegacyEligibleNameSet.size === 0) return sortedSavedDistributionConfigs;
@@ -11817,12 +11829,22 @@ export function BetaOnboardingV2PageContent({
         return config.scopeHash === currentDistributionScopeHash;
       }
       const configEnvelopeNames = config.rows
-        .map((row) => getDistributionNameEquivalentKey(row.name || ""))
+        .map((row) => {
+          if (row.targetType !== "envelope") return "";
+          const keyById = distributionEnvelopeKeysById[row.targetId];
+          if (keyById) return keyById;
+          return getDistributionNameEquivalentKey(row.name || "");
+        })
         .filter(Boolean);
       if (configEnvelopeNames.length === 0) return false;
       return configEnvelopeNames.some((name) => distributionLegacyEligibleNameSet.has(name));
     });
-  }, [currentDistributionScopeHash, distributionLegacyEligibleNameSet, sortedSavedDistributionConfigs]);
+  }, [
+    currentDistributionScopeHash,
+    distributionEnvelopeKeysById,
+    distributionLegacyEligibleNameSet,
+    sortedSavedDistributionConfigs,
+  ]);
   const activeScopeDistributionConfigId = useMemo(() => {
     const matchingIds = new Set(scopeMatchingDistributionConfigs.map((config) => config.id));
     return activeDistributionConfigId && matchingIds.has(activeDistributionConfigId)
@@ -11913,21 +11935,11 @@ export function BetaOnboardingV2PageContent({
     [distributionStructuralEnvelopeNamesFiltered]
   );
   const distributionEffectiveEligibleEnvelopeNames = useMemo(
-    () => {
-      const source =
-        distributionOnboardingStatus?.eligible_envelope_names &&
-        distributionOnboardingStatus.eligible_envelope_names.length > 0
-          ? distributionOnboardingStatus.eligible_envelope_names
-          : distributionEligibleEnvelopeNames;
-      return source.filter(
+    () =>
+      distributionEligibleEnvelopeNames.filter(
         (name) => !distributionFixedExcludedNameSet.has(getDistributionNameEquivalentKey(name))
-      );
-    },
-    [
-      distributionEligibleEnvelopeNames,
-      distributionFixedExcludedNameSet,
-      distributionOnboardingStatus?.eligible_envelope_names,
-    ]
+      ),
+    [distributionEligibleEnvelopeNames, distributionFixedExcludedNameSet]
   );
   const distributionTargetItems = useMemo<DistributionSetupItem[]>(
     () =>
@@ -11938,12 +11950,46 @@ export function BetaOnboardingV2PageContent({
       })),
     [distributionEffectiveEligibleEnvelopeNames]
   );
+  const distributionVisibleTargetKeySet = useMemo(
+    () =>
+      new Set(
+        distributionEffectiveEligibleEnvelopeNames
+          .map((name) => getDistributionNameEquivalentKey(name))
+          .filter(Boolean)
+      ),
+    [distributionEffectiveEligibleEnvelopeNames]
+  );
+  const distributionDisplayUnresolvedEnvelopeNames = useMemo(() => {
+    const unresolved = distributionOnboardingStatus?.unresolved_envelope_names ?? [];
+    return unresolved.filter((name) =>
+      distributionVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+    );
+  }, [
+    distributionOnboardingStatus?.unresolved_envelope_names,
+    distributionVisibleTargetKeySet,
+  ]);
+  const distributionDisplayMissingEnvelopeNames = useMemo(() => {
+    const missing = distributionOnboardingStatus?.missing_envelope_names ?? [];
+    return missing.filter((name) =>
+      distributionVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+    );
+  }, [
+    distributionOnboardingStatus?.missing_envelope_names,
+    distributionVisibleTargetKeySet,
+  ]);
+  const distributionDisplayUnresolvedTotal =
+    distributionDisplayUnresolvedEnvelopeNames.length;
+  const distributionDisplayMissingTotal =
+    distributionDisplayMissingEnvelopeNames.length;
   const distributionSetupIsValid =
     distributionOnboardingStatus?.setup_status === "saved_valid" ||
     distributionOnboardingStatus?.setup_status === "applied" ||
     distributionOnboardingStatus?.setup_status === "legacy_rules_detected";
   const canContinueFromDistributionSetup =
-    distributionEffectiveEligibleEnvelopeNames.length === 0 || distributionSetupIsValid;
+    distributionEffectiveEligibleEnvelopeNames.length === 0 ||
+    (distributionSetupIsValid &&
+      distributionDisplayUnresolvedTotal === 0 &&
+      distributionDisplayMissingTotal === 0);
   const salaryAmountEffects = draftObjects.salary_amount_effects as
     | SalaryAmountEffects
     | null
@@ -15042,19 +15088,23 @@ export function BetaOnboardingV2PageContent({
     try {
       const items = await apiFetch<EnvelopeOut[]>("/envelopes");
       const next: Record<string, string> = {};
+      const keysById: Record<string, string> = {};
       items
         .filter((item) => !item.is_cash)
         .forEach((item) => {
           const key = getDistributionNameEquivalentKey(item.name);
           if (!key) return;
+          keysById[item.id] = key;
           if (!next[key]) {
             next[key] = item.id;
           }
         });
       setDistributionEnvelopeIdsByName(next);
+      setDistributionEnvelopeKeysById(keysById);
       return next;
     } catch {
       setDistributionEnvelopeIdsByName({});
+      setDistributionEnvelopeKeysById({});
       return null;
     }
   }, []);
@@ -15110,9 +15160,14 @@ export function BetaOnboardingV2PageContent({
       options?: { force?: boolean }
     ) => {
       const force = options?.force === true;
-      const effectiveEligibleNames = distributionEffectiveEligibleEnvelopeNames;
+      const effectiveEligibleNames = distributionEffectiveEligibleEnvelopeNames.filter(
+        (name) => !distributionFixedExcludedNameSet.has(getDistributionNameEquivalentKey(name))
+      );
+      const effectiveEligibleKeys = effectiveEligibleNames
+        .map((name) => getDistributionNameEquivalentKey(name))
+        .filter(Boolean);
       const requestKey = JSON.stringify({
-        eligible: [...effectiveEligibleNames].sort((a, b) => a.localeCompare(b, "fr")),
+        eligible: [...effectiveEligibleKeys].sort((a, b) => a.localeCompare(b, "fr")),
         scopeHash: computeDistributionScopeHash(),
       });
 
@@ -15130,11 +15185,50 @@ export function BetaOnboardingV2PageContent({
           const effectiveEligibleIds = effectiveEligibleNames
             .map((name) => effectiveIdsByName[getDistributionNameEquivalentKey(name)])
             .filter((id): id is string => typeof id === "string" && id.length > 0);
+          const dedupedEligibleNames = Array.from(new Set(effectiveEligibleNames));
+          const dedupedEligibleIds = Array.from(new Set(effectiveEligibleIds));
           const status = await getDistributionOnboardingStatus({
-            eligible_envelope_names: effectiveEligibleNames,
-            eligible_envelope_ids: effectiveEligibleIds,
+            eligible_envelope_names: dedupedEligibleNames,
+            eligible_envelope_ids: dedupedEligibleIds,
             scope_hash: computeDistributionScopeHash(),
           });
+          if (
+            process.env.NODE_ENV === "development" &&
+            typeof window !== "undefined" &&
+            window.location.pathname.startsWith("/khatat-lflous")
+          ) {
+            const activeConfigRows = Array.isArray(status.active_config?.rows)
+              ? status.active_config.rows
+              : [];
+            // eslint-disable-next-line no-console
+            console.debug("[khatat-lflous][distribution-status]", {
+              visibleTargetEnvelopeNames: distributionTargetItems.map((item) => item.name),
+              distributionEffectiveEligibleEnvelopeNames: effectiveEligibleNames,
+              payload: {
+                eligible_envelope_names: dedupedEligibleNames,
+                eligible_envelope_ids: dedupedEligibleIds,
+                scope_hash: computeDistributionScopeHash(),
+              },
+              rawResponse: status,
+              displayedUnresolvedEnvelopeNames: (status.unresolved_envelope_names ?? []).filter(
+                (name) =>
+                  distributionVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+              ),
+              activeSavedConfigEnvelopeRows: activeConfigRows
+                .filter((row) => row.target_type === "envelope")
+                .map((row) => ({
+                  id: row.target_id,
+                  name: row.name ?? "",
+                  mode: row.mode,
+                  enabled: row.enabled,
+                })),
+              ignoredNonTargetUnresolvedEnvelopeNames:
+                (status.unresolved_envelope_names ?? []).filter(
+                  (name) =>
+                    !distributionVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+                ),
+            });
+          }
           distributionStatusLastRequestKeyRef.current = requestKey;
           setDistributionOnboardingStatus(status);
           const isValid =
@@ -15174,7 +15268,10 @@ export function BetaOnboardingV2PageContent({
       computeDistributionScopeHash,
       distributionEffectiveEligibleEnvelopeNames,
       distributionEnvelopeIdsByName,
+      distributionFixedExcludedNameSet,
       distributionOnboardingStatus,
+      distributionTargetItems,
+      distributionVisibleTargetKeySet,
     ]
   );
 
@@ -16488,7 +16585,7 @@ export function BetaOnboardingV2PageContent({
   };
 
   const submitDistributionSetupQuestion = async (question: QuestionSpec) => {
-    if (distributionEligibleEnvelopeNames.length === 0) {
+    if (distributionEffectiveEligibleEnvelopeNames.length === 0) {
       const nextAnswers: Answers = {
      ...answers,
         E11b_distribution_setup: "done",
@@ -16509,6 +16606,17 @@ export function BetaOnboardingV2PageContent({
 
     const latestStatus = await refreshDistributionStatus(undefined, { force: true });
     const latestStatusCode = latestStatus?.setup_status;
+    const latestVisibleTargetKeySet = new Set(
+      distributionEffectiveEligibleEnvelopeNames
+        .map((name) => getDistributionNameEquivalentKey(name))
+        .filter(Boolean)
+    );
+    const latestVisibleUnresolved = (latestStatus?.unresolved_envelope_names ?? []).filter(
+      (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+    );
+    const latestVisibleMissing = (latestStatus?.missing_envelope_names ?? []).filter(
+      (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+    );
     const isFreshValid =
       latestStatusCode === "saved_valid" ||
       latestStatusCode === "applied" ||
@@ -16519,7 +16627,7 @@ export function BetaOnboardingV2PageContent({
       statusCode === "saved_valid" ||
       statusCode === "applied" ||
       statusCode === "legacy_rules_detected";
-    if (!isConfigured) {
+    if (!isConfigured || latestVisibleUnresolved.length > 0 || latestVisibleMissing.length > 0) {
       setValidationFeedback(
         "إعداد طريقة التوزيع وكمل الحفظ باش نثبتو القواعد قبل ما نكملو.",
         undefined,
@@ -17145,19 +17253,40 @@ export function BetaOnboardingV2PageContent({
     try {
       await persistOnboardingRecord(true);
       const latestDistributionStatus = await refreshDistributionStatus(undefined, { force: true });
+      const latestVisibleTargetKeySet = new Set(
+        distributionEffectiveEligibleEnvelopeNames
+          .map((name) => getDistributionNameEquivalentKey(name))
+          .filter(Boolean)
+      );
+      const latestVisibleUnresolved = (latestDistributionStatus?.unresolved_envelope_names ?? []).filter(
+        (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+      );
+      const latestVisibleMissing = (latestDistributionStatus?.missing_envelope_names ?? []).filter(
+        (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+      );
       const distributionReady =
         latestDistributionStatus?.setup_status === "saved_valid" ||
         latestDistributionStatus?.setup_status === "applied" ||
         latestDistributionStatus?.setup_status === "legacy_rules_detected";
       if (!distributionReady) {
         const missingList =
-          latestDistributionStatus?.missing_envelope_names?.length
-            ? ` (${latestDistributionStatus.missing_envelope_names.join("، ")})`
+          latestVisibleMissing.length
+            ? ` (${latestVisibleMissing.join("، ")})`
             : "";
         throw new Error(
           latestDistributionStatus?.message
             ? `${latestDistributionStatus.message}${missingList}`
             : "إعداد التوزيع الحالي ناقص، خاصك تكمل تغطية الأظرفة المرنة."
+        );
+      }
+      if (latestVisibleUnresolved.length > 0) {
+        throw new Error(
+          `بعض الأظرفة مازال ما تزامنوش: ${latestVisibleUnresolved.join("، ")}`
+        );
+      }
+      if (latestVisibleMissing.length > 0) {
+        throw new Error(
+          `خاصك تكمل إعداد التوزيع لهاد الأظرفة: ${latestVisibleMissing.join("، ")}`
         );
       }
       await apiFetch("/users/me/onboarding-v2-records/latest/apply", {
@@ -22688,10 +22817,10 @@ export function BetaOnboardingV2PageContent({
                         </p>
                       ) : null}
                       {distributionOnboardingStatus &&
-	                      distributionOnboardingStatus.unresolved_total > 0 ? (
+	                      distributionDisplayUnresolvedTotal > 0 ? (
 	                        <p className="mt-2 max-w-3xl rounded-xl border border-[#fecaca] bg-[#fff5f5] px-3 py-2 text-[12px] leading-6 text-[#b91c1c]">
                           {distributionUiCopy.unresolvedPrefix}{" "}
-                          {distributionOnboardingStatus.unresolved_envelope_names
+                          {distributionDisplayUnresolvedEnvelopeNames
                             .map((name) => localizeProposalEnvelopeNameForUi(name))
                             .join(locale === "ar" ? "، " : ", ")}
                         </p>
@@ -22746,7 +22875,7 @@ export function BetaOnboardingV2PageContent({
                           </div>
 	                          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#dbeafe] bg-[#eff6ff] px-4 py-4">
 	                            <p className="text-[13px] leading-6 text-[#1e3a8a]">
-	                              {distributionOnboardingStatus?.unresolved_total
+	                              {distributionDisplayUnresolvedTotal > 0
 	                                ? distributionUiCopy.ctaUnresolved
 	                                : isStandaloneDistributionRoute
 	                                ? distributionUiCopy.ctaReady
@@ -22763,7 +22892,7 @@ export function BetaOnboardingV2PageContent({
 	                            >
 	                              {distributionSyncingTargets
 	                                ? distributionUiCopy.btnSyncing
-	                                : distributionOnboardingStatus?.unresolved_total
+	                                : distributionDisplayUnresolvedTotal > 0
 	                                ? distributionUiCopy.btnFixAndSetup
 	                                : distributionUiCopy.btnSetup}
 	                            </button>
