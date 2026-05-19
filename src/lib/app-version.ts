@@ -1,6 +1,6 @@
 import packageJson from "../../package.json";
 
-const DEFAULT_VERSION = "0.1.0";
+const DEFAULT_VERSION = "0.1.1";
 
 export const APP_VERSION =
   (process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || DEFAULT_VERSION).trim();
@@ -13,4 +13,3 @@ export function getAppVersionLabel(options?: { includeBuild?: boolean }): string
   }
   return `v${version}`;
 }
-

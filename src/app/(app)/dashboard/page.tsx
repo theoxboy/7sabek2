@@ -1823,6 +1823,7 @@ function DashboardContent() {
     overspentEnvelopes.length > 0 ||
     sweepDue ||
     dueIncomeReminders.length > 0;
+  const hideDashboardDetailsUntilFirstIncome = needsFirstIncomeDeclaration;
 
   const txCountsByCategory = useMemo(() => {
     const counts = new Map<string, { income: number; expense: number }>();
@@ -3821,7 +3822,7 @@ function DashboardContent() {
         </div>
       ) : null}
 
-      {data ? (
+      {data && !hideDashboardDetailsUntilFirstIncome ? (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {isKpiStartState ? (
             <div className="sm:col-span-2 xl:col-span-4">
@@ -3958,7 +3959,9 @@ function DashboardContent() {
         </section>
       ) : null}
 
-      <div className="dashboard-main-grid">
+      {!hideDashboardDetailsUntilFirstIncome ? (
+        <>
+          <div className="dashboard-main-grid">
       <section className="dashboard-main-health grid gap-4">
         <Section
           title={copy.widgetCashSplit}
@@ -4351,6 +4354,8 @@ function DashboardContent() {
           </div>
         </Section>
       </div>
+        </>
+      ) : null}
 
       {mounted
         ? createPortal(
