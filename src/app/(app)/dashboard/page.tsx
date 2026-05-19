@@ -1357,6 +1357,8 @@ function DashboardContent() {
   const navReportsRef = useRef<HTMLElement | null>(null);
   const navSettingsRef = useRef<HTMLElement | null>(null);
   const quickTxSubmitLockRef = useRef(false);
+  const loadSequenceRef = useRef(0);
+  const deferredLoadTimerRef = useRef<number | null>(null);
   const copy = DASHBOARD_COPY[locale];
   const pageDir = getLocaleDirection(locale);
   const periodArrow = pageDir === "rtl" ? "←" : "→";
@@ -1366,6 +1368,9 @@ function DashboardContent() {
   const periodQuery = periodRange
     ? `?start=${periodRange.start}&end=${periodRange.end}`
     : "";
+  const transactionsQuery = periodQuery
+    ? `/transactions${periodQuery}`
+    : "/transactions?limit=25";
 
   const quickTxPreferenceKey = useMemo(() => {
     if (!data?.user?.id) return null;
@@ -1399,34 +1404,31 @@ function DashboardContent() {
   }, [periodPreset, customStart, customEnd]);
 
   const loadData = useCallback(async () => {
+    const loadSequence = loadSequenceRef.current + 1;
+    loadSequenceRef.current = loadSequence;
+    if (deferredLoadTimerRef.current) {
+      window.clearTimeout(deferredLoadTimerRef.current);
+      deferredLoadTimerRef.current = null;
+    }
     setLoading(true);
     setError(null);
     try {
       const dash = await apiFetch<DashboardOut>(`/dashboard${periodQuery}`);
+      if (loadSequenceRef.current !== loadSequence) return;
       setData(dash);
       setLoading(false);
 
-      const results = await Promise.allSettled([
+      const criticalResults = await Promise.allSettled([
         apiFetch<CategoryOut[]>("/categories"),
         apiFetch<GoalOut[]>("/goals"),
-        apiFetch<CategoryEnvelopeMapOut[]>("/mappings"),
-        apiFetch<TransactionOut[]>(`/transactions${periodQuery}`),
-        apiFetch<IncomeReminderOut[]>("/income-reminders"),
-        apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
-        apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
+        apiFetch<TransactionOut[]>(transactionsQuery),
         apiFetch<SettingsResponse>("/users/me/settings"),
-        apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
       ]);
 
-      const catsResult = results[0];
-      const goalsResult = results[1];
-      const mappingsResult = results[2];
-      const txsResult = results[3];
-      const remindersResult = results[4];
-      const trendResult = results[5];
-      const manualUnmappedResult = results[6];
-      const settingsResult = results[7];
-      const onboardingResult = results[8];
+      const catsResult = criticalResults[0];
+      const goalsResult = criticalResults[1];
+      const txsResult = criticalResults[2];
+      const settingsResult = criticalResults[3];
 
       if (catsResult.status === "fulfilled") {
         setCategories(catsResult.value);
@@ -1434,43 +1436,62 @@ function DashboardContent() {
       if (goalsResult.status === "fulfilled") {
         setGoals(goalsResult.value);
       }
-      if (mappingsResult.status === "fulfilled") {
-        const mappingMap = mappingsResult.value.reduce<Record<string, string>>(
-          (acc, item) => ({
-            ...acc,
-            [item.category_id]: item.envelope_id,
-          }),
-          {}
-        );
-        setMappings(mappingMap);
-      }
       if (txsResult.status === "fulfilled") {
         setTransactions(txsResult.value);
-      }
-      if (remindersResult.status === "fulfilled") {
-        setIncomeReminders(remindersResult.value);
-      }
-      if (trendResult.status === "fulfilled") {
-        setTrendPoints(
-          trendResult.value.map((point) => ({
-            period: point.period_start,
-            closing: Number(point.net_worth),
-          }))
-        );
-      }
-      if (manualUnmappedResult.status === "fulfilled") {
-        setManualUnmappedCount(manualUnmappedResult.value.length);
       }
       if (settingsResult.status === "fulfilled") {
         setAutoSweepEnabled(settingsResult.value.auto_sweep_enabled);
       } else {
         setAutoSweepEnabled(null);
       }
-      if (onboardingResult.status === "fulfilled") {
-        setLatestOnboardingRecord(onboardingResult.value[0] ?? null);
-      } else {
-        setLatestOnboardingRecord(null);
-      }
+
+      deferredLoadTimerRef.current = window.setTimeout(() => {
+        void Promise.allSettled([
+          apiFetch<CategoryEnvelopeMapOut[]>("/mappings"),
+          apiFetch<IncomeReminderOut[]>("/income-reminders"),
+          apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
+          apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
+          apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
+        ]).then((results) => {
+          if (loadSequenceRef.current !== loadSequence) return;
+
+          const mappingsResult = results[0];
+          const remindersResult = results[1];
+          const trendResult = results[2];
+          const manualUnmappedResult = results[3];
+          const onboardingResult = results[4];
+
+          if (mappingsResult.status === "fulfilled") {
+            const mappingMap = mappingsResult.value.reduce<Record<string, string>>(
+              (acc, item) => ({
+                ...acc,
+                [item.category_id]: item.envelope_id,
+              }),
+              {}
+            );
+            setMappings(mappingMap);
+          }
+          if (remindersResult.status === "fulfilled") {
+            setIncomeReminders(remindersResult.value);
+          }
+          if (trendResult.status === "fulfilled") {
+            setTrendPoints(
+              trendResult.value.map((point) => ({
+                period: point.period_start,
+                closing: Number(point.net_worth),
+              }))
+            );
+          }
+          if (manualUnmappedResult.status === "fulfilled") {
+            setManualUnmappedCount(manualUnmappedResult.value.length);
+          }
+          if (onboardingResult.status === "fulfilled") {
+            setLatestOnboardingRecord(onboardingResult.value[0] ?? null);
+          } else {
+            setLatestOnboardingRecord(null);
+          }
+        });
+      }, 250);
 
       try {
         const availableAmount = Number(dash.available_to_allocate ?? 0);
@@ -1496,7 +1517,7 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [periodQuery, copy.unknownError]);
+  }, [periodQuery, transactionsQuery, copy.unknownError]);
 
   const handleApplyPeriod = () => {
     const nextRange = computedPeriodRange;
@@ -1517,6 +1538,14 @@ function DashboardContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    return () => {
+      if (deferredLoadTimerRef.current) {
+        window.clearTimeout(deferredLoadTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setMounted(true);

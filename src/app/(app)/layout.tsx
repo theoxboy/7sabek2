@@ -665,6 +665,7 @@ function AppLayoutContent({
   const isRegulation = pathname?.startsWith("/regulation");
   const isGamification = pathname === "/gamification";
   const isGoals = pathname?.startsWith("/goals") ?? false;
+  const isDashboard = pathname?.startsWith("/dashboard") ?? false;
   const rawDisplayName =
     user
       ? [user.first_name, user.last_name].filter(Boolean).join(" ") ||
@@ -920,13 +921,16 @@ function AppLayoutContent({
         const [alertsResult] = await Promise.allSettled([
           apiFetch<DashboardAlertOut>("/dashboard/alerts"),
         ]);
-        const [remindersResult, recordsResult, txsResult, catsResult] =
-          await Promise.allSettled([
-            apiFetch<IncomeReminderOut[]>("/income-reminders"),
-            apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
-            apiFetch<TransactionOut[]>("/transactions"),
-            apiFetch<CategoryOut[]>("/categories"),
-          ]);
+        if (isDashboard) {
+          return;
+        }
+
+        const [remindersResult, recordsResult, txsResult, catsResult] = await Promise.allSettled([
+          apiFetch<IncomeReminderOut[]>("/income-reminders"),
+          apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
+          apiFetch<TransactionOut[]>("/transactions?limit=25"),
+          apiFetch<CategoryOut[]>("/categories"),
+        ]);
         if (cancelled) return;
 
         if (alertsResult.status === "fulfilled") {
@@ -1009,7 +1013,7 @@ function AppLayoutContent({
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener(APP_DATA_UPDATED_EVENT, handleDataUpdated);
     };
-  }, [user, pathname, isOnboarding, betaAuthorized]);
+  }, [user, pathname, isOnboarding, betaAuthorized, isDashboard]);
 
   const effectiveUnmappedCategoriesCount = useMemo(() => {
     return dashboardAlerts?.unmapped_categories ?? 0;
@@ -1694,11 +1698,16 @@ function AppLayoutContent({
       : referrer.startsWith(origin)
       ? "internal"
       : "referral";
-    apiFetch("/analytics/pageviews", {
-      method: "POST",
-      body: { path: pathname, referrer, source },
-    }).catch(() => null);
+    const timerId = window.setTimeout(() => {
+      apiFetch("/analytics/pageviews", {
+        method: "POST",
+        body: { path: pathname, referrer, source },
+      }).catch(() => null);
+    }, 1500);
     lastPathRef.current = pathname;
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [pathname, user]);
 
   const handleLogout = () => {

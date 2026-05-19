@@ -37,10 +37,24 @@ type ApiFetchOptions = {
 let authRedirectInProgress = false;
 let authRefreshInFlight: Promise<boolean> | null = null;
 let sessionUnauthorized = false;
+const GET_DEDUPE_TTL_MS = 4_000;
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
+const recentGetResponses = new Map<string, { expiresAt: number; value: unknown }>();
+
+function clearGetRequestState() {
+  inFlightGetRequests.clear();
+  recentGetResponses.clear();
+}
 
 export function resetAuthClientState(): void {
   sessionUnauthorized = false;
   authRedirectInProgress = false;
+  clearGetRequestState();
+}
+
+function buildGetRequestKey(url: string, headers: Headers): string {
+  const actAs = headers.get("x-user-id")?.trim() ?? "";
+  return `GET ${url}::actAs=${actAs}`;
 }
 
 async function tryRefreshSession(): Promise<boolean> {
@@ -175,84 +189,128 @@ export async function apiFetch<T>(
       headers.set("x-user-id", actAs);
     }
   }
+  const url = `${API_BASE}${path}`;
+  const isGetRequest = method === "GET";
+  const shouldDedupeGet = isGetRequest;
+  const shouldCacheGet = isGetRequest && !path.startsWith("/auth");
+  const getRequestKey = shouldDedupeGet ? buildGetRequestKey(url, headers) : null;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      credentials: "include",
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        `Network timeout while calling ${path}. API unreachable at ${API_BASE}.`
-      );
-    }
-    throw new Error(`Network error while calling ${path}. API unreachable at ${API_BASE}.`);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (!response.ok) {
-    if (response.status === 401 && isProtectedAuthCall && typeof window !== "undefined") {
-      if (retryAuth && !isAuthRefresh) {
-        const refreshed = await tryRefreshSession();
-        if (refreshed) {
-          sessionUnauthorized = false;
-          return apiFetch<T>(path, { ...options, retryAuth: false });
+  if (shouldDedupeGet && getRequestKey) {
+    const now = Date.now();
+    if (shouldCacheGet) {
+      const cached = recentGetResponses.get(getRequestKey);
+      if (cached) {
+        if (cached.expiresAt > now) {
+          return cached.value as T;
         }
-      }
-
-      // Only lock the session after refresh has failed or is not allowed.
-      // This avoids false logouts when several protected requests race and one
-      // of them briefly receives a 401 while the session is still recoverable.
-      sessionUnauthorized = true;
-
-      if (!suppressAuthRedirect) {
-        if (window.location.pathname !== "/login" && !authRedirectInProgress) {
-          authRedirectInProgress = true;
-          window.location.href = "/login";
-        }
+        recentGetResponses.delete(getRequestKey);
       }
     }
-    const errorText = await response.text().catch(() => "");
-    const message = extractErrorMessage(errorText);
-    throw new Error(message || "Request failed");
+    const inFlight = inFlightGetRequests.get(getRequestKey);
+    if (inFlight) {
+      return inFlight as Promise<T>;
+    }
   }
 
-  if (response.status === 204) {
+  const executeRequest = async (): Promise<T> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        credentials: "include",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error(
+          `Network timeout while calling ${path}. API unreachable at ${API_BASE}.`
+        );
+      }
+      throw new Error(`Network error while calling ${path}. API unreachable at ${API_BASE}.`);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      if (response.status === 401 && isProtectedAuthCall && typeof window !== "undefined") {
+        if (retryAuth && !isAuthRefresh) {
+          const refreshed = await tryRefreshSession();
+          if (refreshed) {
+            sessionUnauthorized = false;
+            return apiFetch<T>(path, { ...options, retryAuth: false });
+          }
+        }
+
+        // Only lock the session after refresh has failed or is not allowed.
+        // This avoids false logouts when several protected requests race and one
+        // of them briefly receives a 401 while the session is still recoverable.
+        sessionUnauthorized = true;
+
+        if (!suppressAuthRedirect) {
+          if (window.location.pathname !== "/login" && !authRedirectInProgress) {
+            authRedirectInProgress = true;
+            window.location.href = "/login";
+          }
+        }
+      }
+      const errorText = await response.text().catch(() => "");
+      const message = extractErrorMessage(errorText);
+      throw new Error(message || "Request failed");
+    }
+
+    if (response.status === 204) {
+      if (isSessionEstablishingAuthCall) {
+        sessionUnauthorized = false;
+      }
+      return undefined as T;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const parsed = await safeJson<T>(response);
+      if (isSessionEstablishingAuthCall) {
+        sessionUnauthorized = false;
+      }
+      return (parsed ?? (undefined as T));
+    }
+
+    const text = await response.text().catch(() => "");
+    if (!text.trim()) {
+      if (isSessionEstablishingAuthCall) {
+        sessionUnauthorized = false;
+      }
+      return undefined as T;
+    }
     if (isSessionEstablishingAuthCall) {
       sessionUnauthorized = false;
     }
-    return undefined as T;
+    return text as T;
+  };
+
+  if (shouldDedupeGet && getRequestKey) {
+    const requestPromise = executeRequest()
+      .then((result) => {
+        if (shouldCacheGet) {
+          recentGetResponses.set(getRequestKey, {
+            expiresAt: Date.now() + GET_DEDUPE_TTL_MS,
+            value: result,
+          });
+        }
+        return result;
+      })
+      .finally(() => {
+        inFlightGetRequests.delete(getRequestKey);
+      });
+    inFlightGetRequests.set(getRequestKey, requestPromise);
+    return requestPromise as Promise<T>;
   }
 
-  const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) {
-    const parsed = await safeJson<T>(response);
-    if (isSessionEstablishingAuthCall) {
-      sessionUnauthorized = false;
-    }
-    return (parsed ?? (undefined as T));
-  }
-
-  const text = await response.text().catch(() => "");
-  if (!text.trim()) {
-    if (isSessionEstablishingAuthCall) {
-      sessionUnauthorized = false;
-    }
-    return undefined as T;
-  }
-  if (isSessionEstablishingAuthCall) {
-    sessionUnauthorized = false;
-  }
-  return text as T;
+  return executeRequest();
 }
