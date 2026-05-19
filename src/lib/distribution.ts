@@ -93,6 +93,8 @@ export type DistributionOnboardingStatus = {
   scoped_target_keys?: string[];
   scoped_target_names?: string[];
   ignored_non_target_names?: string[];
+  missing_current_target_names?: string[];
+  unresolved_current_target_names?: string[];
   source: "active_config" | "legacy_rules" | "none";
   active_config?: DistributionSavedConfig | null;
   message: string;
@@ -217,6 +219,7 @@ export async function revertDistributionOnboardingBaseline(
 export async function getDistributionOnboardingStatus(payload: {
   eligible_envelope_names: string[];
   eligible_envelope_ids?: string[];
+  eligible_envelope_keys?: string[];
   scope_hash?: string;
 }): Promise<DistributionOnboardingStatus> {
   return apiFetch<DistributionOnboardingStatus>("/distribution/onboarding-status", {

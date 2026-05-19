@@ -76,6 +76,7 @@ import {
   openLanguagePicker,
 } from "@/components/i18n/LanguagePreferenceGate";
 import { writeGlobalToursDisabled } from "@/lib/tourFlags";
+import { getAppVersionLabel } from "@/lib/app-version";
 
 const NOTIFICATION_STORAGE_PREFIX = "floussy.notifications.read";
 const NOTIFICATION_DISMISS_STORAGE_PREFIX = "floussy.notifications.dismissed";
@@ -386,6 +387,7 @@ function UserSummaryCard({
   idleLabel,
   logoutLabel,
   onLogout,
+  versionLabel,
   className = "",
 }: {
   initials: string;
@@ -394,6 +396,7 @@ function UserSummaryCard({
   idleLabel: string;
   logoutLabel: string;
   onLogout: () => void;
+  versionLabel: string;
   className?: string;
 }) {
   return (
@@ -417,6 +420,7 @@ function UserSummaryCard({
       >
         {logoutLabel}
       </Button>
+      <p className="mt-3 text-center text-[11px] text-slate-300">7sabek {versionLabel}</p>
     </div>
   );
 }
@@ -686,6 +690,7 @@ function AppLayoutContent({
     .slice(0, 2)
     .join("");
   const shellCopy = APP_SHELL_COPY[locale];
+  const appVersionLabel = getAppVersionLabel();
   const modalCopy = APP_MODAL_COPY[locale];
   const pageDir = getLocaleDirection(locale);
   useForceArabicDocumentFont(locale === "ar", "app-shell-ar-body");
@@ -2126,6 +2131,7 @@ function AppLayoutContent({
                   idleLabel="—"
                   logoutLabel={shellCopy.logout}
                   onLogout={handleLogout}
+                  versionLabel={appVersionLabel}
                   className="mx-4 mt-auto mb-4"
                 />
               </div>
@@ -2433,6 +2439,7 @@ function AppLayoutContent({
                 idleLabel="—"
                 logoutLabel={shellCopy.logout}
                 onLogout={handleLogout}
+                versionLabel={appVersionLabel}
                 className="mx-4 mt-auto mb-4"
               />
             </div>

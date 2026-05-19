@@ -12,6 +12,7 @@ import { fetchMe, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth"
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
+import { getAppVersionLabel } from "@/lib/app-version";
 import BrandLogo from "@/components/BrandLogo";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { Button } from "@/components/ui/Button";
@@ -199,6 +200,7 @@ const LOGIN_COPY = {
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
 export default function LoginPage() {
+  const appVersionLabel = getAppVersionLabel();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const inputClass =
@@ -845,6 +847,7 @@ export default function LoginPage() {
               </div>
             </motion.div>
           )}
+          <p className="pt-1 text-center text-xs text-gray-400">7sabek {appVersionLabel}</p>
           </Card>
         </div>
       </motion.div>

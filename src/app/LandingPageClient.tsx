@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, EyeOff, Globe, ShieldC
 import { Cairo, Manrope } from "next/font/google";
 
 import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
+import { getAppVersionLabel } from "@/lib/app-version";
 import BrandLogo from "@/components/BrandLogo";
 import { getBrowserLocalePreference, getLocaleBadgeLabel, openLanguagePicker } from "@/components/i18n/LanguagePreferenceGate";
 import { getLocaleDirection, isSupportedLocale, type FloussyLocale } from "@/lib/localePreference";
@@ -247,6 +248,7 @@ type LandingPageClientProps = {
 };
 
 export default function LandingPageClient({ initialLocale }: LandingPageClientProps) {
+  const appVersionLabel = getAppVersionLabel();
   const reduceMotion = useReducedMotion();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -524,7 +526,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         <div className="mb-3 flex justify-center">
           <BrandLogo locale={effectiveLocale} className="h-16 w-auto" />
         </div>
-        {copy.footer}
+        {`© 2026 7sabek · ${appVersionLabel}`}
       </footer>
       {isArabic ? (
         <style jsx global>{`

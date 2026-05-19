@@ -4712,6 +4712,19 @@ function localizeProposalEnvelopeNameForUi(name: string): string {
   return name;
 }
 
+function isExcludedMoronaTargetKey(key: string): boolean {
+  return (
+    key === "flexibility" ||
+    key === "housing_charges" ||
+    key === "rent" ||
+    key === "bills" ||
+    key === "debts" ||
+    key === "goals" ||
+    key === "emergency_buffer" ||
+    key === "balance_buffer"
+  );
+}
+
 function getProposalDomainIcon(groupKey: EnvelopeProposalDomain) {
   switch (groupKey) {
     case "essentials":
@@ -11670,6 +11683,7 @@ export function BetaOnboardingV2PageContent({
           const slug = slugify(normalized);
           return normalized !== "المرونة" && slug !== "flexibilite" && slug !== "flexibility" && slug !== "flex";
         })
+        .filter((item) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(item.final_name)))
         .map((item) => item.final_name.trim())
         .filter(Boolean)
     );
@@ -11944,8 +11958,8 @@ export function BetaOnboardingV2PageContent({
   const distributionTargetItems = useMemo<DistributionSetupItem[]>(
     () =>
       distributionEffectiveEligibleEnvelopeNames.map((name) => ({
-        id: normalizeProposalName(name) || name,
-        name,
+        id: getDistributionNameEquivalentKey(name) || normalizeProposalName(name) || name,
+        name: getEnvelopeLabelForUi(name),
         kind: "distribution_target",
       })),
     [distributionEffectiveEligibleEnvelopeNames]
@@ -15187,9 +15201,17 @@ export function BetaOnboardingV2PageContent({
             .filter((id): id is string => typeof id === "string" && id.length > 0);
           const dedupedEligibleNames = Array.from(new Set(effectiveEligibleNames));
           const dedupedEligibleIds = Array.from(new Set(effectiveEligibleIds));
+          const dedupedEligibleKeys = Array.from(
+            new Set(
+              dedupedEligibleNames
+                .map((name) => getDistributionNameEquivalentKey(name))
+                .filter((key) => key && !isExcludedMoronaTargetKey(key))
+            )
+          );
           const status = await getDistributionOnboardingStatus({
             eligible_envelope_names: dedupedEligibleNames,
             eligible_envelope_ids: dedupedEligibleIds,
+            eligible_envelope_keys: dedupedEligibleKeys,
             scope_hash: computeDistributionScopeHash(),
           });
           if (
@@ -15207,6 +15229,7 @@ export function BetaOnboardingV2PageContent({
               payload: {
                 eligible_envelope_names: dedupedEligibleNames,
                 eligible_envelope_ids: dedupedEligibleIds,
+                eligible_envelope_keys: dedupedEligibleKeys,
                 scope_hash: computeDistributionScopeHash(),
               },
               rawResponse: status,
@@ -16537,17 +16560,34 @@ export function BetaOnboardingV2PageContent({
       getPriorityProfileSelectedPresetMode(answers) ?? getPriorityProfileRecommendedMode(answers);
     const bridgedObjectives =
       objectiveValues.length > 0 ? objectiveValues : getObjectiveValuesForPriorityMode(modeFromProfile);
+    const lockGuidanceSnapshot = getGuidanceDirectionSnapshot(answers);
     const canonicalEnvelopeSelections = (proposalPreview?.selected_envelopes ?? [])
       .filter((item: EnvelopeProposalResolved) => !isSystemProposalName(item.name))
       .map((item: EnvelopeProposalResolved) => ({
         name: item.name,
         final_name: item.final_name,
+        display_label: getEnvelopeLabelForUi(item.final_name),
         group_key: item.group_key,
         final_rollover_enabled: item.final_rollover_enabled,
         custom_category: item.custom_category ?? null,
         custom_amount: item.custom_amount ?? null,
         source: item.source,
+        lock_reason: resolveProposalLockReason(item, answers, lockGuidanceSnapshot),
+        canonical_key: getDistributionNameEquivalentKey(item.final_name),
+        source_id: item.id,
       }));
+    const currentMoronaTargetsSnapshot = distributionEffectiveEligibleEnvelopeNames.map((name) => {
+      const key = getDistributionNameEquivalentKey(name);
+      return {
+        name,
+        final_name: name,
+        display_label: getEnvelopeLabelForUi(name),
+        canonical_key: key,
+        group_key:
+          canonicalEnvelopeSelections.find((item) => item.final_name === name)?.group_key ?? "lifestyle",
+        is_target: !isExcludedMoronaTargetKey(key),
+      };
+    });
     const customEnvelopeNames = uniqueBySlug(
       proposalCustomEnvelopes.map((item: CustomProposalEnvelopeDraft) => item.name)
     ).join(", ");
@@ -16555,6 +16595,7 @@ export function BetaOnboardingV2PageContent({
       ...answers,
       C1_custom_envelopes: customEnvelopeNames,
       E11_selected_envelopes_v1: canonicalEnvelopeSelections,
+      E11b_distribution_scope_v1: currentMoronaTargetsSnapshot,
       E11b_distribution_setup: "",
     };
     nextAnswers = setCompatOnboardingAnswerList(
