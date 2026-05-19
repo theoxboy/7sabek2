@@ -1522,6 +1522,18 @@ function resolveOnboardingRecordStage(
   );
 }
 
+function buildOnboardingSaveKey(
+  answers: Answers,
+  draftObjects: Record<string, unknown>,
+  stage: OnboardingRecordStage
+): string {
+  return JSON.stringify({
+    a: answers,
+    d: draftObjects,
+    s: stage,
+  });
+}
+
 function hasSavedMoneyPlanOverlayState(progress: OnboardingProgressSnapshot | null): boolean {
   return progress?.journey_mode === "money_plan" && hasCompatSavedMoneyPlanOverlayState(progress);
 }
@@ -11442,6 +11454,8 @@ export function BetaOnboardingV2PageContent({
   const onboardingRecordSavedKeyRef = useRef<string | null>(null);
   const onboardingRecordInFlightRef = useRef(false);
   const queuedOnboardingSaveRequestRef = useRef<QueuedOnboardingSaveRequest | null>(null);
+  const distributionStatusRefreshInFlightRef = useRef<Promise<DistributionOnboardingStatus | null> | null>(null);
+  const distributionStatusLastRequestKeyRef = useRef<string | null>(null);
   const sweepAmountUserEditedRef = useRef(false);
   const sweepDateUserEditedRef = useRef(false);
   const sweepAutoFilledAmountRef = useRef<string | null>(null);
@@ -14878,6 +14892,17 @@ export function BetaOnboardingV2PageContent({
           restoredAnswers,
           latest?.stage ?? null
         );
+        if (
+          latest?.stage === "completed" ||
+          latest?.stage === "review" ||
+          latest?.stage === "in_progress"
+        ) {
+          onboardingRecordSavedKeyRef.current = buildOnboardingSaveKey(
+            restoredAnswers,
+            restoredDraftObjects,
+            latest.stage
+          );
+        }
 
         if (Object.keys(restoredAnswers).length > 0) {
           setAnswers((prev) => ({ ...prev, ...restoredAnswers }));
@@ -15079,44 +15104,79 @@ export function BetaOnboardingV2PageContent({
     return currentDistributionScopeHash;
   }, [currentDistributionScopeHash]);
 
-  const refreshDistributionStatus = useCallback(async (idsByNameOverride?: Record<string, string> | null) => {
-    try {
-      const effectiveIdsByName = idsByNameOverride ?? distributionEnvelopeIdsByName;
-      const effectiveEligibleIds = distributionEligibleEnvelopeNames
-        .map((name) => effectiveIdsByName[getDistributionNameEquivalentKey(name)])
-        .filter((id): id is string => typeof id === "string" && id.length > 0);
-      const status = await getDistributionOnboardingStatus({
-        eligible_envelope_names: distributionEligibleEnvelopeNames,
-        eligible_envelope_ids: effectiveEligibleIds,
-        scope_hash: computeDistributionScopeHash(),
+  const refreshDistributionStatus = useCallback(
+    async (
+      idsByNameOverride?: Record<string, string> | null,
+      options?: { force?: boolean }
+    ) => {
+      const force = options?.force === true;
+      const effectiveEligibleNames = distributionEffectiveEligibleEnvelopeNames;
+      const requestKey = JSON.stringify({
+        eligible: [...effectiveEligibleNames].sort((a, b) => a.localeCompare(b, "fr")),
+        scopeHash: computeDistributionScopeHash(),
       });
-      setDistributionOnboardingStatus(status);
-      const isValid =
-        status.setup_status === "saved_valid" ||
-        status.setup_status === "applied" ||
-        status.setup_status === "legacy_rules_detected";
-      setAnswers((prev) => {
-        if (isValid) {
-          if (getString(prev, "E11b_distribution_setup") === "done") return prev;
-          return { ...prev, E11b_distribution_setup: "done" };
+
+      if (!force && distributionStatusLastRequestKeyRef.current === requestKey) {
+        return distributionOnboardingStatus;
+      }
+
+      if (!force && distributionStatusRefreshInFlightRef.current) {
+        return distributionStatusRefreshInFlightRef.current;
+      }
+
+      const requestPromise = (async () => {
+        try {
+          const effectiveIdsByName = idsByNameOverride ?? distributionEnvelopeIdsByName;
+          const effectiveEligibleIds = effectiveEligibleNames
+            .map((name) => effectiveIdsByName[getDistributionNameEquivalentKey(name)])
+            .filter((id): id is string => typeof id === "string" && id.length > 0);
+          const status = await getDistributionOnboardingStatus({
+            eligible_envelope_names: effectiveEligibleNames,
+            eligible_envelope_ids: effectiveEligibleIds,
+            scope_hash: computeDistributionScopeHash(),
+          });
+          distributionStatusLastRequestKeyRef.current = requestKey;
+          setDistributionOnboardingStatus(status);
+          const isValid =
+            status.setup_status === "saved_valid" ||
+            status.setup_status === "applied" ||
+            status.setup_status === "legacy_rules_detected";
+          setAnswers((prev) => {
+            if (isValid) {
+              if (getString(prev, "E11b_distribution_setup") === "done") return prev;
+              return { ...prev, E11b_distribution_setup: "done" };
+            }
+            if (!prev.E11b_distribution_setup) return prev;
+            const next = { ...prev };
+            delete next.E11b_distribution_setup;
+            return next;
+          });
+          setFieldErrors((prev) => {
+            if (!prev.E11b_distribution_setup || !isValid) return prev;
+            const next = { ...prev };
+            delete next.E11b_distribution_setup;
+            return next;
+          });
+          return status;
+        } catch {
+          distributionStatusLastRequestKeyRef.current = null;
+          setDistributionOnboardingStatus(null);
+          return null;
+        } finally {
+          distributionStatusRefreshInFlightRef.current = null;
         }
-        if (!prev.E11b_distribution_setup) return prev;
-        const next = { ...prev };
-        delete next.E11b_distribution_setup;
-        return next;
-      });
-      setFieldErrors((prev) => {
-        if (!prev.E11b_distribution_setup || !isValid) return prev;
-        const next = { ...prev };
-        delete next.E11b_distribution_setup;
-        return next;
-      });
-      return status;
-    } catch {
-      setDistributionOnboardingStatus(null);
-      return null;
-    }
-  }, [computeDistributionScopeHash, distributionEligibleEnvelopeNames, distributionEnvelopeIdsByName]);
+      })();
+
+      distributionStatusRefreshInFlightRef.current = requestPromise;
+      return requestPromise;
+    },
+    [
+      computeDistributionScopeHash,
+      distributionEffectiveEligibleEnvelopeNames,
+      distributionEnvelopeIdsByName,
+      distributionOnboardingStatus,
+    ]
+  );
 
   useEffect(() => {
     void refreshSavedDistributionConfigs();
@@ -15143,7 +15203,7 @@ export function BetaOnboardingV2PageContent({
         const active = await activateDistributionConfig(id);
         setActiveDistributionConfigId(active.id);
         await refreshSavedDistributionConfigs();
-        await refreshDistributionStatus();
+        await refreshDistributionStatus(undefined, { force: true });
       } catch (error) {
         setUiError(
           error instanceof Error
@@ -15184,7 +15244,7 @@ export function BetaOnboardingV2PageContent({
         distributionConfigAliasRef.current[config.id] = saved.id;
         try {
           await refreshSavedDistributionConfigs();
-          await refreshDistributionStatus();
+          await refreshDistributionStatus(undefined, { force: true });
         } catch {
           // The save is already persisted; UI refresh can recover on next reload/open.
         }
@@ -15210,7 +15270,7 @@ export function BetaOnboardingV2PageContent({
         setDeletingDistributionConfigId(configId);
         await deleteDistributionConfig(configId);
         await refreshSavedDistributionConfigs();
-        await refreshDistributionStatus();
+        await refreshDistributionStatus(undefined, { force: true });
       } catch (error) {
         setUiError(
           error instanceof Error
@@ -15240,7 +15300,7 @@ export function BetaOnboardingV2PageContent({
           });
         }
         const refreshedDirectory = await refreshDistributionEnvelopeDirectory();
-        await refreshDistributionStatus(refreshedDirectory);
+        await refreshDistributionStatus(refreshedDirectory, { force: true });
       }
 
       setDistributionDialogInitialConfig(null);
@@ -16447,7 +16507,7 @@ export function BetaOnboardingV2PageContent({
       return;
     }
 
-    const latestStatus = await refreshDistributionStatus();
+    const latestStatus = await refreshDistributionStatus(undefined, { force: true });
     const latestStatusCode = latestStatus?.setup_status;
     const isFreshValid =
       latestStatusCode === "saved_valid" ||
@@ -16909,11 +16969,11 @@ export function BetaOnboardingV2PageContent({
         return;
       }
       const stage = resolveOnboardingRecordStage(snapshot, stageOverride);
-      const saveKey = JSON.stringify({
-        a: snapshot.answers,
-        d: snapshot.draftObjects,
-        s: stage,
-      });
+      const saveKey = buildOnboardingSaveKey(
+        snapshot.answers,
+        snapshot.draftObjects,
+        stage
+      );
       if (!force && onboardingRecordSavedKeyRef.current === saveKey) return;
       onboardingRecordInFlightRef.current = true;
       setOnboardingRecordStatus("saving");
@@ -17084,7 +17144,7 @@ export function BetaOnboardingV2PageContent({
     }
     try {
       await persistOnboardingRecord(true);
-      const latestDistributionStatus = await refreshDistributionStatus();
+      const latestDistributionStatus = await refreshDistributionStatus(undefined, { force: true });
       const distributionReady =
         latestDistributionStatus?.setup_status === "saved_valid" ||
         latestDistributionStatus?.setup_status === "applied" ||
