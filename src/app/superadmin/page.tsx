@@ -620,7 +620,7 @@ export default function SuperAdminPage() {
 
   const handleActAs = () => {
     if (!selectedUserId || typeof window === "undefined") return;
-    window.localStorage.setItem("floussy.superadmin.act_as", selectedUserId);
+    window.sessionStorage.setItem("floussy.superadmin.act_as", selectedUserId);
     router.push("/dashboard");
   };
 

@@ -755,7 +755,7 @@ function AppLayoutContent({
         if (me.role === "superadmin") {
           const actAs =
             typeof window !== "undefined"
-              ? window.localStorage.getItem("floussy.superadmin.act_as")
+              ? window.sessionStorage.getItem("floussy.superadmin.act_as")
               : null;
           if (!actAs) {
             router.push("/superadmin");
@@ -1037,7 +1037,7 @@ function AppLayoutContent({
     setMobileNavOpen(false);
     if (typeof window !== "undefined") {
       document.documentElement.classList.remove("tour-mobile-nav-open");
-      setActAsId(window.localStorage.getItem("floussy.superadmin.act_as"));
+      setActAsId(window.sessionStorage.getItem("floussy.superadmin.act_as"));
     }
   }, [pathname]);
 
@@ -2148,7 +2148,7 @@ function AppLayoutContent({
                     size="sm"
                     onClick={() => {
                       if (typeof window !== "undefined") {
-                        window.localStorage.removeItem("floussy.superadmin.act_as");
+                        window.sessionStorage.removeItem("floussy.superadmin.act_as");
                       }
                       setActAsId(null);
                       router.refresh();
