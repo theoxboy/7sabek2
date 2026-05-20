@@ -20,6 +20,15 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 
+declare global {
+  interface Window {
+    grecaptcha?: {
+      ready: (cb: () => void) => void;
+      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+    };
+  }
+}
+
 const displayFont = Fraunces({ subsets: ["latin"], weight: ["600", "700"] });
 const bodyFont = Manrope({ subsets: ["latin"], weight: ["400", "500", "600"] });
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700"] });
@@ -221,6 +230,11 @@ const REGISTER_COPY = {
     validEmail: "Merci d’entrer un email valide.",
     passwordsMismatch: "Les mots de passe ne correspondent pas.",
     captchaIncorrect: "Code de vérification incorrect.",
+    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو التسجيل.",
+    recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
+    recaptchaMissingConfig: "Configuration reCAPTCHA manquante. Ajoute NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
+    recaptchaDevBypass: "Mode dev: NEXT_PUBLIC_RECAPTCHA_SITE_KEY manquant, reCAPTCHA bypassé localement.",
+    recaptchaChecking: "Vérification anti-spam automatique activée.",
     completeInfo: "Merci de compléter toutes les informations.",
     phoneTooShort: "Le numéro de téléphone est trop court.",
     invalidBirthDate: "La date de naissance est invalide.",
@@ -305,6 +319,11 @@ const REGISTER_COPY = {
     validEmail: "Please enter a valid email.",
     passwordsMismatch: "Passwords do not match.",
     captchaIncorrect: "Verification code is incorrect.",
+    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو التسجيل.",
+    recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
+    recaptchaMissingConfig: "Missing reCAPTCHA configuration. Add NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
+    recaptchaDevBypass: "Dev mode: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is missing, reCAPTCHA is bypassed locally.",
+    recaptchaChecking: "Automatic anti-spam protection is enabled.",
     completeInfo: "Please complete all information.",
     phoneTooShort: "Phone number is too short.",
     invalidBirthDate: "Birth date is invalid.",
@@ -389,11 +408,16 @@ const REGISTER_COPY = {
     validEmail: "دخل إيميل صحيح.",
     passwordsMismatch: "كلمات السر ما متطابقينش.",
     captchaIncorrect: "كود التحقق ماشي صحيح.",
+    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو التسجيل.",
+    recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
+    recaptchaMissingConfig: "إعداد reCAPTCHA ناقص. زيد NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
+    recaptchaDevBypass: "وضع التطوير: NEXT_PUBLIC_RECAPTCHA_SITE_KEY ناقص وتم تجاوز reCAPTCHA محلياً.",
+    recaptchaChecking: "التحقق التلقائي ضد السبام مفعل.",
     completeInfo: "كمل جميع المعلومات.",
     phoneTooShort: "رقم الهاتف قصير بزاف.",
     invalidBirthDate: "تاريخ الازدياد ما صالحش.",
     minAge: "خاص يكون العمر على الأقل 13 عام.",
-    chooseCountryCity: "اختار البلاد والمدينة.",
+    chooseCountryCity: "اختار البلد والمدينة.",
     validCity: "اختار مدينة صالحة لهاد البلاد.",
     currencyUnavailable: "العملة الأوتوماتيكية ما متوفراش لهاد البلاد.",
     tooManyAttempts: "كاين بزاف ديال المحاولات. عاود من بعد.",
@@ -405,18 +429,18 @@ const REGISTER_COPY = {
     passwordRuleLetter: "على الأقل 1 حرف",
     passwordRuleDigit: "على الأقل 1 رقم",
     passwordRuleNotCompromised: "كلمة سر غير متسربة",
-    mfaRequired: "تفعيل MFA (التحقق الثنائي) إجباري باش يتصاوب الحساب.",
-    mfaConsentLabel: "موافق نفعّل MFA (التحقق بخطوتين) باش نأمّن الحساب ديالي.",
-    createAccountFailed: "ما قدرناش نصاوبو الحساب. عاود حاول.",
-    onboardingRequired: "خاصك تكمل onboarding v2 قبل إنشاء الحساب.",
+    mfaRequired: "الموافقة على حماية إضافية للحساب ضرورية باش يتصاوب الحساب.",
+    mfaConsentLabel: "باش نحمي الحساب ديالك، نقدر نطلبو تحقق إضافي فبعض الحالات.",
+    createAccountFailed: "ما قدرناش نصاوبو الحساب دابا. عاود المحاولة.",
+    onboardingRequired: "خاصك تكمل الإعداد قبل إنشاء الحساب.",
     heroPoint1: "بروفايل مخصص حسب الوضعية ديالك.",
     heroPoint2: "أظرفة كيتصاوبو ليك تلقائياً باش تبدا بسرعة.",
     heroPoint3: "بيانات مؤمنة ودعم مخصص.",
-    mobileTitle: "صاوب الفضاء ديال الميزانية",
+    mobileTitle: "صاوب حسابك فـ 7sabek",
     mobileBody: "غير شحال هادي ديال الخطوات باش نخصصو التجربة ديالك.",
-    stepBadge: (step: number) => `التسجيل • المرحلة ${step} من 5`,
+    stepBadge: (step: number) => `خطوة التسجيل • ${step} من 5`,
     createAccount: "صاوب حساب",
-    createAccountSubtitle: "بدا بالمعلومات ديالك ومن بعد كمل بيانات الدخول.",
+    createAccountSubtitle: "بدا بالمعلومات الأساسية، ومن بعد كمل بيانات الدخول.",
     maintenanceSuffix: "التسجيل موقف أثناء الصيانة.",
     alreadyLoggedIn: "راك داير الدخول بهاد الحساب",
     goDashboard: "سير للوحة القيادة",
@@ -431,26 +455,26 @@ const REGISTER_COPY = {
     confirmPassword: "أكد كلمة السر",
     hidePassword: "خبي كلمة السر",
     showPassword: "بيّن كلمة السر",
-    passwordHint: "على الأقل 8 حروف، وفيها 1 حرف و1 رقم. كلمات السر المتسربة مرفوضة.",
-    antiSpam: "تحقق ضد السبام",
-    regenerate: "عاود ولد",
-    captchaPlaceholder: "عاود كتب الكود",
+    passwordHint: "كلمة السر خاصها تكون على الأقل 8 حروف، وفيها حرف ورقم. كلمات السر المتسربة ما مقبولاش.",
+    antiSpam: "التحقق ضد السبام",
+    regenerate: "بدّل كود التحقق",
+    captchaPlaceholder: "عاود كتب كود التحقق",
     support: "إلى محتاج مساعدة تاصل بالدعم.",
-    country: "البلاد",
+    country: "البلد",
     city: "المدينة",
-    selectCity: "اختار المدينة",
-    chooseCountryFirst: "اختار البلاد اللول",
-    onboardingTitle: "كمّل onboarding v2",
+    selectCity: "اختار مدينة",
+    chooseCountryFirst: "اختار البلد أولاً",
+    onboardingTitle: "كمّل الإعداد",
     onboardingBody: "هاد المرحلة كتتحل فصفحة بوحدها. منين تسالي غادي نرجعو لهنا ونكملو التسجيل.",
-    onboardingOpen: "فتح onboarding v2",
-    onboardingDone: "Onboarding v2 سالا. غادي ندوزو للمرحلة الأخيرة.",
-    onboardingWaiting: "منين تسالي onboarding غادي نجيبو المعطيات ديالو لهنا أوتوماتيكياً.",
+    onboardingOpen: "فتح صفحة الإعداد",
+    onboardingDone: "الإعداد سالا. غادي ندوزو للمرحلة الأخيرة.",
+    onboardingWaiting: "منين تسالي الإعداد، المعطيات غادي تجي لهنا تلقائياً.",
     summaryTitle: "الخلاصة قبل إنشاء الحساب",
-    summaryBody: "الحساب غادي يتصاوب بمعلومات البروفايل ديالك ومن بعد record ديال onboarding v2 غادي يتحفظ مباشرة.",
+    summaryBody: "الحساب غادي يتصاوب بمعلومات البروفايل ديالك ومن بعد بيانات الإعداد غادي تتحفظ مباشرة.",
     profileLine: "البروفايل",
     emailLine: "الإيميل",
     countryCityLine: "البلاد / المدينة",
-    onboardingLine: "Onboarding v2",
+    onboardingLine: "الإعداد",
     completed: "مكمل",
     missing: "ناقص",
     defaultEnvelopes: "الأظرفة الافتراضية",
@@ -458,11 +482,11 @@ const REGISTER_COPY = {
     countryLine: "البلاد",
     retryIn: "كاين بزاف ديال المحاولات. عاود ف",
     back: "رجوع",
-    continue: "كمل",
-    createAndStartOnboarding: "صاوب الحساب وبدا onboarding v2",
+    continue: "التالي",
+    createAndStartOnboarding: "صاوب الحساب وبدا الإعداد",
     createFinalAccount: "صاوب الحساب",
     alreadyAccount: "عندك حساب من قبل؟",
-    login: "دخول",
+    login: "دخل لحسابك",
     flagAlt: (name: string) => `علم ${name}`,
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
@@ -505,12 +529,10 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [captchaCode, setCaptchaCode] = useState("");
-  const [captchaInput, setCaptchaInput] = useState("");
+  const [recaptchaScriptReady, setRecaptchaScriptReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFieldActive, setPasswordFieldActive] = useState(false);
-  const [mfaConsent, setMfaConsent] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
 
   const [firstName, setFirstName] = useState("");
@@ -538,6 +560,9 @@ export default function RegisterPage() {
   const headingClass = locale === "ar" ? "register-title" : displayFont.className;
   const copyClass = locale === "ar" ? "register-copy" : "";
   const countryLabels = COUNTRY_LABELS[locale];
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
+  const isDevEnvironment = process.env.NODE_ENV !== "production";
+  const allowRecaptchaBypass = isDevEnvironment && !recaptchaSiteKey;
 
   const formatDuration = (seconds: number) => {
     const total = Math.max(seconds, 0);
@@ -625,11 +650,6 @@ export default function RegisterPage() {
   }, []);
 
   useEffect(() => {
-    const newCode = Math.random().toString(36).slice(2, 7).toUpperCase();
-    setCaptchaCode(newCode);
-  }, []);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
     const listener = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
@@ -657,11 +677,23 @@ export default function RegisterPage() {
     return () => clearInterval(timer);
   }, [retryAfterSeconds]);
 
-  const regenerateCaptcha = () => {
-    const newCode = Math.random().toString(36).slice(2, 7).toUpperCase();
-    setCaptchaCode(newCode);
-    setCaptchaInput("");
-  };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!recaptchaSiteKey || allowRecaptchaBypass) return;
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src^="https://www.google.com/recaptcha/api.js?render="]'
+    );
+    if (existing) {
+      setRecaptchaScriptReady(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(recaptchaSiteKey)}`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setRecaptchaScriptReady(true);
+    document.head.appendChild(script);
+  }, [allowRecaptchaBypass, recaptchaSiteKey]);
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -751,13 +783,12 @@ export default function RegisterPage() {
       setError(copy.compromisedPassword);
       return false;
     }
-    if (!mfaConsent) {
-      setError(copy.mfaRequired);
+    if (!recaptchaSiteKey && !allowRecaptchaBypass) {
+      setError(copy.recaptchaMissingConfig);
       return false;
     }
-    if (!captchaInput.trim() || captchaInput.trim().toUpperCase() !== captchaCode) {
-      setError(copy.captchaIncorrect);
-      regenerateCaptcha();
+    if (!allowRecaptchaBypass && !recaptchaScriptReady) {
+      setError(copy.recaptchaFailed);
       return false;
     }
     setError(null);
@@ -829,6 +860,32 @@ export default function RegisterPage() {
     );
   };
 
+  const generateRecaptchaToken = async (): Promise<string | null> => {
+    if (allowRecaptchaBypass) return null;
+    if (typeof window === "undefined" || !recaptchaSiteKey || !window.grecaptcha) {
+      setError(copy.recaptchaFailed);
+      return null;
+    }
+    try {
+      const token = await new Promise<string>((resolve, reject) => {
+        window.grecaptcha?.ready(() => {
+          window.grecaptcha
+            ?.execute(recaptchaSiteKey, { action: "register" })
+            .then(resolve)
+            .catch(reject);
+        });
+      });
+      if (!token) {
+        setError(copy.recaptchaRequired);
+        return null;
+      }
+      return token;
+    } catch {
+      setError(copy.recaptchaFailed);
+      return null;
+    }
+  };
+
   const handleNext = () => {
     if (step === 1 && !validateProfileStep()) return;
     if (step === 2 && !validateCredentialsStep()) return;
@@ -857,6 +914,10 @@ export default function RegisterPage() {
       setError(copy.currencyUnavailable);
       return;
     }
+    const generatedRecaptchaToken = await generateRecaptchaToken();
+    if (!allowRecaptchaBypass && !generatedRecaptchaToken) {
+      return;
+    }
     persistRegisterOnboardingPrefill();
     setLoading(true);
     setRetryAfterSeconds(null);
@@ -877,8 +938,9 @@ export default function RegisterPage() {
           country: country.trim(),
           city: city.trim(),
           profile_photo_url: profilePhotoUrl,
-          mfa_consent: mfaConsent,
+          mfa_consent: true,
           defer_onboarding_v2: true,
+          recaptcha_token: generatedRecaptchaToken,
         },
       });
       if (typeof window !== "undefined") {
@@ -905,8 +967,14 @@ export default function RegisterPage() {
         setError(message);
       } else if (lower.includes("maintenance")) {
         setError(message);
-      } else if (lower.includes("mfa")) {
-        setError(copy.mfaRequired);
+      } else if (lower.includes("recaptcha_required")) {
+        setError(copy.recaptchaRequired);
+      } else if (message.includes("أكد أنك ماشي روبوت")) {
+        setError(copy.recaptchaRequired);
+      } else if (lower.includes("recaptcha_failed")) {
+        setError(copy.recaptchaFailed);
+      } else if (message.includes("ما قدرناش نتحققو")) {
+        setError(copy.recaptchaFailed);
       } else if (lower.includes("exists") || lower.includes("already")) {
         setError(copy.accountExists);
       } else if (lower.includes("password")) {
@@ -947,6 +1015,10 @@ export default function RegisterPage() {
       setError(copy.currencyUnavailable);
       return;
     }
+    const generatedRecaptchaToken = await generateRecaptchaToken();
+    if (!allowRecaptchaBypass && !generatedRecaptchaToken) {
+      return;
+    }
     setLoading(true);
     setRetryAfterSeconds(null);
     setError(null);
@@ -966,9 +1038,10 @@ export default function RegisterPage() {
           country: country.trim(),
           city: city.trim(),
           profile_photo_url: profilePhotoUrl,
-          mfa_consent: mfaConsent,
+          mfa_consent: true,
           onboarding_v2_answers: registerOnboardingPayload.answers,
           onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects,
+          recaptcha_token: generatedRecaptchaToken,
         },
       });
       if (typeof window !== "undefined") {
@@ -998,10 +1071,16 @@ export default function RegisterPage() {
         setError(message);
       } else if (lower.includes("maintenance")) {
         setError(message);
-      } else if (lower.includes("mfa")) {
-        setError(copy.mfaRequired);
       } else if (lower.includes("onboarding")) {
         setError(copy.onboardingRequired);
+      } else if (lower.includes("recaptcha_required")) {
+        setError(copy.recaptchaRequired);
+      } else if (message.includes("أكد أنك ماشي روبوت")) {
+        setError(copy.recaptchaRequired);
+      } else if (lower.includes("recaptcha_failed")) {
+        setError(copy.recaptchaFailed);
+      } else if (message.includes("ما قدرناش نتحققو")) {
+        setError(copy.recaptchaFailed);
       } else if (lower.includes("exists") || lower.includes("already")) {
         setError(copy.accountExists);
       } else if (lower.includes("password")) {
@@ -1347,15 +1426,6 @@ export default function RegisterPage() {
                         </ul>
                       </div>
                     ) : null}
-                    <label className="mt-2 flex items-start gap-2 text-xs text-gray-600">
-                      <input
-                        type="checkbox"
-                        checked={mfaConsent}
-                        onChange={(event) => setMfaConsent(event.target.checked)}
-                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span>{copy.mfaConsentLabel}</span>
-                    </label>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reg-password-confirm">
@@ -1394,34 +1464,20 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="captcha">{copy.antiSpam}</Label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className="pointer-events-none select-none rounded-full border border-gray-200 bg-[var(--surface)] px-3 py-1 text-xs font-semibold tracking-[0.2em] text-gray-700"
-                        onCopy={(event) => event.preventDefault()}
-                        onMouseDown={(event) => event.preventDefault()}
-                      >
-                        {captchaCode}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="border-gray-200 text-gray-700 hover:border-emerald-500 hover:text-emerald-500"
-                        onClick={regenerateCaptcha}
-                      >
-                        {copy.regenerate}
-                      </Button>
-                    </div>
-                    <Input
-                      id="captcha"
-                      type="text"
-                      required
-                      value={captchaInput}
-                      onChange={(event) => setCaptchaInput(event.target.value)}
-                      placeholder={copy.captchaPlaceholder}
-                      className={inputClass}
-                    />
+                    <Label>{copy.antiSpam}</Label>
+                    {allowRecaptchaBypass ? (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        {copy.recaptchaDevBypass}
+                      </p>
+                    ) : recaptchaSiteKey ? (
+                      <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                        {copy.recaptchaChecking}
+                      </p>
+                    ) : (
+                      <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        {copy.recaptchaMissingConfig}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right text-xs text-gray-500">
                     <a
@@ -1547,6 +1603,22 @@ export default function RegisterPage() {
                         {city ? ` · ${copy.city} : ${city}` : ""}
                       </p>
                     ) : null}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{copy.antiSpam}</Label>
+                    {allowRecaptchaBypass ? (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        {copy.recaptchaDevBypass}
+                      </p>
+                    ) : recaptchaSiteKey ? (
+                      <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                        {copy.recaptchaChecking}
+                      </p>
+                    ) : (
+                      <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        {copy.recaptchaMissingConfig}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
