@@ -562,7 +562,7 @@ export default function RegisterPage() {
   const countryLabels = COUNTRY_LABELS[locale];
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
   const isDevEnvironment = process.env.NODE_ENV !== "production";
-  const allowRecaptchaBypass = isDevEnvironment && !recaptchaSiteKey;
+  const allowRecaptchaBypass = !recaptchaSiteKey;
 
   const formatDuration = (seconds: number) => {
     const total = Math.max(seconds, 0);
@@ -1463,22 +1463,21 @@ export default function RegisterPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>{copy.antiSpam}</Label>
-                    {allowRecaptchaBypass ? (
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        {copy.recaptchaDevBypass}
-                      </p>
-                    ) : recaptchaSiteKey ? (
+                  {recaptchaSiteKey ? (
+                    <div className="space-y-2">
+                      <Label>{copy.antiSpam}</Label>
                       <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                         {copy.recaptchaChecking}
                       </p>
-                    ) : (
-                      <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                        {copy.recaptchaMissingConfig}
+                    </div>
+                  ) : isDevEnvironment ? (
+                    <div className="space-y-2">
+                      <Label>{copy.antiSpam}</Label>
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        {copy.recaptchaDevBypass}
                       </p>
-                    )}
-                  </div>
+                    </div>
+                  ) : null}
                   <div className="text-right text-xs text-gray-500">
                     <a
                       href={`mailto:${supportEmail}`}
@@ -1604,22 +1603,21 @@ export default function RegisterPage() {
                       </p>
                     ) : null}
                   </div>
-                  <div className="space-y-2">
-                    <Label>{copy.antiSpam}</Label>
-                    {allowRecaptchaBypass ? (
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        {copy.recaptchaDevBypass}
-                      </p>
-                    ) : recaptchaSiteKey ? (
+                  {recaptchaSiteKey ? (
+                    <div className="space-y-2">
+                      <Label>{copy.antiSpam}</Label>
                       <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                         {copy.recaptchaChecking}
                       </p>
-                    ) : (
-                      <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                        {copy.recaptchaMissingConfig}
+                    </div>
+                  ) : isDevEnvironment ? (
+                    <div className="space-y-2">
+                      <Label>{copy.antiSpam}</Label>
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        {copy.recaptchaDevBypass}
                       </p>
-                    )}
-                  </div>
+                    </div>
+                  ) : null}
                 </>
               )}
 
