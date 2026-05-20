@@ -680,19 +680,23 @@ export default function RegisterPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!recaptchaSiteKey || allowRecaptchaBypass) return;
+    document.body.classList.add("show-recaptcha-badge");
     const existing = document.querySelector<HTMLScriptElement>(
       'script[src^="https://www.google.com/recaptcha/api.js?render="]'
     );
     if (existing) {
       setRecaptchaScriptReady(true);
-      return;
+    } else {
+      const script = document.createElement("script");
+      script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(recaptchaSiteKey)}`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setRecaptchaScriptReady(true);
+      document.head.appendChild(script);
     }
-    const script = document.createElement("script");
-    script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(recaptchaSiteKey)}`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setRecaptchaScriptReady(true);
-    document.head.appendChild(script);
+    return () => {
+      document.body.classList.remove("show-recaptcha-badge");
+    };
   }, [allowRecaptchaBypass, recaptchaSiteKey]);
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
