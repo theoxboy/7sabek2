@@ -184,7 +184,7 @@ export async function apiFetch<T>(
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (typeof window !== "undefined" && !path.startsWith("/auth")) {
-    const actAs = window.localStorage.getItem("floussy.superadmin.act_as");
+    const actAs = window.sessionStorage.getItem("floussy.superadmin.act_as");
     if (actAs && !headers.has("x-user-id")) {
       headers.set("x-user-id", actAs);
     }
