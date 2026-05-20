@@ -1,6 +1,6 @@
 import packageJson from "../../package.json";
 
-const DEFAULT_VERSION = "0.1.1";
+const DEFAULT_VERSION = "1.1.3";
 
 export const APP_VERSION =
   (process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || DEFAULT_VERSION).trim();
