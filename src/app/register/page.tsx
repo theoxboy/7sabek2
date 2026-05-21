@@ -1512,7 +1512,7 @@ export default function RegisterPage() {
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={`https://flagcdn.com/w40/${item.code}.png`}
+                              src={`/flags/${item.code}.png`}
                               alt={copy.flagAlt(countryLabels[item.name])}
                               className="h-6 w-8 rounded-sm border border-gray-100 object-cover"
                               loading="lazy"
