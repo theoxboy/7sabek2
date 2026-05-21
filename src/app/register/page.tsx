@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
@@ -542,7 +542,8 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaWidgetRef = useRef<number | null>(null);
-  const recaptchaContainerRef = useRef<HTMLDivElement | null>(null);
+  const recaptchaNodeRef = useRef<HTMLDivElement | null>(null);
+  const [recaptchaScriptLoaded, setRecaptchaScriptLoaded] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFieldActive, setPasswordFieldActive] = useState(false);
@@ -693,30 +694,13 @@ export default function RegisterPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!recaptchaSiteKey || allowRecaptchaBypass) return;
-    const renderWidget = () => {
-      if (
-        recaptchaContainerRef.current &&
-        window.grecaptcha &&
-        recaptchaWidgetRef.current === null
-      ) {
-        recaptchaWidgetRef.current = window.grecaptcha.render(
-          recaptchaContainerRef.current,
-          {
-            sitekey: recaptchaSiteKey,
-            callback: (token: string) => setRecaptchaToken(token),
-            "expired-callback": () => setRecaptchaToken(null),
-            "error-callback": () => setRecaptchaToken(null),
-          },
-        );
-      }
-    };
     const existing = document.querySelector<HTMLScriptElement>(
       'script[src^="https://www.google.com/recaptcha/api.js"]'
     );
     if (existing && window.grecaptcha) {
-      renderWidget();
+      setRecaptchaScriptLoaded(true);
     } else if (!existing) {
-      window.onRecaptchaV2Loaded = renderWidget;
+      window.onRecaptchaV2Loaded = () => setRecaptchaScriptLoaded(true);
       const script = document.createElement("script");
       script.src = "https://www.google.com/recaptcha/api.js?onload=onRecaptchaV2Loaded&render=explicit";
       script.async = true;
@@ -727,6 +711,36 @@ export default function RegisterPage() {
       window.onRecaptchaV2Loaded = undefined;
     };
   }, [allowRecaptchaBypass, recaptchaSiteKey]);
+
+  const renderRecaptchaWidget = useCallback(
+    (node: HTMLDivElement) => {
+      if (window.grecaptcha && recaptchaWidgetRef.current === null && recaptchaSiteKey) {
+        recaptchaWidgetRef.current = window.grecaptcha.render(node, {
+          sitekey: recaptchaSiteKey,
+          callback: (token: string) => setRecaptchaToken(token),
+          "expired-callback": () => setRecaptchaToken(null),
+          "error-callback": () => setRecaptchaToken(null),
+        });
+      }
+    },
+    [recaptchaSiteKey],
+  );
+
+  const recaptchaContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      recaptchaNodeRef.current = node;
+      if (node) {
+        renderRecaptchaWidget(node);
+      }
+    },
+    [renderRecaptchaWidget],
+  );
+
+  useEffect(() => {
+    if (recaptchaScriptLoaded && recaptchaNodeRef.current) {
+      renderRecaptchaWidget(recaptchaNodeRef.current);
+    }
+  }, [recaptchaScriptLoaded, renderRecaptchaWidget]);
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
