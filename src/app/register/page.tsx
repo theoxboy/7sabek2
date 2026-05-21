@@ -23,9 +23,20 @@ import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 declare global {
   interface Window {
     grecaptcha?: {
-      ready: (cb: () => void) => void;
-      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+      render: (
+        container: string | HTMLElement,
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+          theme?: string;
+          size?: string;
+        },
+      ) => number;
+      reset: (widgetId?: number) => void;
     };
+    onRecaptchaV2Loaded?: () => void;
   }
 }
 
@@ -234,7 +245,7 @@ const REGISTER_COPY = {
     recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
     recaptchaMissingConfig: "Configuration reCAPTCHA manquante. Ajoute NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
     recaptchaDevBypass: "Mode dev: NEXT_PUBLIC_RECAPTCHA_SITE_KEY manquant, reCAPTCHA bypassé localement.",
-    recaptchaChecking: "Vérification anti-spam automatique activée.",
+    recaptchaChecking: "Vérification anti-spam validée.",
     completeInfo: "Merci de compléter toutes les informations.",
     phoneTooShort: "Le numéro de téléphone est trop court.",
     invalidBirthDate: "La date de naissance est invalide.",
@@ -323,7 +334,7 @@ const REGISTER_COPY = {
     recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
     recaptchaMissingConfig: "Missing reCAPTCHA configuration. Add NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
     recaptchaDevBypass: "Dev mode: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is missing, reCAPTCHA is bypassed locally.",
-    recaptchaChecking: "Automatic anti-spam protection is enabled.",
+    recaptchaChecking: "Anti-spam verification passed.",
     completeInfo: "Please complete all information.",
     phoneTooShort: "Phone number is too short.",
     invalidBirthDate: "Birth date is invalid.",
@@ -412,7 +423,7 @@ const REGISTER_COPY = {
     recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
     recaptchaMissingConfig: "إعداد reCAPTCHA ناقص. زيد NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
     recaptchaDevBypass: "وضع التطوير: NEXT_PUBLIC_RECAPTCHA_SITE_KEY ناقص وتم تجاوز reCAPTCHA محلياً.",
-    recaptchaChecking: "التحقق التلقائي ضد السبام مفعل.",
+    recaptchaChecking: "تم التحقق من الحماية ضد السبام.",
     completeInfo: "كمل جميع المعلومات.",
     phoneTooShort: "رقم الهاتف قصير بزاف.",
     invalidBirthDate: "تاريخ الازدياد ما صالحش.",
@@ -529,7 +540,9 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [recaptchaScriptReady, setRecaptchaScriptReady] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaWidgetRef = useRef<number | null>(null);
+  const recaptchaContainerRef = useRef<HTMLDivElement | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFieldActive, setPasswordFieldActive] = useState(false);
@@ -680,22 +693,38 @@ export default function RegisterPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!recaptchaSiteKey || allowRecaptchaBypass) return;
-    document.body.classList.add("show-recaptcha-badge");
+    const renderWidget = () => {
+      if (
+        recaptchaContainerRef.current &&
+        window.grecaptcha &&
+        recaptchaWidgetRef.current === null
+      ) {
+        recaptchaWidgetRef.current = window.grecaptcha.render(
+          recaptchaContainerRef.current,
+          {
+            sitekey: recaptchaSiteKey,
+            callback: (token: string) => setRecaptchaToken(token),
+            "expired-callback": () => setRecaptchaToken(null),
+            "error-callback": () => setRecaptchaToken(null),
+          },
+        );
+      }
+    };
     const existing = document.querySelector<HTMLScriptElement>(
-      'script[src^="https://www.google.com/recaptcha/api.js?render="]'
+      'script[src^="https://www.google.com/recaptcha/api.js"]'
     );
-    if (existing) {
-      setRecaptchaScriptReady(true);
-    } else {
+    if (existing && window.grecaptcha) {
+      renderWidget();
+    } else if (!existing) {
+      window.onRecaptchaV2Loaded = renderWidget;
       const script = document.createElement("script");
-      script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(recaptchaSiteKey)}`;
+      script.src = "https://www.google.com/recaptcha/api.js?onload=onRecaptchaV2Loaded&render=explicit";
       script.async = true;
       script.defer = true;
-      script.onload = () => setRecaptchaScriptReady(true);
       document.head.appendChild(script);
     }
     return () => {
-      document.body.classList.remove("show-recaptcha-badge");
+      window.onRecaptchaV2Loaded = undefined;
     };
   }, [allowRecaptchaBypass, recaptchaSiteKey]);
 
@@ -791,8 +820,8 @@ export default function RegisterPage() {
       setError(copy.recaptchaMissingConfig);
       return false;
     }
-    if (!allowRecaptchaBypass && !recaptchaScriptReady) {
-      setError(copy.recaptchaFailed);
+    if (!allowRecaptchaBypass && !recaptchaToken) {
+      setError(copy.recaptchaRequired);
       return false;
     }
     setError(null);
@@ -864,29 +893,19 @@ export default function RegisterPage() {
     );
   };
 
-  const generateRecaptchaToken = async (): Promise<string | null> => {
+  const getRecaptchaToken = (): string | null => {
     if (allowRecaptchaBypass) return null;
-    if (typeof window === "undefined" || !recaptchaSiteKey || !window.grecaptcha) {
-      setError(copy.recaptchaFailed);
+    if (!recaptchaToken) {
+      setError(copy.recaptchaRequired);
       return null;
     }
-    try {
-      const token = await new Promise<string>((resolve, reject) => {
-        window.grecaptcha?.ready(() => {
-          window.grecaptcha
-            ?.execute(recaptchaSiteKey, { action: "register" })
-            .then(resolve)
-            .catch(reject);
-        });
-      });
-      if (!token) {
-        setError(copy.recaptchaRequired);
-        return null;
-      }
-      return token;
-    } catch {
-      setError(copy.recaptchaFailed);
-      return null;
+    return recaptchaToken;
+  };
+
+  const resetRecaptcha = () => {
+    setRecaptchaToken(null);
+    if (window.grecaptcha && recaptchaWidgetRef.current !== null) {
+      window.grecaptcha.reset(recaptchaWidgetRef.current);
     }
   };
 
@@ -918,8 +937,8 @@ export default function RegisterPage() {
       setError(copy.currencyUnavailable);
       return;
     }
-    const generatedRecaptchaToken = await generateRecaptchaToken();
-    if (!allowRecaptchaBypass && !generatedRecaptchaToken) {
+    const currentRecaptchaToken = getRecaptchaToken();
+    if (!allowRecaptchaBypass && !currentRecaptchaToken) {
       return;
     }
     persistRegisterOnboardingPrefill();
@@ -944,7 +963,7 @@ export default function RegisterPage() {
           profile_photo_url: profilePhotoUrl,
           mfa_consent: true,
           defer_onboarding_v2: true,
-          recaptcha_token: generatedRecaptchaToken,
+          recaptcha_token: currentRecaptchaToken,
         },
       });
       if (typeof window !== "undefined") {
@@ -988,6 +1007,7 @@ export default function RegisterPage() {
       }
     } finally {
       setLoading(false);
+      resetRecaptcha();
     }
   };
 
@@ -1019,8 +1039,8 @@ export default function RegisterPage() {
       setError(copy.currencyUnavailable);
       return;
     }
-    const generatedRecaptchaToken = await generateRecaptchaToken();
-    if (!allowRecaptchaBypass && !generatedRecaptchaToken) {
+    const currentRecaptchaToken2 = getRecaptchaToken();
+    if (!allowRecaptchaBypass && !currentRecaptchaToken2) {
       return;
     }
     setLoading(true);
@@ -1045,7 +1065,7 @@ export default function RegisterPage() {
           mfa_consent: true,
           onboarding_v2_answers: registerOnboardingPayload.answers,
           onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects,
-          recaptcha_token: generatedRecaptchaToken,
+          recaptcha_token: currentRecaptchaToken2,
         },
       });
       if (typeof window !== "undefined") {
@@ -1094,6 +1114,7 @@ export default function RegisterPage() {
       }
     } finally {
       setLoading(false);
+      resetRecaptcha();
     }
   };
 
@@ -1470,9 +1491,7 @@ export default function RegisterPage() {
                   {recaptchaSiteKey ? (
                     <div className="space-y-2">
                       <Label>{copy.antiSpam}</Label>
-                      <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                        {copy.recaptchaChecking}
-                      </p>
+                      <div ref={recaptchaContainerRef} />
                     </div>
                   ) : isDevEnvironment ? (
                     <div className="space-y-2">
@@ -1610,9 +1629,15 @@ export default function RegisterPage() {
                   {recaptchaSiteKey ? (
                     <div className="space-y-2">
                       <Label>{copy.antiSpam}</Label>
-                      <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                        {copy.recaptchaChecking}
-                      </p>
+                      {recaptchaToken ? (
+                        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                          {copy.recaptchaChecking}
+                        </p>
+                      ) : (
+                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                          {copy.recaptchaRequired}
+                        </p>
+                      )}
                     </div>
                   ) : isDevEnvironment ? (
                     <div className="space-y-2">
