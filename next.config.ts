@@ -3,9 +3,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  env: {
-    NEXT_PUBLIC_RECAPTCHA_SITE_KEY: "6Ld6rfUsAAAAALmi2hX1Hej7rrqab_oJc1iSgv8N",
-  },
   reactCompiler: process.env.NODE_ENV === "production",
   images: {
     remotePatterns: [
