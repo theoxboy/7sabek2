@@ -81,12 +81,7 @@ html[lang="ar"] a svg {
   color: var(--ink);
 }
 
-.grecaptcha-badge {
-  visibility: hidden !important;
-}
-.show-recaptcha-badge .grecaptcha-badge {
-  visibility: visible !important;
-}
+/* reCAPTCHA v2 checkbox — no badge hiding needed */
 
 .app-display-font {
   font-family: var(--font-fraunces), "Times New Roman", serif;
