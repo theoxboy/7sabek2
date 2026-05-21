@@ -728,6 +728,27 @@ export default function RegisterPage() {
     };
   }, [allowRecaptchaBypass, recaptchaSiteKey]);
 
+  useEffect(() => {
+    if (step !== 2) {
+      recaptchaWidgetRef.current = null;
+      return;
+    }
+    if (!recaptchaSiteKey || allowRecaptchaBypass) return;
+    if (!window.grecaptcha || recaptchaWidgetRef.current !== null) return;
+    const container = recaptchaContainerRef.current;
+    if (!container) return;
+    try {
+      recaptchaWidgetRef.current = window.grecaptcha.render(container, {
+        sitekey: recaptchaSiteKey,
+        callback: (token: string) => setRecaptchaToken(token),
+        "expired-callback": () => setRecaptchaToken(null),
+        "error-callback": () => setRecaptchaToken(null),
+      });
+    } catch {
+      // Widget already rendered in this container
+    }
+  }, [step, recaptchaSiteKey, allowRecaptchaBypass]);
+
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
