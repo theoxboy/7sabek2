@@ -41,11 +41,7 @@ interface CookieConsentBannerProps {
 export function CookieConsentBanner({
   locale,
   onManagePreferences,
-<<<<<<< HEAD
-}: CookieConsentBannerProps): JSX.Element | null {
-=======
 }: CookieConsentBannerProps) {
->>>>>>> 5287d98 (Fix TS JSX namespace build error in privacy components)
   const [isVisible, setIsVisible] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -60,20 +56,12 @@ export function CookieConsentBanner({
   }, []);
 
   const handleAcceptAnalytics = useCallback(() => {
-<<<<<<< HEAD
-    setCookieConsent({ analytics: true });
-=======
     setCookieConsent({ necessary: true, analytics: true });
->>>>>>> 5287d98 (Fix TS JSX namespace build error in privacy components)
     setIsVisible(false);
   }, []);
 
   const handleRejectNonEssential = useCallback(() => {
-<<<<<<< HEAD
-    setCookieConsent({ analytics: false });
-=======
     setCookieConsent({ necessary: true, analytics: false });
->>>>>>> 5287d98 (Fix TS JSX namespace build error in privacy components)
     setIsVisible(false);
   }, []);
 
