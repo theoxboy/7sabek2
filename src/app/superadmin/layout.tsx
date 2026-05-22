@@ -41,6 +41,21 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 
+const isBrowser = typeof window !== "undefined";
+const isLoopbackHost =
+  isBrowser &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
+const isPrivateIpv4Address = (value: string) =>
+  /^10(?:\.\d{1,3}){3}$/.test(value) ||
+  /^192\.168(?:\.\d{1,3}){2}$/.test(value) ||
+  /^172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}$/.test(value);
+const isLocalBrowserHost = () =>
+  isBrowser &&
+  (isLoopbackHost ||
+    isPrivateIpv4Address(window.location.hostname) ||
+    window.location.hostname.endsWith(".local"));
+
 const SUPERADMIN_DIALOG_COPY: Record<
   FloussyLocale,
   {
@@ -305,6 +320,10 @@ export default function SuperAdminLayout({
 
   useEffect(() => {
     if (!user || !pathname) return;
+    if (isLocalBrowserHost()) {
+      lastPathRef.current = pathname;
+      return;
+    }
     const referrer = typeof document !== "undefined" ? document.referrer : "";
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const isInternalNav = !!lastPathRef.current && lastPathRef.current !== pathname;

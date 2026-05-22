@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
+  const isDev = process.env.NODE_ENV !== "production";
+  const devConnectSrc = isDev ? " http://localhost:8000 http://127.0.0.1:8000" : "";
 
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -23,7 +25,7 @@ export function middleware(request: NextRequest) {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://images.unsplash.com",
-      "connect-src 'self' https://api.7sabek.ma https://www.google.com https://*.floussy.online",
+      `connect-src 'self' https://api.7sabek.ma https://www.google.com https://*.floussy.online${devConnectSrc}`,
       "frame-src https://www.google.com https://www.gstatic.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",

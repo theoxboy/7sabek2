@@ -1253,6 +1253,7 @@ export default function BulkTransactionsPage() {
                       <Input
                         type="text"
                         value={row.description}
+                        data-clarity-mask="true"
                         onChange={(event) =>
                           updateRow(row.id, {
                             description: event.target.value,

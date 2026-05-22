@@ -1346,6 +1346,7 @@ export default function RegisterPage() {
                         id="first-name"
                         required
                         autoComplete="given-name"
+                        data-clarity-mask="true"
                         value={firstName}
                         onChange={(event) => setFirstName(event.target.value)}
                         className={inputClass}
@@ -1357,6 +1358,7 @@ export default function RegisterPage() {
                         id="last-name"
                         required
                         autoComplete="family-name"
+                        data-clarity-mask="true"
                         value={lastName}
                         onChange={(event) => setLastName(event.target.value)}
                         className={inputClass}
@@ -1372,6 +1374,7 @@ export default function RegisterPage() {
                         type="tel"
                         required
                         autoComplete="tel"
+                        data-clarity-mask="true"
                         value={phoneNumber}
                         onChange={(event) => setPhoneNumber(event.target.value)}
                         className={inputClass}
@@ -1385,6 +1388,7 @@ export default function RegisterPage() {
                         required
                         max={maxBirthDate}
                         autoComplete="bday"
+                        data-clarity-mask="true"
                         value={birthDate}
                         onChange={(event) => setBirthDate(event.target.value)}
                         className={inputClass}
@@ -1403,6 +1407,7 @@ export default function RegisterPage() {
                       autoComplete="email"
                       autoCapitalize="none"
                       autoCorrect="off"
+                      data-clarity-mask="true"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       className={inputClass}
@@ -1425,6 +1430,7 @@ export default function RegisterPage() {
                         type={showPassword ? "text" : "password"}
                         required
                         autoComplete="new-password"
+                        data-clarity-mask="true"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         className={`${inputClass} pr-10`}
@@ -1476,6 +1482,7 @@ export default function RegisterPage() {
                         type={showConfirmPassword ? "text" : "password"}
                         required
                         autoComplete="new-password"
+                        data-clarity-mask="true"
                         value={confirmPassword}
                         onChange={(event) =>
                           setConfirmPassword(event.target.value)

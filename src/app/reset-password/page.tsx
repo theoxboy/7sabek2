@@ -291,6 +291,7 @@ export default function ResetPasswordPage() {
                   type="password"
                   required
                   autoComplete="new-password"
+                  data-clarity-mask="true"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="border-slate-200 bg-[var(--surface)]/95 focus-visible:ring-emerald-500"
@@ -303,6 +304,7 @@ export default function ResetPasswordPage() {
                   type="password"
                   required
                   autoComplete="new-password"
+                  data-clarity-mask="true"
                   value={confirm}
                   onChange={(event) => setConfirm(event.target.value)}
                   className="border-slate-200 bg-[var(--surface)]/95 focus-visible:ring-emerald-500"
@@ -320,6 +322,7 @@ export default function ResetPasswordPage() {
                       type="text"
                       inputMode="numeric"
                       maxLength={4}
+                      data-clarity-mask="true"
                       value={superadminCode}
                       onChange={(event) =>
                         setSuperadminCode(event.target.value.replace(/[^\d]/g, "").slice(0, 4))
@@ -333,6 +336,7 @@ export default function ResetPasswordPage() {
                     <Input
                       id="superadmin-first-name"
                       type="text"
+                      data-clarity-mask="true"
                       value={superadminFirstName}
                       onChange={(event) => setSuperadminFirstName(event.target.value)}
                       placeholder={copy.firstNamePlaceholder}

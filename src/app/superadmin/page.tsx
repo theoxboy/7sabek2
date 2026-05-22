@@ -15,6 +15,8 @@ import {
   YAxis,
   Area,
   AreaChart,
+  Line,
+  LineChart,
 } from "recharts";
 import {
   ArrowUpRight,
@@ -68,9 +70,10 @@ const profitExpenseFallback = [
 ];
 
 const trafficDataFallback = [
-  { name: "Autres", value: 0, color: "#e7ecf0" },
+  { name: "Interne/Autres", value: 0, color: "#e7ecf0" },
   { name: "Referral", value: 0, color: "#fb977d" },
-  { name: "Organique", value: 0, color: "#10b981" },
+  { name: "Direct", value: 0, color: "#10b981" },
+  { name: "Organic", value: 0, color: "#60a5fa" },
 ];
 
 const salesSparkFallback = [
@@ -99,37 +102,6 @@ const scheduleItemsFallback = [
   {
     title: "Support premium",
     subtitle: "Tickets prioritaires",
-  },
-];
-
-const topClientsFallback = [
-  {
-    id: "01",
-    team: "Ops",
-    name: "Campaign A",
-    priority: "High",
-    budget: "12,400",
-  },
-  {
-    id: "02",
-    team: "Growth",
-    name: "Campaign B",
-    priority: "Medium",
-    budget: "9,320",
-  },
-  {
-    id: "03",
-    team: "Finance",
-    name: "Campaign C",
-    priority: "Low",
-    budget: "6,840",
-  },
-  {
-    id: "04",
-    team: "Support",
-    name: "Campaign D",
-    priority: "High",
-    budget: "15,090",
   },
 ];
 
@@ -198,6 +170,24 @@ export default function SuperAdminPage() {
 
   const chartProfitExpense = useMemo(() => {
     if (financeSeries.length === 0) return profitExpenseFallback;
+    if (profitRangeDays === 365) {
+      const byMonth = new Map<string, { income: number; expense: number }>();
+      for (const item of financeSeries) {
+        const month = item.date.slice(0, 7);
+        const current = byMonth.get(month) ?? { income: 0, expense: 0 };
+        current.income += toNumber(item.income);
+        current.expense += toNumber(item.expense);
+        byMonth.set(month, current);
+      }
+      return [...byMonth.entries()].map(([month, totals]) => ({
+        name: new Date(`${month}-01`).toLocaleDateString("fr-FR", {
+          month: "short",
+          year: "2-digit",
+        }),
+        profit: Math.round(totals.income),
+        expense: Math.round(totals.expense),
+      }));
+    }
     const now = new Date();
     const days = Array.from({ length: profitRangeDays }, (_, idx) => {
       const date = new Date(now);
@@ -287,21 +277,36 @@ export default function SuperAdminPage() {
   const chartTrafficData = useMemo(() => {
     if (!trafficSummary?.sources) return trafficDataFallback;
     const sources = trafficSummary.sources;
+    const direct = Math.max(0, Math.round(sources.direct ?? 0));
+    const referral = Math.max(0, Math.round(sources.referral ?? 0));
+    const organic = Math.max(0, Math.round(sources.organic ?? sources.organique ?? 0));
+    const internal = Math.max(0, Math.round(sources.internal ?? 0));
+    const known = direct + referral + organic + internal;
+    const total = Math.max(0, trafficSummary.total ?? 0);
+    const other = Math.max(0, total - known); // Unknown/legacy source keys.
+    const internalOther = internal + other;
+    const displayedSum = direct + referral + organic + internalOther;
+    const drift = total - displayedSum;
     return [
       {
-        name: "Autres",
-        value: Math.round(sources.internal ?? sources.other ?? 0),
+        name: "Interne/Autres",
+        value: Math.max(0, internalOther + drift),
         color: "#e7ecf0",
       },
       {
         name: "Referral",
-        value: Math.round(sources.referral ?? 0),
+        value: referral,
         color: "#fb977d",
       },
       {
-        name: "Organique",
-        value: Math.round(sources.direct ?? 0),
+        name: "Direct",
+        value: direct,
         color: "#10b981",
+      },
+      {
+        name: "Organic",
+        value: organic,
+        color: "#60a5fa",
       },
     ];
   }, [trafficSummary]);
@@ -364,7 +369,7 @@ export default function SuperAdminPage() {
         budget: formatAmount(item.income),
       };
     });
-  }, [platformUserTotals]);
+  }, [platformUserTotals, topClientsData]);
 
   const chartProductCards = useMemo(() => {
     if (platformTransactions.length === 0) return productCardsFallback;
@@ -440,6 +445,20 @@ export default function SuperAdminPage() {
 
   const onboarding = platformAnalytics?.onboarding;
   const onboardingTotal = onboarding?.total_users ?? 0;
+  const health = platformAnalytics?.health;
+
+  const txVolumeData = useMemo(() => {
+    if (!platformAnalytics?.transactions_daily?.length) return [];
+    return platformAnalytics.transactions_daily.map((item) => ({
+      name: new Date(item.date).toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+      }),
+      total: item.total_count,
+      income: item.income_count,
+      expense: item.expense_count,
+    }));
+  }, [platformAnalytics]);
 
   useEffect(() => {
     let active = true;
@@ -872,9 +891,9 @@ export default function SuperAdminPage() {
       <Card className="spike-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <p className="spike-title">Journal d’upload</p>
+            <p className="spike-title">Journal d’activité</p>
             <p className="spike-subtitle">
-              Suivi en temps réel des imports/exports système.
+              Suivi en temps réel des actions administratives système.
             </p>
           </div>
           <span className="rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-xs text-gray-500">
@@ -1037,6 +1056,64 @@ export default function SuperAdminPage() {
           ))}
         </div>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <Card className="spike-card p-6">
+            <div className="space-y-1">
+              <p className="spike-title">Santé plateforme</p>
+              <p className="spike-subtitle">Qualité données & activité</p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">Utilisateurs actifs (7j)</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {health?.active_users_7d ?? 0}/{health?.total_users ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">Transactions (7j)</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {health?.transactions_7d ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">Coverage mapping (30j)</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {health?.expense_mapping_rate_30d?.toFixed(1) ?? "0.0"}%
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">Dépenses non mappées</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {health?.unmapped_expense_count_30d ?? 0}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <div className="lg:col-span-7">
+          <Card className="spike-card p-6">
+            <div className="space-y-1">
+              <p className="spike-title">Volume transactions</p>
+              <p className="spike-subtitle">30 derniers jours</p>
+            </div>
+            <div className="mt-4 h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={txVolumeData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="total" stroke="#0f766e" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={1.5} dot={false} />
+                  <Line type="monotone" dataKey="expense" stroke="#fb977d" strokeWidth={1.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="lg:col-span-8">

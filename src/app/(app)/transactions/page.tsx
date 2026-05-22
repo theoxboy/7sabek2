@@ -2277,6 +2277,7 @@ function TransactionsContent() {
                     <span className="text-sm font-medium">{copy.description}</span>
                     <input
                       value={draft.description}
+                      data-clarity-mask="true"
                       onChange={(event) =>
                         setDraft((prev) => ({
                           ...prev,

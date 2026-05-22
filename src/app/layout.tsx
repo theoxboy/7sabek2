@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/Toaster";
 import { GlobalMessageLayer } from "@/components/announcements/GlobalMessageLayer";
 import LanguagePreferenceGate from "@/components/i18n/LanguagePreferenceGate";
+import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { getLocaleDirection, readLocaleCookie } from "@/lib/localePreference";
 
 const geistSans = Geist({
@@ -48,6 +49,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} ${cairo.variable} antialiased`}
       >
+        <MicrosoftClarity />
         <LanguagePreferenceGate />
         <GlobalMessageLayer />
         <Toaster>{children}</Toaster>

@@ -724,6 +724,7 @@ export default function LoginPage() {
                       type={showLoginPassword ? "text" : "password"}
                       required
                       autoComplete="current-password"
+                      data-clarity-mask="true"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       className={`${inputClass} pr-10`}
@@ -808,6 +809,7 @@ export default function LoginPage() {
                         <Input
                           type="password"
                           autoComplete="new-password"
+                          data-clarity-mask="true"
                           value={newPassword}
                           onChange={(event) => setNewPassword(event.target.value)}
                         />
@@ -817,6 +819,7 @@ export default function LoginPage() {
                         <Input
                           type="password"
                           autoComplete="new-password"
+                          data-clarity-mask="true"
                           value={confirmNewPassword}
                           onChange={(event) =>
                             setConfirmNewPassword(event.target.value)

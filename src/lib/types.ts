@@ -303,6 +303,13 @@ export type MonthlyFinancePoint = {
   expense: number;
 };
 
+export type TransactionDailyPoint = {
+  date: string;
+  income_count: number;
+  expense_count: number;
+  total_count: number;
+};
+
 export type TopItemOut = {
   name: string;
   total: number;
@@ -325,16 +332,28 @@ export type RolloverUsageOut = {
   off: number;
 };
 
+export type PlatformHealthOut = {
+  total_users: number;
+  users_with_transactions: number;
+  active_users_7d: number;
+  transactions_7d: number;
+  mapped_expense_count_30d: number;
+  unmapped_expense_count_30d: number;
+  expense_mapping_rate_30d: number;
+};
+
 export type PlatformAnalyticsOut = {
   user_growth: UserGrowthPoint[];
   weekly_active: WeeklyActivePoint[];
   monthly_finance: MonthlyFinancePoint[];
+  transactions_daily: TransactionDailyPoint[];
   top_categories: TopItemOut[];
   top_envelopes: TopItemOut[];
   churn: ChurnBucketOut[];
   onboarding: OnboardingActivationOut;
   rollover: RolloverUsageOut;
   avg_days_to_first_tx: number;
+  health: PlatformHealthOut;
 };
 
 export type SweepStatusOut = {

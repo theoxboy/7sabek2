@@ -12,29 +12,25 @@ import { SystemMessageCard } from "@/components/announcements/SystemMessageCard"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
 
 const ANNOUNCEMENT_COPY: Record<
   FloussyLocale,
-  { superadminOnly: string; importantMessage: string; currentSystemInfo: string }
+  { superadminOnly: string; importantMessage: string }
 > = {
   fr: {
     superadminOnly: "Seuls les superadmins peuvent se connecter.",
     importantMessage: "Message important",
-    currentSystemInfo: "Informations système ou annonces en cours.",
   },
   en: {
     superadminOnly: "Only superadmins can sign in.",
     importantMessage: "Important message",
-    currentSystemInfo: "Current system information or active announcements.",
   },
   ar: {
     superadminOnly: "غير السوبر أدمن اللي يقدرو يدخلو دابا.",
     importantMessage: "رسالة مهمة",
-    currentSystemInfo: "معلومات على النظام أو إعلانات خدامين دابا.",
   },
 };
 
@@ -197,7 +193,6 @@ export function GlobalMessageLayer() {
           <DialogContent dir={dir}>
             <DialogHeader>
               <DialogTitle>{copy.importantMessage}</DialogTitle>
-              <DialogDescription>{copy.currentSystemInfo}</DialogDescription>
             </DialogHeader>
             <div className="mt-4 space-y-3">
               {maintenanceActive && maintenancePlacements.includes("global_popup") ? (
