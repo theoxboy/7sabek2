@@ -21,15 +21,16 @@ export function middleware(request: NextRequest) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.clarity.ms",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://images.unsplash.com",
-      `connect-src 'self' https://api.7sabek.ma https://www.google.com https://*.floussy.online${devConnectSrc}`,
+      "img-src 'self' data: blob: https://images.unsplash.com https://www.clarity.ms https://*.clarity.ms",
+      `connect-src 'self' https://api.7sabek.ma https://www.google.com https://*.floussy.online https://www.clarity.ms https://*.clarity.ms${devConnectSrc}`,
       "frame-src https://www.google.com https://www.gstatic.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      "worker-src blob:",
     ].join("; "),
   );
 
