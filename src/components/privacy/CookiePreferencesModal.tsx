@@ -51,7 +51,11 @@ export function CookiePreferencesModal({
   isOpen,
   locale,
   onClose,
+<<<<<<< HEAD
 }: CookiePreferencesModalProps): JSX.Element | null {
+=======
+}: CookiePreferencesModalProps) {
+>>>>>>> 5287d98 (Fix TS JSX namespace build error in privacy components)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -68,7 +72,11 @@ export function CookiePreferencesModal({
   }, [isOpen]);
 
   const handleSaveChoices = useCallback(() => {
+<<<<<<< HEAD
     setCookieConsent({ analytics: analyticsEnabled });
+=======
+    setCookieConsent({ necessary: true, analytics: analyticsEnabled });
+>>>>>>> 5287d98 (Fix TS JSX namespace build error in privacy components)
     onClose();
   }, [analyticsEnabled, onClose]);
 
