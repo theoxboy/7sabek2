@@ -3,7 +3,12 @@ import Script from "next/script";
 export function MicrosoftClarity() {
   const projectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
 
-  if (!projectId) return null;
+  if (!projectId) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Microsoft Clarity project ID missing");
+    }
+    return null;
+  }
 
   return (
     <Script id="microsoft-clarity" strategy="afterInteractive">
