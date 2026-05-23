@@ -10,6 +10,10 @@ import type {
 export type PasskeyFeatureStatus = {
   enabled: boolean;
 };
+export type AuthenticatedPasskeyStatus = {
+  enabled: boolean;
+  reason: "enabled" | "disabled" | "not_allowed";
+};
 
 export type PasskeyCredential = {
   id: string;
@@ -46,6 +50,17 @@ export async function getPasskeyFeatureStatus(): Promise<PasskeyFeatureStatus> {
     };
   } catch {
     return { enabled: false };
+  }
+}
+
+export async function getAuthenticatedPasskeyStatus(): Promise<AuthenticatedPasskeyStatus> {
+  try {
+    return await apiFetch<AuthenticatedPasskeyStatus>("/auth/passkeys/status");
+  } catch (error) {
+    if (isPasskeyFeatureDisabledError(error)) {
+      return { enabled: false, reason: "disabled" };
+    }
+    throw error;
   }
 }
 

@@ -17,6 +17,7 @@ import { logout } from "@/lib/auth";
 import type { SettingsResponse, UserOut } from "@/lib/types";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { PasskeyManager } from "@/components/auth/PasskeyManager";
+import { getAuthenticatedPasskeyStatus } from "@/lib/passkeys";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -816,6 +817,7 @@ export default function SettingsPage() {
   const [resetting, setResetting] = useState(false);
   const [dismissOpen, setDismissOpen] = useState(false);
   const [dismissing, setDismissing] = useState(false);
+  const [passkeysEnabledForUser, setPasskeysEnabledForUser] = useState(false);
   const [useCustomCity, setUseCustomCity] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -861,9 +863,13 @@ export default function SettingsPage() {
       setLoading(true);
       setError(null);
       try {
-        const [data, authUser] = await Promise.all([
+        const [data, authUser, passkeyStatus] = await Promise.all([
           apiFetch<SettingsResponse>("/users/me/settings"),
           apiFetch<UserOut>("/auth/me"),
+          getAuthenticatedPasskeyStatus().catch(() => ({
+            enabled: false as const,
+            reason: "disabled" as const,
+          })),
         ]);
         setCurrency(data.currency);
         setSweepIntervalDays(data.sweep_interval_days);
@@ -891,6 +897,7 @@ export default function SettingsPage() {
         setCity(nextProfile.city);
         setProfilePhotoUrl(nextProfile.profilePhotoUrl);
         setInitialProfile(nextProfile);
+        setPasskeysEnabledForUser(Boolean(passkeyStatus.enabled));
       } catch (err) {
         const message = err instanceof Error ? err.message : copy.unknownError;
         setError(message);
@@ -1750,7 +1757,7 @@ export default function SettingsPage() {
       <div ref={themeRef}>
         <PasskeyManager
           locale={locale}
-          passkeysEnabled={Boolean(status?.features?.passkeys)}
+          passkeysEnabled={passkeysEnabledForUser}
         />
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <Palette className="h-4 w-4" />
