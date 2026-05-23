@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Eye, EyeOff, Home } from "lucide-react";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
+import { startAuthentication } from "@simplewebauthn/browser";
 
 import { API_BASE, apiFetch, resetAuthClientState } from "@/lib/api";
 import { fetchMe, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
@@ -13,6 +14,7 @@ import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
 import { getAppVersionLabel } from "@/lib/app-version";
+import { getLoginOptions, verifyLogin } from "@/lib/passkeys";
 import BrandLogo from "@/components/BrandLogo";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { Button } from "@/components/ui/Button";
@@ -88,6 +90,11 @@ const LOGIN_COPY = {
     update: "Mettre à jour",
     noAccountYet: "Pas encore de compte ?",
     createAccount: "Créer un compte",
+    quickSignInTitle: "الدخول السريع",
+    quickSignInMethod: "Face ID / empreinte / Passkey",
+    quickSignIn: "Connexion rapide",
+    quickSignInError:
+      "Connexion rapide impossible. Utilise ton email et mot de passe ou réessaie.",
   },
   en: {
     invalidCredentials: "Incorrect email or password.",
@@ -142,6 +149,10 @@ const LOGIN_COPY = {
     update: "Update",
     noAccountYet: "No account yet?",
     createAccount: "Create an account",
+    quickSignInTitle: "Quick sign-in",
+    quickSignInMethod: "Face ID / fingerprint / Passkey",
+    quickSignIn: "Quick sign in",
+    quickSignInError: "Quick sign-in failed. Use email and password or try again.",
   },
   ar: {
     invalidCredentials: "الإيميل ولا كلمة السر ماشي صحيحة.",
@@ -195,6 +206,11 @@ const LOGIN_COPY = {
     update: "حدّث كلمة السر",
     noAccountYet: "مازال ما عندكش حساب؟",
     createAccount: "صاوب حساب جديد",
+    quickSignInTitle: "الدخول السريع",
+    quickSignInMethod: "Face ID / بصمة / Passkey",
+    quickSignIn: "دخل بسرعة",
+    quickSignInError:
+      "ما قدرناش ندخلوك بالدخول السريع. استعمل الإيميل وكلمة السر أو عاود حاول.",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
@@ -220,6 +236,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [forceReset, setForceReset] = useState(false);
+  const [quickSignInLoading, setQuickSignInLoading] = useState(false);
+  const [passkeysSupported, setPasskeysSupported] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
@@ -412,6 +430,12 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
+    setPasskeysSupported(
+      typeof window !== "undefined" && "PublicKeyCredential" in window
+    );
+  }, []);
+
+  useEffect(() => {
     if (!retryAfterSeconds || retryAfterSeconds <= 0) return;
     const timer = setInterval(() => {
       setRetryAfterSeconds((prev) => {
@@ -511,6 +535,38 @@ export default function LoginPage() {
     }
   };
 
+  const handleQuickSignIn = async () => {
+    setError(null);
+    setQuickSignInLoading(true);
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const loginOptions = await getLoginOptions(
+        isValidEmail(normalizedEmail) ? normalizedEmail : undefined
+      );
+      if (!loginOptions) return;
+      const credential = await startAuthentication({
+        optionsJSON: loginOptions.options,
+      });
+      const metadata = getDeviceMetadata();
+      const challenge = String(loginOptions.options.challenge ?? "");
+      const result = await verifyLogin({
+        challenge_id: loginOptions.challenge_id,
+        challenge,
+        credential,
+        ...metadata,
+      });
+      if (!result) return;
+      resetAuthClientState();
+      const me = await fetchMe();
+      markAuthSessionHint();
+      router.push(me.role === "superadmin" ? "/superadmin" : "/dashboard");
+    } catch {
+      setError(copy.quickSignInError);
+    } finally {
+      setQuickSignInLoading(false);
+    }
+  };
+
   const handleForceReset = async () => {
     setError(null);
     if (!newPassword || newPassword.length < 8) {
@@ -563,6 +619,8 @@ export default function LoginPage() {
   const maintenanceActive = Boolean(status?.maintenance_mode);
   const loginDisabled =
     loading || Boolean(retryAfterSeconds) || (maintenanceActive && !maintenanceConfirm);
+  const passkeysEnabled = Boolean(status?.features?.passkeys);
+  const showQuickSignIn = passkeysEnabled && passkeysSupported;
 
   return (
     <div
@@ -795,6 +853,25 @@ export default function LoginPage() {
                 >
                   {copy.login}
                 </Button>
+                {showQuickSignIn ? (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {copy.quickSignInTitle}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-600">
+                      {copy.quickSignInMethod}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-3 w-full"
+                      onClick={handleQuickSignIn}
+                      disabled={quickSignInLoading || loading}
+                    >
+                      {quickSignInLoading ? "..." : copy.quickSignIn}
+                    </Button>
+                  </div>
+                ) : null}
                 {forceReset ? (
                   <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-gray-600">
                     <p className="font-semibold text-gray-900">

@@ -505,6 +505,10 @@ export type PlatformStatusOut = {
   ai_gateways?: AIGatewayOut[];
   ai_routing?: AIRoutingOut;
   account_deletion_grace_days: number;
+  features?: {
+    passkeys?: boolean;
+    [key: string]: boolean | undefined;
+  };
 };
 
 export type PlatformSettingsOut = {

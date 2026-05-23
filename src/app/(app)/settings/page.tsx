@@ -16,6 +16,7 @@ import { API_BASE, apiFetch } from "@/lib/api";
 import { logout } from "@/lib/auth";
 import type { SettingsResponse, UserOut } from "@/lib/types";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
+import { PasskeyManager } from "@/components/auth/PasskeyManager";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -1747,6 +1748,10 @@ export default function SettingsPage() {
       </div>
 
       <div ref={themeRef}>
+        <PasskeyManager
+          locale={locale}
+          passkeysEnabled={Boolean(status?.features?.passkeys)}
+        />
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <Palette className="h-4 w-4" />
           <span>{copy.themeTitle}</span>
