@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Eye, EyeOff, Home } from "lucide-react";
+import { Eye, EyeOff, Fingerprint, Home } from "lucide-react";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
 import { startAuthentication } from "@simplewebauthn/browser";
 
@@ -91,8 +91,10 @@ const LOGIN_COPY = {
     noAccountYet: "Pas encore de compte ?",
     createAccount: "Créer un compte",
     quickSignInTitle: "الدخول السريع",
-    quickSignInMethod: "Face ID / empreinte / Passkey",
+    quickSignInMethod: "Face ID / empreinte",
     quickSignIn: "Connexion rapide",
+    quickSignInVerifying: "Vérification...",
+    quickSignInDivider: "ou",
     quickSignInError:
       "Connexion rapide impossible. Utilise ton email et mot de passe ou réessaie.",
   },
@@ -150,8 +152,10 @@ const LOGIN_COPY = {
     noAccountYet: "No account yet?",
     createAccount: "Create an account",
     quickSignInTitle: "Quick sign-in",
-    quickSignInMethod: "Face ID / fingerprint / Passkey",
-    quickSignIn: "Quick sign in",
+    quickSignInMethod: "Face ID / fingerprint",
+    quickSignIn: "Quick sign-in",
+    quickSignInVerifying: "Verifying...",
+    quickSignInDivider: "or",
     quickSignInError: "Quick sign-in failed. Use email and password or try again.",
   },
   ar: {
@@ -207,8 +211,10 @@ const LOGIN_COPY = {
     noAccountYet: "مازال ما عندكش حساب؟",
     createAccount: "صاوب حساب جديد",
     quickSignInTitle: "الدخول السريع",
-    quickSignInMethod: "Face ID / بصمة / Passkey",
-    quickSignIn: "دخل بسرعة",
+    quickSignInMethod: "Face ID / بصمة",
+    quickSignIn: "الدخول السريع",
+    quickSignInVerifying: "كنتحقق...",
+    quickSignInDivider: "أو",
     quickSignInError:
       "ما قدرناش ندخلوك بالدخول السريع. استعمل الإيميل وكلمة السر أو عاود حاول.",
   },
@@ -237,6 +243,7 @@ export default function LoginPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [forceReset, setForceReset] = useState(false);
   const [quickSignInLoading, setQuickSignInLoading] = useState(false);
+  const [quickSignInError, setQuickSignInError] = useState<string | null>(null);
   const [passkeysSupported, setPasskeysSupported] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -450,6 +457,7 @@ export default function LoginPage() {
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    setQuickSignInError(null);
     setForceReset(false);
     setRetryAfterSeconds(null);
     if (!isValidEmail(email)) {
@@ -537,6 +545,7 @@ export default function LoginPage() {
 
   const handleQuickSignIn = async () => {
     setError(null);
+    setQuickSignInError(null);
     setQuickSignInLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
@@ -561,7 +570,7 @@ export default function LoginPage() {
       markAuthSessionHint();
       router.push(me.role === "superadmin" ? "/superadmin" : "/dashboard");
     } catch {
-      setError(copy.quickSignInError);
+      setQuickSignInError(copy.quickSignInError);
     } finally {
       setQuickSignInLoading(false);
     }
@@ -854,22 +863,31 @@ export default function LoginPage() {
                   {copy.login}
                 </Button>
                 {showQuickSignIn ? (
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-center">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {copy.quickSignInTitle}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-600">
-                      {copy.quickSignInMethod}
-                    </p>
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center gap-3" aria-hidden="true">
+                      <span className="h-px flex-1 bg-gray-200" />
+                      <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                        {copy.quickSignInDivider}
+                      </span>
+                      <span className="h-px flex-1 bg-gray-200" />
+                    </div>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="mt-3 w-full"
+                      aria-label={`${copy.quickSignInTitle} - ${copy.quickSignInMethod}`}
+                      className="h-11 w-full rounded-full border border-gray-200 bg-white/70 px-4 text-sm font-medium text-gray-700 shadow-none transition hover:bg-gray-50 hover:text-gray-900"
                       onClick={handleQuickSignIn}
                       disabled={quickSignInLoading || loading}
                     >
-                      {quickSignInLoading ? "..." : copy.quickSignIn}
+                      <span className="inline-flex items-center gap-2">
+                        <Fingerprint className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                        <span>{quickSignInLoading ? copy.quickSignInVerifying : copy.quickSignInTitle}</span>
+                        <span className="text-xs font-normal text-gray-500">{copy.quickSignInMethod}</span>
+                      </span>
                     </Button>
+                    {quickSignInError ? (
+                      <p className="text-center text-xs text-red-600">{quickSignInError}</p>
+                    ) : null}
                   </div>
                 ) : null}
                 {forceReset ? (
