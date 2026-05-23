@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/Toaster";
 import { GlobalMessageLayer } from "@/components/announcements/GlobalMessageLayer";
 import LanguagePreferenceGate from "@/components/i18n/LanguagePreferenceGate";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
+import AddToHomeScreenPrompt from "@/components/pwa/AddToHomeScreenPrompt";
 import { getLocaleDirection, readLocaleCookie } from "@/lib/localePreference";
 
 const geistSans = Geist({
@@ -33,6 +34,19 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "7sabek",
   description: "Personal finance envelopes made simple.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "7sabek",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default async function RootLayout({
@@ -52,6 +66,7 @@ export default async function RootLayout({
         <MicrosoftClarity />
         <LanguagePreferenceGate />
         <GlobalMessageLayer />
+        <AddToHomeScreenPrompt />
         <Toaster>{children}</Toaster>
       </body>
     </html>

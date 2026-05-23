@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
   const isDev = process.env.NODE_ENV !== "production";
   const devConnectSrc = isDev ? " http://localhost:8000 http://127.0.0.1:8000" : "";
