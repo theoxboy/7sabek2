@@ -13,6 +13,7 @@ export type CookieConsent = {
 
 const STORAGE_KEY = "7sabek_cookie_consent_v1";
 const CURRENT_VERSION = 1;
+export const COOKIE_CONSENT_UPDATED_EVENT = "7sabek:cookie-consent-updated";
 
 /**
  * Get the current cookie consent from localStorage
@@ -68,6 +69,7 @@ export function setCookieConsent(consent: Omit<CookieConsent, "updatedAt" | "ver
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(consentData));
+  window.dispatchEvent(new Event(COOKIE_CONSENT_UPDATED_EVENT));
   return consentData;
 }
 
@@ -94,4 +96,5 @@ export function clearCookieConsent(): void {
     return;
   }
   localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event(COOKIE_CONSENT_UPDATED_EVENT));
 }

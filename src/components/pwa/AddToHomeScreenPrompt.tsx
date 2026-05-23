@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { hasCookieConsent } from "@/lib/cookie-consent";
+import { COOKIE_CONSENT_UPDATED_EVENT, hasCookieConsent } from "@/lib/cookie-consent";
 import { useAppLocale } from "@/lib/appLocale";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -16,6 +16,7 @@ const NEVER_SHOW_KEY = "7sabek_pwa_prompt_never_show_v1";
 const DISMISSED_UNTIL_KEY = "7sabek_pwa_prompt_dismissed_until_v1";
 const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
 const SHOW_DELAY_MS = 2500;
+const CONSENT_WAIT_MS = 3000;
 
 const COPY: Record<
   Locale,
@@ -87,6 +88,7 @@ export default function AddToHomeScreenPrompt() {
   const { locale: appLocale, dir } = useAppLocale("ar");
   const [mounted, setMounted] = useState(false);
   const [canShowByConsent, setCanShowByConsent] = useState(false);
+  const [cookieConsentStatus, setCookieConsentStatus] = useState<"accepted" | "missing">("missing");
   const [visible, setVisible] = useState(false);
   const [platform, setPlatform] = useState<Platform>("other");
   const [isStandalone, setIsStandalone] = useState(false);
@@ -108,17 +110,31 @@ export default function AddToHomeScreenPrompt() {
     if (!mounted) return;
 
     const checkConsent = () => {
-      setCanShowByConsent(hasCookieConsent());
+      const consentAccepted = hasCookieConsent();
+      setCookieConsentStatus(consentAccepted ? "accepted" : "missing");
+      if (consentAccepted) {
+        setCanShowByConsent(true);
+      }
     };
 
     checkConsent();
     const interval = window.setInterval(checkConsent, 1000);
+    const consentFallback = window.setTimeout(() => {
+      if (!hasCookieConsent()) {
+        // Avoid waiting forever when the cookie banner is absent or dismissed without state write.
+        setCanShowByConsent(true);
+      }
+    }, CONSENT_WAIT_MS);
     const onStorage = () => checkConsent();
+    const onConsentUpdated = () => checkConsent();
     window.addEventListener("storage", onStorage);
+    window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT, onConsentUpdated);
 
     return () => {
       window.clearInterval(interval);
+      window.clearTimeout(consentFallback);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, onConsentUpdated);
     };
   }, [mounted]);
 
@@ -166,18 +182,59 @@ export default function AddToHomeScreenPrompt() {
 
   const shouldRender = useMemo(() => {
     if (!mounted || !canShowByConsent) return false;
-    if (platform !== "ios" && platform !== "android") return false;
+
+    const forceByQuery =
+      process.env.NODE_ENV === "development" &&
+      new URLSearchParams(window.location.search).get("showPwaPrompt") === "1";
+
     if (isStandalone) return false;
 
     const ua = window.navigator.userAgent;
-    if (!isMobileUA(ua)) return false;
+    const isMobile = isMobileUA(ua);
+    const isIOS = platform === "ios";
+    const isAndroid = platform === "android";
 
-    if (localStorage.getItem(NEVER_SHOW_KEY) === "true") return false;
+    if (!forceByQuery) {
+      if (!isMobile) return false;
+      if (!isIOS && !isAndroid) return false;
+    }
+
+    const neverShow = localStorage.getItem(NEVER_SHOW_KEY) === "true";
+    if (neverShow) return false;
     const dismissedUntil = Number(localStorage.getItem(DISMISSED_UNTIL_KEY) ?? "0");
     if (Number.isFinite(dismissedUntil) && dismissedUntil > Date.now()) return false;
 
     return true;
   }, [mounted, canShowByConsent, platform, isStandalone]);
+
+  useEffect(() => {
+    if (!mounted || process.env.NODE_ENV !== "development") return;
+    const ua = window.navigator.userAgent;
+    const isMobile = isMobileUA(ua);
+    const isIOS = platform === "ios";
+    const isAndroid = platform === "android";
+    const neverShow = localStorage.getItem(NEVER_SHOW_KEY) === "true";
+    const dismissedUntil = Number(localStorage.getItem(DISMISSED_UNTIL_KEY) ?? "0");
+    const forceByQuery = new URLSearchParams(window.location.search).get("showPwaPrompt") === "1";
+    const shouldShow = shouldRender;
+    const helper = [
+      `localStorage.removeItem("${NEVER_SHOW_KEY}")`,
+      `localStorage.removeItem("${DISMISSED_UNTIL_KEY}")`,
+    ].join("; ");
+    console.debug("[PWA Prompt] state", {
+      isMounted: mounted,
+      isMobile,
+      isIOS,
+      isAndroid,
+      isStandalone,
+      neverShow,
+      dismissedUntil,
+      shouldShow,
+      cookieConsentStatus,
+      forceByQuery,
+    });
+    console.debug("[PWA Prompt] clear localStorage helper:", helper);
+  }, [mounted, platform, isStandalone, shouldRender, cookieConsentStatus]);
 
   useEffect(() => {
     if (!shouldRender) {
@@ -234,7 +291,7 @@ export default function AddToHomeScreenPrompt() {
   const dialogTitleId = "a2hs-title";
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[45] px-4" dir={isRTL ? "rtl" : "ltr"}>
       <div
         role="dialog"
         aria-labelledby={dialogTitleId}
