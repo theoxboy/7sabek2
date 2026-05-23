@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { COOKIE_CONSENT_UPDATED_EVENT, hasCookieConsent } from "@/lib/cookie-consent";
 import { useAppLocale } from "@/lib/appLocale";
 
@@ -16,7 +17,9 @@ const NEVER_SHOW_KEY = "7sabek_pwa_prompt_never_show_v1";
 const DISMISSED_UNTIL_KEY = "7sabek_pwa_prompt_dismissed_until_v1";
 const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
 const SHOW_DELAY_MS = 2500;
+const FORCE_SHOW_DELAY_MS = 1000;
 const CONSENT_WAIT_MS = 3000;
+const ALLOWED_PATHS = new Set(["/", "/login", "/register", "/forgot-password"]);
 
 const COPY: Record<
   Locale,
@@ -85,6 +88,7 @@ function getLocaleFromDocument(): Locale {
 }
 
 export default function AddToHomeScreenPrompt() {
+  const pathname = usePathname();
   const { locale: appLocale, dir } = useAppLocale("ar");
   const [mounted, setMounted] = useState(false);
   const [canShowByConsent, setCanShowByConsent] = useState(false);
@@ -180,48 +184,48 @@ export default function AddToHomeScreenPrompt() {
     setVisible(false);
   }, [neverShowChecked, saveDismissState]);
 
-  const shouldRender = useMemo(() => {
-    if (!mounted || !canShowByConsent) return false;
-
-    const forceByQuery =
-      process.env.NODE_ENV === "development" &&
-      new URLSearchParams(window.location.search).get("showPwaPrompt") === "1";
-
-    if (isStandalone) return false;
-
+  const shouldRenderState = useMemo(() => {
+    if (!mounted) return { shouldShow: false, reason: "not-mounted", forceShow: false };
+    if (!canShowByConsent) return { shouldShow: false, reason: "waiting-consent", forceShow: false };
     const ua = window.navigator.userAgent;
+    const forceShow = new URLSearchParams(window.location.search).get("showPwaPrompt") === "1";
     const isMobile = isMobileUA(ua);
     const isIOS = platform === "ios";
     const isAndroid = platform === "android";
-
-    if (!forceByQuery) {
-      if (!isMobile) return false;
-      if (!isIOS && !isAndroid) return false;
-    }
-
     const neverShow = localStorage.getItem(NEVER_SHOW_KEY) === "true";
-    if (neverShow) return false;
     const dismissedUntil = Number(localStorage.getItem(DISMISSED_UNTIL_KEY) ?? "0");
-    if (Number.isFinite(dismissedUntil) && dismissedUntil > Date.now()) return false;
+    const routeAllowed = ALLOWED_PATHS.has(pathname);
 
-    return true;
-  }, [mounted, canShowByConsent, platform, isStandalone]);
+    if (isStandalone) return { shouldShow: false, reason: "standalone", forceShow };
+    if (neverShow) return { shouldShow: false, reason: "never-show", forceShow };
+    if (Number.isFinite(dismissedUntil) && dismissedUntil > Date.now()) {
+      return { shouldShow: false, reason: "dismissed-window", forceShow };
+    }
+    if (forceShow) return { shouldShow: true, reason: "force-show", forceShow };
+    if (!routeAllowed) return { shouldShow: false, reason: "path-not-allowed", forceShow };
+    if (!isMobile) return { shouldShow: false, reason: "not-mobile", forceShow };
+    if (!isIOS && !isAndroid) return { shouldShow: false, reason: "unsupported-platform", forceShow };
+    return { shouldShow: true, reason: "eligible", forceShow };
+  }, [mounted, canShowByConsent, platform, isStandalone, pathname]);
+  const shouldRender = shouldRenderState.shouldShow;
 
   useEffect(() => {
-    if (!mounted || process.env.NODE_ENV !== "development") return;
+    if (!mounted) return;
+    if (process.env.NODE_ENV !== "development" && !shouldRenderState.forceShow) return;
     const ua = window.navigator.userAgent;
     const isMobile = isMobileUA(ua);
     const isIOS = platform === "ios";
     const isAndroid = platform === "android";
     const neverShow = localStorage.getItem(NEVER_SHOW_KEY) === "true";
     const dismissedUntil = Number(localStorage.getItem(DISMISSED_UNTIL_KEY) ?? "0");
-    const forceByQuery = new URLSearchParams(window.location.search).get("showPwaPrompt") === "1";
+    const forceByQuery = shouldRenderState.forceShow;
     const shouldShow = shouldRender;
     const helper = [
       `localStorage.removeItem("${NEVER_SHOW_KEY}")`,
       `localStorage.removeItem("${DISMISSED_UNTIL_KEY}")`,
     ].join("; ");
     console.debug("[PWA Prompt] state", {
+      pathname,
       isMounted: mounted,
       isMobile,
       isIOS,
@@ -229,12 +233,13 @@ export default function AddToHomeScreenPrompt() {
       isStandalone,
       neverShow,
       dismissedUntil,
+      forceShow: forceByQuery,
       shouldShow,
+      reason: shouldRenderState.reason,
       cookieConsentStatus,
-      forceByQuery,
     });
     console.debug("[PWA Prompt] clear localStorage helper:", helper);
-  }, [mounted, platform, isStandalone, shouldRender, cookieConsentStatus]);
+  }, [mounted, pathname, platform, isStandalone, shouldRender, shouldRenderState, cookieConsentStatus]);
 
   useEffect(() => {
     if (!shouldRender) {
@@ -242,9 +247,10 @@ export default function AddToHomeScreenPrompt() {
       setEntered(false);
       return;
     }
-    const timer = window.setTimeout(() => setVisible(true), SHOW_DELAY_MS);
+    const delay = shouldRenderState.forceShow ? FORCE_SHOW_DELAY_MS : SHOW_DELAY_MS;
+    const timer = window.setTimeout(() => setVisible(true), delay);
     return () => window.clearTimeout(timer);
-  }, [shouldRender]);
+  }, [shouldRender, shouldRenderState.forceShow]);
 
   useEffect(() => {
     if (!visible) {
