@@ -250,7 +250,11 @@ export function PasskeyManager({
           name: error instanceof Error ? error.name : "Error",
           message: error instanceof Error ? error.message : String(error),
           status,
+          body: error instanceof PasskeyRequestError ? error.debugBody : undefined,
         });
+        if (error instanceof PasskeyRequestError && error.status === 422) {
+          console.error("passkey_register_verify_422_body", error.debugBody);
+        }
         console.error("passkey register/verify failed", {
           name: error instanceof Error ? error.name : "Error",
           message: error instanceof Error ? error.message : String(error),
