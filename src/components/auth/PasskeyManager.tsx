@@ -128,6 +128,8 @@ export function PasskeyManager({
   const canUse = passkeysEnabled && supported;
   const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : false;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const href = typeof window !== "undefined" ? window.location.href : "";
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isProductionRpOrigin = origin === "https://7sabek.ma";
 
   const rows = useMemo(
@@ -167,6 +169,8 @@ export function PasskeyManager({
       console.info("passkey_start_registration_start", {
         secureContext: isSecureContext,
         origin,
+        href,
+        userAgent,
         hasPublicKeyCredential: supported,
       });
       if (!isSecureContext) {
@@ -174,9 +178,14 @@ export function PasskeyManager({
         return;
       }
       if (typeof window !== "undefined" && origin.startsWith("https://") && !isProductionRpOrigin) {
-        setError(
-          "SecurityError: دخل بالضبط لـ https://7sabek.ma (ماشي www وماشي متصفح داخل تطبيق)."
-        );
+        setError(`فتحتي الموقع من: ${origin}. خاصك تفتحو من https://7sabek.ma مباشرة.`);
+        console.error("passkey_origin_check_failed", {
+          origin,
+          href,
+          userAgent,
+          secureContext: isSecureContext,
+          hasPublicKeyCredential: supported,
+        });
         return;
       }
       let credential;
@@ -199,15 +208,18 @@ export function PasskeyManager({
           name: errName,
           message: errMessage,
           constructorName: ctorName,
-          origin: typeof window !== "undefined" ? window.location.origin : "",
-          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+          origin,
+          href,
+          userAgent,
+          secureContext: isSecureContext,
+          hasPublicKeyCredential: supported,
         });
         if (errName === "NotAllowedError") {
           setError("العملية تلغات أو Safari ما قدرش يكمل إنشاء Passkey. عاود حاول.");
         } else if (errName === "InvalidStateError") {
           setError("هاد Passkey ممكن راه موجودة من قبل فهاد الجهاز.");
         } else if (errName === "SecurityError") {
-          setError("SecurityError: دخل بالضبط لـ https://7sabek.ma (ماشي www وماشي متصفح داخل تطبيق).");
+          setError(`فتحتي الموقع من: ${origin}. خاصك تفتحو من https://7sabek.ma مباشرة.`);
         } else {
           setError(copy.addFailed);
         }
