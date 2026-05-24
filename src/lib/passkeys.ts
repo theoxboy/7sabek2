@@ -37,11 +37,13 @@ export type PasskeyLoginOptions = {
 
 export class PasskeyRequestError extends Error {
   status?: number;
+  debugBody?: unknown;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, debugBody?: unknown) {
     super(message);
     this.name = "PasskeyRequestError";
     this.status = status;
+    this.debugBody = debugBody;
   }
 }
 
@@ -96,7 +98,7 @@ async function passkeySafeFetch<T>(path: string, method: HttpMethod, body?: unkn
         parsed = raw;
       }
     }
-    throw new PasskeyRequestError(extractErrorMessage(parsed), response.status);
+    throw new PasskeyRequestError(extractErrorMessage(parsed), response.status, parsed);
   }
 
   if (response.status === 204) return undefined as T;
