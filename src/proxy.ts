@@ -2,15 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  const target = new URL(request.url);
-  const hostname = target.hostname.toLowerCase();
-  if (hostname === "www.7sabek.ma") {
-    target.protocol = "https:";
-    target.hostname = "7sabek.ma";
-    target.port = "";
-    return NextResponse.redirect(target, 308);
-  }
-
   const response = NextResponse.next();
   const isDev = process.env.NODE_ENV !== "production";
   const devConnectSrc = isDev ? " http://localhost:8000 http://127.0.0.1:8000" : "";

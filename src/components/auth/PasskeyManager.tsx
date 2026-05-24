@@ -130,7 +130,11 @@ export function PasskeyManager({
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const href = typeof window !== "undefined" ? window.location.href : "";
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  const isProductionRpOrigin = origin === "https://7sabek.ma";
+  const allowedOrigins = ["https://7sabek.ma", "https://www.7sabek.ma"];
+  const isLocalDevOrigin = origin === "http://localhost:3000";
+  const isAllowedOrigin =
+    allowedOrigins.includes(origin) ||
+    (process.env.NODE_ENV !== "production" && isLocalDevOrigin);
 
   const rows = useMemo(
     () =>
@@ -177,8 +181,8 @@ export function PasskeyManager({
         setError(copy.addFailed);
         return;
       }
-      if (typeof window !== "undefined" && origin.startsWith("https://") && !isProductionRpOrigin) {
-        setError(`فتحتي الموقع من: ${origin}. خاصك تفتحو من https://7sabek.ma مباشرة.`);
+      if (typeof window !== "undefined" && !isAllowedOrigin) {
+        setError(`فتحتي الموقع من: ${origin}. خاصك تفتحو من 7sabek.ma أو www.7sabek.ma مباشرة.`);
         console.error("passkey_origin_check_failed", {
           origin,
           href,
@@ -219,7 +223,7 @@ export function PasskeyManager({
         } else if (errName === "InvalidStateError") {
           setError("هاد Passkey ممكن راه موجودة من قبل فهاد الجهاز.");
         } else if (errName === "SecurityError") {
-          setError(`فتحتي الموقع من: ${origin}. خاصك تفتحو من https://7sabek.ma مباشرة.`);
+          setError(`فتحتي الموقع من: ${origin}. خاصك تفتحو من 7sabek.ma أو www.7sabek.ma مباشرة.`);
         } else {
           setError(copy.addFailed);
         }
