@@ -126,6 +126,9 @@ export function PasskeyManager({
   }, [passkeysEnabled, supported]);
 
   const canUse = passkeysEnabled && supported;
+  const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : false;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const isProductionRpOrigin = origin === "https://7sabek.ma";
 
   const rows = useMemo(
     () =>
@@ -144,6 +147,10 @@ export function PasskeyManager({
       let registerOptions: Awaited<ReturnType<typeof getRegisterOptions>>;
       try {
         registerOptions = await getRegisterOptions();
+        console.info("passkey_register_options_success", {
+          hasChallengeId: Boolean(registerOptions?.challenge_id),
+          hasOptions: Boolean(registerOptions?.options),
+        });
       } catch (error) {
         const status = error instanceof PasskeyRequestError ? error.status : undefined;
         console.error("passkey register/options failed", {
@@ -157,12 +164,53 @@ export function PasskeyManager({
         setLoading(false);
         return;
       }
+      console.info("passkey_start_registration_start", {
+        secureContext: isSecureContext,
+        origin,
+        hasPublicKeyCredential: supported,
+      });
+      if (!isSecureContext) {
+        setError(copy.addFailed);
+        return;
+      }
+      if (typeof window !== "undefined" && origin.startsWith("https://") && !isProductionRpOrigin) {
+        setError(
+          "SecurityError: دخل بالضبط لـ https://7sabek.ma (ماشي www وماشي متصفح داخل تطبيق)."
+        );
+        return;
+      }
       let credential;
       try {
         credential = await startRegistration({
           optionsJSON: registerOptions.options,
         });
+        console.info("passkey_start_registration_success");
       } catch (error) {
+        const errName = error instanceof Error ? error.name : "Error";
+        const errMessage = error instanceof Error ? error.message : String(error);
+        const ctorName =
+          typeof error === "object" &&
+          error !== null &&
+          "constructor" in error &&
+          (error as { constructor?: { name?: string } }).constructor?.name
+            ? (error as { constructor: { name: string } }).constructor.name
+            : "UnknownConstructor";
+        console.error("passkey_start_registration_error", {
+          name: errName,
+          message: errMessage,
+          constructorName: ctorName,
+          origin: typeof window !== "undefined" ? window.location.origin : "",
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+        });
+        if (errName === "NotAllowedError") {
+          setError("العملية تلغات أو Safari ما قدرش يكمل إنشاء Passkey. عاود حاول.");
+        } else if (errName === "InvalidStateError") {
+          setError("هاد Passkey ممكن راه موجودة من قبل فهاد الجهاز.");
+        } else if (errName === "SecurityError") {
+          setError("SecurityError: دخل بالضبط لـ https://7sabek.ma (ماشي www وماشي متصفح داخل تطبيق).");
+        } else {
+          setError(copy.addFailed);
+        }
         console.error("passkey startRegistration failed", {
           name: error instanceof Error ? error.name : "Error",
           message: error instanceof Error ? error.message : String(error),
@@ -171,6 +219,7 @@ export function PasskeyManager({
         throw error;
       }
       const challenge = String(registerOptions.options.challenge ?? "");
+      console.info("passkey_register_verify_start");
       try {
         await verifyRegistration({
           challenge_id: registerOptions.challenge_id,
@@ -178,8 +227,14 @@ export function PasskeyManager({
           credential,
           name: guessDeviceLabel(),
         });
+        console.info("passkey_register_verify_success");
       } catch (error) {
         const status = error instanceof PasskeyRequestError ? error.status : undefined;
+        console.error("passkey_register_verify_error", {
+          name: error instanceof Error ? error.name : "Error",
+          message: error instanceof Error ? error.message : String(error),
+          status,
+        });
         console.error("passkey register/verify failed", {
           name: error instanceof Error ? error.name : "Error",
           message: error instanceof Error ? error.message : String(error),
@@ -189,6 +244,9 @@ export function PasskeyManager({
       }
       await loadPasskeys();
     } catch (error) {
+      if (error instanceof Error && ["NotAllowedError", "InvalidStateError", "SecurityError"].includes(error.name)) {
+        return;
+      }
       if (error instanceof PasskeyRequestError && [400, 409, 422].includes(error.status ?? 0)) {
         setError(copy.addFailed);
         return;
