@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_BASE, type HttpMethod } from "@/lib/api";
 import type { PlatformStatusOut } from "@/lib/types";
 import type {
   AuthenticationResponseJSON,
@@ -34,6 +34,80 @@ export type PasskeyLoginOptions = {
   challenge_id: string;
   options: PublicKeyCredentialRequestOptionsJSON;
 };
+
+export class PasskeyRequestError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "PasskeyRequestError";
+    this.status = status;
+  }
+}
+
+type ApiErrorPayload = {
+  detail?:
+    | string
+    | { msg?: string }[]
+    | {
+        message?: string;
+      };
+};
+
+function extractErrorMessage(payload: unknown): string {
+  if (!payload) return "Request failed";
+  if (typeof payload === "string") return payload;
+  if (typeof payload === "object") {
+    const typed = payload as ApiErrorPayload;
+    if (typeof typed.detail === "string") return typed.detail;
+    if (Array.isArray(typed.detail)) {
+      return typed.detail.map((item) => item.msg ?? "Invalid request").join(", ");
+    }
+    if (
+      typed.detail &&
+      typeof typed.detail === "object" &&
+      typeof typed.detail.message === "string" &&
+      typed.detail.message.trim().length > 0
+    ) {
+      return typed.detail.message;
+    }
+  }
+  return "Request failed";
+}
+
+async function passkeySafeFetch<T>(path: string, method: HttpMethod, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    credentials: "include",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => "");
+    let parsed: unknown = raw;
+    if (raw.trim().startsWith("{") || raw.trim().startsWith("[")) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = raw;
+      }
+    }
+    throw new PasskeyRequestError(extractErrorMessage(parsed), response.status);
+  }
+
+  if (response.status === 204) return undefined as T;
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
+}
 
 function isPasskeyFeatureDisabledError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -83,12 +157,10 @@ export async function verifyRegistration(payload: {
   name?: string;
 }): Promise<{ status: string; passkey_id: string; name?: string | null } | null> {
   try {
-    return await apiFetch<{ status: string; passkey_id: string; name?: string | null }>(
+    return await passkeySafeFetch<{ status: string; passkey_id: string; name?: string | null }>(
       "/auth/passkeys/register/verify",
-      {
-        method: "POST",
-        body: payload,
-      }
+      "POST",
+      payload
     );
   } catch (error) {
     if (isPasskeyFeatureDisabledError(error)) return null;

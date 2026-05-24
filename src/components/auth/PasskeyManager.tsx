@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
 
 import {
+  PasskeyRequestError,
   deletePasskey,
   getRegisterOptions,
   guessDeviceLabel,
@@ -48,7 +49,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     removing: "كيتحيد...",
     adding: "كنزيدو...",
     added: "تزادت Passkey بنجاح.",
-    addFailed: "ما قدرناش نزيدو Passkey. عاود حاول.",
+    addFailed:
+      "ما قدرناش نفعّلو الدخول السريع فهاد الجهاز. تأكد أنك فاتح الموقع من Safari على https://7sabek.ma، وأن iCloud Keychain و Face ID/رمز الهاتف خدامين، وعاود حاول.",
     deleteFailed: "ما قدرناش نحيدو Passkey. عاود حاول.",
     confirmDelete: "واش متأكد بغيتي تحيد هاد Passkey؟",
   },
@@ -139,23 +141,58 @@ export function PasskeyManager({
     setError(null);
     setLoading(true);
     try {
-      const registerOptions = await getRegisterOptions();
+      let registerOptions: Awaited<ReturnType<typeof getRegisterOptions>>;
+      try {
+        registerOptions = await getRegisterOptions();
+      } catch (error) {
+        const status = error instanceof PasskeyRequestError ? error.status : undefined;
+        console.error("passkey register/options failed", {
+          name: error instanceof Error ? error.name : "Error",
+          message: error instanceof Error ? error.message : String(error),
+          status,
+        });
+        throw error;
+      }
       if (!registerOptions) {
         setLoading(false);
         return;
       }
-      const credential = await startRegistration({
-        optionsJSON: registerOptions.options,
-      });
+      let credential;
+      try {
+        credential = await startRegistration({
+          optionsJSON: registerOptions.options,
+        });
+      } catch (error) {
+        console.error("passkey startRegistration failed", {
+          name: error instanceof Error ? error.name : "Error",
+          message: error instanceof Error ? error.message : String(error),
+          status: undefined,
+        });
+        throw error;
+      }
       const challenge = String(registerOptions.options.challenge ?? "");
-      await verifyRegistration({
-        challenge_id: registerOptions.challenge_id,
-        challenge,
-        credential,
-        name: guessDeviceLabel(),
-      });
+      try {
+        await verifyRegistration({
+          challenge_id: registerOptions.challenge_id,
+          challenge,
+          credential,
+          name: guessDeviceLabel(),
+        });
+      } catch (error) {
+        const status = error instanceof PasskeyRequestError ? error.status : undefined;
+        console.error("passkey register/verify failed", {
+          name: error instanceof Error ? error.name : "Error",
+          message: error instanceof Error ? error.message : String(error),
+          status,
+        });
+        throw error;
+      }
       await loadPasskeys();
-    } catch {
+    } catch (error) {
+      if (error instanceof PasskeyRequestError && [400, 409, 422].includes(error.status ?? 0)) {
+        setError(copy.addFailed);
+        return;
+      }
       setError(copy.addFailed);
     } finally {
       setLoading(false);
