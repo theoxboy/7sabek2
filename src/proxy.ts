@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  const host = request.headers.get("host")?.toLowerCase() ?? "";
-  if (host === "www.7sabek.ma") {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.hostname = "7sabek.ma";
-    return NextResponse.redirect(redirectUrl, 308);
+  const target = new URL(request.url);
+  const hostname = target.hostname.toLowerCase();
+  if (hostname === "www.7sabek.ma") {
+    target.protocol = "https:";
+    target.hostname = "7sabek.ma";
+    target.port = "";
+    return NextResponse.redirect(target, 308);
   }
 
   const response = NextResponse.next();
