@@ -774,3 +774,64 @@ export type ResolveSuperadminSessionOut = {
   kept_session_id: string;
   should_logout: boolean;
 };
+
+export type EmailCenterStatusOut = {
+  enabled: boolean;
+  mode: string;
+  kill_switch: boolean;
+  provider: string;
+  mail_from: string;
+  test_recipient_email: string;
+  allow_bulk_send: boolean;
+  allow_scheduling: boolean;
+  allow_salary_reminders: boolean;
+  allow_ai_suggestions: boolean;
+  allow_open_tracking: boolean;
+  allow_click_tracking: boolean;
+};
+
+export type EmailDesignSettingsOut = {
+  id: number;
+  brand_name: string;
+  logo_url: string;
+  primary_color: string;
+  button_color: string;
+  footer_text: string;
+  support_email: string;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export type EmailDeliveryOut = {
+  id: string;
+  email: string;
+  subject: string;
+  language: string;
+  body_html: string;
+  body_text: string;
+  status: string;
+  provider: string;
+  provider_message_id?: string | null;
+  error_message?: string | null;
+  created_by_admin_id?: string | null;
+  sent_at?: string | null;
+  failed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export type EmailDeliveryHistoryOut = {
+  items: EmailDeliveryOut[];
+  page: number;
+  page_size: number;
+  total: number;
+};
+
+export type EmailSendPayload = {
+  to: string;
+  language: "darija" | "fr" | "en" | string;
+  subject: string;
+  body: string;
+  cta_label: string;
+  cta_url: string;
+};

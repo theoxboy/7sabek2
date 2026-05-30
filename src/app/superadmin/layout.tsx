@@ -14,6 +14,7 @@ import {
   Clock3,
   Rows3,
   CarFront,
+  Mail,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -67,6 +68,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navBackups: string;
     navAudit: string;
     navSessions: string;
+    navEmails: string;
     newConnection: string;
     chooseSession: string;
     connectionDetails: string;
@@ -109,6 +111,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navBackups: "Sauvegardes",
     navAudit: "Journal d’audit",
     navSessions: "Historique connexions",
+    navEmails: "Emails",
     newConnection: "Nouvelle connexion superadmin détectée",
     chooseSession: "Une autre session est active avec ce compte. Choisis la session à conserver.",
     connectionDetails: "Détails de la nouvelle connexion",
@@ -150,6 +153,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navBackups: "Backups",
     navAudit: "Audit log",
     navSessions: "Session history",
+    navEmails: "Emails",
     newConnection: "New superadmin sign-in detected",
     chooseSession: "Another session is active on this account. Choose which session to keep.",
     connectionDetails: "Details of the new sign-in",
@@ -191,6 +195,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navBackups: "النسخ الاحتياطية",
     navAudit: "سجل التتبع",
     navSessions: "سجل الولوجات",
+    navEmails: "الإيميلات",
     newConnection: "لقينا دخول جديد ديال superadmin",
     chooseSession: "كاينة session أخرى خدامة بهاد الحساب. اختار شكون تبقى هي الخدامة.",
     connectionDetails: "تفاصيل الدخول الجديد",
@@ -262,6 +267,7 @@ export default function SuperAdminLayout({
     { href: "/superadmin/backups", label: copy.navBackups, icon: Archive, enabled: true },
     { href: "/superadmin/audit", label: copy.navAudit, icon: ClipboardList, enabled: true },
     { href: "/superadmin/sessions", label: copy.navSessions, icon: Clock3, enabled: true },
+    { href: "/superadmin/emails", label: copy.navEmails, icon: Mail, enabled: true },
   ];
 
   const formatCountdown = (seconds: number) => {
