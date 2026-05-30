@@ -1360,6 +1360,37 @@ function DashboardContent() {
   const loadSequenceRef = useRef(0);
   const deferredLoadTimerRef = useRef<number | null>(null);
   const copy = DASHBOARD_COPY[locale];
+  const isPostOnboardingEntry =
+    searchParams.get("post_onboarding") === "1" ||
+    searchParams.get("post_register") === "1";
+  const shouldShowNextStepCard =
+    isPostOnboardingEntry ||
+    !introSeen ||
+    (transactions.length === 0 && (data?.envelopes?.length ?? 0) <= 2);
+  const nextStepCopy =
+    locale === "ar"
+      ? {
+          title: "الخطوة الجاية",
+          body: "باش تكمل البداية بسرعة، دير هاد 3 خطوات:",
+          tx: "زيد أول عملية",
+          env: "راجع الأظرفة",
+          smart: "كمّل الإعدادات الذكية",
+        }
+      : locale === "fr"
+      ? {
+          title: "Prochaine étape",
+          body: "Pour bien démarrer après onboarding, fais ces 3 actions:",
+          tx: "Ajouter une première opération",
+          env: "Revoir les enveloppes",
+          smart: "Régler les paramètres intelligents",
+        }
+      : {
+          title: "Next step",
+          body: "To complete onboarding cleanly, do these 3 actions:",
+          tx: "Add your first transaction",
+          env: "Review envelopes",
+          smart: "Set smart settings",
+        };
   const pageDir = getLocaleDirection(locale);
   const periodArrow = pageDir === "rtl" ? "←" : "→";
   const titleClass = locale === "ar" ? "dashboard-title" : "app-display-font";
@@ -4338,6 +4369,24 @@ function DashboardContent() {
       </div>
 
       <div ref={quickRef}>
+        {shouldShowNextStepCard ? (
+          <Section title={nextStepCopy.title} className="dashboard-panel relative z-10 mt-8">
+            <Card className="dashboard-list-card">
+              <p className="text-sm text-[var(--muted)]">{nextStepCopy.body}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link href="/transactions">{nextStepCopy.tx}</Link>
+                </Button>
+                <Button asChild variant="secondary">
+                  <Link href="/envelopes">{nextStepCopy.env}</Link>
+                </Button>
+                <Button asChild variant="ghost">
+                  <Link href="/khatat-lflous">{nextStepCopy.smart}</Link>
+                </Button>
+              </div>
+            </Card>
+          </Section>
+        ) : null}
         <Section title={copy.quickActions} className="dashboard-panel relative z-10 mt-8">
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => openQuickTransactionDialog("expense")}>

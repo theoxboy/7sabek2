@@ -47,7 +47,7 @@ import {
   getOnboardingTransition,
   ONBOARDING_ANIMATE,
 } from "@/components/onboarding/onboardingMotion";
-import { fetchMe, type AuthUser } from "@/lib/auth";
+import { fetchMe, refreshAuthSession, type AuthUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { buildMoneyPlanModeAllocations, type SafetyState } from "@/lib/moneyPlanEngine";
 import {
@@ -11347,7 +11347,7 @@ export function BetaOnboardingV2PageContent({
     ? extractRestoredProposalState(initialRegisterDraft?.draft_objects)
     : null;
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authResolved, setAuthResolved] = useState(isRegisterGuestMode || isPostRegisterMode);
+  const [authResolved, setAuthResolved] = useState(isRegisterGuestMode);
   const [betaEntrySummaryDismissed, setBetaEntrySummaryDismissed] = useState(false);
   const [hasRestoredPersistedRecord, setHasRestoredPersistedRecord] = useState(false);
   const [flowStage, setFlowStage] = useState<"collect_user" | "intro" | "questions">(
@@ -11430,6 +11430,7 @@ export function BetaOnboardingV2PageContent({
     Record<string, string>
   >({});
   const [distributionSyncingTargets, setDistributionSyncingTargets] = useState(false);
+  const [distributionCtaBusy, setDistributionCtaBusy] = useState(false);
   const distributionConfigAliasRef = useRef<Record<string, string>>({});
   const [proposalCustomName, setProposalCustomName] = useState("");
   const [proposalCustomGroup, setProposalCustomGroup] = useState<EnvelopeProposalDomain>("essentials");
@@ -15069,8 +15070,12 @@ export function BetaOnboardingV2PageContent({
   ]);
 
   useEffect(() => {
-    fetchMe()
-      .then((user) => {
+    let cancelled = false;
+    const loadAuth = async () => {
+      const loader = isPostRegisterMode ? refreshAuthSession : fetchMe;
+      try {
+        const user = await loader();
+        if (cancelled) return;
         setAuthUser(user);
         setAnswers((prev) => {
           const next: Answers = { ...prev };
@@ -15091,12 +15096,27 @@ export function BetaOnboardingV2PageContent({
           }
           return next;
         });
-      })
-      .catch(() => null)
-      .finally(() => {
+      } catch {
+        if (isPostRegisterMode) {
+          await new Promise((resolve) => window.setTimeout(resolve, 300));
+          try {
+            const user = await refreshAuthSession();
+            if (cancelled) return;
+            setAuthUser(user);
+          } catch {
+            // Keep the page usable; app shell will enforce auth if needed.
+          }
+        }
+      } finally {
+        if (cancelled) return;
         setAuthResolved(true);
-      });
-  }, []);
+      }
+    };
+    void loadAuth();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPostRegisterMode]);
 
   const refreshDistributionEnvelopeDirectory = useCallback(async () => {
     try {
@@ -15405,6 +15425,8 @@ export function BetaOnboardingV2PageContent({
   );
 
   const openDistributionSetupDialog = useCallback(async () => {
+    if (distributionCtaBusy) return;
+    setDistributionCtaBusy(true);
     try {
       setUiError("");
       const missingTargets = distributionTargetItems.filter(
@@ -15433,8 +15455,10 @@ export function BetaOnboardingV2PageContent({
       );
     } finally {
       setDistributionSyncingTargets(false);
+      setDistributionCtaBusy(false);
     }
   }, [
+    distributionCtaBusy,
     distributionEnvelopeIdsByName,
     distributionTargetItems,
     refreshDistributionEnvelopeDirectory,
@@ -17581,7 +17605,7 @@ export function BetaOnboardingV2PageContent({
       ? distributionUiCopy.statusNeedsSetup
       : distributionUiCopy.statusNotSaved;
 
-  if (!authResolved && !isRegisterGuestMode && !isPostRegisterMode) {
+  if (!authResolved && !isRegisterGuestMode) {
     return (
       <div
         id="onboarding-cairo-shell"
@@ -17601,7 +17625,7 @@ export function BetaOnboardingV2PageContent({
     );
   }
 
-  if (authResolved && !authUser && !isRegisterGuestMode && !isPostRegisterMode) {
+  if (authResolved && !authUser && !isRegisterGuestMode) {
     return (
       <div
         id="onboarding-cairo-shell"
@@ -22922,16 +22946,16 @@ export function BetaOnboardingV2PageContent({
 	                                ? distributionUiCopy.ctaReady
 	                                : "إعداد طريقة التوزيع وحفظه باش يتفعّل الزر ديال المتابعة."}
 	                            </p>
-                            <button
+	                            <button
                               type="button"
                               onClick={() => {
                                 void openDistributionSetupDialog();
                               }}
                               className={`h-11 ${onboardingPrimaryButtonClass}`}
 	                              style={onboardingPrimaryButtonStyle}
-	                              disabled={distributionSyncingTargets}
+	                              disabled={distributionSyncingTargets || distributionCtaBusy}
 	                            >
-	                              {distributionSyncingTargets
+	                              {distributionSyncingTargets || distributionCtaBusy
 	                                ? distributionUiCopy.btnSyncing
 	                                : distributionDisplayUnresolvedTotal > 0
 	                                ? distributionUiCopy.btnFixAndSetup

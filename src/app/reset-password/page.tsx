@@ -44,6 +44,8 @@ const COPY: Record<
     update: string;
     backToLogin: string;
     superadminVerificationFailed: string;
+    superadminRequiredFields: string;
+    tokenCheckFailed: string;
     tokenExpired: string;
     mustBeDifferent: string;
   }
@@ -74,6 +76,8 @@ const COPY: Record<
     update: "Mettre à jour",
     backToLogin: "Retour à la connexion",
     superadminVerificationFailed: "Vérification superadmin échouée.",
+    superadminRequiredFields: "Entre le code secret (4 chiffres) et le prénom superadmin.",
+    tokenCheckFailed: "Impossible de vérifier ce lien maintenant. Réessaie dans quelques instants.",
     tokenExpired: "Lien invalide ou expiré. Demande un nouveau lien.",
     mustBeDifferent: "Le nouveau mot de passe doit être différent de l'ancien.",
   },
@@ -103,6 +107,8 @@ const COPY: Record<
     update: "Update",
     backToLogin: "Back to login",
     superadminVerificationFailed: "Superadmin verification failed.",
+    superadminRequiredFields: "Enter the secret code (4 digits) and superadmin first name.",
+    tokenCheckFailed: "We could not verify this link right now. Please try again shortly.",
     tokenExpired: "Invalid or expired link. Request a new one.",
     mustBeDifferent: "New password must be different from the current one.",
   },
@@ -132,6 +138,8 @@ const COPY: Record<
     update: "حدّث كلمة السر",
     backToLogin: "رجوع لتسجيل الدخول",
     superadminVerificationFailed: "ما قدرناش نتحققو من صلاحيات الدخول.",
+    superadminRequiredFields: "دخل الكود السري (4 أرقام) والاسم الشخصي ديال superadmin.",
+    tokenCheckFailed: "ما قدرناش نتحققو من الرابط دابا. عاود المحاولة من بعد شوية.",
     tokenExpired: "الرابط غير صالح أو سالات الصلاحية ديالو. طلب رابط جديد.",
     mustBeDifferent: "كلمة السر الجديدة خاصها تكون مختلفة على القديمة.",
   },
@@ -199,6 +207,7 @@ export default function ResetPasswordPage() {
         if (!active) return;
         setTokenValid(null);
         setRequiresSuperadminVerification(false);
+        setError(copy.tokenCheckFailed);
       })
       .finally(() => {
         if (active) setTokenInfoLoading(false);
@@ -206,9 +215,9 @@ export default function ResetPasswordPage() {
     return () => {
       active = false;
     };
-  }, [token, hasValidTokenFormat, copy.invalidToken]);
+  }, [token, hasValidTokenFormat, copy.invalidToken, copy.tokenCheckFailed]);
 
-  const canShowForm = hasValidTokenFormat && tokenValid !== false;
+  const canShowForm = hasValidTokenFormat && tokenValid === true;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -233,6 +242,12 @@ export default function ResetPasswordPage() {
     if (password !== confirm) {
       setError(copy.confirmMismatch);
       return;
+    }
+    if (requiresSuperadminVerification) {
+      if (superadminCode.trim().length !== 4 || !superadminFirstName.trim()) {
+        setError(copy.superadminRequiredFields);
+        return;
+      }
     }
     setLoading(true);
     try {

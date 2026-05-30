@@ -233,6 +233,7 @@ const DISTRIBUTION_DIALOG_COPY = {
     chooseFrequency: "Choisir une fréquence",
     everyDays: (days: number) => `Chaque ${days} jours`,
     save: "Enregistrer",
+    percentSelectionRequired: "Active au moins une enveloppe en % avant de continuer.",
   },
   en: {
     unknownError: "Unknown error",
@@ -355,6 +356,7 @@ const DISTRIBUTION_DIALOG_COPY = {
     chooseFrequency: "Choose frequency",
     everyDays: (days: number) => `Every ${days} days`,
     save: "Save",
+    percentSelectionRequired: "Enable at least one percentage envelope before continuing.",
   },
   ar: {
     unknownError: "وقع مشكل غير معروف",
@@ -475,6 +477,7 @@ const DISTRIBUTION_DIALOG_COPY = {
     chooseFrequency: "اختار التردد",
     everyDays: (days: number) => `كل ${days} أيام`,
     save: "حفظ",
+    percentSelectionRequired: "فعّل على الأقل ظرف واحد بالنسبة المئوية قبل ما تكمل.",
   },
 } as const;
 
@@ -1488,8 +1491,16 @@ export function DistributionConfigDialog({
   }, [open, resetDialogState]);
 
   const handleWizardNext = () => {
+    setError(null);
     if (onboardingSetupOnlyMode) {
       if (effectiveWizardStep === 3) {
+        const hasEnabledPercentRow = rows.some(
+          (row) => row.targetType === "envelope" && row.mode === "percent" && row.enabled
+        );
+        if (!hasEnabledPercentRow) {
+          setError(copy.percentSelectionRequired);
+          return;
+        }
         setWizardStep(4);
         return;
       }
@@ -1528,6 +1539,13 @@ export function DistributionConfigDialog({
       return;
     }
     if (wizardStep === 3) {
+      const hasEnabledPercentRow = rows.some(
+        (row) => row.targetType === "envelope" && row.mode === "percent" && row.enabled
+      );
+      if (!hasEnabledPercentRow) {
+        setError(copy.percentSelectionRequired);
+        return;
+      }
       setWizardStep(4);
       return;
     }
@@ -3079,7 +3097,7 @@ export function DistributionConfigDialog({
                   </div>
                 ) : null}
                 {effectiveWizardStep < 5 ? (
-                  <Button type="button" onClick={handleWizardNext}>
+                  <Button type="button" onClick={handleWizardNext} disabled={saving || loading}>
                     {nextButtonLabel}
                   </Button>
                 ) : (
