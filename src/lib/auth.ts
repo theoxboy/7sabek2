@@ -93,6 +93,10 @@ export async function fetchMe(options: FetchMeOptions = {}): Promise<AuthUser> {
   return fetchMeInFlight;
 }
 
+export async function refreshAuthSession(): Promise<AuthUser> {
+  return fetchMe({ suppressAuthRedirect: true, force: true });
+}
+
 export async function logout(): Promise<void> {
   fetchMeCache = null;
   fetchMeInFlight = null;
