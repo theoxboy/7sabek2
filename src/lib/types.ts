@@ -877,6 +877,9 @@ export type EmailCenterSystemStatusOut = {
     templates_enabled: boolean;
     allow_open_tracking: boolean;
     allow_click_tracking: boolean;
+    recipient_preview_enabled: boolean;
+    campaigns_enabled: boolean;
+    campaign_test_send_enabled: boolean;
   };
   mail_provider: {
     provider: string;
@@ -896,6 +899,11 @@ export type EmailCenterSystemStatusOut = {
     active_templates_count?: number | null;
     templates_capability: "disabled" | "ready" | "no_templates" | string;
   };
+  campaigns: {
+    campaigns_enabled: boolean;
+    campaign_drafts_count?: number | null;
+    campaign_capability: "disabled" | "ready" | "no_campaigns" | "migration_required" | string;
+  };
   database: {
     email_design_settings_table: boolean;
     email_deliveries_table: boolean;
@@ -913,6 +921,9 @@ export type EmailCenterSystemStatusOut = {
     salary_reminders: boolean;
     ai_suggestions: boolean;
     templates: boolean;
+    recipient_preview: "disabled" | "ready" | string;
+    campaigns: "disabled" | "ready" | "no_campaigns" | "migration_required" | string;
+    campaign_test_send: "disabled" | "ready" | "blocked_by_kill_switch" | "missing_test_recipient" | string;
   };
   safety: {
     bulk_send_blocked: boolean;
@@ -969,4 +980,115 @@ export type EmailTemplateOut = {
 export type EmailTemplateListOut = {
   enabled: boolean;
   items: EmailTemplateOut[];
+};
+
+export type EmailCenterAudienceType =
+  | "all_users"
+  | "incomplete_onboarding"
+  | "no_transactions"
+  | "no_envelopes"
+  | "by_language"
+  | "salary_today"
+  | "salary_tomorrow";
+
+export type EmailCenterRecipientsPreviewRequest = {
+  audience_type: EmailCenterAudienceType;
+  language?: "darija" | "fr" | "en" | string;
+  template_id?: string;
+  subject?: string;
+  body?: string;
+  cta_label?: string;
+  cta_url?: string;
+  limit?: number;
+};
+
+export type EmailCenterRecipientsPreviewItem = {
+  user_id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name: string;
+  detected_language: "darija" | "fr" | "en" | string;
+  eligible: boolean;
+  reason: string;
+  skip_reason?: string | null;
+};
+
+export type EmailCenterRecipientsPreviewResponse = {
+  enabled: boolean;
+  audience_type: EmailCenterAudienceType | string;
+  total_matched: number;
+  returned_count: number;
+  items: EmailCenterRecipientsPreviewItem[];
+  warnings: string[];
+};
+
+export type EmailCenterPreviewUserEmailRequest = {
+  user_id: string;
+  template_id?: string;
+  subject?: string;
+  body?: string;
+  cta_label?: string;
+  cta_url?: string;
+};
+
+export type EmailCenterPreviewUserEmailResponse = {
+  user_id: string;
+  email: string;
+  detected_language: "darija" | "fr" | "en" | string;
+  subject: string;
+  preview_text: string;
+  body_html: string;
+  body_text: string;
+  cta_label: string;
+  cta_url: string;
+};
+
+export type EmailCampaignStatus = "draft" | "ready" | "archived" | string;
+export type EmailCampaignLanguageMode = "auto" | "darija" | "fr" | "en" | string;
+
+export type EmailCampaignOut = {
+  id: string;
+  title: string;
+  type: string;
+  status: EmailCampaignStatus;
+  audience_type: EmailCenterAudienceType | string;
+  audience_filter_json?: Record<string, unknown> | null;
+  language_mode: EmailCampaignLanguageMode;
+  template_id?: string | null;
+  subject_by_language_json?: Record<string, unknown> | null;
+  preview_by_language_json?: Record<string, unknown> | null;
+  body_by_language_json?: Record<string, unknown> | null;
+  cta_label_by_language_json?: Record<string, unknown> | null;
+  cta_url?: string | null;
+  design_settings_json?: Record<string, unknown> | null;
+  estimated_recipient_count?: number | null;
+  created_by_admin_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+};
+
+export type EmailCampaignListOut = {
+  enabled: boolean;
+  capability: "disabled" | "ready" | "no_campaigns" | "migration_required" | string;
+  items: EmailCampaignOut[];
+  limit: number;
+  offset: number;
+};
+
+export type EmailCampaignCreateRequest = {
+  title: string;
+  type?: string;
+  audience_type: EmailCenterAudienceType | string;
+  audience_filter_json?: Record<string, unknown>;
+  language_mode: EmailCampaignLanguageMode;
+  template_id?: string;
+  subject_by_language_json?: Record<string, unknown>;
+  preview_by_language_json?: Record<string, unknown>;
+  body_by_language_json?: Record<string, unknown>;
+  cta_label_by_language_json?: Record<string, unknown>;
+  cta_url?: string;
+  design_settings_json?: Record<string, unknown>;
+  status?: EmailCampaignStatus;
 };

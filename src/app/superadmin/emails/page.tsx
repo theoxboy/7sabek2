@@ -5,8 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type {
+  EmailCampaignCreateRequest,
+  EmailCampaignListOut,
+  EmailCampaignOut,
   EmailCenterAISuggestRequest,
   EmailCenterAISuggestResponse,
+  EmailCenterAudienceType,
+  EmailCenterPreviewUserEmailResponse,
+  EmailCenterRecipientsPreviewResponse,
   EmailCenterStatusOut,
   EmailCenterSystemStatusOut,
   EmailTemplateListOut,
@@ -100,6 +106,45 @@ export default function SuperadminEmailsPage() {
     cta_url: "",
     is_active: true,
   });
+  const [previewAudienceType, setPreviewAudienceType] = useState<EmailCenterAudienceType>("all_users");
+  const [previewLanguage, setPreviewLanguage] = useState<string>("");
+  const [previewTemplateId, setPreviewTemplateId] = useState<string>("");
+  const [previewLimit, setPreviewLimit] = useState<number>(50);
+  const [previewCompose, setPreviewCompose] = useState({ subject: "", body: "", cta_label: "", cta_url: "" });
+  const [recipientsPreview, setRecipientsPreview] = useState<EmailCenterRecipientsPreviewResponse | null>(null);
+  const [recipientsLoading, setRecipientsLoading] = useState(false);
+  const [previewEmailLoading, setPreviewEmailLoading] = useState(false);
+  const [previewEmail, setPreviewEmail] = useState<EmailCenterPreviewUserEmailResponse | null>(null);
+  const [campaigns, setCampaigns] = useState<EmailCampaignOut[]>([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  const [campaignRecipientsPreview, setCampaignRecipientsPreview] = useState<EmailCenterRecipientsPreviewResponse | null>(null);
+  const [campaignTestLanguageById, setCampaignTestLanguageById] = useState<Record<string, "darija" | "fr" | "en">>({});
+  const [campaignTestSendingById, setCampaignTestSendingById] = useState<Record<string, boolean>>({});
+  const [campaignTestResultById, setCampaignTestResultById] = useState<Record<string, string>>({});
+  const [campaignEditor, setCampaignEditor] = useState<{
+    id: string;
+    title: string;
+    audience_type: EmailCenterAudienceType;
+    language_mode: "auto" | "darija" | "fr" | "en";
+    template_id: string;
+    cta_url: string;
+    status: "draft" | "ready" | "archived";
+    subject_by_language_json: { darija: string; fr: string; en: string };
+    body_by_language_json: { darija: string; fr: string; en: string };
+    cta_label_by_language_json: { darija: string; fr: string; en: string };
+  }>({
+    id: "",
+    title: "",
+    audience_type: "all_users",
+    language_mode: "auto",
+    template_id: "",
+    cta_url: "",
+    status: "draft",
+    subject_by_language_json: { darija: "", fr: "", en: "" },
+    body_by_language_json: { darija: "", fr: "", en: "" },
+    cta_label_by_language_json: { darija: "", fr: "", en: "" },
+  });
 
   const canSend = useMemo(() => !!payload.to.trim() && !!payload.subject.trim() && !!payload.body.trim() && !sending, [payload, sending]);
   const canSendUser = useMemo(() => !!selectedUser && !!userCompose.subject.trim() && !!userCompose.body.trim() && !userSending, [selectedUser, userCompose, userSending]);
@@ -150,6 +195,20 @@ export default function SuperadminEmailsPage() {
     }
   };
 
+  const loadCampaigns = async () => {
+    setCampaignsLoading(true);
+    try {
+      const data = await apiFetch<EmailCampaignListOut>("/superadmin/email-center/campaigns?limit=50&offset=0", {
+        headers: { "x-admin-bypass": "true" },
+      });
+      setCampaigns(data.items || []);
+    } catch {
+      setCampaigns([]);
+    } finally {
+      setCampaignsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
@@ -165,6 +224,7 @@ export default function SuperadminEmailsPage() {
         setHistory(historyData);
         await loadSystemStatus();
         await loadTemplates();
+        await loadCampaigns();
         setPayload((current) => ({ ...current, to: current.to || statusData.test_recipient_email || "" }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load email center");
@@ -473,6 +533,158 @@ export default function SuperadminEmailsPage() {
     }
   };
 
+  const runRecipientsPreview = async () => {
+    setRecipientsLoading(true);
+    setPreviewEmail(null);
+    try {
+      const data = await apiFetch<EmailCenterRecipientsPreviewResponse>("/superadmin/email-center/recipients/preview", {
+        method: "POST",
+        headers: { "x-admin-bypass": "true" },
+        body: {
+          audience_type: previewAudienceType,
+          language: previewLanguage || undefined,
+          template_id: previewTemplateId || undefined,
+          subject: previewCompose.subject || undefined,
+          body: previewCompose.body || undefined,
+          cta_label: previewCompose.cta_label || undefined,
+          cta_url: previewCompose.cta_url || undefined,
+          limit: previewLimit,
+        },
+      });
+      setRecipientsPreview(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to run recipients preview");
+      setRecipientsPreview(null);
+    } finally {
+      setRecipientsLoading(false);
+    }
+  };
+
+  const loadPreviewUserEmail = async (userId: string) => {
+    setPreviewEmailLoading(true);
+    try {
+      const data = await apiFetch<EmailCenterPreviewUserEmailResponse>("/superadmin/email-center/recipients/preview-user-email", {
+        method: "POST",
+        headers: { "x-admin-bypass": "true" },
+        body: {
+          user_id: userId,
+          template_id: previewTemplateId || undefined,
+          subject: previewCompose.subject || undefined,
+          body: previewCompose.body || undefined,
+          cta_label: previewCompose.cta_label || undefined,
+          cta_url: previewCompose.cta_url || undefined,
+        },
+      });
+      setPreviewEmail(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to preview user email");
+      setPreviewEmail(null);
+    } finally {
+      setPreviewEmailLoading(false);
+    }
+  };
+
+  const saveCampaign = async () => {
+    const body: EmailCampaignCreateRequest = {
+      title: campaignEditor.title,
+      audience_type: campaignEditor.audience_type,
+      language_mode: campaignEditor.language_mode,
+      template_id: campaignEditor.template_id || undefined,
+      cta_url: campaignEditor.cta_url || undefined,
+      status: campaignEditor.status,
+      subject_by_language_json: campaignEditor.subject_by_language_json,
+      body_by_language_json: campaignEditor.body_by_language_json,
+      cta_label_by_language_json: campaignEditor.cta_label_by_language_json,
+    };
+    if (!campaignEditor.title.trim()) {
+      setError("Campaign title is required");
+      return;
+    }
+    try {
+      if (campaignEditor.id) {
+        await apiFetch(`/superadmin/email-center/campaigns/${campaignEditor.id}`, {
+          method: "PATCH",
+          headers: { "x-admin-bypass": "true" },
+          body,
+        });
+      } else {
+        await apiFetch("/superadmin/email-center/campaigns", {
+          method: "POST",
+          headers: { "x-admin-bypass": "true" },
+          body,
+        });
+      }
+      await loadCampaigns();
+      await loadSystemStatus();
+      setCampaignEditor((s) => ({ ...s, id: "", title: "" }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save campaign");
+    }
+  };
+
+  const deleteCampaign = async (campaignId: string) => {
+    try {
+      await apiFetch(`/superadmin/email-center/campaigns/${campaignId}`, {
+        method: "DELETE",
+        headers: { "x-admin-bypass": "true" },
+      });
+      await loadCampaigns();
+      await loadSystemStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete campaign");
+    }
+  };
+
+  const duplicateCampaign = async (campaignId: string) => {
+    try {
+      await apiFetch(`/superadmin/email-center/campaigns/${campaignId}/duplicate`, {
+        method: "POST",
+        headers: { "x-admin-bypass": "true" },
+      });
+      await loadCampaigns();
+      await loadSystemStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to duplicate campaign");
+    }
+  };
+
+  const previewCampaignRecipients = async (campaignId: string) => {
+    setSelectedCampaignId(campaignId);
+    try {
+      const data = await apiFetch<EmailCenterRecipientsPreviewResponse>(
+        `/superadmin/email-center/campaigns/${campaignId}/recipients-preview?limit=50`,
+        { method: "POST", headers: { "x-admin-bypass": "true" } }
+      );
+      setCampaignRecipientsPreview(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to preview recipients");
+      setCampaignRecipientsPreview(null);
+    }
+  };
+
+  const sendCampaignTest = async (campaignId: string) => {
+    const language = campaignTestLanguageById[campaignId] || "darija";
+    setCampaignTestSendingById((s) => ({ ...s, [campaignId]: true }));
+    setCampaignTestResultById((s) => ({ ...s, [campaignId]: "" }));
+    try {
+      const result = await apiFetch<{ status: string; error_message?: string }>(`/superadmin/email-center/campaigns/${campaignId}/send-test`, {
+        method: "POST",
+        headers: { "x-admin-bypass": "true" },
+        body: { language },
+      });
+      setCampaignTestResultById((s) => ({
+        ...s,
+        [campaignId]: result.status === "sent" ? "Campaign test sent to configured test inbox." : `Campaign test result: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`,
+      }));
+      await refreshHistory();
+      await loadSystemStatus();
+    } catch (err) {
+      setCampaignTestResultById((s) => ({ ...s, [campaignId]: err instanceof Error ? err.message : "Campaign test send failed" }));
+    } finally {
+      setCampaignTestSendingById((s) => ({ ...s, [campaignId]: false }));
+    }
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="space-y-2 p-4">
@@ -488,6 +700,8 @@ export default function SuperadminEmailsPage() {
             <TabsTrigger value="compose">Compose Test</TabsTrigger>
             <TabsTrigger value="compose-user">Compose User</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="recipients-preview">Recipients Preview</TabsTrigger>
             <TabsTrigger value="system-status">System Status</TabsTrigger>
             <TabsTrigger value="design">Design</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
@@ -613,6 +827,236 @@ export default function SuperadminEmailsPage() {
                 )}
               </Card>
             </div>
+          </TabsContent>
+          <TabsContent value="campaigns">
+            <Card className="space-y-4 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Campaign Drafts</p>
+                <Badge>{systemStatus?.flags.campaigns_enabled ? "Enabled" : "Disabled"}</Badge>
+              </div>
+              <p className="text-sm text-amber-700">Campaign drafts do not send emails. Bulk sending is not enabled yet.</p>
+              <p className="text-sm text-[var(--muted)]">This sends only to the configured test inbox.</p>
+              {!systemStatus?.flags.campaigns_enabled ? <p className="text-sm text-[var(--muted)]">Set EMAIL_CENTER_CAMPAIGNS_ENABLED=true to manage drafts.</p> : null}
+              {!systemStatus?.flags.campaign_test_send_enabled ? <p className="text-sm text-[var(--muted)]">Campaign test send is disabled by EMAIL_CENTER_CAMPAIGN_TEST_SEND_ENABLED.</p> : null}
+              {systemStatus?.capabilities.campaign_test_send === "blocked_by_kill_switch" ? <p className="text-sm text-red-600">Campaign test send blocked: kill switch is ON.</p> : null}
+              {systemStatus?.capabilities.campaign_test_send === "missing_test_recipient" ? <p className="text-sm text-red-600">Campaign test send blocked: EMAIL_CENTER_TEST_RECIPIENT_EMAIL is missing.</p> : null}
+              <div className="grid gap-2 md:grid-cols-2">
+                <Input placeholder="Campaign title" value={campaignEditor.title} onChange={(e) => setCampaignEditor((s) => ({ ...s, title: e.target.value }))} />
+                <Select value={campaignEditor.audience_type} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, audience_type: value as EmailCenterAudienceType }))}>
+                  <SelectTrigger><SelectValue placeholder="Audience type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_users">all_users</SelectItem>
+                    <SelectItem value="incomplete_onboarding">incomplete_onboarding</SelectItem>
+                    <SelectItem value="no_transactions">no_transactions</SelectItem>
+                    <SelectItem value="no_envelopes">no_envelopes</SelectItem>
+                    <SelectItem value="by_language">by_language</SelectItem>
+                    <SelectItem value="salary_today">salary_today</SelectItem>
+                    <SelectItem value="salary_tomorrow">salary_tomorrow</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={campaignEditor.language_mode} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, language_mode: value as "auto" | "darija" | "fr" | "en" }))}>
+                  <SelectTrigger><SelectValue placeholder="Language mode" /></SelectTrigger>
+                  <SelectContent><SelectItem value="auto">auto</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
+                </Select>
+                <Select value={campaignEditor.template_id || "__none__"} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, template_id: value === "__none__" ? "" : value }))}>
+                  <SelectTrigger><SelectValue placeholder="Template (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No template</SelectItem>
+                    {templates.map((template) => (<SelectItem key={template.id} value={template.id}>{template.name} · {template.language}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {campaignEditor.language_mode === "auto" ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {(["darija", "fr", "en"] as const).map((lang) => (
+                    <Card key={lang} className="space-y-2 p-3">
+                      <p className="text-sm font-medium">{lang}</p>
+                      <Input placeholder={`Subject ${lang}`} value={campaignEditor.subject_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [lang]: e.target.value } }))} />
+                      <Textarea placeholder={`Body ${lang}`} value={campaignEditor.body_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [lang]: e.target.value } }))} rows={4} />
+                      <Input placeholder={`CTA label ${lang}`} value={campaignEditor.cta_label_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [lang]: e.target.value } }))} />
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="space-y-2 p-3">
+                  <Input placeholder="Subject" value={campaignEditor.subject_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
+                  <Textarea placeholder="Body" value={campaignEditor.body_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} rows={4} />
+                  <Input placeholder="CTA label" value={campaignEditor.cta_label_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
+                </Card>
+              )}
+              <div className="grid gap-2 md:grid-cols-2">
+                <Input placeholder="CTA URL" value={campaignEditor.cta_url} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_url: e.target.value }))} />
+                <Select value={campaignEditor.status} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, status: value as "draft" | "ready" | "archived" }))}>
+                  <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent><SelectItem value="draft">draft</SelectItem><SelectItem value="ready">ready</SelectItem><SelectItem value="archived">archived</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={saveCampaign} disabled={!systemStatus?.flags.campaigns_enabled}>{campaignEditor.id ? "Update draft" : "Save draft"}</Button>
+                <Button variant="secondary" onClick={() => setCampaignEditor({ id: "", title: "", audience_type: "all_users", language_mode: "auto", template_id: "", cta_url: "", status: "draft", subject_by_language_json: { darija: "", fr: "", en: "" }, body_by_language_json: { darija: "", fr: "", en: "" }, cta_label_by_language_json: { darija: "", fr: "", en: "" } })}>Clear</Button>
+                <Button variant="secondary" onClick={loadCampaigns} disabled={campaignsLoading}>{campaignsLoading ? "Refreshing..." : "Refresh"}</Button>
+              </div>
+              <div className="space-y-2">
+                {campaigns.map((campaign) => (
+                  <Card key={campaign.id} className="space-y-2 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{campaign.title}</p>
+                      <div className="flex gap-2">
+                        <Badge>{campaign.status}</Badge>
+                        <Badge>{campaign.audience_type}</Badge>
+                        <Badge>{campaign.language_mode}</Badge>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[var(--muted)]">Created: {campaign.created_at}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="secondary" onClick={() => setCampaignEditor({
+                        id: campaign.id,
+                        title: campaign.title,
+                        audience_type: (campaign.audience_type as EmailCenterAudienceType),
+                        language_mode: (campaign.language_mode as "auto" | "darija" | "fr" | "en"),
+                        template_id: campaign.template_id || "",
+                        cta_url: campaign.cta_url || "",
+                        status: (campaign.status as "draft" | "ready" | "archived"),
+                        subject_by_language_json: {
+                          darija: String((campaign.subject_by_language_json as Record<string, unknown> | null)?.["darija"] || ""),
+                          fr: String((campaign.subject_by_language_json as Record<string, unknown> | null)?.["fr"] || ""),
+                          en: String((campaign.subject_by_language_json as Record<string, unknown> | null)?.["en"] || ""),
+                        },
+                        body_by_language_json: {
+                          darija: String((campaign.body_by_language_json as Record<string, unknown> | null)?.["darija"] || ""),
+                          fr: String((campaign.body_by_language_json as Record<string, unknown> | null)?.["fr"] || ""),
+                          en: String((campaign.body_by_language_json as Record<string, unknown> | null)?.["en"] || ""),
+                        },
+                        cta_label_by_language_json: {
+                          darija: String((campaign.cta_label_by_language_json as Record<string, unknown> | null)?.["darija"] || ""),
+                          fr: String((campaign.cta_label_by_language_json as Record<string, unknown> | null)?.["fr"] || ""),
+                          en: String((campaign.cta_label_by_language_json as Record<string, unknown> | null)?.["en"] || ""),
+                        },
+                      })}>Edit</Button>
+                      <Button variant="secondary" onClick={() => duplicateCampaign(campaign.id)}>Duplicate</Button>
+                      <Button variant="secondary" onClick={() => deleteCampaign(campaign.id)}>Archive/Delete</Button>
+                      <Button variant="secondary" onClick={() => previewCampaignRecipients(campaign.id)}>Preview recipients</Button>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Select
+                        value={campaignTestLanguageById[campaign.id] || "darija"}
+                        onValueChange={(value) => setCampaignTestLanguageById((s) => ({ ...s, [campaign.id]: value as "darija" | "fr" | "en" }))}
+                      >
+                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Test language" /></SelectTrigger>
+                        <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
+                      </Select>
+                      {systemStatus?.flags.campaign_test_send_enabled ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() => sendCampaignTest(campaign.id)}
+                          disabled={
+                            campaignTestSendingById[campaign.id] ||
+                            systemStatus?.capabilities.campaign_test_send !== "ready"
+                          }
+                        >
+                          {campaignTestSendingById[campaign.id] ? "Sending..." : "Send test"}
+                        </Button>
+                      ) : (
+                        <Badge>Campaign test disabled</Badge>
+                      )}
+                    </div>
+                    {campaignTestResultById[campaign.id] ? <p className="text-sm">{campaignTestResultById[campaign.id]}</p> : null}
+                  </Card>
+                ))}
+                {campaigns.length === 0 ? <p className="text-sm text-[var(--muted)]">No campaign drafts yet.</p> : null}
+              </div>
+              {campaignRecipientsPreview && selectedCampaignId ? (
+                <Card className="space-y-2 p-3">
+                  <p className="text-sm font-semibold">Recipients preview for selected campaign</p>
+                  {campaignRecipientsPreview.warnings.map((w) => <p key={w} className="text-sm text-amber-700">{w}</p>)}
+                  {campaignRecipientsPreview.items.map((item) => (
+                    <div key={item.user_id} className="grid gap-2 rounded border border-[var(--border)] p-2 text-sm md:grid-cols-[1.2fr_1.2fr_auto_auto_1fr_auto] md:items-center">
+                      <p>{item.display_name}</p>
+                      <p>{item.email}</p>
+                      <Badge>{item.detected_language}</Badge>
+                      <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
+                      <p>{item.skip_reason || item.reason}</p>
+                      <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)}>View email preview</Button>
+                    </div>
+                  ))}
+                </Card>
+              ) : null}
+            </Card>
+          </TabsContent>
+          <TabsContent value="recipients-preview">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="space-y-3 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Dry run audience preview</p>
+                  <Badge>{systemStatus?.flags.recipient_preview_enabled ? "Enabled" : "Disabled"}</Badge>
+                </div>
+                <p className="text-sm text-amber-700">This is a dry run. No emails will be sent.</p>
+                {!systemStatus?.flags.recipient_preview_enabled ? <p className="text-sm text-[var(--muted)]">Set EMAIL_CENTER_RECIPIENT_PREVIEW_ENABLED=true to use this tab.</p> : null}
+                <Select value={previewAudienceType} onValueChange={(value) => setPreviewAudienceType(value as EmailCenterAudienceType)}>
+                  <SelectTrigger><SelectValue placeholder="Audience type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_users">all_users</SelectItem>
+                    <SelectItem value="incomplete_onboarding">incomplete_onboarding</SelectItem>
+                    <SelectItem value="no_transactions">no_transactions</SelectItem>
+                    <SelectItem value="no_envelopes">no_envelopes</SelectItem>
+                    <SelectItem value="by_language">by_language</SelectItem>
+                    <SelectItem value="salary_today">salary_today</SelectItem>
+                    <SelectItem value="salary_tomorrow">salary_tomorrow</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={previewLanguage || "__none__"} onValueChange={(value) => setPreviewLanguage(value === "__none__" ? "" : value)}>
+                  <SelectTrigger><SelectValue placeholder="Language filter (optional)" /></SelectTrigger>
+                  <SelectContent><SelectItem value="__none__">No language filter</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
+                </Select>
+                <Select value={previewTemplateId || "__none__"} onValueChange={(value) => setPreviewTemplateId(value === "__none__" ? "" : value)}>
+                  <SelectTrigger><SelectValue placeholder="Template (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No template</SelectItem>
+                    {templates.map((template) => (<SelectItem key={template.id} value={template.id}>{template.name} · {template.language}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+                <Input type="number" min={1} max={200} placeholder="Limit (max 200)" value={previewLimit} onChange={(e) => setPreviewLimit(Number(e.target.value || "50"))} />
+                <Input placeholder="Fallback subject" value={previewCompose.subject} onChange={(e) => setPreviewCompose((s) => ({ ...s, subject: e.target.value }))} />
+                <Textarea placeholder="Fallback body" value={previewCompose.body} onChange={(e) => setPreviewCompose((s) => ({ ...s, body: e.target.value }))} rows={5} />
+                <div className="grid gap-2 md:grid-cols-2">
+                  <Input placeholder="Fallback CTA label" value={previewCompose.cta_label} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_label: e.target.value }))} />
+                  <Input placeholder="Fallback CTA URL" value={previewCompose.cta_url} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_url: e.target.value }))} />
+                </div>
+                <Button onClick={runRecipientsPreview} disabled={!systemStatus?.flags.recipient_preview_enabled || recipientsLoading}>{recipientsLoading ? "Running…" : "Run preview"}</Button>
+              </Card>
+              <Card className="space-y-3 p-4">
+                <p className="text-sm font-medium">Previewed user email</p>
+                {previewEmail ? (
+                  <div className="space-y-2 text-sm">
+                    <p>{previewEmail.email} · {previewEmail.detected_language}</p>
+                    <p>{previewEmail.subject}</p>
+                    <div className="mx-auto w-full max-w-[420px] overflow-hidden rounded border border-[var(--border)] bg-white p-2">
+                      <div dangerouslySetInnerHTML={{ __html: previewEmail.body_html }} />
+                    </div>
+                  </div>
+                ) : <p className="text-sm text-[var(--muted)]">Select a recipient row and click View email.</p>}
+              </Card>
+            </div>
+            <Card className="mt-4 space-y-3 p-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge>Total matched: {recipientsPreview?.total_matched ?? 0}</Badge>
+                <Badge>Returned: {recipientsPreview?.returned_count ?? 0}</Badge>
+              </div>
+              {recipientsPreview?.warnings?.length ? <div className="space-y-1">{recipientsPreview.warnings.map((warning) => <p key={warning} className="text-sm text-amber-700">{warning}</p>)}</div> : null}
+              <div className="space-y-2">
+                {recipientsPreview?.items?.map((item) => (
+                  <div key={item.user_id} className="grid gap-2 rounded border border-[var(--border)] p-3 text-sm md:grid-cols-[1.2fr_1.2fr_auto_1fr_1fr_auto] md:items-center">
+                    <p>{item.display_name}</p>
+                    <p>{item.email}</p>
+                    <Badge>{item.detected_language}</Badge>
+                    <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
+                    <p>{item.skip_reason || item.reason}</p>
+                    <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading}>{previewEmailLoading ? "Loading..." : "View email"}</Button>
+                  </div>
+                ))}
+                {recipientsPreview && recipientsPreview.items.length === 0 ? <p className="text-sm text-[var(--muted)]">No recipients matched.</p> : null}
+              </div>
+            </Card>
           </TabsContent>
           <TabsContent value="templates">
             <Card className="space-y-4 p-4">
