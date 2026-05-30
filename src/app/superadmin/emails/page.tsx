@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  Blocks,
+  Brush,
+  Clock3,
+  FileText,
+  Gauge,
+  Megaphone,
+  Send,
+  Settings2,
+  UserRound,
+  Users,
+} from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
@@ -32,7 +45,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/Drawer";
+import { InfoHint } from "@/components/ui/InfoHint";
 import { Input } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
@@ -135,6 +151,7 @@ export default function SuperadminEmailsPage() {
   const [registrationLeadsStats, setRegistrationLeadsStats] = useState<RegistrationLeadStatsOut | null>(null);
   const [registrationLeadsQuery, setRegistrationLeadsQuery] = useState("");
   const [registrationLeadsStatusFilter, setRegistrationLeadsStatusFilter] = useState<string>("");
+  const [selectedLeadId, setSelectedLeadId] = useState<string>("");
   const [campaignEditor, setCampaignEditor] = useState<{
     id: string;
     title: string;
@@ -161,12 +178,16 @@ export default function SuperadminEmailsPage() {
 
   const canSend = useMemo(() => !!payload.to.trim() && !!payload.subject.trim() && !!payload.body.trim() && !sending, [payload, sending]);
   const canSendUser = useMemo(() => !!selectedUser && !!userCompose.subject.trim() && !!userCompose.body.trim() && !userSending, [selectedUser, userCompose, userSending]);
+  const selectedLead = useMemo(
+    () => registrationLeads?.items.find((lead) => lead.id === selectedLeadId) || null,
+    [registrationLeads?.items, selectedLeadId]
+  );
 
   const modeWarning = useMemo(() => {
     if (!status) return "";
-    if (status.mode === "test_only") return "Irsal l-user mssedoud f mode test_only.";
-    if (status.mode === "superadmin_only") return "Mode amin: had email ghadi ymchi ghir l-email test, machi l-user الحقيقي.";
-    return "Had email ghadi ymchi l-user الحقيقي.";
+    if (status.mode === "test_only") return "الإرسال للمستخدمين محظور فـ وضع test_only.";
+    if (status.mode === "superadmin_only") return "وضع آمن: الإيميل كيمشي غير لإيميل التجربة، ماشي للمستخدم الحقيقي.";
+    return "هاد الإيميل غادي يمشي للمستخدم الحقيقي.";
   }, [status]);
 
   const refreshHistory = async () => {
@@ -183,7 +204,7 @@ export default function SuperadminEmailsPage() {
       });
       setSystemStatus(data);
     } catch (err) {
-      setSystemStatusError(err instanceof Error ? err.message : "Ma9drnach njibou halat nizam");
+      setSystemStatusError(err instanceof Error ? err.message : "ما قدرناش نجيبو حالة النظام");
     } finally {
       setSystemStatusLoading(false);
     }
@@ -278,7 +299,7 @@ export default function SuperadminEmailsPage() {
         await loadRegistrationLeads();
         setPayload((current) => ({ ...current, to: current.to || statusData.test_recipient_email || "" }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Ma9drnach n7emlou Markaz l-Emails");
+        setError(err instanceof Error ? err.message : "ما قدرناش نحمّلو مركز الإيميلات");
       } finally {
         setLoading(false);
       }
@@ -297,7 +318,7 @@ export default function SuperadminEmailsPage() {
       });
       setDesign(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ma9drnach n7afdou design");
+      setError(err instanceof Error ? err.message : "ما قدرناش نحفظو التصميم");
     } finally {
       setSavingDesign(false);
     }
@@ -312,10 +333,10 @@ export default function SuperadminEmailsPage() {
         headers: { "x-admin-bypass": "true" },
         body: payload,
       });
-      setSendResult(result.status === "sent" ? "Tsift l-email بنجاح." : `Ntiija dyal l-email: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
+      setSendResult(result.status === "sent" ? "تصيفط الإيميل بنجاح." : `نتيجة الإرسال: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
       await refreshHistory();
     } catch (err) {
-      setSendResult(err instanceof Error ? err.message : "Ma9drnach nsifto l-email");
+      setSendResult(err instanceof Error ? err.message : "ما قدرناش نصيفطو الإيميل");
     } finally {
       setSending(false);
     }
@@ -379,10 +400,10 @@ export default function SuperadminEmailsPage() {
           cta_url: userCompose.cta_url,
         },
       });
-      setUserSendResult(result.status === "sent" ? "Tsift l-email l-user بنجاح." : `Ntiija dyal l-email: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
+      setUserSendResult(result.status === "sent" ? "تصيفط الإيميل للمستخدم بنجاح." : `نتيجة الإرسال: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
       await refreshHistory();
     } catch (err) {
-      setUserSendResult(err instanceof Error ? err.message : "Ma9drnach nsifto l-email l-user");
+      setUserSendResult(err instanceof Error ? err.message : "ما قدرناش نصيفطو الإيميل l-user");
     } finally {
       setUserSending(false);
     }
@@ -391,23 +412,23 @@ export default function SuperadminEmailsPage() {
   const previewHtml = useMemo(() => {
     const escapedBody = payload.body.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\n", "<br/>");
     return {
-      __html: `<div style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${design.brand_name}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "Mo3ayana dyal l-3onwan"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "Mo3ayana dyal l-matn"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "Hll"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
+      __html: `<div style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${design.brand_name}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "معاينة الموضوع"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "معاينة النص"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "Hll"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
     };
   }, [design, payload]);
 
   const modeExplanation = useMemo(() => {
     if (!systemStatus) return "";
     if (systemStatus.mode === "test_only") {
-      return "test_only: ghir email test اللي ي9der ytsel emails";
+      return "test_only: غير إيميل التجربة اللي يقدر يتوصل.";
     }
     if (systemStatus.mode === "superadmin_only") {
-      return "superadmin_only: kayt7der l-email 3la 7sab user mkhtar walakin kaytsift ghir l-email test";
+      return "superadmin_only: كيتوجد الإيميل حسب المستخدم المختار ولكن كيتصيفط غير لإيميل التجربة.";
     }
-    return "production: kaytsift l-users الحقيقيين";
+    return "production: كيتصيفط للمستخدمين الحقيقيين.";
   }, [systemStatus]);
 
-  const statusBadge = (value: boolean, positiveLabel = "Active") => (
-    <Badge>{value ? positiveLabel : "Disabled"}</Badge>
+  const statusBadge = (value: boolean, positiveLabel = "مفعّل") => (
+    <Badge>{value ? positiveLabel : "مطفّي"}</Badge>
   );
   const aiDisabled = !systemStatus?.flags.ai_suggestions_enabled;
   const aiMissingConfig = systemStatus?.ai?.ai_capability === "missing_config";
@@ -440,7 +461,7 @@ export default function SuperadminEmailsPage() {
       });
       setAiSuggestionTest(suggestion);
     } catch (err) {
-      setAiSuggestErrorTest(err instanceof Error ? err.message : "AI suggestion failed");
+      setAiSuggestErrorTest(err instanceof Error ? err.message : "فشل اقتراح الذكاء الاصطناعي");
     } finally {
       setAiSuggestLoadingTest(false);
     }
@@ -463,7 +484,7 @@ export default function SuperadminEmailsPage() {
       });
       setAiSuggestionUser(suggestion);
     } catch (err) {
-      setAiSuggestErrorUser(err instanceof Error ? err.message : "AI suggestion failed");
+      setAiSuggestErrorUser(err instanceof Error ? err.message : "فشل اقتراح الذكاء الاصطناعي");
     } finally {
       setAiSuggestLoadingUser(false);
     }
@@ -552,7 +573,7 @@ export default function SuperadminEmailsPage() {
         is_active: true,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save template");
+      setError(err instanceof Error ? err.message : "ما قدرناش نحفظو القالب");
     } finally {
       setSavingTemplate(false);
     }
@@ -567,7 +588,7 @@ export default function SuperadminEmailsPage() {
       await loadQwaleb(templateLanguageFilter, templateCategoryFilter);
       await loadSystemStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete template");
+      setError(err instanceof Error ? err.message : "ما قدرناش نعطلو القالب");
     }
   };
 
@@ -580,7 +601,7 @@ export default function SuperadminEmailsPage() {
       await loadQwaleb(templateLanguageFilter, templateCategoryFilter);
       await loadSystemStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to seed templates");
+      setError(err instanceof Error ? err.message : "ما قدرناش نركبو القوالب الجاهزة");
     }
   };
 
@@ -604,7 +625,7 @@ export default function SuperadminEmailsPage() {
       });
       setRecipientsPreview(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to run recipients preview");
+      setError(err instanceof Error ? err.message : "ما قدرناش نشغلو معاينة المستافدين");
       setRecipientsPreview(null);
     } finally {
       setRecipientsLoading(false);
@@ -628,7 +649,7 @@ export default function SuperadminEmailsPage() {
       });
       setPreviewEmail(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to preview user email");
+      setError(err instanceof Error ? err.message : "ما قدرناش نعاينو إيميل المستخدم");
       setPreviewEmail(null);
     } finally {
       setPreviewEmailLoading(false);
@@ -648,7 +669,7 @@ export default function SuperadminEmailsPage() {
       cta_label_by_language_json: campaignEditor.cta_label_by_language_json,
     };
     if (!campaignEditor.title.trim()) {
-      setError("Campaign title is required");
+      setError("عنوان الحملة ضروري");
       return;
     }
     try {
@@ -669,7 +690,7 @@ export default function SuperadminEmailsPage() {
       await loadSystemStatus();
       setCampaignEditor((s) => ({ ...s, id: "", title: "" }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save campaign");
+      setError(err instanceof Error ? err.message : "ما قدرناش نحفظو الحملة");
     }
   };
 
@@ -682,7 +703,7 @@ export default function SuperadminEmailsPage() {
       await loadHamalat();
       await loadSystemStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete campaign");
+      setError(err instanceof Error ? err.message : "ما قدرناش نحيدو الحملة");
     }
   };
 
@@ -695,7 +716,7 @@ export default function SuperadminEmailsPage() {
       await loadHamalat();
       await loadSystemStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to duplicate campaign");
+      setError(err instanceof Error ? err.message : "ما قدرناش ننسخو الحملة");
     }
   };
 
@@ -708,7 +729,7 @@ export default function SuperadminEmailsPage() {
       );
       setCampaignRecipientsPreview(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to preview recipients");
+      setError(err instanceof Error ? err.message : "ما قدرناش نعاينو المستافدين");
       setCampaignRecipientsPreview(null);
     }
   };
@@ -725,19 +746,19 @@ export default function SuperadminEmailsPage() {
       });
       setCampaignTestResultById((s) => ({
         ...s,
-        [campaignId]: result.status === "sent" ? "Campaign test sent to configured test inbox." : `Campaign test result: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`,
+        [campaignId]: result.status === "sent" ? "تصيفط تيست الحملة لإيميل التجربة المعيّن." : `نتيجة تيست الحملة: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`,
       }));
       await refreshHistory();
       await loadSystemStatus();
     } catch (err) {
-      setCampaignTestResultById((s) => ({ ...s, [campaignId]: err instanceof Error ? err.message : "Campaign test send failed" }));
+      setCampaignTestResultById((s) => ({ ...s, [campaignId]: err instanceof Error ? err.message : "فشل إرسال تيست الحملة" }));
     } finally {
       setCampaignTestSendingById((s) => ({ ...s, [campaignId]: false }));
     }
   };
 
   const sendCampaignQueued = async (campaignId: string, recipients: number) => {
-    const confirmation = window.prompt(`You are about to queue emails for ${recipients} recipients. Type SEND to confirm.`);
+    const confirmation = window.prompt(`غادي تصيفط الحملة لــ ${recipients} مستافد. كتب SEND باش تأكد.`);
     if (confirmation !== "SEND") return;
     await apiFetch(`/superadmin/email-center/campaigns/${campaignId}/send`, {
       method: "POST",
@@ -753,7 +774,7 @@ export default function SuperadminEmailsPage() {
     await apiFetch("/superadmin/email-center/suppressions", {
       method: "POST",
       headers: { "x-admin-bypass": "true" },
-      body: { email: suppressionEmail, reason: suppressionReason, source: "manual" },
+      body: { email: suppressionEmail, السبب: suppressionReason, source: "manual" },
     });
     setSuppressionEmail("");
     await loadSuppressions();
@@ -787,83 +808,94 @@ export default function SuperadminEmailsPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <Card className="space-y-2 p-4">
-        <h1 className="text-xl font-semibold">Markaz l-Emails</h1>
-        <p className="text-sm text-[var(--muted)]">Markaz dyal l'emails (Admin). Ma kayn la bulk send mftouh, la scheduling, la automation.</p>
+    <div className="min-h-screen space-y-6 bg-[radial-gradient(circle_at_top,_#f8fafc,_#eef7f4_40%,_#f8fafc)] p-4 md:p-6" dir="rtl">
+      <Card className="space-y-4 rounded-3xl border-0 p-5 shadow-[var(--shadow-soft)]">
+        <PageHeader
+          title="مركز الإيميلات"
+          subtitle="مركز ديال الإيميلات للمشرف. من هنا تقدر تجرّب الإرسال، تكتب لمستخدم واحد، تراجع القوالب، وتشوف الحالة العامة ديال النظام بطريقة آمنة."
+          actions={<Button variant="secondary" onClick={loadSystemStatus} disabled={systemStatusLoading}>{systemStatusLoading ? "كيتم التحديث..." : "حدّث"}</Button>}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Badge>{status?.mode || "وضع غير معروف"}</Badge>
+          <Badge>{status?.provider || "مزوّد غير معروف"}</Badge>
+          <Badge>{status?.kill_switch ? "الإرسال محظور" : "الإرسال مفتوح"}</Badge>
+          <Badge>{systemStatus?.templates.templates_count ?? 0} قوالب</Badge>
+          <Badge>{queueStatus?.pending_count ?? 0} فـالصف</Badge>
+          <Badge>{systemStatus?.ai.ai_capability || "AI"}</Badge>
+        </div>
       </Card>
-      {loading ? <p className="text-sm text-[var(--muted)]">Kayt7emmel…</p> : null}
+      {loading ? <p className="text-sm text-[var(--muted)]">جاري التحميل...</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {!loading && !error ? (
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Nadra 3amma</TabsTrigger>
-            <TabsTrigger value="compose">Kteb Test</TabsTrigger>
-            <TabsTrigger value="compose-user">Kteb l-Mostakhdem</TabsTrigger>
-            <TabsTrigger value="templates">Qwaleb</TabsTrigger>
-            <TabsTrigger value="campaigns">Hamalat</TabsTrigger>
-            <TabsTrigger value="recipients-preview">Mo3ayana dyal Mostafidin</TabsTrigger>
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-2xl bg-white/70 p-2">
+            <TabsTrigger value="overview" className="rounded-full"><Gauge className="ml-1 h-4 w-4" />نظرة عامة</TabsTrigger>
+            <TabsTrigger value="compose" className="rounded-full"><Send className="ml-1 h-4 w-4" />كتب تيست</TabsTrigger>
+            <TabsTrigger value="compose-user" className="rounded-full"><UserRound className="ml-1 h-4 w-4" />كتب للمستخدم</TabsTrigger>
+            <TabsTrigger value="templates" className="rounded-full"><FileText className="ml-1 h-4 w-4" />القوالب</TabsTrigger>
+            <TabsTrigger value="campaigns" className="rounded-full"><Megaphone className="ml-1 h-4 w-4" />الحملات</TabsTrigger>
+            <TabsTrigger value="recipients-preview" className="rounded-full"><Users className="ml-1 h-4 w-4" />معاينة المستافدين</TabsTrigger>
             <TabsTrigger value="registration-leads">الناس اللي بداو التسجيل</TabsTrigger>
-            <TabsTrigger value="suppressions">Liste dyal l-Man3</TabsTrigger>
-            <TabsTrigger value="delivery-queue">Saff dyal l-Irsal</TabsTrigger>
-            <TabsTrigger value="system-status">Halat Nizam</TabsTrigger>
-            <TabsTrigger value="design">Design</TabsTrigger>
-            <TabsTrigger value="history">Tarikh</TabsTrigger>
+            <TabsTrigger value="suppressions" className="rounded-full"><Blocks className="ml-1 h-4 w-4" />لائحة المنع</TabsTrigger>
+            <TabsTrigger value="delivery-queue" className="rounded-full"><Activity className="ml-1 h-4 w-4" />صف الإرسال</TabsTrigger>
+            <TabsTrigger value="system-status" className="rounded-full"><Settings2 className="ml-1 h-4 w-4" />حالة النظام</TabsTrigger>
+            <TabsTrigger value="design" className="rounded-full"><Brush className="ml-1 h-4 w-4" />التصميم</TabsTrigger>
+            <TabsTrigger value="history" className="rounded-full"><Clock3 className="ml-1 h-4 w-4" />التاريخ</TabsTrigger>
           </TabsList>
-          <TabsContent value="overview"><Card className="space-y-3 p-4"><div className="flex flex-wrap items-center gap-2"><Badge>{status?.mode || "unknown"}</Badge><Badge>{status?.provider || "unknown"}</Badge><Badge>{status?.kill_switch ? "Kill switch Mcha3el" : "Kill switch مطفي"}</Badge></div><p className="text-sm">Mcha3el: {String(status?.enabled ?? false)}</p><p className="text-sm">From: {status?.mail_from || ""}</p><p className="text-sm">Email test: {status?.test_recipient_email || "(not set)"}</p><p className="text-sm">Irsal l-user mssmouh: {String(status?.allow_user_send ?? false)}</p><p className="text-sm text-amber-700">{modeWarning}</p></Card></TabsContent>
+          <TabsContent value="overview"><Card className="space-y-3 rounded-3xl p-4"><div className="flex items-center gap-2"><p className="text-sm font-semibold">نظرة عامة</p><InfoHint label="معلومة">هنا كتشوف الحالة العامة ديال مركز الإيميلات بسرعة.</InfoHint></div><div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4"><Badge>الوضع: {status?.mode || "غير معروف"}</Badge><Badge>المزوّد: {status?.provider || "غير معروف"}</Badge><Badge>{status?.enabled ? "مفعّل" : "مطفّي"}</Badge><Badge>{status?.allow_user_send ? "الإرسال للمستخدم مفعّل" : "الإرسال للمستخدم غير مفعّل"}</Badge></div><p className="text-sm">من: {status?.mail_from || "-"}</p><p className="text-sm">إيميل التجربة: {status?.test_recipient_email || "غير محدد"}</p><p className="text-sm text-amber-700">{modeWarning}</p></Card></TabsContent>
           <TabsContent value="compose">
             <Card className="space-y-3 p-4">
-              <Input placeholder="To" value={payload.to} onChange={(e) => setPayload((s) => ({ ...s, to: e.target.value }))} />
+              <Input placeholder="إيميل التوصل" value={payload.to} onChange={(e) => setPayload((s) => ({ ...s, to: e.target.value }))} />
               <Select value={payload.language} onValueChange={(value) => setPayload((s) => ({ ...s, language: value }))}>
-                <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="اللغة" /></SelectTrigger>
                 <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
               </Select>
               <Select value={selectedTemplateIdTest || "__none__"} onValueChange={(value) => applyTemplateToTest(value === "__none__" ? "" : value)}>
-                <SelectTrigger><SelectValue placeholder="St3mel template" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="استعمل قالب" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Bla template</SelectItem>
+                  <SelectItem value="__none__">بلا قالب</SelectItem>
                   {filteredTemplatesForTest.map((template) => (
                     <SelectItem key={template.id} value={template.id}>{template.name} · {template.category}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <div className="rounded border border-[var(--border)] p-3">
-                <div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">اقتراح AI</p><Badge>{aiDisabled ? "AI msddoud" : aiMissingConfig ? "AI Gateway ma mconfigurich" : "Wajed"}</Badge></div>
-                <Textarea placeholder="Lhadaf dyal had email" value={aiGoalTest} onChange={(e) => setAiGoalTest(e.target.value)} rows={3} />
+                <div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">اقتراح AI</p><Badge>{aiDisabled ? "الذكاء الاصطناعي مطفّي" : aiMissingConfig ? "بوابة الذكاء الاصطناعي خاصها إعداد" : "جاهز"}</Badge></div>
+                <Textarea placeholder="الهدف ديال هاد الإيميل" value={aiGoalTest} onChange={(e) => setAiGoalTest(e.target.value)} rows={3} />
                 <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  <Select value={aiToneTest} onValueChange={(value) => setAiToneTest(value as "friendly" | "professional" | "motivational" | "short")}><SelectTrigger><SelectValue placeholder="Nabra" /></SelectTrigger><SelectContent><SelectItem value="friendly">friendly</SelectItem><SelectItem value="professional">professional</SelectItem><SelectItem value="motivational">motivational</SelectItem><SelectItem value="short">short</SelectItem></SelectContent></Select>
-                  <Input placeholder="Ishara l-CTA (ikhtiyari)" value={aiCtaLabelHintTest} onChange={(e) => setAiCtaLabelHintTest(e.target.value)} />
+                  <Select value={aiToneTest} onValueChange={(value) => setAiToneTest(value as "friendly" | "professional" | "motivational" | "short")}><SelectTrigger><SelectValue placeholder="النبرة" /></SelectTrigger><SelectContent><SelectItem value="friendly">friendly</SelectItem><SelectItem value="professional">professional</SelectItem><SelectItem value="motivational">motivational</SelectItem><SelectItem value="short">short</SelectItem></SelectContent></Select>
+                  <Input placeholder="تلميح نص الزر (اختياري)" value={aiCtaLabelHintTest} onChange={(e) => setAiCtaLabelHintTest(e.target.value)} />
                 </div>
-                <div className="mt-2 flex gap-2"><Button onClick={suggestForTest} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingTest || !aiGoalTest.trim()}>{aiSuggestLoadingTest ? "Kayfakker..." : "Jib i9tira7 b AI"}</Button>{aiSuggestionTest ? <Button variant="secondary" onClick={suggestForTest} disabled={aiSuggestLoadingTest}>3awed l-i9tira7</Button> : null}{aiSuggestionTest ? <Button variant="secondary" onClick={() => setAiSuggestionTest(null)}>Ilgha2</Button> : null}</div>
+                <div className="mt-2 flex gap-2"><Button onClick={suggestForTest} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingTest || !aiGoalTest.trim()}>{aiSuggestLoadingTest ? "كيحضّر الاقتراح..." : "جيب اقتراح بالذكاء الاصطناعي"}</Button>{aiSuggestionTest ? <Button variant="secondary" onClick={suggestForTest} disabled={aiSuggestLoadingTest}>عاود الاقتراح</Button> : null}{aiSuggestionTest ? <Button variant="secondary" onClick={() => setAiSuggestionTest(null)}>إلغاء</Button> : null}</div>
                 {aiSuggestErrorTest ? <p className="mt-2 text-sm text-red-600">{aiSuggestErrorTest}</p> : null}
-                {aiSuggestionTest ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>Subject:</strong> {aiSuggestionTest.subject}</p><p><strong>Mo3ayana:</strong> {aiSuggestionTest.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>Body:</strong>{"\n"}{aiSuggestionTest.body}</p><p><strong>CTA:</strong> {aiSuggestionTest.cta_label}</p><Button className="mt-2" onClick={() => setPayload((s) => ({ ...s, subject: aiSuggestionTest.subject, body: aiSuggestionTest.body, cta_label: aiSuggestionTest.cta_label }))}>Tb9 i9tira7</Button></div> : null}
+                {aiSuggestionTest ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>الموضوع:</strong> {aiSuggestionTest.subject}</p><p><strong>عاين:</strong> {aiSuggestionTest.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>نص الإيميل:</strong>{"\n"}{aiSuggestionTest.body}</p><p><strong>CTA:</strong> {aiSuggestionTest.cta_label}</p><Button className="mt-2" onClick={() => setPayload((s) => ({ ...s, subject: aiSuggestionTest.subject, body: aiSuggestionTest.body, cta_label: aiSuggestionTest.cta_label }))}>طبّق الاقتراح</Button></div> : null}
               </div>
-              <Input placeholder="L3onwan" value={payload.subject} onChange={(e) => setPayload((s) => ({ ...s, subject: e.target.value }))} />
-              <Textarea placeholder="Lmatn" value={payload.body} onChange={(e) => setPayload((s) => ({ ...s, body: e.target.value }))} rows={8} />
-              <Input placeholder="Nass CTA" value={payload.cta_label} onChange={(e) => setPayload((s) => ({ ...s, cta_label: e.target.value }))} />
-              <Input placeholder="Rabeta CTA" value={payload.cta_url} onChange={(e) => setPayload((s) => ({ ...s, cta_url: e.target.value }))} />
-              <Button onClick={sendTest} disabled={!canSend}>{sending ? "Kaytsift…" : "Sift test"}</Button>
+              <Input placeholder="الموضوع" value={payload.subject} onChange={(e) => setPayload((s) => ({ ...s, subject: e.target.value }))} />
+              <Textarea placeholder="نص الإيميل" value={payload.body} onChange={(e) => setPayload((s) => ({ ...s, body: e.target.value }))} rows={8} />
+              <Input placeholder="نص الزر" value={payload.cta_label} onChange={(e) => setPayload((s) => ({ ...s, cta_label: e.target.value }))} />
+              <Input placeholder="الرابط" value={payload.cta_url} onChange={(e) => setPayload((s) => ({ ...s, cta_url: e.target.value }))} />
+              <Button onClick={sendTest} disabled={!canSend}>{sending ? "كيتم الإرسال..." : "صيفط تيست"}</Button>
               {sendResult ? <p className="text-sm">{sendResult}</p> : null}
             </Card>
           </TabsContent>
           <TabsContent value="suppressions">
             <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Liste dyal l-Man3</p><Badge>{systemStatus?.flags.suppression_enabled ? "Enabled" : "Disabled"}</Badge></div>
-              {!systemStatus?.flags.suppression_enabled ? <p className="text-sm text-[var(--muted)]">Liste l-man3 msdouda b EMAIL_CENTER_SUPPRESSION_ENABLED.</p> : null}
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold">لائحة المنع</p><Badge>{systemStatus?.flags.suppression_enabled ? "مفعّل" : "مطفّي"}</Badge></div>
+              {!systemStatus?.flags.suppression_enabled ? <p className="text-sm text-[var(--muted)]">هاد الخاصية ما مفعّلاش دابا.</p> : null}
               <div className="grid gap-2 md:grid-cols-3">
                 <Input placeholder="email@example.com" value={suppressionEmail} onChange={(e) => setSuppressionEmail(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
-                <Input placeholder="reason" value={suppressionReason} onChange={(e) => setSuppressionReason(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
-                <Button onClick={addSuppression} disabled={!suppressionEmail.trim() || !systemStatus?.flags.suppression_enabled}>Zid man3</Button>
+                <Input placeholder="السبب" value={suppressionReason} onChange={(e) => setSuppressionReason(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
+                <Button onClick={addSuppression} disabled={!suppressionEmail.trim() || !systemStatus?.flags.suppression_enabled}>زيد إيميل للمنع</Button>
               </div>
-              {suppressions?.items.map((item) => (<div key={item.id} className="flex items-center justify-between rounded border border-[var(--border)] p-2 text-sm"><p>{item.email} · {item.reason}</p><Button variant="secondary" onClick={() => deactivateSuppression(item.id)} disabled={!systemStatus?.flags.suppression_enabled}>Hyed l-man3</Button></div>))}
+              {suppressions?.items.map((item) => (<div key={item.id} className="flex items-center justify-between rounded border border-[var(--border)] p-2 text-sm"><p>{item.email} · {item.reason}</p><Button variant="secondary" onClick={() => deactivateSuppression(item.id)} disabled={!systemStatus?.flags.suppression_enabled}>عطّل المنع</Button></div>))}
             </Card>
           </TabsContent>
           <TabsContent value="delivery-queue">
             <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Saff dyal l-Irsal</p><Badge>{systemStatus?.flags.delivery_queue_enabled ? "Enabled" : "Disabled"}</Badge></div>
-              <p className="text-sm text-[var(--muted)]">Hada kay3alej emails f saff b batchat sghar.</p>
-              <p className="text-sm">Pending: {queueStatus?.pending_count ?? 0} · Retry: {queueStatus?.retry_count ?? 0} · Failed: {queueStatus?.failed_count ?? 0}</p>
-              <div className="flex gap-2"><Input type="number" value={queueProcessLimit} onChange={(e) => setQueueProcessLimit(Number(e.target.value || "20"))} /><Button onClick={processQueue} disabled={!systemStatus?.flags.delivery_queue_enabled}>3alej batch</Button></div>
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold">صف الإرسال</p><Badge>{systemStatus?.flags.delivery_queue_enabled ? "مفعّل" : "مطفّي"}</Badge></div>
+              <p className="text-sm text-[var(--muted)]">هاد الصف فيه الإيميلات اللي واجدين للإرسال ولا اللي خاصهم إعادة محاولة.</p>
+              <p className="text-sm">فانتظار الإرسال: {queueStatus?.pending_count ?? 0} · إعادة المحاولة: {queueStatus?.retry_count ?? 0} · فشل: {queueStatus?.failed_count ?? 0}</p>
+              <div className="flex gap-2"><Input type="number" value={queueProcessLimit} onChange={(e) => setQueueProcessLimit(Number(e.target.value || "20"))} /><Button onClick={processQueue} disabled={!systemStatus?.flags.delivery_queue_enabled}>شغّل دفعة</Button></div>
             </Card>
           </TabsContent>
           <TabsContent value="compose-user">
@@ -871,8 +903,8 @@ export default function SuperadminEmailsPage() {
               <Card className="space-y-3 p-4">
                 <p className="text-sm text-amber-700">{modeWarning}</p>
                 <div className="flex gap-2">
-                  <Input placeholder="Qelleb 3la user b smiya wla email" value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} />
-                  <Button onClick={searchUsers} disabled={searchingUsers}>{searchingUsers ? "Kayqelleb…" : "Qelleb"}</Button>
+                  <Input placeholder="قلّب على المستخدم" value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} />
+                  <Button onClick={searchUsers} disabled={searchingUsers}>{searchingUsers ? "كيتم التقليب..." : "قلّب"}</Button>
                 </div>
                 <div className="space-y-2">
                   {userSearchResults.map((user) => (
@@ -884,16 +916,16 @@ export default function SuperadminEmailsPage() {
                 </div>
                 {selectedUser ? (
                   <div className="rounded border border-[var(--border)] p-3 text-sm">
-                    <p className="font-medium">User mkhtar</p>
+                    <p className="font-medium">المستخدم المختار</p>
                     <p>{selectedUser.display_name}</p>
                     <p>{selectedUser.email}</p>
-                    <p>Logha: {selectedUser.detected_language}</p>
+                    <p>اللغة: {selectedUser.detected_language}</p>
                   </div>
                 ) : null}
                 <Select value={selectedTemplateIdUser || "__none__"} onValueChange={(value) => applyTemplateToUser(value === "__none__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="St3mel template" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="استعمل قالب" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Bla template</SelectItem>
+                    <SelectItem value="__none__">بلا قالب</SelectItem>
                     {filteredTemplatesForUser.map((template) => (
                       <SelectItem key={template.id} value={template.id}>{template.name} · {template.category}</SelectItem>
                     ))}
@@ -902,52 +934,52 @@ export default function SuperadminEmailsPage() {
                 <div className="rounded border border-[var(--border)] p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-medium">اقتراح AI</p>
-                    <Badge>{aiDisabled ? "AI msddoud" : aiMissingConfig ? "AI Gateway ma mconfigurich" : "Wajed"}</Badge>
+                    <Badge>{aiDisabled ? "الذكاء الاصطناعي مطفّي" : aiMissingConfig ? "بوابة الذكاء الاصطناعي خاصها إعداد" : "جاهز"}</Badge>
                   </div>
-                  <Textarea placeholder="Lhadaf dyal had email" value={aiGoalUser} onChange={(e) => setAiGoalUser(e.target.value)} rows={3} />
+                  <Textarea placeholder="الهدف ديال هاد الإيميل" value={aiGoalUser} onChange={(e) => setAiGoalUser(e.target.value)} rows={3} />
                   <div className="mt-2 grid gap-2 md:grid-cols-2">
                     <Select value={aiLanguageUser} onValueChange={(value) => setAiLanguageUser(value as "darija" | "fr" | "en")}>
-                      <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="اللغة" /></SelectTrigger>
                       <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
                     </Select>
                     <Select value={aiToneUser} onValueChange={(value) => setAiToneUser(value as "friendly" | "professional" | "motivational" | "short")}>
-                      <SelectTrigger><SelectValue placeholder="Nabra" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="النبرة" /></SelectTrigger>
                       <SelectContent><SelectItem value="friendly">friendly</SelectItem><SelectItem value="professional">professional</SelectItem><SelectItem value="motivational">motivational</SelectItem><SelectItem value="short">short</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <Input className="mt-2" placeholder="Ishara l-CTA (ikhtiyari)" value={aiCtaLabelHintUser} onChange={(e) => setAiCtaLabelHintUser(e.target.value)} />
+                  <Input className="mt-2" placeholder="تلميح نص الزر (اختياري)" value={aiCtaLabelHintUser} onChange={(e) => setAiCtaLabelHintUser(e.target.value)} />
                   <div className="mt-2 flex items-center gap-2">
                     <Checkbox checked={personalizeWithFirstName} onCheckedChange={(checked) => setPersonalizeWithFirstName(Boolean(checked))} />
-                    <p className="text-sm">Personalize with first name</p>
+                    <p className="text-sm">خصّص بالاسم الأول</p>
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <Button onClick={suggestForUser} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingUser || !selectedUser || !aiGoalUser.trim()}>{aiSuggestLoadingUser ? "Kayfakker..." : "Jib i9tira7 b AI"}</Button>
-                    {aiSuggestionUser ? <Button variant="secondary" onClick={suggestForUser} disabled={aiSuggestLoadingUser}>3awed l-i9tira7</Button> : null}
-                    {aiSuggestionUser ? <Button variant="secondary" onClick={() => setAiSuggestionUser(null)}>Ilgha2</Button> : null}
+                    <Button onClick={suggestForUser} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingUser || !selectedUser || !aiGoalUser.trim()}>{aiSuggestLoadingUser ? "كيحضّر الاقتراح..." : "جيب اقتراح بالذكاء الاصطناعي"}</Button>
+                    {aiSuggestionUser ? <Button variant="secondary" onClick={suggestForUser} disabled={aiSuggestLoadingUser}>عاود الاقتراح</Button> : null}
+                    {aiSuggestionUser ? <Button variant="secondary" onClick={() => setAiSuggestionUser(null)}>إلغاء</Button> : null}
                   </div>
                   {aiSuggestErrorUser ? <p className="mt-2 text-sm text-red-600">{aiSuggestErrorUser}</p> : null}
-                  {aiSuggestionUser ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>Subject:</strong> {aiSuggestionUser.subject}</p><p><strong>Mo3ayana:</strong> {aiSuggestionUser.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>Body:</strong>{"\n"}{aiSuggestionUser.body}</p><p><strong>CTA:</strong> {aiSuggestionUser.cta_label}</p><Button className="mt-2" onClick={() => setUserCompose((s) => ({ ...s, subject: aiSuggestionUser.subject, body: aiSuggestionUser.body, cta_label: aiSuggestionUser.cta_label }))}>Tb9 i9tira7</Button></div> : null}
+                  {aiSuggestionUser ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>الموضوع:</strong> {aiSuggestionUser.subject}</p><p><strong>عاين:</strong> {aiSuggestionUser.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>نص الإيميل:</strong>{"\n"}{aiSuggestionUser.body}</p><p><strong>CTA:</strong> {aiSuggestionUser.cta_label}</p><Button className="mt-2" onClick={() => setUserCompose((s) => ({ ...s, subject: aiSuggestionUser.subject, body: aiSuggestionUser.body, cta_label: aiSuggestionUser.cta_label }))}>طبّق الاقتراح</Button></div> : null}
                 </div>
-                <Input placeholder="L3onwan" value={userCompose.subject} onChange={(e) => setUserCompose((s) => ({ ...s, subject: e.target.value }))} />
-                <Textarea placeholder="Lmatn" value={userCompose.body} onChange={(e) => setUserCompose((s) => ({ ...s, body: e.target.value }))} rows={8} />
-                <Input placeholder="Nass CTA" value={userCompose.cta_label} onChange={(e) => setUserCompose((s) => ({ ...s, cta_label: e.target.value }))} />
-                <Input placeholder="Rabeta CTA" value={userCompose.cta_url} onChange={(e) => setUserCompose((s) => ({ ...s, cta_url: e.target.value }))} />
+                <Input placeholder="الموضوع" value={userCompose.subject} onChange={(e) => setUserCompose((s) => ({ ...s, subject: e.target.value }))} />
+                <Textarea placeholder="نص الإيميل" value={userCompose.body} onChange={(e) => setUserCompose((s) => ({ ...s, body: e.target.value }))} rows={8} />
+                <Input placeholder="نص الزر" value={userCompose.cta_label} onChange={(e) => setUserCompose((s) => ({ ...s, cta_label: e.target.value }))} />
+                <Input placeholder="الرابط" value={userCompose.cta_url} onChange={(e) => setUserCompose((s) => ({ ...s, cta_url: e.target.value }))} />
                 <div className="flex gap-2">
-                  <Button onClick={loadUserPreview} disabled={!selectedUser || previewLoading || !userCompose.subject.trim() || !userCompose.body.trim()}>{previewLoading ? "Kayjib l-mo3ayana…" : "Mo3ayana"}</Button>
-                  <Button onClick={sendUser} disabled={!canSendUser || !status?.allow_user_send || status?.mode === "test_only"}>{userSending ? "Kaytsift…" : "Sift l had user"}</Button>
+                  <Button onClick={loadUserPreview} disabled={!selectedUser || previewLoading || !userCompose.subject.trim() || !userCompose.body.trim()}>{previewLoading ? "كيجيب المعاينة..." : "عاين"}</Button>
+                  <Button onClick={sendUser} disabled={!canSendUser || !status?.allow_user_send || status?.mode === "test_only"}>{userSending ? "كيتم الإرسال..." : "صيفط دابا"}</Button>
                 </div>
                 {userSendResult ? <p className="text-sm">{userSendResult}</p> : null}
               </Card>
               <Card className="p-4">
-                <p className="mb-2 text-sm font-medium">Mo3ayana dyal user</p>
+                <p className="mb-2 text-sm font-medium">عاين الرسالة</p>
                 {userPreview ? (
                   <div className="space-y-2 text-sm">
-                    <p>User cible: {userPreview.display_name} ({userPreview.email})</p>
-                    <p>Logha: {userPreview.detected_language}</p>
+                    <p>المستافد: {userPreview.display_name} ({userPreview.email})</p>
+                    <p>اللغة: {userPreview.detected_language}</p>
                     <div dangerouslySetInnerHTML={{ __html: userPreview.body_html }} />
                   </div>
                 ) : (
-                  <p className="text-sm text-[var(--muted)]">Select a user and click Mo3ayana.</p>
+                  <p className="text-sm text-[var(--muted)]">اختار مستخدم، عاين الرسالة، ومن بعد صيفطها بطريقة آمنة.</p>
                 )}
               </Card>
             </div>
@@ -955,19 +987,19 @@ export default function SuperadminEmailsPage() {
           <TabsContent value="campaigns">
             <Card className="space-y-4 p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Msawdat l-hamalat</p>
-                <Badge>{systemStatus?.flags.campaigns_enabled ? "Enabled" : "Disabled"}</Badge>
+                <p className="text-sm font-semibold">الحملات</p>
+                <Badge>{systemStatus?.flags.campaigns_enabled ? "مفعّل" : "مطفّي"}</Badge>
               </div>
-              <p className="text-sm text-amber-700">Campaign drafts do not send emails. Bulk sending is not enabled yet.</p>
-              <p className="text-sm text-[var(--muted)]">This sends only to the configured test inbox.</p>
-              {!systemStatus?.flags.campaigns_enabled ? <p className="text-sm text-[var(--muted)]">Khass EMAIL_CENTER_CAMPAIGNS_ENABLED=true باش tdir hamalat.</p> : null}
-              {!systemStatus?.flags.campaign_test_send_enabled ? <p className="text-sm text-[var(--muted)]">Campaign test send is disabled by EMAIL_CENTER_CAMPAIGN_TEST_SEND_ENABLED.</p> : null}
-              {systemStatus?.capabilities.campaign_test_send === "blocked_by_kill_switch" ? <p className="text-sm text-red-600">Campaign test send blocked: kill switch is ON.</p> : null}
-              {systemStatus?.capabilities.campaign_test_send === "missing_test_recipient" ? <p className="text-sm text-red-600">Campaign test send blocked: EMAIL_CENTER_TEST_RECIPIENT_EMAIL is missing.</p> : null}
+              <p className="text-sm text-amber-700">الحملة كتجمع المحتوى والمستافدين باش تراجع كلشي قبل الإرسال. مازال bulk send مطفّي.</p>
+              <p className="text-sm text-[var(--muted)]">التست كيمشي غير للإيميل ديال التجربة.</p>
+              {!systemStatus?.flags.campaigns_enabled ? <p className="text-sm text-[var(--muted)]">هاد الخاصية مطفّية دابا حتى يتفعّل الفلاغ.</p> : null}
+              {!systemStatus?.flags.campaign_test_send_enabled ? <p className="text-sm text-[var(--muted)]">صيفط تيست ديال الحملة غير مفعّل دابا.</p> : null}
+              {systemStatus?.capabilities.campaign_test_send === "blocked_by_kill_switch" ? <p className="text-sm text-red-600">لا يمكن إرسال هاد الحملة دابا: الحظر العام مفعّل.</p> : null}
+              {systemStatus?.capabilities.campaign_test_send === "missing_test_recipient" ? <p className="text-sm text-red-600">لا يمكن إرسال هاد الحملة دابا: إيميل التجربة ناقص.</p> : null}
               <div className="grid gap-2 md:grid-cols-2">
-                <Input placeholder="3onwan l-hamla" value={campaignEditor.title} onChange={(e) => setCampaignEditor((s) => ({ ...s, title: e.target.value }))} />
+                <Input placeholder="عنوان الحملة" value={campaignEditor.title} onChange={(e) => setCampaignEditor((s) => ({ ...s, title: e.target.value }))} />
                 <Select value={campaignEditor.audience_type} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, audience_type: value as EmailCenterAudienceType }))}>
-                  <SelectTrigger><SelectValue placeholder="No3 l-audience" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="نوع الجمهور" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all_users">all_users</SelectItem>
                     <SelectItem value="incomplete_onboarding">incomplete_onboarding</SelectItem>
@@ -980,13 +1012,13 @@ export default function SuperadminEmailsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={campaignEditor.language_mode} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, language_mode: value as "auto" | "darija" | "fr" | "en" }))}>
-                  <SelectTrigger><SelectValue placeholder="Mode dyal logha" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="وضع اللغة" /></SelectTrigger>
                   <SelectContent><SelectItem value="auto">auto</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                 </Select>
                 <Select value={campaignEditor.template_id || "__none__"} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, template_id: value === "__none__" ? "" : value }))}>
-                  <SelectTrigger><SelectValue placeholder="Template (ikhtiyari)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="قالب (اختياري)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Bla template</SelectItem>
+                    <SelectItem value="__none__">بلا قالب</SelectItem>
                     {templates.map((template) => (<SelectItem key={template.id} value={template.id}>{template.name} · {template.language}</SelectItem>))}
                   </SelectContent>
                 </Select>
@@ -998,28 +1030,28 @@ export default function SuperadminEmailsPage() {
                       <p className="text-sm font-medium">{lang}</p>
                       <Input placeholder={`Subject ${lang}`} value={campaignEditor.subject_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [lang]: e.target.value } }))} />
                       <Textarea placeholder={`Body ${lang}`} value={campaignEditor.body_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [lang]: e.target.value } }))} rows={4} />
-                      <Input placeholder={`CTA label ${lang}`} value={campaignEditor.cta_label_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [lang]: e.target.value } }))} />
+                      <Input placeholder={`نص الزر ${lang}`} value={campaignEditor.cta_label_by_language_json[lang]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [lang]: e.target.value } }))} />
                     </Card>
                   ))}
                 </div>
               ) : (
                 <Card className="space-y-2 p-3">
-                  <Input placeholder="L3onwan" value={campaignEditor.subject_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
-                  <Textarea placeholder="Lmatn" value={campaignEditor.body_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} rows={4} />
-                  <Input placeholder="Nass CTA" value={campaignEditor.cta_label_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
+                  <Input placeholder="الموضوع" value={campaignEditor.subject_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
+                  <Textarea placeholder="نص الإيميل" value={campaignEditor.body_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} rows={4} />
+                  <Input placeholder="نص الزر" value={campaignEditor.cta_label_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
                 </Card>
               )}
               <div className="grid gap-2 md:grid-cols-2">
-                <Input placeholder="Rabeta CTA" value={campaignEditor.cta_url} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_url: e.target.value }))} />
+                <Input placeholder="الرابط" value={campaignEditor.cta_url} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_url: e.target.value }))} />
                 <Select value={campaignEditor.status} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, status: value as "draft" | "ready" | "archived" }))}>
                   <SelectTrigger><SelectValue placeholder="Lhala" /></SelectTrigger>
                   <SelectContent><SelectItem value="draft">draft</SelectItem><SelectItem value="ready">ready</SelectItem><SelectItem value="archived">archived</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button onClick={saveCampaign} disabled={!systemStatus?.flags.campaigns_enabled}>{campaignEditor.id ? "Update draft" : "Save draft"}</Button>
-                <Button variant="secondary" onClick={() => setCampaignEditor({ id: "", title: "", audience_type: "all_users", language_mode: "auto", template_id: "", cta_url: "", status: "draft", subject_by_language_json: { darija: "", fr: "", en: "" }, body_by_language_json: { darija: "", fr: "", en: "" }, cta_label_by_language_json: { darija: "", fr: "", en: "" } })}>Clear</Button>
-                <Button variant="secondary" onClick={loadHamalat} disabled={campaignsLoading}>{campaignsLoading ? "3awed tahdithing..." : "3awed tahdith"}</Button>
+                <Button onClick={saveCampaign} disabled={!systemStatus?.flags.campaigns_enabled}>{campaignEditor.id ? "عدّل المسودة" : "حفظ الحملة"}</Button>
+                <Button variant="secondary" onClick={() => setCampaignEditor({ id: "", title: "", audience_type: "all_users", language_mode: "auto", template_id: "", cta_url: "", status: "draft", subject_by_language_json: { darija: "", fr: "", en: "" }, body_by_language_json: { darija: "", fr: "", en: "" }, cta_label_by_language_json: { darija: "", fr: "", en: "" } })}>إلغاء</Button>
+                <Button variant="secondary" onClick={loadHamalat} disabled={campaignsLoading}>{campaignsLoading ? "كيتم التحديث..." : "حدّث الحالة"}</Button>
               </div>
               <div className="space-y-2">
                 {campaigns.map((campaign) => (
@@ -1032,7 +1064,7 @@ export default function SuperadminEmailsPage() {
                         <Badge>{campaign.language_mode}</Badge>
                       </div>
                     </div>
-                    <p className="text-xs text-[var(--muted)]">Created: {campaign.created_at}</p>
+                    <p className="text-xs text-[var(--muted)]">التاريخ: {campaign.created_at}</p>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="secondary" onClick={() => setCampaignEditor({
                         id: campaign.id,
@@ -1057,17 +1089,17 @@ export default function SuperadminEmailsPage() {
                           fr: String((campaign.cta_label_by_language_json as Record<string, unknown> | null)?.["fr"] || ""),
                           en: String((campaign.cta_label_by_language_json as Record<string, unknown> | null)?.["en"] || ""),
                         },
-                      })}>Edit</Button>
-                      <Button variant="secondary" onClick={() => duplicateCampaign(campaign.id)}>Duplicate</Button>
-                      <Button variant="secondary" onClick={() => deleteCampaign(campaign.id)}>Archive/Delete</Button>
-                      <Button variant="secondary" onClick={() => previewCampaignRecipients(campaign.id)}>Mo3ayana recipients</Button>
+                      })}>عدّل</Button>
+                      <Button variant="secondary" onClick={() => duplicateCampaign(campaign.id)}>نسخة</Button>
+                      <Button variant="secondary" onClick={() => deleteCampaign(campaign.id)}>أرشفة/حذف</Button>
+                      <Button variant="secondary" onClick={() => previewCampaignRecipients(campaign.id)}>عاين المستافدين</Button>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <Select
                         value={campaignTestLanguageById[campaign.id] || "darija"}
                         onValueChange={(value) => setCampaignTestLanguageById((s) => ({ ...s, [campaign.id]: value as "darija" | "fr" | "en" }))}
                       >
-                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Logha dyal test" /></SelectTrigger>
+                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="لغة التيست" /></SelectTrigger>
                         <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
                       </Select>
                       {systemStatus?.flags.campaign_test_send_enabled ? (
@@ -1079,36 +1111,36 @@ export default function SuperadminEmailsPage() {
                             systemStatus?.capabilities.campaign_test_send !== "ready"
                           }
                         >
-                          {campaignTestSendingById[campaign.id] ? "Sending..." : "Sift test"}
+                          {campaignTestSendingById[campaign.id] ? "كيتم الإرسال..." : "صيفط تيست"}
                         </Button>
                       ) : (
-                        <Badge>Campaign test disabled</Badge>
+                        <Badge>تيست الحملة غير مفعّل</Badge>
                       )}
                       <Button
                         variant="secondary"
                         onClick={() => sendCampaignQueued(campaign.id, Number(campaign.estimated_recipient_count || 0))}
                         disabled={!systemStatus?.flags.allow_bulk_send}
                       >
-                        Saffet l-hamla
+                        صف للإرسال
                       </Button>
                     </div>
                     {campaignTestResultById[campaign.id] ? <p className="text-sm">{campaignTestResultById[campaign.id]}</p> : null}
                   </Card>
                 ))}
-                {campaigns.length === 0 ? <p className="text-sm text-[var(--muted)]">Mazal ma kaynach msawdat hamalat.</p> : null}
+                {campaigns.length === 0 ? <p className="text-sm text-[var(--muted)]">ما كايناش حملات دابا.</p> : null}
               </div>
               {campaignRecipientsPreview && selectedCampaignId ? (
                 <Card className="space-y-2 p-3">
-                  <p className="text-sm font-semibold">Recipients preview for selected campaign</p>
+                  <p className="text-sm font-semibold">آخر معاينة للمستافدين</p>
                   {campaignRecipientsPreview.warnings.map((w) => <p key={w} className="text-sm text-amber-700">{w}</p>)}
                   {campaignRecipientsPreview.items.map((item) => (
                     <div key={item.user_id || item.lead_id || item.email} className="grid gap-2 rounded border border-[var(--border)] p-2 text-sm md:grid-cols-[1.2fr_1.2fr_auto_auto_1fr_auto] md:items-center">
                       <p>{item.display_name}</p>
                       <p>{item.email}</p>
                       <Badge>{item.detected_language}</Badge>
-                      <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
+                      <Badge>{item.eligible ? "مؤهل" : "غير مؤهل"}</Badge>
                       <p>{item.skip_reason || item.reason}</p>
-                      <Button variant="secondary" onClick={() => item.user_id && loadPreviewUserEmail(item.user_id)} disabled={!item.user_id}>Chof mo3ayana dyal email</Button>
+                      <Button variant="secondary" onClick={() => item.user_id && loadPreviewUserEmail(item.user_id)} disabled={!item.user_id}>عاين الإيميل</Button>
                     </div>
                   ))}
                 </Card>
@@ -1119,13 +1151,13 @@ export default function SuperadminEmailsPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Mo3ayana amina (dry run) dyal audience</p>
-                  <Badge>{systemStatus?.flags.recipient_preview_enabled ? "Enabled" : "Disabled"}</Badge>
+                  <p className="text-sm font-medium">معاينة المستافدين</p>
+                  <Badge>{systemStatus?.flags.recipient_preview_enabled ? "مفعّل" : "مطفّي"}</Badge>
                 </div>
-                <p className="text-sm text-amber-700">Hadi ghir mo3ayana. 7tta email ma ghadi ytsift.</p>
-                {!systemStatus?.flags.recipient_preview_enabled ? <p className="text-sm text-[var(--muted)]">Khass EMAIL_CENTER_RECIPIENT_PREVIEW_ENABLED=true باش tkhddem had tab.</p> : null}
+                <p className="text-sm text-amber-700">هادي غير معاينة، ما غادي يتصيفط حتى إيميل.</p>
+                {!systemStatus?.flags.recipient_preview_enabled ? <p className="text-sm text-[var(--muted)]">Khass هاد التبويب غير للمعاينة، ما كيصيفط حتى إيميل.</p> : null}
                 <Select value={previewAudienceType} onValueChange={(value) => setPreviewAudienceType(value as EmailCenterAudienceType)}>
-                  <SelectTrigger><SelectValue placeholder="No3 l-audience" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="نوع الجمهور" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all_users">all_users</SelectItem>
                     <SelectItem value="incomplete_onboarding">incomplete_onboarding</SelectItem>
@@ -1141,27 +1173,27 @@ export default function SuperadminEmailsPage() {
                   <p className="text-sm text-amber-700">هاد الاختيار كيستهدف الناس اللي بداو التسجيل وما كملوش. الرسالة خاصها تكون خفيفة ومحترمة.</p>
                 ) : null}
                 <Select value={previewLanguage || "__none__"} onValueChange={(value) => setPreviewLanguage(value === "__none__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Filter dyal logha (ikhtiyari)" /></SelectTrigger>
-                  <SelectContent><SelectItem value="__none__">No language filter</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
+                  <SelectTrigger><SelectValue placeholder="اللغة (اختياري)" /></SelectTrigger>
+                  <SelectContent><SelectItem value="__none__">بلا فلتر اللغة</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                 </Select>
                 <Select value={previewTemplateId || "__none__"} onValueChange={(value) => setPreviewTemplateId(value === "__none__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Template (ikhtiyari)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="قالب (اختياري)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Bla template</SelectItem>
+                    <SelectItem value="__none__">بلا قالب</SelectItem>
                     {templates.map((template) => (<SelectItem key={template.id} value={template.id}>{template.name} · {template.language}</SelectItem>))}
                   </SelectContent>
                 </Select>
-                <Input type="number" min={1} max={200} placeholder="Limit (max 200)" value={previewLimit} onChange={(e) => setPreviewLimit(Number(e.target.value || "50"))} />
-                <Input placeholder="3onwan i7tiyati" value={previewCompose.subject} onChange={(e) => setPreviewCompose((s) => ({ ...s, subject: e.target.value }))} />
-                <Textarea placeholder="Matn i7tiyati" value={previewCompose.body} onChange={(e) => setPreviewCompose((s) => ({ ...s, body: e.target.value }))} rows={5} />
+                <Input type="number" min={1} max={200} placeholder="الحد الأقصى (200)" value={previewLimit} onChange={(e) => setPreviewLimit(Number(e.target.value || "50"))} />
+                <Input placeholder="الموضوع (اختياري)" value={previewCompose.subject} onChange={(e) => setPreviewCompose((s) => ({ ...s, subject: e.target.value }))} />
+                <Textarea placeholder="نص الإيميل (اختياري)" value={previewCompose.body} onChange={(e) => setPreviewCompose((s) => ({ ...s, body: e.target.value }))} rows={5} />
                 <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="Nass CTA i7tiyati" value={previewCompose.cta_label} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_label: e.target.value }))} />
-                  <Input placeholder="Rabeta CTA i7tiyati" value={previewCompose.cta_url} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_url: e.target.value }))} />
+                  <Input placeholder="نص الزر (اختياري)" value={previewCompose.cta_label} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_label: e.target.value }))} />
+                  <Input placeholder="الرابط (اختياري)" value={previewCompose.cta_url} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_url: e.target.value }))} />
                 </div>
-                <Button onClick={runRecipientsPreview} disabled={!systemStatus?.flags.recipient_preview_enabled || recipientsLoading}>{recipientsLoading ? "Khadam…" : "Chghal l-mo3ayana"}</Button>
+                <Button onClick={runRecipientsPreview} disabled={!systemStatus?.flags.recipient_preview_enabled || recipientsLoading}>{recipientsLoading ? "خدام..." : "شغّل المعاينة"}</Button>
               </Card>
               <Card className="space-y-3 p-4">
-                <p className="text-sm font-medium">Mo3ayana dyal email dyal user</p>
+                <p className="text-sm font-medium">شوف الإيميل</p>
                 {previewEmail ? (
                   <div className="space-y-2 text-sm">
                     <p>{previewEmail.email} · {previewEmail.detected_language}</p>
@@ -1170,13 +1202,13 @@ export default function SuperadminEmailsPage() {
                       <div dangerouslySetInnerHTML={{ __html: previewEmail.body_html }} />
                     </div>
                   </div>
-                ) : <p className="text-sm text-[var(--muted)]">Select a recipient row and click View email.</p>}
+                ) : <p className="text-sm text-[var(--muted)]">اختار مستافد ومن بعد كليك على شوف الإيميل.</p>}
               </Card>
             </div>
             <Card className="mt-4 space-y-3 p-4">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge>Total matched: {recipientsPreview?.total_matched ?? 0}</Badge>
-                <Badge>Returned: {recipientsPreview?.returned_count ?? 0}</Badge>
+                <Badge>المجموع الموافق: {recipientsPreview?.total_matched ?? 0}</Badge>
+                <Badge>الراجع: {recipientsPreview?.returned_count ?? 0}</Badge>
               </div>
               {recipientsPreview?.warnings?.length ? <div className="space-y-1">{recipientsPreview.warnings.map((warning) => <p key={warning} className="text-sm text-amber-700">{warning}</p>)}</div> : null}
               <div className="space-y-2">
@@ -1185,18 +1217,21 @@ export default function SuperadminEmailsPage() {
                     <p>{item.display_name}</p>
                     <p>{item.email}</p>
                     <Badge>{item.detected_language}</Badge>
-                    <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
+                    <Badge>{item.eligible ? "مؤهل" : "غير مؤهل"}</Badge>
                     <p>{item.skip_reason || item.reason}</p>
-                    <Button variant="secondary" onClick={() => item.user_id && loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading || !item.user_id}>{previewEmailLoading ? "Loading..." : "Chof l-email"}</Button>
+                    <Button variant="secondary" onClick={() => item.user_id && loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading || !item.user_id}>{previewEmailLoading ? "جاري التحميل..." : "شوف الإيميل"}</Button>
                   </div>
                 ))}
-                {recipientsPreview && recipientsPreview.items.length === 0 ? <p className="text-sm text-[var(--muted)]">Ma t9abl 7tta mostafid.</p> : null}
+                {recipientsPreview && recipientsPreview.items.length === 0 ? <p className="text-sm text-[var(--muted)]">ما كاين حتى مستافد مطابق.</p> : null}
               </div>
             </Card>
           </TabsContent>
           <TabsContent value="registration-leads">
             <Card className="space-y-4 p-4">
-              <p className="text-base font-semibold">لائحة الناس اللي بداو التسجيل</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-semibold">الناس اللي بداو التسجيل</p>
+                <InfoHint label="معلومة">هاد اللائحة فيها الناس اللي بداو يصاوبو الحساب وما كملوش، وتقدر تستعملهم فاستهداف الإيميلات من بعد.</InfoHint>
+              </div>
               <div className="grid gap-2 md:grid-cols-5">
                 <Badge>المجموع: {registrationLeadsStats?.total ?? 0}</Badge>
                 <Badge>عندهم الإيميل: {registrationLeadsStats?.email_captured ?? 0}</Badge>
@@ -1205,12 +1240,12 @@ export default function SuperadminEmailsPage() {
                 <Badge>آخر 24 ساعة: {registrationLeadsStats?.last_24h ?? 0}</Badge>
               </div>
               <div className="grid gap-2 md:grid-cols-3">
-                <Input placeholder="بحث بالإيميل ولا الاسم ولا الهاتف" value={registrationLeadsQuery} onChange={(e) => setRegistrationLeadsQuery(e.target.value)} />
+                <Input placeholder="قلّب بالإيميل ولا الاسم ولا الهاتف" value={registrationLeadsQuery} onChange={(e) => setRegistrationLeadsQuery(e.target.value)} />
                 <Select value={registrationLeadsStatusFilter || "__all__"} onValueChange={(value) => setRegistrationLeadsStatusFilter(value === "__all__" ? "" : value)}>
                   <SelectTrigger><SelectValue placeholder="الحالة" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">الحالة</SelectItem>
-                    <SelectItem value="partial">مازال ناقص</SelectItem>
+                    <SelectItem value="partial">ما كملش</SelectItem>
                     <SelectItem value="email_captured">عندو الإيميل</SelectItem>
                     <SelectItem value="converted">تحول لحساب</SelectItem>
                     <SelectItem value="dismissed">تحيد من اللائحة</SelectItem>
@@ -1226,8 +1261,9 @@ export default function SuperadminEmailsPage() {
                     <p>{lead.email || "-"}</p>
                     <p>{lead.phone || "-"}</p>
                     <Badge>{lead.current_step === 1 ? "المعلومات الأساسية" : lead.current_step === 2 ? "الإيميل وكلمة السر" : "مراحل متقدمة"}</Badge>
-                    <Badge>{lead.status === "partial" ? "مازال ناقص" : lead.status === "email_captured" ? "عندو الإيميل" : lead.status === "converted" ? "تحول لحساب" : lead.status === "dismissed" ? "تحيد من اللائحة" : "مبلوكي"}</Badge>
+                    <Badge>{lead.status === "partial" ? "ما كملش" : lead.status === "email_captured" ? "عندو الإيميل" : lead.status === "converted" ? "تحوّل لحساب" : lead.status === "dismissed" ? "محيّد" : "مبلوكي"}</Badge>
                     <div className="flex gap-2">
+                      <Button variant="secondary" onClick={() => setSelectedLeadId(lead.id)}>فتح التفاصيل</Button>
                       <Button variant="secondary" onClick={() => updateRegistrationLeadStatus(lead.id, "dismissed")}>تحييد من اللائحة</Button>
                       <Button variant="secondary" onClick={() => updateRegistrationLeadStatus(lead.id, "blocked")}>بلوكي</Button>
                     </div>
@@ -1236,55 +1272,74 @@ export default function SuperadminEmailsPage() {
                 {registrationLeads && registrationLeads.items.length === 0 ? <p className="text-sm text-[var(--muted)]">ما كاين حتى واحد دابا.</p> : null}
               </div>
             </Card>
+            <Drawer open={Boolean(selectedLeadId)} onOpenChange={(open) => !open && setSelectedLeadId("")}> 
+              <DrawerContent>
+                <DrawerHeader>
+                  <DrawerTitle>تفاصيل المستافد</DrawerTitle>
+                </DrawerHeader>
+                {selectedLead ? (
+                  <div className="mt-4 space-y-3 text-sm">
+                    <p><strong>الاسم:</strong> {[selectedLead.first_name, selectedLead.last_name].filter(Boolean).join(" ") || "-"}</p>
+                    <p><strong>الإيميل:</strong> {selectedLead.email || "-"}</p>
+                    <p><strong>الهاتف:</strong> {selectedLead.phone || "-"}</p>
+                    <p><strong>المرحلة:</strong> {selectedLead.current_step}</p>
+                    <p><strong>المصدر:</strong> {String((selectedLead as Record<string, unknown>).source || "-")}</p>
+                    <p><strong>آخر تحديث:</strong> {selectedLead.updated_at || "-"}</p>
+                    <p><strong>ملاحظات:</strong> {String((selectedLead as Record<string, unknown>).note || "-")}</p>
+                    <Badge>{selectedLead.email ? "يمكن الاستهداف بالإيميل" : "ما عندوش إيميل"}</Badge>
+                  </div>
+                ) : null}
+              </DrawerContent>
+            </Drawer>
           </TabsContent>
           <TabsContent value="templates">
             <Card className="space-y-4 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge>{templatesEnabled ? "Qwaleb mcha3lin" : "Qwaleb msdoudin"}</Badge>
+                <Badge>{templatesEnabled ? "القوالب مفعّلة" : "القوالب مطفّية"}</Badge>
                 <Button variant="secondary" onClick={() => loadQwaleb(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>
-                  {templatesLoading ? "3awed tahdithing..." : "3awed tahdith"}
+                  {templatesLoading ? "كيتم التحديث..." : "حدّث الحالة"}
                 </Button>
                 <Button variant="secondary" onClick={seedDefaultTemplates} disabled={!templatesEnabled}>
-                  Seed defaults
+                  ركّب القوالب الجاهزة
                 </Button>
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <Select value={templateLanguageFilter || "__all__"} onValueChange={(value) => setTemplateLanguageFilter(value === "__all__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Language filter" /></SelectTrigger>
-                  <SelectContent><SelectItem value="__all__">All languages</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
+                  <SelectTrigger><SelectValue placeholder="اللغة" /></SelectTrigger>
+                  <SelectContent><SelectItem value="__all__">جميع اللغات</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                 </Select>
                 <Select value={templateCategoryFilter || "__all__"} onValueChange={(value) => setTemplateCategoryFilter(value === "__all__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Category filter" /></SelectTrigger>
-                  <SelectContent><SelectItem value="__all__">All categories</SelectItem><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="registration_reminder">registration_reminder</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
+                  <SelectTrigger><SelectValue placeholder="الفئة" /></SelectTrigger>
+                  <SelectContent><SelectItem value="__all__">جميع الفئات</SelectItem><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="registration_reminder">registration_reminder</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
                 </Select>
-                <Button onClick={() => loadQwaleb(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>Tb9i filters</Button>
+                <Button onClick={() => loadQwaleb(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>طبّق الفلترات</Button>
               </div>
 
               <Card className="space-y-2 p-3">
-                <p className="text-sm font-semibold">{templateEditor.id ? "Hddet template" : "Sna3 قالب"}</p>
+                <p className="text-sm font-semibold">{templateEditor.id ? "عدّل القالب" : "قالب جديد"}</p>
                 <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="Mefta7 (ikhtiyari)" value={templateEditor.key} onChange={(e) => setTemplateEditor((s) => ({ ...s, key: e.target.value }))} />
-                  <Input placeholder="Smiya" value={templateEditor.name} onChange={(e) => setTemplateEditor((s) => ({ ...s, name: e.target.value }))} />
+                  <Input placeholder="المفتاح (اختياري)" value={templateEditor.key} onChange={(e) => setTemplateEditor((s) => ({ ...s, key: e.target.value }))} />
+                  <Input placeholder="الاسم" value={templateEditor.name} onChange={(e) => setTemplateEditor((s) => ({ ...s, name: e.target.value }))} />
                   <Select value={templateEditor.category} onValueChange={(value) => setTemplateEditor((s) => ({ ...s, category: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="الفئة" /></SelectTrigger>
                     <SelectContent><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="registration_reminder">registration_reminder</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
                   </Select>
                   <Select value={templateEditor.language} onValueChange={(value) => setTemplateEditor((s) => ({ ...s, language: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="اللغة" /></SelectTrigger>
                     <SelectContent><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                   </Select>
-                  <Input placeholder="L3onwan" value={templateEditor.subject} onChange={(e) => setTemplateEditor((s) => ({ ...s, subject: e.target.value }))} />
-                  <Input placeholder="Mo3ayana text (optional)" value={templateEditor.preview_text} onChange={(e) => setTemplateEditor((s) => ({ ...s, preview_text: e.target.value }))} />
+                  <Input placeholder="الموضوع" value={templateEditor.subject} onChange={(e) => setTemplateEditor((s) => ({ ...s, subject: e.target.value }))} />
+                  <Input placeholder="نص المعاينة (اختياري)" value={templateEditor.preview_text} onChange={(e) => setTemplateEditor((s) => ({ ...s, preview_text: e.target.value }))} />
                 </div>
-                <Textarea placeholder="Lmatn" value={templateEditor.body} onChange={(e) => setTemplateEditor((s) => ({ ...s, body: e.target.value }))} rows={6} />
+                <Textarea placeholder="نص الإيميل" value={templateEditor.body} onChange={(e) => setTemplateEditor((s) => ({ ...s, body: e.target.value }))} rows={6} />
                 <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="Nass CTA" value={templateEditor.cta_label} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_label: e.target.value }))} />
-                  <Input placeholder="Rabeta CTA" value={templateEditor.cta_url} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_url: e.target.value }))} />
+                  <Input placeholder="نص الزر" value={templateEditor.cta_label} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_label: e.target.value }))} />
+                  <Input placeholder="الرابط" value={templateEditor.cta_url} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_url: e.target.value }))} />
                 </div>
-                <div className="flex items-center gap-2"><Checkbox checked={templateEditor.is_active} onCheckedChange={(checked) => setTemplateEditor((s) => ({ ...s, is_active: Boolean(checked) }))} /><p className="text-sm">Active</p></div>
+                <div className="flex items-center gap-2"><Checkbox checked={templateEditor.is_active} onCheckedChange={(checked) => setTemplateEditor((s) => ({ ...s, is_active: Boolean(checked) }))} /><p className="text-sm">مفعّل</p></div>
                 <div className="flex gap-2">
-                  <Button onClick={saveTemplate} disabled={!templatesEnabled || savingTemplate}>{savingTemplate ? "Kayt7fed..." : templateEditor.id ? "Hddet قالب" : "Sna3 قالب"}</Button>
-                  <Button variant="secondary" onClick={() => setTemplateEditor({ id: "", key: "", name: "", category: "custom", language: "fr", subject: "", preview_text: "", body: "", cta_label: "", cta_url: "", is_active: true })}>Clear</Button>
+                  <Button onClick={saveTemplate} disabled={!templatesEnabled || savingTemplate}>{savingTemplate ? "كيتم الحفظ..." : templateEditor.id ? "حفظ القالب" : "قالب جديد"}</Button>
+                  <Button variant="secondary" onClick={() => setTemplateEditor({ id: "", key: "", name: "", category: "custom", language: "fr", subject: "", preview_text: "", body: "", cta_label: "", cta_url: "", is_active: true })}>إلغاء</Button>
                 </div>
               </Card>
 
@@ -1296,7 +1351,7 @@ export default function SuperadminEmailsPage() {
                       <div className="flex gap-2">
                         <Badge>{template.language}</Badge>
                         <Badge>{template.category}</Badge>
-                        <Badge>{template.is_active ? "Active" : "Inactive"}</Badge>
+                        <Badge>{template.is_active ? "مفعّل" : "غير مفعّل"}</Badge>
                       </div>
                     </div>
                     <p className="text-sm">{template.subject}</p>
@@ -1304,110 +1359,113 @@ export default function SuperadminEmailsPage() {
                     <div className="flex gap-2">
                       <Button variant="secondary" onClick={() => setTemplateEditor({
                         id: template.id, key: template.key || "", name: template.name, category: template.category, language: template.language, subject: template.subject, preview_text: template.preview_text || "", body: template.body, cta_label: template.cta_label || "", cta_url: template.cta_url || "", is_active: template.is_active,
-                      })}>Edit</Button>
-                      <Button variant="secondary" onClick={() => deactivateTemplate(template.id)} disabled={!templatesEnabled}>Hyed l-man3</Button>
+                      })}>عدّل</Button>
+                      <Button variant="secondary" onClick={() => deactivateTemplate(template.id)} disabled={!templatesEnabled}>عطّل القالب</Button>
                     </div>
                   </Card>
                 ))}
-                {templates.length === 0 ? <p className="text-sm text-[var(--muted)]">Bla templates found.</p> : null}
+                {templates.length === 0 ? <p className="text-sm text-[var(--muted)]">ما كاين حتى قالب.</p> : null}
               </div>
             </Card>
           </TabsContent>
           <TabsContent value="system-status">
             <Card className="space-y-4 p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Backend health and safety diagnostics</p>
-                <Button onClick={loadSystemStatus} disabled={systemStatusLoading}>{systemStatusLoading ? "3awed tahdithing..." : "3awed tahdith l-hala"}</Button>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">حالة النظام</p>
+                  <InfoHint label="معلومة">هنا كتشوف واش إعدادات الإيميلات خدامة مزيان.</InfoHint>
+                </div>
+                <Button onClick={loadSystemStatus} disabled={systemStatusLoading}>{systemStatusLoading ? "كيتم التحديث..." : "حدّث الحالة"}</Button>
               </div>
-              {systemStatusError ? <p className="text-sm text-red-600">Unable to load system status right now. {systemStatusError}</p> : null}
+              {systemStatusError ? <p className="text-sm text-red-600">ما قدرناش نجيبو حالة النظام دابا. {systemStatusError}</p> : null}
               {systemStatus ? (
                 <div className="grid gap-4">
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Feature Flags</p>
-                    <p className="text-sm">Mode: <Badge>{systemStatus.mode}</Badge></p>
+                    <p className="text-sm font-semibold">وضع التشغيل</p>
+                    <p className="text-sm">وضع التشغيل: <Badge>{systemStatus.mode}</Badge></p>
                     <p className="text-sm text-[var(--muted)]">{modeExplanation}</p>
                     <div className="flex flex-wrap gap-2 text-sm">
-                      {statusBadge(systemStatus.flags.allow_user_send)}
-                      <Badge>{systemStatus.flags.allow_bulk_send ? "Active" : "Blocked"}</Badge>
-                      <Badge>{systemStatus.flags.allow_scheduling ? "Active" : "Blocked"}</Badge>
-                      <Badge>{systemStatus.flags.allow_salary_reminders ? "Active" : "Blocked"}</Badge>
-                      <Badge>{systemStatus.flags.ai_suggestions_enabled ? "Active" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.flags.allow_open_tracking ? "Active" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.flags.allow_click_tracking ? "Active" : "Disabled"}</Badge>
+                      {statusBadge(systemStatus.flags.allow_user_send, "مفعّل")}
+                      <Badge>{systemStatus.flags.allow_bulk_send ? "مفعّل" : "محظور"}</Badge>
+                      <Badge>{systemStatus.flags.allow_scheduling ? "مفعّل" : "محظور"}</Badge>
+                      <Badge>{systemStatus.flags.allow_salary_reminders ? "مفعّل" : "محظور"}</Badge>
+                      <Badge>{systemStatus.flags.ai_suggestions_enabled ? "مفعّل" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.flags.allow_open_tracking ? "مفعّل" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.flags.allow_click_tracking ? "مفعّل" : "مطفّي"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Mail Provider</p>
-                    <p className="text-sm">Provider: {systemStatus.mail_provider.provider}</p>
-                    <p className="text-sm">From: {systemStatus.mail_provider.from_email}</p>
+                    <p className="text-sm font-semibold">مزوّد الإيميلات</p>
+                    <p className="text-sm">المزوّد: {systemStatus.mail_provider.provider}</p>
+                    <p className="text-sm">المرسل: {systemStatus.mail_provider.from_email}</p>
                     <div className="flex gap-2 text-sm">
-                      <Badge>{systemStatus.mail_provider.api_base_configured ? "OK" : "Missing"}</Badge>
-                      <Badge>{systemStatus.mail_provider.token_configured ? "OK" : "Missing"}</Badge>
+                      <Badge>{systemStatus.mail_provider.api_base_configured ? "سليم" : "ناقص"}</Badge>
+                      <Badge>{systemStatus.mail_provider.token_configured ? "سليم" : "ناقص"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Database</p>
+                    <p className="text-sm font-semibold">قاعدة البيانات</p>
                     <div className="flex gap-2 text-sm">
-                      <Badge>{systemStatus.database.email_design_settings_table ? "OK" : "Missing"}</Badge>
-                      <Badge>{systemStatus.database.email_deliveries_table ? "OK" : "Missing"}</Badge>
+                      <Badge>{systemStatus.database.email_design_settings_table ? "سليم" : "ناقص"}</Badge>
+                      <Badge>{systemStatus.database.email_deliveries_table ? "سليم" : "ناقص"}</Badge>
                     </div>
-                    {systemStatus.database.error ? <p className="text-xs text-red-600">DB check: {systemStatus.database.error}</p> : null}
+                    {systemStatus.database.error ? <p className="text-xs text-red-600">خطأ ففحص قاعدة البيانات: {systemStatus.database.error}</p> : null}
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Capabilities</p>
+                    <p className="text-sm font-semibold">القدرات</p>
                     <div className="flex flex-wrap gap-2 text-sm">
-                      <Badge>{systemStatus.capabilities.send_test ? "OK" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.capabilities.design_settings ? "OK" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.capabilities.history ? "OK" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.capabilities.user_search ? "OK" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.capabilities.user_preview ? "OK" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.capabilities.send_user ? "Active" : "Disabled"}</Badge>
-                      <Badge>{systemStatus.capabilities.bulk_send ? "Active" : "Blocked"}</Badge>
-                      <Badge>{systemStatus.capabilities.scheduling ? "Active" : "Blocked"}</Badge>
-                      <Badge>{systemStatus.capabilities.salary_reminders ? "Active" : "Blocked"}</Badge>
-                      <Badge>{systemStatus.capabilities.ai_suggestions ? "Active" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.send_test ? "سليم" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.design_settings ? "سليم" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.history ? "سليم" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.user_search ? "سليم" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.user_preview ? "سليم" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.send_user ? "مفعّل" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.bulk_send ? "مفعّل" : "محظور"}</Badge>
+                      <Badge>{systemStatus.capabilities.scheduling ? "مفعّل" : "محظور"}</Badge>
+                      <Badge>{systemStatus.capabilities.salary_reminders ? "مفعّل" : "محظور"}</Badge>
+                      <Badge>{systemStatus.capabilities.ai_suggestions ? "مفعّل" : "مطفّي"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">اقتراح AIion Status</p>
-                    <p className="text-sm">Capability: <Badge>{systemStatus.ai.ai_capability}</Badge></p>
+                    <p className="text-sm font-semibold">الذكاء الاصطناعي</p>
+                    <p className="text-sm">الحالة: <Badge>{systemStatus.ai.ai_capability}</Badge></p>
                     <div className="flex flex-wrap gap-2 text-sm">
-                      <Badge>{systemStatus.ai.ai_suggestions_enabled ? "Flag ON" : "Flag OFF"}</Badge>
-                      <Badge>{systemStatus.ai.ai_gateway_configured ? "Gateway configured" : "Gateway missing"}</Badge>
-                      <Badge>{systemStatus.ai.ai_default_model_configured ? "Model configured" : "Model missing"}</Badge>
+                      <Badge>{systemStatus.ai.ai_suggestions_enabled ? "مفعّل" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.ai.ai_gateway_configured ? "سليم" : "خاصو إعداد"}</Badge>
+                      <Badge>{systemStatus.ai.ai_default_model_configured ? "سليم" : "خاصو إعداد"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Qwaleb Status</p>
-                    <p className="text-sm">Capability: <Badge>{systemStatus.templates.templates_capability}</Badge></p>
-                    <p className="text-sm">Total: {systemStatus.templates.templates_count} · Active: {systemStatus.templates.active_templates_count}</p>
+                    <p className="text-sm font-semibold">القوالب</p>
+                    <p className="text-sm">الحالة: <Badge>{systemStatus.templates.templates_capability}</Badge></p>
+                    <p className="text-sm">المجموع: {systemStatus.templates.templates_count} · مفعّل: {systemStatus.templates.active_templates_count}</p>
                     <div className="flex flex-wrap gap-2 text-sm">
-                      <Badge>{systemStatus.templates.templates_enabled ? "Qwaleb ON" : "Qwaleb OFF"}</Badge>
-                      <Badge>{systemStatus.capabilities.templates ? "Qwaleb Wajed" : "Qwaleb Not Wajed"}</Badge>
+                      <Badge>{systemStatus.templates.templates_enabled ? "مفعّل" : "مطفّي"}</Badge>
+                      <Badge>{systemStatus.capabilities.templates ? "جاهز" : "خاصو إعداد"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Safety</p>
+                    <p className="text-sm font-semibold">الأمان</p>
                     <div className="flex flex-wrap gap-2 text-sm">
-                      <Badge>{systemStatus.safety.bulk_send_blocked ? "Blocked" : "Active"}</Badge>
-                      <Badge>{systemStatus.safety.scheduling_blocked ? "Blocked" : "Active"}</Badge>
-                      <Badge>{systemStatus.safety.salary_reminders_blocked ? "Blocked" : "Active"}</Badge>
-                      <Badge>{systemStatus.safety.test_recipient_configured ? "OK" : "Missing"}</Badge>
-                      <Badge>{systemStatus.safety.production_send_enabled ? "Active" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.safety.bulk_send_blocked ? "محظور" : "مفعّل"}</Badge>
+                      <Badge>{systemStatus.safety.scheduling_blocked ? "محظور" : "مفعّل"}</Badge>
+                      <Badge>{systemStatus.safety.salary_reminders_blocked ? "محظور" : "مفعّل"}</Badge>
+                      <Badge>{systemStatus.safety.test_recipient_configured ? "سليم" : "ناقص"}</Badge>
+                      <Badge>{systemStatus.safety.production_send_enabled ? "مفعّل" : "مطفّي"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Delivery Stats</p>
-                    <p className="text-sm">Total: {systemStatus.stats.total_deliveries}</p>
-                    <p className="text-sm">Pending: {systemStatus.stats.pending} · Sent: {systemStatus.stats.sent} · Failed: {systemStatus.stats.failed} · Skipped: {systemStatus.stats.skipped}</p>
-                    <p className="text-sm">Latest delivery: {systemStatus.stats.latest_delivery_at || "None"}</p>
+                    <p className="text-sm font-semibold">الإحصائيات</p>
+                    <p className="text-sm">المجموع: {systemStatus.stats.total_deliveries}</p>
+                    <p className="text-sm">فانتظار الإرسال: {systemStatus.stats.pending} · تصيفط: {systemStatus.stats.sent} · فشل: {systemStatus.stats.failed} · تجاوز: {systemStatus.stats.skipped}</p>
+                    <p className="text-sm">آخر إرسال: {systemStatus.stats.latest_delivery_at || "ما كاينش"}</p>
                   </Card>
                 </div>
               ) : null}
             </Card>
           </TabsContent>
-          <TabsContent value="design"><div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-3 p-4"><Input placeholder="Smiya dyal brand" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} /><Input placeholder="Rabeta dyal logo" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} /><Input placeholder="Lon ra2isi" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} /><Input placeholder="Lon dyal bouton" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} /><Textarea placeholder="Nass footer" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} /><Input placeholder="Email dyal support" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} /><Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "Kayt7fed..." : "Hfed design"}</Button></Card><Card className="p-4"><p className="mb-2 text-sm font-medium">Mo3ayana live</p><div dangerouslySetInnerHTML={previewHtml} /></Card></div></TabsContent>
-          <TabsContent value="history"><Card className="space-y-2 p-4">{history?.items?.length ? history.items.map((item) => (<div key={item.id} className="rounded-lg border border-[var(--border)] p-3 text-sm"><p><strong>{item.status}</strong> · actual: {item.email}</p><p>user: {item.recipient_user_id || "-"}</p><p>original: {item.original_recipient_email || item.email}</p><p>language: {item.language}</p><p>{item.subject}</p>{item.note ? <p>note: {item.note}</p> : null}{item.error_message ? <p>error: {item.error_message}</p> : null}<p className="text-[var(--muted)]">{item.created_at}</p></div>)) : <p className="text-sm text-[var(--muted)]">No deliveries yet.</p>}</Card></TabsContent>
+          <TabsContent value="design"><div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-3 p-4"><div className="flex items-center gap-2"><p className="text-sm font-semibold">التصميم</p><InfoHint label="معلومة">من هنا تقدر تبدّل الشكل العام ديال الإيميلات.</InfoHint></div><Input placeholder="اسم المنصة" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} /><Input placeholder="الشعار" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} /><Input placeholder="اللون الرئيسي" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} /><Input placeholder="لون الزر" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} /><Textarea placeholder="التذييل" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} /><Input placeholder="رابط الدعم" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} /><Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "كيتم الحفظ..." : "حفظ التصميم"}</Button></Card><Card className="p-4"><p className="mb-2 text-sm font-medium">عاين النتيجة</p><div dangerouslySetInnerHTML={previewHtml} /></Card></div></TabsContent>
+          <TabsContent value="history"><Card className="space-y-2 p-4"><div className="mb-2 flex items-center gap-2"><p className="text-sm font-semibold">التاريخ</p><InfoHint label="معلومة">هنا كتشوف شنو تصيفط، لمين، وفاش، وبأي نتيجة.</InfoHint></div>{history?.items?.length ? history.items.map((item) => (<div key={item.id} className="rounded-lg border border-[var(--border)] p-3 text-sm"><p><strong>الحالة:</strong> {item.status}</p><p><strong>المستافد:</strong> {item.email}</p><p><strong>شكون صيفط:</strong> {item.recipient_user_id || "-"}</p><p><strong>نوع الإرسال:</strong> {item.original_recipient_email || item.email}</p><p><strong>اللغة:</strong> {item.language}</p><p><strong>الموضوع:</strong> {item.subject}</p>{item.note ? <p><strong>الملاحظات:</strong> {item.note}</p> : null}{item.error_message ? <p><strong>الخطأ:</strong> {item.error_message}</p> : null}<p className="text-[var(--muted)]"><strong>التاريخ:</strong> {item.created_at}</p></div>)) : <p className="text-sm text-[var(--muted)]">ما كاين حتى إرسال باقي</p>}</Card></TabsContent>
         </Tabs>
       ) : null}
     </div>
