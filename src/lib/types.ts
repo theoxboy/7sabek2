@@ -892,8 +892,8 @@ export type EmailCenterSystemStatusOut = {
   };
   templates: {
     templates_enabled: boolean;
-    templates_count: number;
-    active_templates_count: number;
+    templates_count?: number | null;
+    active_templates_count?: number | null;
     templates_capability: "disabled" | "ready" | "no_templates" | string;
   };
   database: {
