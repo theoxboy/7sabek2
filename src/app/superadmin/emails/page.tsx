@@ -25,6 +25,8 @@ import type {
   EmailSendPayload,
   EmailSuppressionListOut,
   DeliveryQueueStatusOut,
+  RegistrationLeadListOut,
+  RegistrationLeadStatsOut,
 } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -129,6 +131,10 @@ export default function SuperadminEmailsPage() {
   const [suppressionEmail, setSuppressionEmail] = useState("");
   const [suppressionReason, setSuppressionReason] = useState("blocked_by_admin");
   const [queueProcessLimit, setQueueProcessLimit] = useState(20);
+  const [registrationLeads, setRegistrationLeads] = useState<RegistrationLeadListOut | null>(null);
+  const [registrationLeadsStats, setRegistrationLeadsStats] = useState<RegistrationLeadStatsOut | null>(null);
+  const [registrationLeadsQuery, setRegistrationLeadsQuery] = useState("");
+  const [registrationLeadsStatusFilter, setRegistrationLeadsStatusFilter] = useState<string>("");
   const [campaignEditor, setCampaignEditor] = useState<{
     id: string;
     title: string;
@@ -234,6 +240,23 @@ export default function SuperadminEmailsPage() {
     }
   };
 
+  const loadRegistrationLeads = async () => {
+    const params = new URLSearchParams({ limit: "50", offset: "0" });
+    if (registrationLeadsQuery.trim()) params.set("q", registrationLeadsQuery.trim());
+    if (registrationLeadsStatusFilter.trim()) params.set("status", registrationLeadsStatusFilter.trim());
+    try {
+      const [listData, statsData] = await Promise.all([
+        apiFetch<RegistrationLeadListOut>(`/superadmin/registration-leads?${params.toString()}`, { headers: { "x-admin-bypass": "true" } }),
+        apiFetch<RegistrationLeadStatsOut>("/superadmin/registration-leads/stats", { headers: { "x-admin-bypass": "true" } }),
+      ]);
+      setRegistrationLeads(listData);
+      setRegistrationLeadsStats(statsData);
+    } catch {
+      setRegistrationLeads({ items: [], total: 0, limit: 50, offset: 0 });
+      setRegistrationLeadsStats({ total: 0, email_captured: 0, partial_no_email: 0, converted: 0, dismissed: 0, last_24h: 0 });
+    }
+  };
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
@@ -252,6 +275,7 @@ export default function SuperadminEmailsPage() {
         await loadHamalat();
         await loadSuppressions();
         await loadQueueStatus();
+        await loadRegistrationLeads();
         setPayload((current) => ({ ...current, to: current.to || statusData.test_recipient_email || "" }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Ma9drnach n7emlou Markaz l-Emails");
@@ -752,6 +776,16 @@ export default function SuperadminEmailsPage() {
     await loadSystemStatus();
   };
 
+  const updateRegistrationLeadStatus = async (leadId: string, nextStatus: "dismissed" | "blocked") => {
+    await apiFetch(`/superadmin/registration-leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "x-admin-bypass": "true" },
+      body: { status: nextStatus },
+    });
+    await loadRegistrationLeads();
+    await loadSystemStatus();
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="space-y-2 p-4">
@@ -769,6 +803,7 @@ export default function SuperadminEmailsPage() {
             <TabsTrigger value="templates">Qwaleb</TabsTrigger>
             <TabsTrigger value="campaigns">Hamalat</TabsTrigger>
             <TabsTrigger value="recipients-preview">Mo3ayana dyal Mostafidin</TabsTrigger>
+            <TabsTrigger value="registration-leads">الناس اللي بداو التسجيل</TabsTrigger>
             <TabsTrigger value="suppressions">Liste dyal l-Man3</TabsTrigger>
             <TabsTrigger value="delivery-queue">Saff dyal l-Irsal</TabsTrigger>
             <TabsTrigger value="system-status">Halat Nizam</TabsTrigger>
@@ -941,6 +976,7 @@ export default function SuperadminEmailsPage() {
                     <SelectItem value="by_language">by_language</SelectItem>
                     <SelectItem value="salary_today">salary_today</SelectItem>
                     <SelectItem value="salary_tomorrow">salary_tomorrow</SelectItem>
+                    <SelectItem value="registration_leads_email_captured">الناس اللي بداو التسجيل وما كملوش</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={campaignEditor.language_mode} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, language_mode: value as "auto" | "darija" | "fr" | "en" }))}>
@@ -1066,13 +1102,13 @@ export default function SuperadminEmailsPage() {
                   <p className="text-sm font-semibold">Recipients preview for selected campaign</p>
                   {campaignRecipientsPreview.warnings.map((w) => <p key={w} className="text-sm text-amber-700">{w}</p>)}
                   {campaignRecipientsPreview.items.map((item) => (
-                    <div key={item.user_id} className="grid gap-2 rounded border border-[var(--border)] p-2 text-sm md:grid-cols-[1.2fr_1.2fr_auto_auto_1fr_auto] md:items-center">
+                    <div key={item.user_id || item.lead_id || item.email} className="grid gap-2 rounded border border-[var(--border)] p-2 text-sm md:grid-cols-[1.2fr_1.2fr_auto_auto_1fr_auto] md:items-center">
                       <p>{item.display_name}</p>
                       <p>{item.email}</p>
                       <Badge>{item.detected_language}</Badge>
                       <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
                       <p>{item.skip_reason || item.reason}</p>
-                      <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)}>Chof mo3ayana dyal email</Button>
+                      <Button variant="secondary" onClick={() => item.user_id && loadPreviewUserEmail(item.user_id)} disabled={!item.user_id}>Chof mo3ayana dyal email</Button>
                     </div>
                   ))}
                 </Card>
@@ -1098,8 +1134,12 @@ export default function SuperadminEmailsPage() {
                     <SelectItem value="by_language">by_language</SelectItem>
                     <SelectItem value="salary_today">salary_today</SelectItem>
                     <SelectItem value="salary_tomorrow">salary_tomorrow</SelectItem>
+                    <SelectItem value="registration_leads_email_captured">الناس اللي بداو التسجيل وما كملوش</SelectItem>
                   </SelectContent>
                 </Select>
+                {previewAudienceType === "registration_leads_email_captured" ? (
+                  <p className="text-sm text-amber-700">هاد الاختيار كيستهدف الناس اللي بداو التسجيل وما كملوش. الرسالة خاصها تكون خفيفة ومحترمة.</p>
+                ) : null}
                 <Select value={previewLanguage || "__none__"} onValueChange={(value) => setPreviewLanguage(value === "__none__" ? "" : value)}>
                   <SelectTrigger><SelectValue placeholder="Filter dyal logha (ikhtiyari)" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">No language filter</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
@@ -1141,16 +1181,59 @@ export default function SuperadminEmailsPage() {
               {recipientsPreview?.warnings?.length ? <div className="space-y-1">{recipientsPreview.warnings.map((warning) => <p key={warning} className="text-sm text-amber-700">{warning}</p>)}</div> : null}
               <div className="space-y-2">
                 {recipientsPreview?.items?.map((item) => (
-                  <div key={item.user_id} className="grid gap-2 rounded border border-[var(--border)] p-3 text-sm md:grid-cols-[1.2fr_1.2fr_auto_1fr_1fr_auto] md:items-center">
+                  <div key={item.user_id || item.lead_id || item.email} className="grid gap-2 rounded border border-[var(--border)] p-3 text-sm md:grid-cols-[1.2fr_1.2fr_auto_1fr_1fr_auto] md:items-center">
                     <p>{item.display_name}</p>
                     <p>{item.email}</p>
                     <Badge>{item.detected_language}</Badge>
                     <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
                     <p>{item.skip_reason || item.reason}</p>
-                    <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading}>{previewEmailLoading ? "Loading..." : "Chof l-email"}</Button>
+                    <Button variant="secondary" onClick={() => item.user_id && loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading || !item.user_id}>{previewEmailLoading ? "Loading..." : "Chof l-email"}</Button>
                   </div>
                 ))}
                 {recipientsPreview && recipientsPreview.items.length === 0 ? <p className="text-sm text-[var(--muted)]">Ma t9abl 7tta mostafid.</p> : null}
+              </div>
+            </Card>
+          </TabsContent>
+          <TabsContent value="registration-leads">
+            <Card className="space-y-4 p-4">
+              <p className="text-base font-semibold">لائحة الناس اللي بداو التسجيل</p>
+              <div className="grid gap-2 md:grid-cols-5">
+                <Badge>المجموع: {registrationLeadsStats?.total ?? 0}</Badge>
+                <Badge>عندهم الإيميل: {registrationLeadsStats?.email_captured ?? 0}</Badge>
+                <Badge>ما كملوش: {registrationLeadsStats?.partial_no_email ?? 0}</Badge>
+                <Badge>تحولو لحسابات: {registrationLeadsStats?.converted ?? 0}</Badge>
+                <Badge>آخر 24 ساعة: {registrationLeadsStats?.last_24h ?? 0}</Badge>
+              </div>
+              <div className="grid gap-2 md:grid-cols-3">
+                <Input placeholder="بحث بالإيميل ولا الاسم ولا الهاتف" value={registrationLeadsQuery} onChange={(e) => setRegistrationLeadsQuery(e.target.value)} />
+                <Select value={registrationLeadsStatusFilter || "__all__"} onValueChange={(value) => setRegistrationLeadsStatusFilter(value === "__all__" ? "" : value)}>
+                  <SelectTrigger><SelectValue placeholder="الحالة" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">الحالة</SelectItem>
+                    <SelectItem value="partial">مازال ناقص</SelectItem>
+                    <SelectItem value="email_captured">عندو الإيميل</SelectItem>
+                    <SelectItem value="converted">تحول لحساب</SelectItem>
+                    <SelectItem value="dismissed">تحيد من اللائحة</SelectItem>
+                    <SelectItem value="blocked">مبلوكي</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="secondary" onClick={loadRegistrationLeads}>تحديث</Button>
+              </div>
+              <div className="space-y-2">
+                {registrationLeads?.items?.map((lead) => (
+                  <div key={lead.id} className="grid gap-2 rounded border border-[var(--border)] p-3 text-sm md:grid-cols-[1.2fr_1.2fr_1fr_auto_auto_auto] md:items-center">
+                    <p>{[lead.first_name, lead.last_name].filter(Boolean).join(" ") || "-"}</p>
+                    <p>{lead.email || "-"}</p>
+                    <p>{lead.phone || "-"}</p>
+                    <Badge>{lead.current_step === 1 ? "المعلومات الأساسية" : lead.current_step === 2 ? "الإيميل وكلمة السر" : "مراحل متقدمة"}</Badge>
+                    <Badge>{lead.status === "partial" ? "مازال ناقص" : lead.status === "email_captured" ? "عندو الإيميل" : lead.status === "converted" ? "تحول لحساب" : lead.status === "dismissed" ? "تحيد من اللائحة" : "مبلوكي"}</Badge>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" onClick={() => updateRegistrationLeadStatus(lead.id, "dismissed")}>تحييد من اللائحة</Button>
+                      <Button variant="secondary" onClick={() => updateRegistrationLeadStatus(lead.id, "blocked")}>بلوكي</Button>
+                    </div>
+                  </div>
+                ))}
+                {registrationLeads && registrationLeads.items.length === 0 ? <p className="text-sm text-[var(--muted)]">ما كاين حتى واحد دابا.</p> : null}
               </div>
             </Card>
           </TabsContent>
@@ -1172,7 +1255,7 @@ export default function SuperadminEmailsPage() {
                 </Select>
                 <Select value={templateCategoryFilter || "__all__"} onValueChange={(value) => setTemplateCategoryFilter(value === "__all__" ? "" : value)}>
                   <SelectTrigger><SelectValue placeholder="Category filter" /></SelectTrigger>
-                  <SelectContent><SelectItem value="__all__">All categories</SelectItem><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="__all__">All categories</SelectItem><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="registration_reminder">registration_reminder</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
                 </Select>
                 <Button onClick={() => loadQwaleb(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>Tb9i filters</Button>
               </div>
@@ -1184,7 +1267,7 @@ export default function SuperadminEmailsPage() {
                   <Input placeholder="Smiya" value={templateEditor.name} onChange={(e) => setTemplateEditor((s) => ({ ...s, name: e.target.value }))} />
                   <Select value={templateEditor.category} onValueChange={(value) => setTemplateEditor((s) => ({ ...s, category: value }))}>
                     <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                    <SelectContent><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
+                    <SelectContent><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="registration_reminder">registration_reminder</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
                   </Select>
                   <Select value={templateEditor.language} onValueChange={(value) => setTemplateEditor((s) => ({ ...s, language: value }))}>
                     <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>

@@ -8,7 +8,7 @@ import { Camera, Eye, EyeOff } from "lucide-react";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
 
 import { apiFetch } from "@/lib/api";
-import { fetchMe, logout, type AuthUser } from "@/lib/auth";
+import { fetchMe, logout, refreshAuthSession, type AuthUser } from "@/lib/auth";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
@@ -206,6 +206,7 @@ const REGISTER_ONBOARDING_DRAFT_KEY = "floussy.register.onboarding_v2";
 const REGISTER_ONBOARDING_COMPLETED_KEY = "floussy.register.onboarding_v2.completed";
 const REGISTER_FORCE_ONBOARDING_KEY = "floussy.register.force_onboarding_v2";
 const REGISTER_ONBOARDING_MESSAGE_TYPE = "floussy.register.onboarding_v2.complete";
+const REGISTER_LEAD_ID_KEY = "floussy.register.lead_id";
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const MAX_PROFILE_PHOTO_SIZE_BYTES = 13 * 1024 * 1024;
 const EASY_MIN_PASSWORD_LENGTH = 8;
@@ -560,10 +561,12 @@ export default function RegisterPage() {
   const [currency, setCurrency] = useState<CurrencyCode | "">("");
   const [registerOnboardingPayload, setRegisterOnboardingPayload] =
     useState<RegisterOnboardingPayload | null>(null);
+  const [registrationLeadId, setRegistrationLeadId] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const passwordFieldRef = useRef<HTMLDivElement | null>(null);
   const profilePhotoBlobUrlRef = useRef<string | null>(null);
+  const submitInFlightRef = useRef(false);
   const maintenanceActive = Boolean(status?.maintenance_mode);
   const registrationBlocked = maintenanceActive || Boolean(retryAfterSeconds);
   const supportEmail = status?.support_email || "elidryssi@gmail.com";
@@ -651,6 +654,33 @@ export default function RegisterPage() {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.sessionStorage.getItem(REGISTER_LEAD_ID_KEY) || "";
+    if (saved) setRegistrationLeadId(saved);
+  }, []);
+
+  const captureLeadSafe = useCallback(
+    async (body: Record<string, unknown>) => {
+      try {
+        const result = await apiFetch<{ lead_id: string; status: string }>("/auth/register/lead", {
+          method: "POST",
+          body,
+        });
+        const nextLeadId = (result?.lead_id || "").trim();
+        if (nextLeadId && typeof window !== "undefined") {
+          window.sessionStorage.setItem(REGISTER_LEAD_ID_KEY, nextLeadId);
+          setRegistrationLeadId(nextLeadId);
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("registration_lead_capture_failed", err);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
     profilePhotoBlobUrlRef.current =
       profilePhotoPreviewUrl?.startsWith("blob:") ? profilePhotoPreviewUrl : null;
   }, [profilePhotoPreviewUrl]);
@@ -715,15 +745,19 @@ export default function RegisterPage() {
   const renderRecaptchaWidget = useCallback(
     (node: HTMLDivElement) => {
       if (window.grecaptcha && recaptchaWidgetRef.current === null && recaptchaSiteKey) {
-        recaptchaWidgetRef.current = window.grecaptcha.render(node, {
-          sitekey: recaptchaSiteKey,
-          callback: (token: string) => setRecaptchaToken(token),
-          "expired-callback": () => setRecaptchaToken(null),
-          "error-callback": () => setRecaptchaToken(null),
-        });
+        try {
+          recaptchaWidgetRef.current = window.grecaptcha.render(node, {
+            sitekey: recaptchaSiteKey,
+            callback: (token: string) => setRecaptchaToken(token),
+            "expired-callback": () => setRecaptchaToken(null),
+            "error-callback": () => setRecaptchaToken(null),
+          });
+        } catch {
+          setError(copy.recaptchaFailed);
+        }
       }
     },
-    [recaptchaSiteKey],
+    [copy.recaptchaFailed, recaptchaSiteKey],
   );
 
   const recaptchaContainerRef = useCallback(
@@ -924,9 +958,22 @@ export default function RegisterPage() {
   };
 
   const handleNext = () => {
+    if (loading || submitInFlightRef.current) return;
     if (step === 1 && !validateProfileStep()) return;
     if (step === 2 && !validateCredentialsStep()) return;
     if (step === 3 && !validateLocationStep()) return;
+    if (step === 1) {
+      void captureLeadSafe({
+        lead_id: registrationLeadId || undefined,
+        first_name: firstName.trim() || undefined,
+        last_name: lastName.trim() || undefined,
+        phone: phoneNumber.trim() || undefined,
+        birth_date: birthDate || undefined,
+        language: locale,
+        current_step: 1,
+        event: "step1_saved",
+      });
+    }
     if (step === 3) {
       persistRegisterOnboardingPrefill();
       setError(null);
@@ -944,6 +991,7 @@ export default function RegisterPage() {
   };
 
   const handleRegisterAndStartOnboarding = async () => {
+    if (loading || submitInFlightRef.current) return;
     if (!validateProfileStep() || !validateCredentialsStep() || !validateLocationStep()) {
       return;
     }
@@ -957,6 +1005,7 @@ export default function RegisterPage() {
     }
     persistRegisterOnboardingPrefill();
     setLoading(true);
+    submitInFlightRef.current = true;
     setRetryAfterSeconds(null);
     setError(null);
     try {
@@ -978,13 +1027,16 @@ export default function RegisterPage() {
           mfa_consent: true,
           defer_onboarding_v2: true,
           recaptcha_token: currentRecaptchaToken,
+          lead_id: registrationLeadId || undefined,
         },
       });
       if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(REGISTER_LEAD_ID_KEY);
         window.sessionStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
         window.sessionStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
         window.sessionStorage.setItem(REGISTER_FORCE_ONBOARDING_KEY, "1");
       }
+      await refreshAuthSession();
       router.push("/onboarding?post_register=1");
     } catch (err) {
       const message = err instanceof Error ? err.message : copy.createAccountFailed;
@@ -1021,6 +1073,7 @@ export default function RegisterPage() {
       }
     } finally {
       setLoading(false);
+      submitInFlightRef.current = false;
       resetRecaptcha();
     }
   };
@@ -1032,6 +1085,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (loading || submitInFlightRef.current) return;
     if (maintenanceMessage) {
       setError(maintenanceMessage);
       return;
@@ -1058,6 +1112,7 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
+    submitInFlightRef.current = true;
     setRetryAfterSeconds(null);
     setError(null);
     try {
@@ -1080,9 +1135,11 @@ export default function RegisterPage() {
           onboarding_v2_answers: registerOnboardingPayload.answers,
           onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects,
           recaptcha_token: currentRecaptchaToken2,
+          lead_id: registrationLeadId || undefined,
         },
       });
       if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(REGISTER_LEAD_ID_KEY);
         window.sessionStorage.removeItem(REGISTER_ONBOARDING_PREFILL_KEY);
         window.sessionStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
         window.sessionStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
@@ -1090,6 +1147,7 @@ export default function RegisterPage() {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
       }
+      await refreshAuthSession();
       router.push("/dashboard");
     } catch (err) {
       const message = err instanceof Error ? err.message : copy.createAccountFailed;
@@ -1128,6 +1186,7 @@ export default function RegisterPage() {
       }
     } finally {
       setLoading(false);
+      submitInFlightRef.current = false;
       resetRecaptcha();
     }
   };
@@ -1145,6 +1204,22 @@ export default function RegisterPage() {
     maintenancePlacements.includes("register");
   const registerAnnouncements = getVisibleAnnouncements(status, user, "register");
   const showAnnouncementBanner = registerAnnouncements.length > 0;
+
+  useEffect(() => {
+    if (step !== 2) return;
+    const normalized = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return;
+    const timer = window.setTimeout(() => {
+      void captureLeadSafe({
+        lead_id: registrationLeadId || undefined,
+        email: normalized,
+        language: locale,
+        current_step: 2,
+        event: "email_entered",
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [step, email, locale, registrationLeadId, captureLeadSafe]);
 
   return (
     <div
@@ -1410,6 +1485,17 @@ export default function RegisterPage() {
                       data-clarity-mask="true"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
+                      onBlur={() => {
+                        const normalized = email.trim().toLowerCase();
+                        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return;
+                        void captureLeadSafe({
+                          lead_id: registrationLeadId || undefined,
+                          email: normalized,
+                          language: locale,
+                          current_step: 2,
+                          event: "email_entered",
+                        });
+                      }}
                       className={inputClass}
                     />
                   </div>
