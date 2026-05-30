@@ -862,3 +862,56 @@ export type EmailCenterUserPreviewOut = {
   body_html: string;
   body_text: string;
 };
+
+export type EmailCenterSystemStatusOut = {
+  enabled: boolean;
+  mode: "test_only" | "superadmin_only" | "production" | string;
+  kill_switch: boolean;
+  flags: {
+    ai_suggestions_enabled: boolean;
+    allow_user_send: boolean;
+    allow_bulk_send: boolean;
+    allow_scheduling: boolean;
+    allow_salary_reminders: boolean;
+    allow_open_tracking: boolean;
+    allow_click_tracking: boolean;
+  };
+  mail_provider: {
+    provider: string;
+    from_email: string;
+    api_base_configured: boolean;
+    token_configured: boolean;
+  };
+  database: {
+    email_design_settings_table: boolean;
+    email_deliveries_table: boolean;
+    error?: string | null;
+  };
+  capabilities: {
+    send_test: boolean;
+    design_settings: boolean;
+    history: boolean;
+    user_search: boolean;
+    user_preview: boolean;
+    send_user: boolean;
+    bulk_send: boolean;
+    scheduling: boolean;
+    salary_reminders: boolean;
+    ai_suggestions: boolean;
+  };
+  safety: {
+    bulk_send_blocked: boolean;
+    scheduling_blocked: boolean;
+    salary_reminders_blocked: boolean;
+    test_recipient_configured: boolean;
+    production_send_enabled: boolean;
+  };
+  stats: {
+    total_deliveries: number;
+    pending: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+    latest_delivery_at?: string | null;
+  };
+};

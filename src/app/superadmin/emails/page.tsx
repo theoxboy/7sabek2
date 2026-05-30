@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type {
   EmailCenterStatusOut,
+  EmailCenterSystemStatusOut,
   EmailCenterUserPreviewOut,
   EmailCenterUserSearchListOut,
   EmailCenterUserSearchOut,
@@ -55,6 +56,9 @@ export default function SuperadminEmailsPage() {
   const [userSendResult, setUserSendResult] = useState<string | null>(null);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<EmailCenterSystemStatusOut | null>(null);
+  const [systemStatusLoading, setSystemStatusLoading] = useState(false);
+  const [systemStatusError, setSystemStatusError] = useState<string | null>(null);
 
   const canSend = useMemo(() => !!payload.to.trim() && !!payload.subject.trim() && !!payload.body.trim() && !sending, [payload, sending]);
   const canSendUser = useMemo(() => !!selectedUser && !!userCompose.subject.trim() && !!userCompose.body.trim() && !userSending, [selectedUser, userCompose, userSending]);
@@ -71,6 +75,21 @@ export default function SuperadminEmailsPage() {
     setHistory(historyData);
   };
 
+  const loadSystemStatus = async () => {
+    setSystemStatusLoading(true);
+    setSystemStatusError(null);
+    try {
+      const data = await apiFetch<EmailCenterSystemStatusOut>("/superadmin/email-center/system-status", {
+        headers: { "x-admin-bypass": "true" },
+      });
+      setSystemStatus(data);
+    } catch (err) {
+      setSystemStatusError(err instanceof Error ? err.message : "Unable to load system status");
+    } finally {
+      setSystemStatusLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
@@ -84,6 +103,7 @@ export default function SuperadminEmailsPage() {
         setStatus(statusData);
         setDesign(designData);
         setHistory(historyData);
+        await loadSystemStatus();
         setPayload((current) => ({ ...current, to: current.to || statusData.test_recipient_email || "" }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load email center");
@@ -203,6 +223,21 @@ export default function SuperadminEmailsPage() {
     };
   }, [design, payload]);
 
+  const modeExplanation = useMemo(() => {
+    if (!systemStatus) return "";
+    if (systemStatus.mode === "test_only") {
+      return "test_only: only test recipient can receive emails";
+    }
+    if (systemStatus.mode === "superadmin_only") {
+      return "superadmin_only: selected users are rendered but sent to test recipient";
+    }
+    return "production: sends to real users";
+  }, [systemStatus]);
+
+  const statusBadge = (value: boolean, positiveLabel = "Active") => (
+    <Badge>{value ? positiveLabel : "Disabled"}</Badge>
+  );
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="space-y-2 p-4">
@@ -217,6 +252,7 @@ export default function SuperadminEmailsPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="compose">Compose Test</TabsTrigger>
             <TabsTrigger value="compose-user">Compose User</TabsTrigger>
+            <TabsTrigger value="system-status">System Status</TabsTrigger>
             <TabsTrigger value="design">Design</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
@@ -269,6 +305,81 @@ export default function SuperadminEmailsPage() {
                 )}
               </Card>
             </div>
+          </TabsContent>
+          <TabsContent value="system-status">
+            <Card className="space-y-4 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Backend health and safety diagnostics</p>
+                <Button onClick={loadSystemStatus} disabled={systemStatusLoading}>{systemStatusLoading ? "Refreshing..." : "Refresh status"}</Button>
+              </div>
+              {systemStatusError ? <p className="text-sm text-red-600">Unable to load system status right now. {systemStatusError}</p> : null}
+              {systemStatus ? (
+                <div className="grid gap-4">
+                  <Card className="space-y-2 p-3">
+                    <p className="text-sm font-semibold">Feature Flags</p>
+                    <p className="text-sm">Mode: <Badge>{systemStatus.mode}</Badge></p>
+                    <p className="text-sm text-[var(--muted)]">{modeExplanation}</p>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      {statusBadge(systemStatus.flags.allow_user_send)}
+                      <Badge>{systemStatus.flags.allow_bulk_send ? "Active" : "Blocked"}</Badge>
+                      <Badge>{systemStatus.flags.allow_scheduling ? "Active" : "Blocked"}</Badge>
+                      <Badge>{systemStatus.flags.allow_salary_reminders ? "Active" : "Blocked"}</Badge>
+                      <Badge>{systemStatus.flags.ai_suggestions_enabled ? "Active" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.flags.allow_open_tracking ? "Active" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.flags.allow_click_tracking ? "Active" : "Disabled"}</Badge>
+                    </div>
+                  </Card>
+                  <Card className="space-y-2 p-3">
+                    <p className="text-sm font-semibold">Mail Provider</p>
+                    <p className="text-sm">Provider: {systemStatus.mail_provider.provider}</p>
+                    <p className="text-sm">From: {systemStatus.mail_provider.from_email}</p>
+                    <div className="flex gap-2 text-sm">
+                      <Badge>{systemStatus.mail_provider.api_base_configured ? "OK" : "Missing"}</Badge>
+                      <Badge>{systemStatus.mail_provider.token_configured ? "OK" : "Missing"}</Badge>
+                    </div>
+                  </Card>
+                  <Card className="space-y-2 p-3">
+                    <p className="text-sm font-semibold">Database</p>
+                    <div className="flex gap-2 text-sm">
+                      <Badge>{systemStatus.database.email_design_settings_table ? "OK" : "Missing"}</Badge>
+                      <Badge>{systemStatus.database.email_deliveries_table ? "OK" : "Missing"}</Badge>
+                    </div>
+                    {systemStatus.database.error ? <p className="text-xs text-red-600">DB check: {systemStatus.database.error}</p> : null}
+                  </Card>
+                  <Card className="space-y-2 p-3">
+                    <p className="text-sm font-semibold">Capabilities</p>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      <Badge>{systemStatus.capabilities.send_test ? "OK" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.design_settings ? "OK" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.history ? "OK" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.user_search ? "OK" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.user_preview ? "OK" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.send_user ? "Active" : "Disabled"}</Badge>
+                      <Badge>{systemStatus.capabilities.bulk_send ? "Active" : "Blocked"}</Badge>
+                      <Badge>{systemStatus.capabilities.scheduling ? "Active" : "Blocked"}</Badge>
+                      <Badge>{systemStatus.capabilities.salary_reminders ? "Active" : "Blocked"}</Badge>
+                      <Badge>{systemStatus.capabilities.ai_suggestions ? "Active" : "Disabled"}</Badge>
+                    </div>
+                  </Card>
+                  <Card className="space-y-2 p-3">
+                    <p className="text-sm font-semibold">Safety</p>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      <Badge>{systemStatus.safety.bulk_send_blocked ? "Blocked" : "Active"}</Badge>
+                      <Badge>{systemStatus.safety.scheduling_blocked ? "Blocked" : "Active"}</Badge>
+                      <Badge>{systemStatus.safety.salary_reminders_blocked ? "Blocked" : "Active"}</Badge>
+                      <Badge>{systemStatus.safety.test_recipient_configured ? "OK" : "Missing"}</Badge>
+                      <Badge>{systemStatus.safety.production_send_enabled ? "Active" : "Disabled"}</Badge>
+                    </div>
+                  </Card>
+                  <Card className="space-y-2 p-3">
+                    <p className="text-sm font-semibold">Delivery Stats</p>
+                    <p className="text-sm">Total: {systemStatus.stats.total_deliveries}</p>
+                    <p className="text-sm">Pending: {systemStatus.stats.pending} · Sent: {systemStatus.stats.sent} · Failed: {systemStatus.stats.failed} · Skipped: {systemStatus.stats.skipped}</p>
+                    <p className="text-sm">Latest delivery: {systemStatus.stats.latest_delivery_at || "None"}</p>
+                  </Card>
+                </div>
+              ) : null}
+            </Card>
           </TabsContent>
           <TabsContent value="design"><div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-3 p-4"><Input placeholder="Brand name" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} /><Input placeholder="Logo URL" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} /><Input placeholder="Primary color" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} /><Input placeholder="Button color" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} /><Textarea placeholder="Footer text" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} /><Input placeholder="Support email" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} /><Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "Saving…" : "Save design"}</Button></Card><Card className="p-4"><p className="mb-2 text-sm font-medium">Live preview</p><div dangerouslySetInnerHTML={previewHtml} /></Card></div></TabsContent>
           <TabsContent value="history"><Card className="space-y-2 p-4">{history?.items?.length ? history.items.map((item) => (<div key={item.id} className="rounded-lg border border-[var(--border)] p-3 text-sm"><p><strong>{item.status}</strong> · actual: {item.email}</p><p>user: {item.recipient_user_id || "-"}</p><p>original: {item.original_recipient_email || item.email}</p><p>language: {item.language}</p><p>{item.subject}</p>{item.note ? <p>note: {item.note}</p> : null}{item.error_message ? <p>error: {item.error_message}</p> : null}<p className="text-[var(--muted)]">{item.created_at}</p></div>)) : <p className="text-sm text-[var(--muted)]">No deliveries yet.</p>}</Card></TabsContent>
