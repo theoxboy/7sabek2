@@ -868,6 +868,7 @@ export type EmailCenterSystemStatusOut = {
   enabled: boolean;
   mode: "test_only" | "superadmin_only" | "production" | string;
   kill_switch: boolean;
+  unsubscribe_token_ttl_days: number;
   flags: {
     ai_suggestions_enabled: boolean;
     allow_user_send: boolean;
@@ -880,6 +881,25 @@ export type EmailCenterSystemStatusOut = {
     recipient_preview_enabled: boolean;
     campaigns_enabled: boolean;
     campaign_test_send_enabled: boolean;
+    preferences_enabled: boolean;
+    suppression_enabled: boolean;
+    delivery_queue_enabled: boolean;
+    bulk_require_test_send: boolean;
+    bulk_require_dry_run: boolean;
+  };
+  bulk: {
+    bulk_send_enabled: boolean;
+    bulk_max_recipients: number;
+    require_test_send: boolean;
+    require_dry_run: boolean;
+    confirmation_text: string;
+  };
+  queue: {
+    delivery_queue_enabled: boolean;
+    batch_size: number;
+    max_attempts: number;
+    retry_delay_minutes: number;
+    rate_limit_per_minute: number;
   };
   mail_provider: {
     provider: string;
@@ -924,6 +944,10 @@ export type EmailCenterSystemStatusOut = {
     recipient_preview: "disabled" | "ready" | string;
     campaigns: "disabled" | "ready" | "no_campaigns" | "migration_required" | string;
     campaign_test_send: "disabled" | "ready" | "blocked_by_kill_switch" | "missing_test_recipient" | string;
+    preferences: string;
+    suppression: string;
+    bulk_send_capability: string;
+    queue: string;
   };
   safety: {
     bulk_send_blocked: boolean;
@@ -938,8 +962,46 @@ export type EmailCenterSystemStatusOut = {
     sent: number;
     failed: number;
     skipped: number;
+    retry: number;
+    suppression_count?: number | null;
+    active_suppression_count?: number | null;
+    pending_deliveries_count: number;
+    retry_deliveries_count: number;
     latest_delivery_at?: string | null;
   };
+};
+
+export type EmailSuppressionOut = {
+  id: string;
+  email: string;
+  user_id?: string | null;
+  category?: string | null;
+  reason: string;
+  source?: string | null;
+  is_active: boolean;
+  created_by_admin_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  deactivated_at?: string | null;
+};
+
+export type EmailSuppressionListOut = {
+  items: EmailSuppressionOut[];
+  limit: number;
+  offset: number;
+  total: number;
+};
+
+export type DeliveryQueueStatusOut = {
+  pending_count: number;
+  retry_count: number;
+  failed_count: number;
+  sent_today: number;
+  next_due_count: number;
+  batch_size: number;
+  max_attempts: number;
+  retry_delay_minutes: number;
+  rate_limit_per_minute: number;
 };
 
 export type EmailCenterAISuggestRequest = {
@@ -1044,7 +1106,7 @@ export type EmailCenterPreviewUserEmailResponse = {
   cta_url: string;
 };
 
-export type EmailCampaignStatus = "draft" | "ready" | "archived" | string;
+export type EmailCampaignStatus = "draft" | "ready" | "queued" | "archived" | string;
 export type EmailCampaignLanguageMode = "auto" | "darija" | "fr" | "en" | string;
 
 export type EmailCampaignOut = {
@@ -1063,6 +1125,17 @@ export type EmailCampaignOut = {
   cta_url?: string | null;
   design_settings_json?: Record<string, unknown> | null;
   estimated_recipient_count?: number | null;
+  last_dry_run_at?: string | null;
+  last_test_sent_at?: string | null;
+  approved_at?: string | null;
+  approved_by_admin_id?: string | null;
+  sent_at?: string | null;
+  send_started_at?: string | null;
+  send_finished_at?: string | null;
+  total_recipients?: number | null;
+  total_sent?: number | null;
+  total_failed?: number | null;
+  total_skipped?: number | null;
   created_by_admin_id?: string | null;
   created_at: string;
   updated_at: string;

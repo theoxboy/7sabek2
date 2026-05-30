@@ -23,6 +23,8 @@ import type {
   EmailDeliveryHistoryOut,
   EmailDesignSettingsOut,
   EmailSendPayload,
+  EmailSuppressionListOut,
+  DeliveryQueueStatusOut,
 } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -122,6 +124,11 @@ export default function SuperadminEmailsPage() {
   const [campaignTestLanguageById, setCampaignTestLanguageById] = useState<Record<string, "darija" | "fr" | "en">>({});
   const [campaignTestSendingById, setCampaignTestSendingById] = useState<Record<string, boolean>>({});
   const [campaignTestResultById, setCampaignTestResultById] = useState<Record<string, string>>({});
+  const [suppressions, setSuppressions] = useState<EmailSuppressionListOut | null>(null);
+  const [queueStatus, setQueueStatus] = useState<DeliveryQueueStatusOut | null>(null);
+  const [suppressionEmail, setSuppressionEmail] = useState("");
+  const [suppressionReason, setSuppressionReason] = useState("blocked_by_admin");
+  const [queueProcessLimit, setQueueProcessLimit] = useState(20);
   const [campaignEditor, setCampaignEditor] = useState<{
     id: string;
     title: string;
@@ -209,6 +216,24 @@ export default function SuperadminEmailsPage() {
     }
   };
 
+  const loadSuppressions = async () => {
+    try {
+      const data = await apiFetch<EmailSuppressionListOut>("/superadmin/email-center/suppressions?active_only=true&limit=50&offset=0", { headers: { "x-admin-bypass": "true" } });
+      setSuppressions(data);
+    } catch {
+      setSuppressions({ items: [], limit: 50, offset: 0, total: 0 });
+    }
+  };
+
+  const loadQueueStatus = async () => {
+    try {
+      const data = await apiFetch<DeliveryQueueStatusOut>("/superadmin/email-center/delivery-queue/status", { headers: { "x-admin-bypass": "true" } });
+      setQueueStatus(data);
+    } catch {
+      setQueueStatus(null);
+    }
+  };
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
@@ -225,6 +250,8 @@ export default function SuperadminEmailsPage() {
         await loadSystemStatus();
         await loadTemplates();
         await loadCampaigns();
+        await loadSuppressions();
+        await loadQueueStatus();
         setPayload((current) => ({ ...current, to: current.to || statusData.test_recipient_email || "" }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load email center");
@@ -685,6 +712,46 @@ export default function SuperadminEmailsPage() {
     }
   };
 
+  const sendCampaignQueued = async (campaignId: string, recipients: number) => {
+    const confirmation = window.prompt(`You are about to queue emails for ${recipients} recipients. Type SEND to confirm.`);
+    if (confirmation !== "SEND") return;
+    await apiFetch(`/superadmin/email-center/campaigns/${campaignId}/send`, {
+      method: "POST",
+      headers: { "x-admin-bypass": "true" },
+      body: { confirmation: "SEND" },
+    });
+    await loadCampaigns();
+    await loadSystemStatus();
+    await loadQueueStatus();
+  };
+
+  const addSuppression = async () => {
+    await apiFetch("/superadmin/email-center/suppressions", {
+      method: "POST",
+      headers: { "x-admin-bypass": "true" },
+      body: { email: suppressionEmail, reason: suppressionReason, source: "manual" },
+    });
+    setSuppressionEmail("");
+    await loadSuppressions();
+    await loadSystemStatus();
+  };
+
+  const deactivateSuppression = async (id: string) => {
+    await apiFetch(`/superadmin/email-center/suppressions/${id}`, { method: "DELETE", headers: { "x-admin-bypass": "true" } });
+    await loadSuppressions();
+    await loadSystemStatus();
+  };
+
+  const processQueue = async () => {
+    await apiFetch("/superadmin/email-center/delivery-queue/process", {
+      method: "POST",
+      headers: { "x-admin-bypass": "true" },
+      body: { limit: queueProcessLimit },
+    });
+    await loadQueueStatus();
+    await loadSystemStatus();
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="space-y-2 p-4">
@@ -702,6 +769,8 @@ export default function SuperadminEmailsPage() {
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="recipients-preview">Recipients Preview</TabsTrigger>
+            <TabsTrigger value="suppressions">Suppression List</TabsTrigger>
+            <TabsTrigger value="delivery-queue">Delivery Queue</TabsTrigger>
             <TabsTrigger value="system-status">System Status</TabsTrigger>
             <TabsTrigger value="design">Design</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
@@ -740,6 +809,26 @@ export default function SuperadminEmailsPage() {
               <Input placeholder="CTA URL" value={payload.cta_url} onChange={(e) => setPayload((s) => ({ ...s, cta_url: e.target.value }))} />
               <Button onClick={sendTest} disabled={!canSend}>{sending ? "Sending…" : "Send test"}</Button>
               {sendResult ? <p className="text-sm">{sendResult}</p> : null}
+            </Card>
+          </TabsContent>
+          <TabsContent value="suppressions">
+            <Card className="space-y-3 p-4">
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Suppression List</p><Badge>{systemStatus?.flags.suppression_enabled ? "Enabled" : "Disabled"}</Badge></div>
+              {!systemStatus?.flags.suppression_enabled ? <p className="text-sm text-[var(--muted)]">Suppression list is disabled by EMAIL_CENTER_SUPPRESSION_ENABLED.</p> : null}
+              <div className="grid gap-2 md:grid-cols-3">
+                <Input placeholder="email@example.com" value={suppressionEmail} onChange={(e) => setSuppressionEmail(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
+                <Input placeholder="reason" value={suppressionReason} onChange={(e) => setSuppressionReason(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
+                <Button onClick={addSuppression} disabled={!suppressionEmail.trim() || !systemStatus?.flags.suppression_enabled}>Add suppression</Button>
+              </div>
+              {suppressions?.items.map((item) => (<div key={item.id} className="flex items-center justify-between rounded border border-[var(--border)] p-2 text-sm"><p>{item.email} · {item.reason}</p><Button variant="secondary" onClick={() => deactivateSuppression(item.id)} disabled={!systemStatus?.flags.suppression_enabled}>Deactivate</Button></div>))}
+            </Card>
+          </TabsContent>
+          <TabsContent value="delivery-queue">
+            <Card className="space-y-3 p-4">
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Delivery Queue</p><Badge>{systemStatus?.flags.delivery_queue_enabled ? "Enabled" : "Disabled"}</Badge></div>
+              <p className="text-sm text-[var(--muted)]">This processes queued emails in small batches.</p>
+              <p className="text-sm">Pending: {queueStatus?.pending_count ?? 0} · Retry: {queueStatus?.retry_count ?? 0} · Failed: {queueStatus?.failed_count ?? 0}</p>
+              <div className="flex gap-2"><Input type="number" value={queueProcessLimit} onChange={(e) => setQueueProcessLimit(Number(e.target.value || "20"))} /><Button onClick={processQueue} disabled={!systemStatus?.flags.delivery_queue_enabled}>Process batch</Button></div>
             </Card>
           </TabsContent>
           <TabsContent value="compose-user">
@@ -959,6 +1048,13 @@ export default function SuperadminEmailsPage() {
                       ) : (
                         <Badge>Campaign test disabled</Badge>
                       )}
+                      <Button
+                        variant="secondary"
+                        onClick={() => sendCampaignQueued(campaign.id, Number(campaign.estimated_recipient_count || 0))}
+                        disabled={!systemStatus?.flags.allow_bulk_send}
+                      >
+                        Queue campaign
+                      </Button>
                     </div>
                     {campaignTestResultById[campaign.id] ? <p className="text-sm">{campaignTestResultById[campaign.id]}</p> : null}
                   </Card>
