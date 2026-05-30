@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   Activity,
   Blocks,
@@ -15,7 +15,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { apiFetch } from "@/lib/api";
+import { API_BASE, apiFetch } from "@/lib/api";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type {
   EmailCampaignCreateRequest,
@@ -74,6 +74,7 @@ export default function SuperadminEmailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingDesign, setSavingDesign] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [payload, setPayload] = useState<EmailSendPayload>({ to: "", language: "fr", subject: "", body: "", cta_label: "", cta_url: "" });
@@ -410,11 +411,47 @@ export default function SuperadminEmailsPage() {
   };
 
   const previewHtml = useMemo(() => {
+    const isRtl = payload.language === "darija";
+    const dir = isRtl ? "rtl" : "ltr";
+    const align = isRtl ? "right" : "left";
+    const escapedBrand = design.brand_name
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+    const brandRender = `<bdi dir=\"ltr\" style=\"unicode-bidi:isolate;\">${escapedBrand}</bdi>`;
     const escapedBody = payload.body.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\n", "<br/>");
     return {
-      __html: `<div style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${design.brand_name}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "معاينة الموضوع"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "معاينة النص"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "Hll"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
+      __html: `<div dir="${dir}" style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;text-align:${align};"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${brandRender}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "معاينة الموضوع"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "معاينة النص"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "فتح"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
     };
   }, [design, payload]);
+
+  const uploadLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch(`${API_BASE}/superadmin/email-center/design/logo-upload`, {
+        method: "POST",
+        headers: { "x-admin-bypass": "true" },
+        credentials: "include",
+        body: form,
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Logo upload failed");
+      }
+      const data = (await response.json()) as { logo_url: string };
+      setDesign((s) => ({ ...s, logo_url: data.logo_url || s.logo_url }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Logo upload failed");
+    } finally {
+      setLogoUploading(false);
+      event.target.value = "";
+    }
+  };
 
   const modeExplanation = useMemo(() => {
     if (!systemStatus) return "";
@@ -1464,7 +1501,32 @@ export default function SuperadminEmailsPage() {
               ) : null}
             </Card>
           </TabsContent>
-          <TabsContent value="design"><div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-3 p-4"><div className="flex items-center gap-2"><p className="text-sm font-semibold">التصميم</p><InfoHint label="معلومة">من هنا تقدر تبدّل الشكل العام ديال الإيميلات.</InfoHint></div><Input placeholder="اسم المنصة" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} /><Input placeholder="الشعار" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} /><Input placeholder="اللون الرئيسي" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} /><Input placeholder="لون الزر" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} /><Textarea placeholder="التذييل" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} /><Input placeholder="رابط الدعم" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} /><Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "كيتم الحفظ..." : "حفظ التصميم"}</Button></Card><Card className="p-4"><p className="mb-2 text-sm font-medium">عاين النتيجة</p><div dangerouslySetInnerHTML={previewHtml} /></Card></div></TabsContent>
+          <TabsContent value="design">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="space-y-3 p-4">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold">التصميم</p>
+                  <InfoHint label="معلومة">من هنا تقدر تبدّل الشكل العام ديال الإيميلات.</InfoHint>
+                </div>
+                <Input placeholder="اسم المنصة" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} />
+                <Input placeholder="رابط الشعار" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} />
+                <div className="rounded-2xl border border-[var(--border)] p-3">
+                  <p className="mb-2 text-sm text-[var(--muted)]">ولا حمّل الشعار مباشرة:</p>
+                  <Input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={uploadLogo} disabled={logoUploading} />
+                  {logoUploading ? <p className="mt-2 text-xs text-[var(--muted)]">كيتم رفع الشعار...</p> : null}
+                </div>
+                <Input placeholder="اللون الرئيسي" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} />
+                <Input placeholder="لون الزر" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} />
+                <Textarea placeholder="التذييل" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} />
+                <Input placeholder="رابط الدعم" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} />
+                <Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "كيتم الحفظ..." : "حفظ التصميم"}</Button>
+              </Card>
+              <Card className="p-4">
+                <p className="mb-2 text-sm font-medium">عاين النتيجة</p>
+                <div dangerouslySetInnerHTML={previewHtml} />
+              </Card>
+            </div>
+          </TabsContent>
           <TabsContent value="history"><Card className="space-y-2 p-4"><div className="mb-2 flex items-center gap-2"><p className="text-sm font-semibold">التاريخ</p><InfoHint label="معلومة">هنا كتشوف شنو تصيفط، لمين، وفاش، وبأي نتيجة.</InfoHint></div>{history?.items?.length ? history.items.map((item) => (<div key={item.id} className="rounded-lg border border-[var(--border)] p-3 text-sm"><p><strong>الحالة:</strong> {item.status}</p><p><strong>المستافد:</strong> {item.email}</p><p><strong>شكون صيفط:</strong> {item.recipient_user_id || "-"}</p><p><strong>نوع الإرسال:</strong> {item.original_recipient_email || item.email}</p><p><strong>اللغة:</strong> {item.language}</p><p><strong>الموضوع:</strong> {item.subject}</p>{item.note ? <p><strong>الملاحظات:</strong> {item.note}</p> : null}{item.error_message ? <p><strong>الخطأ:</strong> {item.error_message}</p> : null}<p className="text-[var(--muted)]"><strong>التاريخ:</strong> {item.created_at}</p></div>)) : <p className="text-sm text-[var(--muted)]">ما كاين حتى إرسال باقي</p>}</Card></TabsContent>
         </Tabs>
       ) : null}
