@@ -117,8 +117,8 @@ export default function SuperadminEmailsPage() {
   const [recipientsLoading, setRecipientsLoading] = useState(false);
   const [previewEmailLoading, setPreviewEmailLoading] = useState(false);
   const [previewEmail, setPreviewEmail] = useState<EmailCenterPreviewUserEmailResponse | null>(null);
-  const [campaigns, setCampaigns] = useState<EmailCampaignOut[]>([]);
-  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [campaigns, setHamalat] = useState<EmailCampaignOut[]>([]);
+  const [campaignsLoading, setHamalatLoading] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [campaignRecipientsPreview, setCampaignRecipientsPreview] = useState<EmailCenterRecipientsPreviewResponse | null>(null);
   const [campaignTestLanguageById, setCampaignTestLanguageById] = useState<Record<string, "darija" | "fr" | "en">>({});
@@ -158,9 +158,9 @@ export default function SuperadminEmailsPage() {
 
   const modeWarning = useMemo(() => {
     if (!status) return "";
-    if (status.mode === "test_only") return "User sending is disabled in test_only mode.";
-    if (status.mode === "superadmin_only") return "Safe mode: this email will be sent to the test recipient, not the real user.";
-    return "This will send to the real user.";
+    if (status.mode === "test_only") return "Irsal l-user mssedoud f mode test_only.";
+    if (status.mode === "superadmin_only") return "Mode amin: had email ghadi ymchi ghir l-email test, machi l-user الحقيقي.";
+    return "Had email ghadi ymchi l-user الحقيقي.";
   }, [status]);
 
   const refreshHistory = async () => {
@@ -177,13 +177,13 @@ export default function SuperadminEmailsPage() {
       });
       setSystemStatus(data);
     } catch (err) {
-      setSystemStatusError(err instanceof Error ? err.message : "Unable to load system status");
+      setSystemStatusError(err instanceof Error ? err.message : "Ma9drnach njibou halat nizam");
     } finally {
       setSystemStatusLoading(false);
     }
   };
 
-  const loadTemplates = async (language = "", category = "") => {
+  const loadQwaleb = async (language = "", category = "") => {
     setTemplatesLoading(true);
     try {
       const params = new URLSearchParams();
@@ -202,17 +202,17 @@ export default function SuperadminEmailsPage() {
     }
   };
 
-  const loadCampaigns = async () => {
-    setCampaignsLoading(true);
+  const loadHamalat = async () => {
+    setHamalatLoading(true);
     try {
       const data = await apiFetch<EmailCampaignListOut>("/superadmin/email-center/campaigns?limit=50&offset=0", {
         headers: { "x-admin-bypass": "true" },
       });
-      setCampaigns(data.items || []);
+      setHamalat(data.items || []);
     } catch {
-      setCampaigns([]);
+      setHamalat([]);
     } finally {
-      setCampaignsLoading(false);
+      setHamalatLoading(false);
     }
   };
 
@@ -248,13 +248,13 @@ export default function SuperadminEmailsPage() {
         setDesign(designData);
         setHistory(historyData);
         await loadSystemStatus();
-        await loadTemplates();
-        await loadCampaigns();
+        await loadQwaleb();
+        await loadHamalat();
         await loadSuppressions();
         await loadQueueStatus();
         setPayload((current) => ({ ...current, to: current.to || statusData.test_recipient_email || "" }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to load email center");
+        setError(err instanceof Error ? err.message : "Ma9drnach n7emlou Markaz l-Emails");
       } finally {
         setLoading(false);
       }
@@ -273,7 +273,7 @@ export default function SuperadminEmailsPage() {
       });
       setDesign(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save design");
+      setError(err instanceof Error ? err.message : "Ma9drnach n7afdou design");
     } finally {
       setSavingDesign(false);
     }
@@ -288,10 +288,10 @@ export default function SuperadminEmailsPage() {
         headers: { "x-admin-bypass": "true" },
         body: payload,
       });
-      setSendResult(result.status === "sent" ? "Email sent successfully." : `Email result: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
+      setSendResult(result.status === "sent" ? "Tsift l-email بنجاح." : `Ntiija dyal l-email: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
       await refreshHistory();
     } catch (err) {
-      setSendResult(err instanceof Error ? err.message : "Failed to send email");
+      setSendResult(err instanceof Error ? err.message : "Ma9drnach nsifto l-email");
     } finally {
       setSending(false);
     }
@@ -355,10 +355,10 @@ export default function SuperadminEmailsPage() {
           cta_url: userCompose.cta_url,
         },
       });
-      setUserSendResult(result.status === "sent" ? "User email sent successfully." : `Email result: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
+      setUserSendResult(result.status === "sent" ? "Tsift l-email l-user بنجاح." : `Ntiija dyal l-email: ${result.status}${result.error_message ? ` (${result.error_message})` : ""}`);
       await refreshHistory();
     } catch (err) {
-      setUserSendResult(err instanceof Error ? err.message : "Failed to send user email");
+      setUserSendResult(err instanceof Error ? err.message : "Ma9drnach nsifto l-email l-user");
     } finally {
       setUserSending(false);
     }
@@ -367,19 +367,19 @@ export default function SuperadminEmailsPage() {
   const previewHtml = useMemo(() => {
     const escapedBody = payload.body.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\n", "<br/>");
     return {
-      __html: `<div style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${design.brand_name}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "Subject preview"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "Body preview"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "Open"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
+      __html: `<div style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${design.brand_name}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "Mo3ayana dyal l-3onwan"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "Mo3ayana dyal l-matn"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "Hll"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
     };
   }, [design, payload]);
 
   const modeExplanation = useMemo(() => {
     if (!systemStatus) return "";
     if (systemStatus.mode === "test_only") {
-      return "test_only: only test recipient can receive emails";
+      return "test_only: ghir email test اللي ي9der ytsel emails";
     }
     if (systemStatus.mode === "superadmin_only") {
-      return "superadmin_only: selected users are rendered but sent to test recipient";
+      return "superadmin_only: kayt7der l-email 3la 7sab user mkhtar walakin kaytsift ghir l-email test";
     }
-    return "production: sends to real users";
+    return "production: kaytsift l-users الحقيقيين";
   }, [systemStatus]);
 
   const statusBadge = (value: boolean, positiveLabel = "Active") => (
@@ -512,7 +512,7 @@ export default function SuperadminEmailsPage() {
           body,
         });
       }
-      await loadTemplates(templateLanguageFilter, templateCategoryFilter);
+      await loadQwaleb(templateLanguageFilter, templateCategoryFilter);
       await loadSystemStatus();
       setTemplateEditor({
         id: "",
@@ -540,7 +540,7 @@ export default function SuperadminEmailsPage() {
         method: "DELETE",
         headers: { "x-admin-bypass": "true" },
       });
-      await loadTemplates(templateLanguageFilter, templateCategoryFilter);
+      await loadQwaleb(templateLanguageFilter, templateCategoryFilter);
       await loadSystemStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete template");
@@ -553,7 +553,7 @@ export default function SuperadminEmailsPage() {
         method: "POST",
         headers: { "x-admin-bypass": "true" },
       });
-      await loadTemplates(templateLanguageFilter, templateCategoryFilter);
+      await loadQwaleb(templateLanguageFilter, templateCategoryFilter);
       await loadSystemStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to seed templates");
@@ -641,7 +641,7 @@ export default function SuperadminEmailsPage() {
           body,
         });
       }
-      await loadCampaigns();
+      await loadHamalat();
       await loadSystemStatus();
       setCampaignEditor((s) => ({ ...s, id: "", title: "" }));
     } catch (err) {
@@ -655,7 +655,7 @@ export default function SuperadminEmailsPage() {
         method: "DELETE",
         headers: { "x-admin-bypass": "true" },
       });
-      await loadCampaigns();
+      await loadHamalat();
       await loadSystemStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete campaign");
@@ -668,7 +668,7 @@ export default function SuperadminEmailsPage() {
         method: "POST",
         headers: { "x-admin-bypass": "true" },
       });
-      await loadCampaigns();
+      await loadHamalat();
       await loadSystemStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to duplicate campaign");
@@ -720,7 +720,7 @@ export default function SuperadminEmailsPage() {
       headers: { "x-admin-bypass": "true" },
       body: { confirmation: "SEND" },
     });
-    await loadCampaigns();
+    await loadHamalat();
     await loadSystemStatus();
     await loadQueueStatus();
   };
@@ -755,80 +755,80 @@ export default function SuperadminEmailsPage() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="space-y-2 p-4">
-        <h1 className="text-xl font-semibold">Email Center</h1>
-        <p className="text-sm text-[var(--muted)]">Superadmin Email Center. No bulk send, no scheduling, no automations.</p>
+        <h1 className="text-xl font-semibold">Markaz l-Emails</h1>
+        <p className="text-sm text-[var(--muted)]">Markaz dyal l'emails (Admin). Ma kayn la bulk send mftouh, la scheduling, la automation.</p>
       </Card>
-      {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
+      {loading ? <p className="text-sm text-[var(--muted)]">Kayt7emmel…</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {!loading && !error ? (
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="compose">Compose Test</TabsTrigger>
-            <TabsTrigger value="compose-user">Compose User</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="recipients-preview">Recipients Preview</TabsTrigger>
-            <TabsTrigger value="suppressions">Suppression List</TabsTrigger>
-            <TabsTrigger value="delivery-queue">Delivery Queue</TabsTrigger>
-            <TabsTrigger value="system-status">System Status</TabsTrigger>
+            <TabsTrigger value="overview">Nadra 3amma</TabsTrigger>
+            <TabsTrigger value="compose">Kteb Test</TabsTrigger>
+            <TabsTrigger value="compose-user">Kteb l-Mostakhdem</TabsTrigger>
+            <TabsTrigger value="templates">Qwaleb</TabsTrigger>
+            <TabsTrigger value="campaigns">Hamalat</TabsTrigger>
+            <TabsTrigger value="recipients-preview">Mo3ayana dyal Mostafidin</TabsTrigger>
+            <TabsTrigger value="suppressions">Liste dyal l-Man3</TabsTrigger>
+            <TabsTrigger value="delivery-queue">Saff dyal l-Irsal</TabsTrigger>
+            <TabsTrigger value="system-status">Halat Nizam</TabsTrigger>
             <TabsTrigger value="design">Design</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="history">Tarikh</TabsTrigger>
           </TabsList>
-          <TabsContent value="overview"><Card className="space-y-3 p-4"><div className="flex flex-wrap items-center gap-2"><Badge>{status?.mode || "unknown"}</Badge><Badge>{status?.provider || "unknown"}</Badge><Badge>{status?.kill_switch ? "Kill switch ON" : "Kill switch OFF"}</Badge></div><p className="text-sm">Enabled: {String(status?.enabled ?? false)}</p><p className="text-sm">From: {status?.mail_from || ""}</p><p className="text-sm">Test recipient: {status?.test_recipient_email || "(not set)"}</p><p className="text-sm">Allow user send: {String(status?.allow_user_send ?? false)}</p><p className="text-sm text-amber-700">{modeWarning}</p></Card></TabsContent>
+          <TabsContent value="overview"><Card className="space-y-3 p-4"><div className="flex flex-wrap items-center gap-2"><Badge>{status?.mode || "unknown"}</Badge><Badge>{status?.provider || "unknown"}</Badge><Badge>{status?.kill_switch ? "Kill switch Mcha3el" : "Kill switch مطفي"}</Badge></div><p className="text-sm">Mcha3el: {String(status?.enabled ?? false)}</p><p className="text-sm">From: {status?.mail_from || ""}</p><p className="text-sm">Email test: {status?.test_recipient_email || "(not set)"}</p><p className="text-sm">Irsal l-user mssmouh: {String(status?.allow_user_send ?? false)}</p><p className="text-sm text-amber-700">{modeWarning}</p></Card></TabsContent>
           <TabsContent value="compose">
             <Card className="space-y-3 p-4">
               <Input placeholder="To" value={payload.to} onChange={(e) => setPayload((s) => ({ ...s, to: e.target.value }))} />
               <Select value={payload.language} onValueChange={(value) => setPayload((s) => ({ ...s, language: value }))}>
-                <SelectTrigger><SelectValue placeholder="Language" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>
                 <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
               </Select>
               <Select value={selectedTemplateIdTest || "__none__"} onValueChange={(value) => applyTemplateToTest(value === "__none__" ? "" : value)}>
-                <SelectTrigger><SelectValue placeholder="Use template" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="St3mel template" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">No template</SelectItem>
+                  <SelectItem value="__none__">Bla template</SelectItem>
                   {filteredTemplatesForTest.map((template) => (
                     <SelectItem key={template.id} value={template.id}>{template.name} · {template.category}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <div className="rounded border border-[var(--border)] p-3">
-                <div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">AI Suggest</p><Badge>{aiDisabled ? "AI suggestions disabled" : aiMissingConfig ? "AI Gateway Hub is not configured" : "Ready"}</Badge></div>
-                <Textarea placeholder="Goal (what this email should achieve)" value={aiGoalTest} onChange={(e) => setAiGoalTest(e.target.value)} rows={3} />
+                <div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">اقتراح AI</p><Badge>{aiDisabled ? "AI msddoud" : aiMissingConfig ? "AI Gateway ma mconfigurich" : "Wajed"}</Badge></div>
+                <Textarea placeholder="Lhadaf dyal had email" value={aiGoalTest} onChange={(e) => setAiGoalTest(e.target.value)} rows={3} />
                 <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  <Select value={aiToneTest} onValueChange={(value) => setAiToneTest(value as "friendly" | "professional" | "motivational" | "short")}><SelectTrigger><SelectValue placeholder="Tone" /></SelectTrigger><SelectContent><SelectItem value="friendly">friendly</SelectItem><SelectItem value="professional">professional</SelectItem><SelectItem value="motivational">motivational</SelectItem><SelectItem value="short">short</SelectItem></SelectContent></Select>
-                  <Input placeholder="CTA label hint (optional)" value={aiCtaLabelHintTest} onChange={(e) => setAiCtaLabelHintTest(e.target.value)} />
+                  <Select value={aiToneTest} onValueChange={(value) => setAiToneTest(value as "friendly" | "professional" | "motivational" | "short")}><SelectTrigger><SelectValue placeholder="Nabra" /></SelectTrigger><SelectContent><SelectItem value="friendly">friendly</SelectItem><SelectItem value="professional">professional</SelectItem><SelectItem value="motivational">motivational</SelectItem><SelectItem value="short">short</SelectItem></SelectContent></Select>
+                  <Input placeholder="Ishara l-CTA (ikhtiyari)" value={aiCtaLabelHintTest} onChange={(e) => setAiCtaLabelHintTest(e.target.value)} />
                 </div>
-                <div className="mt-2 flex gap-2"><Button onClick={suggestForTest} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingTest || !aiGoalTest.trim()}>{aiSuggestLoadingTest ? "Suggesting..." : "Suggest with AI"}</Button>{aiSuggestionTest ? <Button variant="secondary" onClick={suggestForTest} disabled={aiSuggestLoadingTest}>Regenerate</Button> : null}{aiSuggestionTest ? <Button variant="secondary" onClick={() => setAiSuggestionTest(null)}>Cancel</Button> : null}</div>
+                <div className="mt-2 flex gap-2"><Button onClick={suggestForTest} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingTest || !aiGoalTest.trim()}>{aiSuggestLoadingTest ? "Kayfakker..." : "Jib i9tira7 b AI"}</Button>{aiSuggestionTest ? <Button variant="secondary" onClick={suggestForTest} disabled={aiSuggestLoadingTest}>3awed l-i9tira7</Button> : null}{aiSuggestionTest ? <Button variant="secondary" onClick={() => setAiSuggestionTest(null)}>Ilgha2</Button> : null}</div>
                 {aiSuggestErrorTest ? <p className="mt-2 text-sm text-red-600">{aiSuggestErrorTest}</p> : null}
-                {aiSuggestionTest ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>Subject:</strong> {aiSuggestionTest.subject}</p><p><strong>Preview:</strong> {aiSuggestionTest.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>Body:</strong>{"\n"}{aiSuggestionTest.body}</p><p><strong>CTA:</strong> {aiSuggestionTest.cta_label}</p><Button className="mt-2" onClick={() => setPayload((s) => ({ ...s, subject: aiSuggestionTest.subject, body: aiSuggestionTest.body, cta_label: aiSuggestionTest.cta_label }))}>Apply suggestion</Button></div> : null}
+                {aiSuggestionTest ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>Subject:</strong> {aiSuggestionTest.subject}</p><p><strong>Mo3ayana:</strong> {aiSuggestionTest.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>Body:</strong>{"\n"}{aiSuggestionTest.body}</p><p><strong>CTA:</strong> {aiSuggestionTest.cta_label}</p><Button className="mt-2" onClick={() => setPayload((s) => ({ ...s, subject: aiSuggestionTest.subject, body: aiSuggestionTest.body, cta_label: aiSuggestionTest.cta_label }))}>Tb9 i9tira7</Button></div> : null}
               </div>
-              <Input placeholder="Subject" value={payload.subject} onChange={(e) => setPayload((s) => ({ ...s, subject: e.target.value }))} />
-              <Textarea placeholder="Body" value={payload.body} onChange={(e) => setPayload((s) => ({ ...s, body: e.target.value }))} rows={8} />
-              <Input placeholder="CTA label" value={payload.cta_label} onChange={(e) => setPayload((s) => ({ ...s, cta_label: e.target.value }))} />
-              <Input placeholder="CTA URL" value={payload.cta_url} onChange={(e) => setPayload((s) => ({ ...s, cta_url: e.target.value }))} />
-              <Button onClick={sendTest} disabled={!canSend}>{sending ? "Sending…" : "Send test"}</Button>
+              <Input placeholder="L3onwan" value={payload.subject} onChange={(e) => setPayload((s) => ({ ...s, subject: e.target.value }))} />
+              <Textarea placeholder="Lmatn" value={payload.body} onChange={(e) => setPayload((s) => ({ ...s, body: e.target.value }))} rows={8} />
+              <Input placeholder="Nass CTA" value={payload.cta_label} onChange={(e) => setPayload((s) => ({ ...s, cta_label: e.target.value }))} />
+              <Input placeholder="Rabeta CTA" value={payload.cta_url} onChange={(e) => setPayload((s) => ({ ...s, cta_url: e.target.value }))} />
+              <Button onClick={sendTest} disabled={!canSend}>{sending ? "Kaytsift…" : "Sift test"}</Button>
               {sendResult ? <p className="text-sm">{sendResult}</p> : null}
             </Card>
           </TabsContent>
           <TabsContent value="suppressions">
             <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Suppression List</p><Badge>{systemStatus?.flags.suppression_enabled ? "Enabled" : "Disabled"}</Badge></div>
-              {!systemStatus?.flags.suppression_enabled ? <p className="text-sm text-[var(--muted)]">Suppression list is disabled by EMAIL_CENTER_SUPPRESSION_ENABLED.</p> : null}
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Liste dyal l-Man3</p><Badge>{systemStatus?.flags.suppression_enabled ? "Enabled" : "Disabled"}</Badge></div>
+              {!systemStatus?.flags.suppression_enabled ? <p className="text-sm text-[var(--muted)]">Liste l-man3 msdouda b EMAIL_CENTER_SUPPRESSION_ENABLED.</p> : null}
               <div className="grid gap-2 md:grid-cols-3">
                 <Input placeholder="email@example.com" value={suppressionEmail} onChange={(e) => setSuppressionEmail(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
                 <Input placeholder="reason" value={suppressionReason} onChange={(e) => setSuppressionReason(e.target.value)} disabled={!systemStatus?.flags.suppression_enabled} />
-                <Button onClick={addSuppression} disabled={!suppressionEmail.trim() || !systemStatus?.flags.suppression_enabled}>Add suppression</Button>
+                <Button onClick={addSuppression} disabled={!suppressionEmail.trim() || !systemStatus?.flags.suppression_enabled}>Zid man3</Button>
               </div>
-              {suppressions?.items.map((item) => (<div key={item.id} className="flex items-center justify-between rounded border border-[var(--border)] p-2 text-sm"><p>{item.email} · {item.reason}</p><Button variant="secondary" onClick={() => deactivateSuppression(item.id)} disabled={!systemStatus?.flags.suppression_enabled}>Deactivate</Button></div>))}
+              {suppressions?.items.map((item) => (<div key={item.id} className="flex items-center justify-between rounded border border-[var(--border)] p-2 text-sm"><p>{item.email} · {item.reason}</p><Button variant="secondary" onClick={() => deactivateSuppression(item.id)} disabled={!systemStatus?.flags.suppression_enabled}>Hyed l-man3</Button></div>))}
             </Card>
           </TabsContent>
           <TabsContent value="delivery-queue">
             <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Delivery Queue</p><Badge>{systemStatus?.flags.delivery_queue_enabled ? "Enabled" : "Disabled"}</Badge></div>
-              <p className="text-sm text-[var(--muted)]">This processes queued emails in small batches.</p>
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold">Saff dyal l-Irsal</p><Badge>{systemStatus?.flags.delivery_queue_enabled ? "Enabled" : "Disabled"}</Badge></div>
+              <p className="text-sm text-[var(--muted)]">Hada kay3alej emails f saff b batchat sghar.</p>
               <p className="text-sm">Pending: {queueStatus?.pending_count ?? 0} · Retry: {queueStatus?.retry_count ?? 0} · Failed: {queueStatus?.failed_count ?? 0}</p>
-              <div className="flex gap-2"><Input type="number" value={queueProcessLimit} onChange={(e) => setQueueProcessLimit(Number(e.target.value || "20"))} /><Button onClick={processQueue} disabled={!systemStatus?.flags.delivery_queue_enabled}>Process batch</Button></div>
+              <div className="flex gap-2"><Input type="number" value={queueProcessLimit} onChange={(e) => setQueueProcessLimit(Number(e.target.value || "20"))} /><Button onClick={processQueue} disabled={!systemStatus?.flags.delivery_queue_enabled}>3alej batch</Button></div>
             </Card>
           </TabsContent>
           <TabsContent value="compose-user">
@@ -836,8 +836,8 @@ export default function SuperadminEmailsPage() {
               <Card className="space-y-3 p-4">
                 <p className="text-sm text-amber-700">{modeWarning}</p>
                 <div className="flex gap-2">
-                  <Input placeholder="Search user by name or email" value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} />
-                  <Button onClick={searchUsers} disabled={searchingUsers}>{searchingUsers ? "Searching…" : "Search"}</Button>
+                  <Input placeholder="Qelleb 3la user b smiya wla email" value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} />
+                  <Button onClick={searchUsers} disabled={searchingUsers}>{searchingUsers ? "Kayqelleb…" : "Qelleb"}</Button>
                 </div>
                 <div className="space-y-2">
                   {userSearchResults.map((user) => (
@@ -849,16 +849,16 @@ export default function SuperadminEmailsPage() {
                 </div>
                 {selectedUser ? (
                   <div className="rounded border border-[var(--border)] p-3 text-sm">
-                    <p className="font-medium">Selected user</p>
+                    <p className="font-medium">User mkhtar</p>
                     <p>{selectedUser.display_name}</p>
                     <p>{selectedUser.email}</p>
-                    <p>Language: {selectedUser.detected_language}</p>
+                    <p>Logha: {selectedUser.detected_language}</p>
                   </div>
                 ) : null}
                 <Select value={selectedTemplateIdUser || "__none__"} onValueChange={(value) => applyTemplateToUser(value === "__none__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Use template" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="St3mel template" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">No template</SelectItem>
+                    <SelectItem value="__none__">Bla template</SelectItem>
                     {filteredTemplatesForUser.map((template) => (
                       <SelectItem key={template.id} value={template.id}>{template.name} · {template.category}</SelectItem>
                     ))}
@@ -866,53 +866,53 @@ export default function SuperadminEmailsPage() {
                 </Select>
                 <div className="rounded border border-[var(--border)] p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-medium">AI Suggest</p>
-                    <Badge>{aiDisabled ? "AI suggestions disabled" : aiMissingConfig ? "AI Gateway Hub is not configured" : "Ready"}</Badge>
+                    <p className="text-sm font-medium">اقتراح AI</p>
+                    <Badge>{aiDisabled ? "AI msddoud" : aiMissingConfig ? "AI Gateway ma mconfigurich" : "Wajed"}</Badge>
                   </div>
-                  <Textarea placeholder="Goal (what this email should achieve)" value={aiGoalUser} onChange={(e) => setAiGoalUser(e.target.value)} rows={3} />
+                  <Textarea placeholder="Lhadaf dyal had email" value={aiGoalUser} onChange={(e) => setAiGoalUser(e.target.value)} rows={3} />
                   <div className="mt-2 grid gap-2 md:grid-cols-2">
                     <Select value={aiLanguageUser} onValueChange={(value) => setAiLanguageUser(value as "darija" | "fr" | "en")}>
-                      <SelectTrigger><SelectValue placeholder="Language" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>
                       <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
                     </Select>
                     <Select value={aiToneUser} onValueChange={(value) => setAiToneUser(value as "friendly" | "professional" | "motivational" | "short")}>
-                      <SelectTrigger><SelectValue placeholder="Tone" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Nabra" /></SelectTrigger>
                       <SelectContent><SelectItem value="friendly">friendly</SelectItem><SelectItem value="professional">professional</SelectItem><SelectItem value="motivational">motivational</SelectItem><SelectItem value="short">short</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <Input className="mt-2" placeholder="CTA label hint (optional)" value={aiCtaLabelHintUser} onChange={(e) => setAiCtaLabelHintUser(e.target.value)} />
+                  <Input className="mt-2" placeholder="Ishara l-CTA (ikhtiyari)" value={aiCtaLabelHintUser} onChange={(e) => setAiCtaLabelHintUser(e.target.value)} />
                   <div className="mt-2 flex items-center gap-2">
                     <Checkbox checked={personalizeWithFirstName} onCheckedChange={(checked) => setPersonalizeWithFirstName(Boolean(checked))} />
                     <p className="text-sm">Personalize with first name</p>
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <Button onClick={suggestForUser} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingUser || !selectedUser || !aiGoalUser.trim()}>{aiSuggestLoadingUser ? "Suggesting..." : "Suggest with AI"}</Button>
-                    {aiSuggestionUser ? <Button variant="secondary" onClick={suggestForUser} disabled={aiSuggestLoadingUser}>Regenerate</Button> : null}
-                    {aiSuggestionUser ? <Button variant="secondary" onClick={() => setAiSuggestionUser(null)}>Cancel</Button> : null}
+                    <Button onClick={suggestForUser} disabled={aiDisabled || aiMissingConfig || aiSuggestLoadingUser || !selectedUser || !aiGoalUser.trim()}>{aiSuggestLoadingUser ? "Kayfakker..." : "Jib i9tira7 b AI"}</Button>
+                    {aiSuggestionUser ? <Button variant="secondary" onClick={suggestForUser} disabled={aiSuggestLoadingUser}>3awed l-i9tira7</Button> : null}
+                    {aiSuggestionUser ? <Button variant="secondary" onClick={() => setAiSuggestionUser(null)}>Ilgha2</Button> : null}
                   </div>
                   {aiSuggestErrorUser ? <p className="mt-2 text-sm text-red-600">{aiSuggestErrorUser}</p> : null}
-                  {aiSuggestionUser ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>Subject:</strong> {aiSuggestionUser.subject}</p><p><strong>Preview:</strong> {aiSuggestionUser.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>Body:</strong>{"\n"}{aiSuggestionUser.body}</p><p><strong>CTA:</strong> {aiSuggestionUser.cta_label}</p><Button className="mt-2" onClick={() => setUserCompose((s) => ({ ...s, subject: aiSuggestionUser.subject, body: aiSuggestionUser.body, cta_label: aiSuggestionUser.cta_label }))}>Apply suggestion</Button></div> : null}
+                  {aiSuggestionUser ? <div className="mt-3 rounded border border-[var(--border)] p-3 text-sm"><p><strong>Subject:</strong> {aiSuggestionUser.subject}</p><p><strong>Mo3ayana:</strong> {aiSuggestionUser.preview_text || "-"}</p><p className="whitespace-pre-wrap"><strong>Body:</strong>{"\n"}{aiSuggestionUser.body}</p><p><strong>CTA:</strong> {aiSuggestionUser.cta_label}</p><Button className="mt-2" onClick={() => setUserCompose((s) => ({ ...s, subject: aiSuggestionUser.subject, body: aiSuggestionUser.body, cta_label: aiSuggestionUser.cta_label }))}>Tb9 i9tira7</Button></div> : null}
                 </div>
-                <Input placeholder="Subject" value={userCompose.subject} onChange={(e) => setUserCompose((s) => ({ ...s, subject: e.target.value }))} />
-                <Textarea placeholder="Body" value={userCompose.body} onChange={(e) => setUserCompose((s) => ({ ...s, body: e.target.value }))} rows={8} />
-                <Input placeholder="CTA label" value={userCompose.cta_label} onChange={(e) => setUserCompose((s) => ({ ...s, cta_label: e.target.value }))} />
-                <Input placeholder="CTA URL" value={userCompose.cta_url} onChange={(e) => setUserCompose((s) => ({ ...s, cta_url: e.target.value }))} />
+                <Input placeholder="L3onwan" value={userCompose.subject} onChange={(e) => setUserCompose((s) => ({ ...s, subject: e.target.value }))} />
+                <Textarea placeholder="Lmatn" value={userCompose.body} onChange={(e) => setUserCompose((s) => ({ ...s, body: e.target.value }))} rows={8} />
+                <Input placeholder="Nass CTA" value={userCompose.cta_label} onChange={(e) => setUserCompose((s) => ({ ...s, cta_label: e.target.value }))} />
+                <Input placeholder="Rabeta CTA" value={userCompose.cta_url} onChange={(e) => setUserCompose((s) => ({ ...s, cta_url: e.target.value }))} />
                 <div className="flex gap-2">
-                  <Button onClick={loadUserPreview} disabled={!selectedUser || previewLoading || !userCompose.subject.trim() || !userCompose.body.trim()}>{previewLoading ? "Loading preview…" : "Preview"}</Button>
-                  <Button onClick={sendUser} disabled={!canSendUser || !status?.allow_user_send || status?.mode === "test_only"}>{userSending ? "Sending…" : "Send to selected user"}</Button>
+                  <Button onClick={loadUserPreview} disabled={!selectedUser || previewLoading || !userCompose.subject.trim() || !userCompose.body.trim()}>{previewLoading ? "Kayjib l-mo3ayana…" : "Mo3ayana"}</Button>
+                  <Button onClick={sendUser} disabled={!canSendUser || !status?.allow_user_send || status?.mode === "test_only"}>{userSending ? "Kaytsift…" : "Sift l had user"}</Button>
                 </div>
                 {userSendResult ? <p className="text-sm">{userSendResult}</p> : null}
               </Card>
               <Card className="p-4">
-                <p className="mb-2 text-sm font-medium">User preview</p>
+                <p className="mb-2 text-sm font-medium">Mo3ayana dyal user</p>
                 {userPreview ? (
                   <div className="space-y-2 text-sm">
-                    <p>Target user: {userPreview.display_name} ({userPreview.email})</p>
-                    <p>Language: {userPreview.detected_language}</p>
+                    <p>User cible: {userPreview.display_name} ({userPreview.email})</p>
+                    <p>Logha: {userPreview.detected_language}</p>
                     <div dangerouslySetInnerHTML={{ __html: userPreview.body_html }} />
                   </div>
                 ) : (
-                  <p className="text-sm text-[var(--muted)]">Select a user and click Preview.</p>
+                  <p className="text-sm text-[var(--muted)]">Select a user and click Mo3ayana.</p>
                 )}
               </Card>
             </div>
@@ -920,19 +920,19 @@ export default function SuperadminEmailsPage() {
           <TabsContent value="campaigns">
             <Card className="space-y-4 p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Campaign Drafts</p>
+                <p className="text-sm font-semibold">Msawdat l-hamalat</p>
                 <Badge>{systemStatus?.flags.campaigns_enabled ? "Enabled" : "Disabled"}</Badge>
               </div>
               <p className="text-sm text-amber-700">Campaign drafts do not send emails. Bulk sending is not enabled yet.</p>
               <p className="text-sm text-[var(--muted)]">This sends only to the configured test inbox.</p>
-              {!systemStatus?.flags.campaigns_enabled ? <p className="text-sm text-[var(--muted)]">Set EMAIL_CENTER_CAMPAIGNS_ENABLED=true to manage drafts.</p> : null}
+              {!systemStatus?.flags.campaigns_enabled ? <p className="text-sm text-[var(--muted)]">Khass EMAIL_CENTER_CAMPAIGNS_ENABLED=true باش tdir hamalat.</p> : null}
               {!systemStatus?.flags.campaign_test_send_enabled ? <p className="text-sm text-[var(--muted)]">Campaign test send is disabled by EMAIL_CENTER_CAMPAIGN_TEST_SEND_ENABLED.</p> : null}
               {systemStatus?.capabilities.campaign_test_send === "blocked_by_kill_switch" ? <p className="text-sm text-red-600">Campaign test send blocked: kill switch is ON.</p> : null}
               {systemStatus?.capabilities.campaign_test_send === "missing_test_recipient" ? <p className="text-sm text-red-600">Campaign test send blocked: EMAIL_CENTER_TEST_RECIPIENT_EMAIL is missing.</p> : null}
               <div className="grid gap-2 md:grid-cols-2">
-                <Input placeholder="Campaign title" value={campaignEditor.title} onChange={(e) => setCampaignEditor((s) => ({ ...s, title: e.target.value }))} />
+                <Input placeholder="3onwan l-hamla" value={campaignEditor.title} onChange={(e) => setCampaignEditor((s) => ({ ...s, title: e.target.value }))} />
                 <Select value={campaignEditor.audience_type} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, audience_type: value as EmailCenterAudienceType }))}>
-                  <SelectTrigger><SelectValue placeholder="Audience type" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="No3 l-audience" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all_users">all_users</SelectItem>
                     <SelectItem value="incomplete_onboarding">incomplete_onboarding</SelectItem>
@@ -944,13 +944,13 @@ export default function SuperadminEmailsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={campaignEditor.language_mode} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, language_mode: value as "auto" | "darija" | "fr" | "en" }))}>
-                  <SelectTrigger><SelectValue placeholder="Language mode" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Mode dyal logha" /></SelectTrigger>
                   <SelectContent><SelectItem value="auto">auto</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                 </Select>
                 <Select value={campaignEditor.template_id || "__none__"} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, template_id: value === "__none__" ? "" : value }))}>
-                  <SelectTrigger><SelectValue placeholder="Template (optional)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Template (ikhtiyari)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">No template</SelectItem>
+                    <SelectItem value="__none__">Bla template</SelectItem>
                     {templates.map((template) => (<SelectItem key={template.id} value={template.id}>{template.name} · {template.language}</SelectItem>))}
                   </SelectContent>
                 </Select>
@@ -968,22 +968,22 @@ export default function SuperadminEmailsPage() {
                 </div>
               ) : (
                 <Card className="space-y-2 p-3">
-                  <Input placeholder="Subject" value={campaignEditor.subject_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
-                  <Textarea placeholder="Body" value={campaignEditor.body_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} rows={4} />
-                  <Input placeholder="CTA label" value={campaignEditor.cta_label_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
+                  <Input placeholder="L3onwan" value={campaignEditor.subject_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, subject_by_language_json: { ...s.subject_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
+                  <Textarea placeholder="Lmatn" value={campaignEditor.body_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, body_by_language_json: { ...s.body_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} rows={4} />
+                  <Input placeholder="Nass CTA" value={campaignEditor.cta_label_by_language_json[campaignEditor.language_mode]} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_label_by_language_json: { ...s.cta_label_by_language_json, [campaignEditor.language_mode]: e.target.value } }))} />
                 </Card>
               )}
               <div className="grid gap-2 md:grid-cols-2">
-                <Input placeholder="CTA URL" value={campaignEditor.cta_url} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_url: e.target.value }))} />
+                <Input placeholder="Rabeta CTA" value={campaignEditor.cta_url} onChange={(e) => setCampaignEditor((s) => ({ ...s, cta_url: e.target.value }))} />
                 <Select value={campaignEditor.status} onValueChange={(value) => setCampaignEditor((s) => ({ ...s, status: value as "draft" | "ready" | "archived" }))}>
-                  <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Lhala" /></SelectTrigger>
                   <SelectContent><SelectItem value="draft">draft</SelectItem><SelectItem value="ready">ready</SelectItem><SelectItem value="archived">archived</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="flex gap-2">
                 <Button onClick={saveCampaign} disabled={!systemStatus?.flags.campaigns_enabled}>{campaignEditor.id ? "Update draft" : "Save draft"}</Button>
                 <Button variant="secondary" onClick={() => setCampaignEditor({ id: "", title: "", audience_type: "all_users", language_mode: "auto", template_id: "", cta_url: "", status: "draft", subject_by_language_json: { darija: "", fr: "", en: "" }, body_by_language_json: { darija: "", fr: "", en: "" }, cta_label_by_language_json: { darija: "", fr: "", en: "" } })}>Clear</Button>
-                <Button variant="secondary" onClick={loadCampaigns} disabled={campaignsLoading}>{campaignsLoading ? "Refreshing..." : "Refresh"}</Button>
+                <Button variant="secondary" onClick={loadHamalat} disabled={campaignsLoading}>{campaignsLoading ? "3awed tahdithing..." : "3awed tahdith"}</Button>
               </div>
               <div className="space-y-2">
                 {campaigns.map((campaign) => (
@@ -1024,14 +1024,14 @@ export default function SuperadminEmailsPage() {
                       })}>Edit</Button>
                       <Button variant="secondary" onClick={() => duplicateCampaign(campaign.id)}>Duplicate</Button>
                       <Button variant="secondary" onClick={() => deleteCampaign(campaign.id)}>Archive/Delete</Button>
-                      <Button variant="secondary" onClick={() => previewCampaignRecipients(campaign.id)}>Preview recipients</Button>
+                      <Button variant="secondary" onClick={() => previewCampaignRecipients(campaign.id)}>Mo3ayana recipients</Button>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <Select
                         value={campaignTestLanguageById[campaign.id] || "darija"}
                         onValueChange={(value) => setCampaignTestLanguageById((s) => ({ ...s, [campaign.id]: value as "darija" | "fr" | "en" }))}
                       >
-                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Test language" /></SelectTrigger>
+                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Logha dyal test" /></SelectTrigger>
                         <SelectContent><SelectItem value="darija">Darija</SelectItem><SelectItem value="fr">Français</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
                       </Select>
                       {systemStatus?.flags.campaign_test_send_enabled ? (
@@ -1043,7 +1043,7 @@ export default function SuperadminEmailsPage() {
                             systemStatus?.capabilities.campaign_test_send !== "ready"
                           }
                         >
-                          {campaignTestSendingById[campaign.id] ? "Sending..." : "Send test"}
+                          {campaignTestSendingById[campaign.id] ? "Sending..." : "Sift test"}
                         </Button>
                       ) : (
                         <Badge>Campaign test disabled</Badge>
@@ -1053,13 +1053,13 @@ export default function SuperadminEmailsPage() {
                         onClick={() => sendCampaignQueued(campaign.id, Number(campaign.estimated_recipient_count || 0))}
                         disabled={!systemStatus?.flags.allow_bulk_send}
                       >
-                        Queue campaign
+                        Saffet l-hamla
                       </Button>
                     </div>
                     {campaignTestResultById[campaign.id] ? <p className="text-sm">{campaignTestResultById[campaign.id]}</p> : null}
                   </Card>
                 ))}
-                {campaigns.length === 0 ? <p className="text-sm text-[var(--muted)]">No campaign drafts yet.</p> : null}
+                {campaigns.length === 0 ? <p className="text-sm text-[var(--muted)]">Mazal ma kaynach msawdat hamalat.</p> : null}
               </div>
               {campaignRecipientsPreview && selectedCampaignId ? (
                 <Card className="space-y-2 p-3">
@@ -1072,7 +1072,7 @@ export default function SuperadminEmailsPage() {
                       <Badge>{item.detected_language}</Badge>
                       <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
                       <p>{item.skip_reason || item.reason}</p>
-                      <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)}>View email preview</Button>
+                      <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)}>Chof mo3ayana dyal email</Button>
                     </div>
                   ))}
                 </Card>
@@ -1083,13 +1083,13 @@ export default function SuperadminEmailsPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Dry run audience preview</p>
+                  <p className="text-sm font-medium">Mo3ayana amina (dry run) dyal audience</p>
                   <Badge>{systemStatus?.flags.recipient_preview_enabled ? "Enabled" : "Disabled"}</Badge>
                 </div>
-                <p className="text-sm text-amber-700">This is a dry run. No emails will be sent.</p>
-                {!systemStatus?.flags.recipient_preview_enabled ? <p className="text-sm text-[var(--muted)]">Set EMAIL_CENTER_RECIPIENT_PREVIEW_ENABLED=true to use this tab.</p> : null}
+                <p className="text-sm text-amber-700">Hadi ghir mo3ayana. 7tta email ma ghadi ytsift.</p>
+                {!systemStatus?.flags.recipient_preview_enabled ? <p className="text-sm text-[var(--muted)]">Khass EMAIL_CENTER_RECIPIENT_PREVIEW_ENABLED=true باش tkhddem had tab.</p> : null}
                 <Select value={previewAudienceType} onValueChange={(value) => setPreviewAudienceType(value as EmailCenterAudienceType)}>
-                  <SelectTrigger><SelectValue placeholder="Audience type" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="No3 l-audience" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all_users">all_users</SelectItem>
                     <SelectItem value="incomplete_onboarding">incomplete_onboarding</SelectItem>
@@ -1101,27 +1101,27 @@ export default function SuperadminEmailsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={previewLanguage || "__none__"} onValueChange={(value) => setPreviewLanguage(value === "__none__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Language filter (optional)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Filter dyal logha (ikhtiyari)" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">No language filter</SelectItem><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                 </Select>
                 <Select value={previewTemplateId || "__none__"} onValueChange={(value) => setPreviewTemplateId(value === "__none__" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder="Template (optional)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Template (ikhtiyari)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">No template</SelectItem>
+                    <SelectItem value="__none__">Bla template</SelectItem>
                     {templates.map((template) => (<SelectItem key={template.id} value={template.id}>{template.name} · {template.language}</SelectItem>))}
                   </SelectContent>
                 </Select>
                 <Input type="number" min={1} max={200} placeholder="Limit (max 200)" value={previewLimit} onChange={(e) => setPreviewLimit(Number(e.target.value || "50"))} />
-                <Input placeholder="Fallback subject" value={previewCompose.subject} onChange={(e) => setPreviewCompose((s) => ({ ...s, subject: e.target.value }))} />
-                <Textarea placeholder="Fallback body" value={previewCompose.body} onChange={(e) => setPreviewCompose((s) => ({ ...s, body: e.target.value }))} rows={5} />
+                <Input placeholder="3onwan i7tiyati" value={previewCompose.subject} onChange={(e) => setPreviewCompose((s) => ({ ...s, subject: e.target.value }))} />
+                <Textarea placeholder="Matn i7tiyati" value={previewCompose.body} onChange={(e) => setPreviewCompose((s) => ({ ...s, body: e.target.value }))} rows={5} />
                 <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="Fallback CTA label" value={previewCompose.cta_label} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_label: e.target.value }))} />
-                  <Input placeholder="Fallback CTA URL" value={previewCompose.cta_url} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_url: e.target.value }))} />
+                  <Input placeholder="Nass CTA i7tiyati" value={previewCompose.cta_label} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_label: e.target.value }))} />
+                  <Input placeholder="Rabeta CTA i7tiyati" value={previewCompose.cta_url} onChange={(e) => setPreviewCompose((s) => ({ ...s, cta_url: e.target.value }))} />
                 </div>
-                <Button onClick={runRecipientsPreview} disabled={!systemStatus?.flags.recipient_preview_enabled || recipientsLoading}>{recipientsLoading ? "Running…" : "Run preview"}</Button>
+                <Button onClick={runRecipientsPreview} disabled={!systemStatus?.flags.recipient_preview_enabled || recipientsLoading}>{recipientsLoading ? "Khadam…" : "Chghal l-mo3ayana"}</Button>
               </Card>
               <Card className="space-y-3 p-4">
-                <p className="text-sm font-medium">Previewed user email</p>
+                <p className="text-sm font-medium">Mo3ayana dyal email dyal user</p>
                 {previewEmail ? (
                   <div className="space-y-2 text-sm">
                     <p>{previewEmail.email} · {previewEmail.detected_language}</p>
@@ -1147,19 +1147,19 @@ export default function SuperadminEmailsPage() {
                     <Badge>{item.detected_language}</Badge>
                     <Badge>{item.eligible ? "Eligible" : "Skipped"}</Badge>
                     <p>{item.skip_reason || item.reason}</p>
-                    <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading}>{previewEmailLoading ? "Loading..." : "View email"}</Button>
+                    <Button variant="secondary" onClick={() => loadPreviewUserEmail(item.user_id)} disabled={previewEmailLoading}>{previewEmailLoading ? "Loading..." : "Chof l-email"}</Button>
                   </div>
                 ))}
-                {recipientsPreview && recipientsPreview.items.length === 0 ? <p className="text-sm text-[var(--muted)]">No recipients matched.</p> : null}
+                {recipientsPreview && recipientsPreview.items.length === 0 ? <p className="text-sm text-[var(--muted)]">Ma t9abl 7tta mostafid.</p> : null}
               </div>
             </Card>
           </TabsContent>
           <TabsContent value="templates">
             <Card className="space-y-4 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge>{templatesEnabled ? "Templates enabled" : "Templates disabled"}</Badge>
-                <Button variant="secondary" onClick={() => loadTemplates(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>
-                  {templatesLoading ? "Refreshing..." : "Refresh"}
+                <Badge>{templatesEnabled ? "Qwaleb mcha3lin" : "Qwaleb msdoudin"}</Badge>
+                <Button variant="secondary" onClick={() => loadQwaleb(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>
+                  {templatesLoading ? "3awed tahdithing..." : "3awed tahdith"}
                 </Button>
                 <Button variant="secondary" onClick={seedDefaultTemplates} disabled={!templatesEnabled}>
                   Seed defaults
@@ -1174,33 +1174,33 @@ export default function SuperadminEmailsPage() {
                   <SelectTrigger><SelectValue placeholder="Category filter" /></SelectTrigger>
                   <SelectContent><SelectItem value="__all__">All categories</SelectItem><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
                 </Select>
-                <Button onClick={() => loadTemplates(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>Apply filters</Button>
+                <Button onClick={() => loadQwaleb(templateLanguageFilter, templateCategoryFilter)} disabled={templatesLoading}>Tb9i filters</Button>
               </div>
 
               <Card className="space-y-2 p-3">
-                <p className="text-sm font-semibold">{templateEditor.id ? "Edit template" : "Create template"}</p>
+                <p className="text-sm font-semibold">{templateEditor.id ? "Hddet template" : "Sna3 قالب"}</p>
                 <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="Key (optional)" value={templateEditor.key} onChange={(e) => setTemplateEditor((s) => ({ ...s, key: e.target.value }))} />
-                  <Input placeholder="Name" value={templateEditor.name} onChange={(e) => setTemplateEditor((s) => ({ ...s, name: e.target.value }))} />
+                  <Input placeholder="Mefta7 (ikhtiyari)" value={templateEditor.key} onChange={(e) => setTemplateEditor((s) => ({ ...s, key: e.target.value }))} />
+                  <Input placeholder="Smiya" value={templateEditor.name} onChange={(e) => setTemplateEditor((s) => ({ ...s, name: e.target.value }))} />
                   <Select value={templateEditor.category} onValueChange={(value) => setTemplateEditor((s) => ({ ...s, category: value }))}>
                     <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
                     <SelectContent><SelectItem value="welcome">welcome</SelectItem><SelectItem value="onboarding_reminder">onboarding_reminder</SelectItem><SelectItem value="salary_reminder">salary_reminder</SelectItem><SelectItem value="first_transaction">first_transaction</SelectItem><SelectItem value="envelope_setup">envelope_setup</SelectItem><SelectItem value="passkey_reminder">passkey_reminder</SelectItem><SelectItem value="monthly_checkin">monthly_checkin</SelectItem><SelectItem value="product_update">product_update</SelectItem><SelectItem value="maintenance">maintenance</SelectItem><SelectItem value="custom">custom</SelectItem></SelectContent>
                   </Select>
                   <Select value={templateEditor.language} onValueChange={(value) => setTemplateEditor((s) => ({ ...s, language: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Language" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Logha" /></SelectTrigger>
                     <SelectContent><SelectItem value="darija">darija</SelectItem><SelectItem value="fr">fr</SelectItem><SelectItem value="en">en</SelectItem></SelectContent>
                   </Select>
-                  <Input placeholder="Subject" value={templateEditor.subject} onChange={(e) => setTemplateEditor((s) => ({ ...s, subject: e.target.value }))} />
-                  <Input placeholder="Preview text (optional)" value={templateEditor.preview_text} onChange={(e) => setTemplateEditor((s) => ({ ...s, preview_text: e.target.value }))} />
+                  <Input placeholder="L3onwan" value={templateEditor.subject} onChange={(e) => setTemplateEditor((s) => ({ ...s, subject: e.target.value }))} />
+                  <Input placeholder="Mo3ayana text (optional)" value={templateEditor.preview_text} onChange={(e) => setTemplateEditor((s) => ({ ...s, preview_text: e.target.value }))} />
                 </div>
-                <Textarea placeholder="Body" value={templateEditor.body} onChange={(e) => setTemplateEditor((s) => ({ ...s, body: e.target.value }))} rows={6} />
+                <Textarea placeholder="Lmatn" value={templateEditor.body} onChange={(e) => setTemplateEditor((s) => ({ ...s, body: e.target.value }))} rows={6} />
                 <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="CTA label" value={templateEditor.cta_label} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_label: e.target.value }))} />
-                  <Input placeholder="CTA URL" value={templateEditor.cta_url} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_url: e.target.value }))} />
+                  <Input placeholder="Nass CTA" value={templateEditor.cta_label} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_label: e.target.value }))} />
+                  <Input placeholder="Rabeta CTA" value={templateEditor.cta_url} onChange={(e) => setTemplateEditor((s) => ({ ...s, cta_url: e.target.value }))} />
                 </div>
                 <div className="flex items-center gap-2"><Checkbox checked={templateEditor.is_active} onCheckedChange={(checked) => setTemplateEditor((s) => ({ ...s, is_active: Boolean(checked) }))} /><p className="text-sm">Active</p></div>
                 <div className="flex gap-2">
-                  <Button onClick={saveTemplate} disabled={!templatesEnabled || savingTemplate}>{savingTemplate ? "Saving..." : templateEditor.id ? "Update template" : "Create template"}</Button>
+                  <Button onClick={saveTemplate} disabled={!templatesEnabled || savingTemplate}>{savingTemplate ? "Kayt7fed..." : templateEditor.id ? "Hddet قالب" : "Sna3 قالب"}</Button>
                   <Button variant="secondary" onClick={() => setTemplateEditor({ id: "", key: "", name: "", category: "custom", language: "fr", subject: "", preview_text: "", body: "", cta_label: "", cta_url: "", is_active: true })}>Clear</Button>
                 </div>
               </Card>
@@ -1222,11 +1222,11 @@ export default function SuperadminEmailsPage() {
                       <Button variant="secondary" onClick={() => setTemplateEditor({
                         id: template.id, key: template.key || "", name: template.name, category: template.category, language: template.language, subject: template.subject, preview_text: template.preview_text || "", body: template.body, cta_label: template.cta_label || "", cta_url: template.cta_url || "", is_active: template.is_active,
                       })}>Edit</Button>
-                      <Button variant="secondary" onClick={() => deactivateTemplate(template.id)} disabled={!templatesEnabled}>Deactivate</Button>
+                      <Button variant="secondary" onClick={() => deactivateTemplate(template.id)} disabled={!templatesEnabled}>Hyed l-man3</Button>
                     </div>
                   </Card>
                 ))}
-                {templates.length === 0 ? <p className="text-sm text-[var(--muted)]">No templates found.</p> : null}
+                {templates.length === 0 ? <p className="text-sm text-[var(--muted)]">Bla templates found.</p> : null}
               </div>
             </Card>
           </TabsContent>
@@ -1234,7 +1234,7 @@ export default function SuperadminEmailsPage() {
             <Card className="space-y-4 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">Backend health and safety diagnostics</p>
-                <Button onClick={loadSystemStatus} disabled={systemStatusLoading}>{systemStatusLoading ? "Refreshing..." : "Refresh status"}</Button>
+                <Button onClick={loadSystemStatus} disabled={systemStatusLoading}>{systemStatusLoading ? "3awed tahdithing..." : "3awed tahdith l-hala"}</Button>
               </div>
               {systemStatusError ? <p className="text-sm text-red-600">Unable to load system status right now. {systemStatusError}</p> : null}
               {systemStatus ? (
@@ -1286,7 +1286,7 @@ export default function SuperadminEmailsPage() {
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">AI Suggestion Status</p>
+                    <p className="text-sm font-semibold">اقتراح AIion Status</p>
                     <p className="text-sm">Capability: <Badge>{systemStatus.ai.ai_capability}</Badge></p>
                     <div className="flex flex-wrap gap-2 text-sm">
                       <Badge>{systemStatus.ai.ai_suggestions_enabled ? "Flag ON" : "Flag OFF"}</Badge>
@@ -1295,12 +1295,12 @@ export default function SuperadminEmailsPage() {
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
-                    <p className="text-sm font-semibold">Templates Status</p>
+                    <p className="text-sm font-semibold">Qwaleb Status</p>
                     <p className="text-sm">Capability: <Badge>{systemStatus.templates.templates_capability}</Badge></p>
                     <p className="text-sm">Total: {systemStatus.templates.templates_count} · Active: {systemStatus.templates.active_templates_count}</p>
                     <div className="flex flex-wrap gap-2 text-sm">
-                      <Badge>{systemStatus.templates.templates_enabled ? "Templates ON" : "Templates OFF"}</Badge>
-                      <Badge>{systemStatus.capabilities.templates ? "Templates Ready" : "Templates Not Ready"}</Badge>
+                      <Badge>{systemStatus.templates.templates_enabled ? "Qwaleb ON" : "Qwaleb OFF"}</Badge>
+                      <Badge>{systemStatus.capabilities.templates ? "Qwaleb Wajed" : "Qwaleb Not Wajed"}</Badge>
                     </div>
                   </Card>
                   <Card className="space-y-2 p-3">
@@ -1323,7 +1323,7 @@ export default function SuperadminEmailsPage() {
               ) : null}
             </Card>
           </TabsContent>
-          <TabsContent value="design"><div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-3 p-4"><Input placeholder="Brand name" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} /><Input placeholder="Logo URL" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} /><Input placeholder="Primary color" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} /><Input placeholder="Button color" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} /><Textarea placeholder="Footer text" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} /><Input placeholder="Support email" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} /><Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "Saving…" : "Save design"}</Button></Card><Card className="p-4"><p className="mb-2 text-sm font-medium">Live preview</p><div dangerouslySetInnerHTML={previewHtml} /></Card></div></TabsContent>
+          <TabsContent value="design"><div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-3 p-4"><Input placeholder="Smiya dyal brand" value={design.brand_name} onChange={(e) => setDesign((s) => ({ ...s, brand_name: e.target.value }))} /><Input placeholder="Rabeta dyal logo" value={design.logo_url} onChange={(e) => setDesign((s) => ({ ...s, logo_url: e.target.value }))} /><Input placeholder="Lon ra2isi" value={design.primary_color} onChange={(e) => setDesign((s) => ({ ...s, primary_color: e.target.value }))} /><Input placeholder="Lon dyal bouton" value={design.button_color} onChange={(e) => setDesign((s) => ({ ...s, button_color: e.target.value }))} /><Textarea placeholder="Nass footer" value={design.footer_text} onChange={(e) => setDesign((s) => ({ ...s, footer_text: e.target.value }))} rows={3} /><Input placeholder="Email dyal support" value={design.support_email} onChange={(e) => setDesign((s) => ({ ...s, support_email: e.target.value }))} /><Button onClick={saveDesign} disabled={savingDesign}>{savingDesign ? "Kayt7fed..." : "Hfed design"}</Button></Card><Card className="p-4"><p className="mb-2 text-sm font-medium">Mo3ayana live</p><div dangerouslySetInnerHTML={previewHtml} /></Card></div></TabsContent>
           <TabsContent value="history"><Card className="space-y-2 p-4">{history?.items?.length ? history.items.map((item) => (<div key={item.id} className="rounded-lg border border-[var(--border)] p-3 text-sm"><p><strong>{item.status}</strong> · actual: {item.email}</p><p>user: {item.recipient_user_id || "-"}</p><p>original: {item.original_recipient_email || item.email}</p><p>language: {item.language}</p><p>{item.subject}</p>{item.note ? <p>note: {item.note}</p> : null}{item.error_message ? <p>error: {item.error_message}</p> : null}<p className="text-[var(--muted)]">{item.created_at}</p></div>)) : <p className="text-sm text-[var(--muted)]">No deliveries yet.</p>}</Card></TabsContent>
         </Tabs>
       ) : null}
