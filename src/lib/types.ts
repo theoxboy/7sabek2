@@ -787,6 +787,7 @@ export type EmailCenterStatusOut = {
   allow_scheduling: boolean;
   allow_salary_reminders: boolean;
   allow_ai_suggestions: boolean;
+  templates_enabled: boolean;
   allow_open_tracking: boolean;
   allow_click_tracking: boolean;
 };
@@ -873,6 +874,7 @@ export type EmailCenterSystemStatusOut = {
     allow_bulk_send: boolean;
     allow_scheduling: boolean;
     allow_salary_reminders: boolean;
+    templates_enabled: boolean;
     allow_open_tracking: boolean;
     allow_click_tracking: boolean;
   };
@@ -881,6 +883,18 @@ export type EmailCenterSystemStatusOut = {
     from_email: string;
     api_base_configured: boolean;
     token_configured: boolean;
+  };
+  ai: {
+    ai_suggestions_enabled: boolean;
+    ai_gateway_configured: boolean;
+    ai_default_model_configured: boolean;
+    ai_capability: "disabled" | "missing_config" | "ready" | string;
+  };
+  templates: {
+    templates_enabled: boolean;
+    templates_count: number;
+    active_templates_count: number;
+    templates_capability: "disabled" | "ready" | "no_templates" | string;
   };
   database: {
     email_design_settings_table: boolean;
@@ -898,6 +912,7 @@ export type EmailCenterSystemStatusOut = {
     scheduling: boolean;
     salary_reminders: boolean;
     ai_suggestions: boolean;
+    templates: boolean;
   };
   safety: {
     bulk_send_blocked: boolean;
@@ -914,4 +929,44 @@ export type EmailCenterSystemStatusOut = {
     skipped: number;
     latest_delivery_at?: string | null;
   };
+};
+
+export type EmailCenterAISuggestRequest = {
+  language: "darija" | "fr" | "en" | string;
+  tone: "friendly" | "professional" | "motivational" | "short" | string;
+  goal: string;
+  audience_type: "test" | "single_user" | string;
+  user_id?: string;
+  cta_url?: string;
+  cta_label_hint?: string;
+  personalize_with_first_name?: boolean;
+};
+
+export type EmailCenterAISuggestResponse = {
+  subject: string;
+  preview_text: string;
+  body: string;
+  cta_label: string;
+};
+
+export type EmailTemplateOut = {
+  id: string;
+  key?: string | null;
+  name: string;
+  category: string;
+  language: "darija" | "fr" | "en" | string;
+  subject: string;
+  preview_text?: string | null;
+  body: string;
+  cta_label?: string | null;
+  cta_url?: string | null;
+  is_active: boolean;
+  created_by_admin_id?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export type EmailTemplateListOut = {
+  enabled: boolean;
+  items: EmailTemplateOut[];
 };
