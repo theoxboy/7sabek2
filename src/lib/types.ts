@@ -783,6 +783,7 @@ export type EmailCenterStatusOut = {
   mail_from: string;
   test_recipient_email: string;
   allow_bulk_send: boolean;
+  allow_user_send: boolean;
   allow_scheduling: boolean;
   allow_salary_reminders: boolean;
   allow_ai_suggestions: boolean;
@@ -805,6 +806,8 @@ export type EmailDesignSettingsOut = {
 export type EmailDeliveryOut = {
   id: string;
   email: string;
+  original_recipient_email?: string | null;
+  recipient_user_id?: string | null;
   subject: string;
   language: string;
   body_html: string;
@@ -812,6 +815,7 @@ export type EmailDeliveryOut = {
   status: string;
   provider: string;
   provider_message_id?: string | null;
+  note?: string | null;
   error_message?: string | null;
   created_by_admin_id?: string | null;
   sent_at?: string | null;
@@ -834,4 +838,27 @@ export type EmailSendPayload = {
   body: string;
   cta_label: string;
   cta_url: string;
+};
+
+export type EmailCenterUserSearchOut = {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name: string;
+  detected_language: "darija" | "fr" | "en" | string;
+};
+
+export type EmailCenterUserSearchListOut = {
+  items: EmailCenterUserSearchOut[];
+};
+
+export type EmailCenterUserPreviewOut = {
+  user_id: string;
+  email: string;
+  display_name: string;
+  detected_language: "darija" | "fr" | "en" | string;
+  subject: string;
+  body_html: string;
+  body_text: string;
 };
