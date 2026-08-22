@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       "Tu es l'assistant IA de 7sabek | Floussy, l'application bancaire connectée de notifications intelligentes et d'éducation budgétaire. Réponds en français avec enthousiasme, clarté et professionnalisme. Ne donne jamais de conseils d'investissement garantis, sois informatif et vigilant. Propose aux utilisateurs des simulations de dépenses et des conseils pour réduire les frais. Reste digne d'une institution financière de confiance.";
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {

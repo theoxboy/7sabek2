@@ -100,9 +100,9 @@ async function safeJson<T>(response: Response): Promise<T | null> {
   }
 }
 
-function extractErrorMessage(payload: unknown): string {
+function extractErrorMessage(payload: unknown, status?: number): string {
   if (!payload) {
-    return "Request failed";
+    return status ? `Erreur serveur (${status})` : "Request failed";
   }
 
   if (typeof payload === "string") {
@@ -110,11 +110,44 @@ function extractErrorMessage(payload: unknown): string {
     if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
       try {
         const parsed = JSON.parse(trimmed) as ApiErrorPayload;
-        return extractErrorMessage(parsed);
+        return extractErrorMessage(parsed, status);
       } catch {
-        return payload;
+        // continue
       }
     }
+
+    // Detect HTML responses (e.g., DigitalOcean App Platform, Cloudflare, Nginx, 502/503/504 pages)
+    if (
+      trimmed.startsWith("<!DOCTYPE") ||
+      trimmed.startsWith("<html") ||
+      trimmed.startsWith("<head") ||
+      trimmed.startsWith("<body") ||
+      trimmed.includes("via_upstream") ||
+      trimmed.includes("App Platform failed") ||
+      /<[a-z][\s\S]*>/i.test(trimmed)
+    ) {
+      if (
+        trimmed.includes("503") ||
+        status === 503 ||
+        trimmed.includes("connection_timed_out") ||
+        trimmed.includes("via_upstream")
+      ) {
+        return "Le serveur ou le service IA est temporairement indisponible (Erreur 503 - Timeout serveur). Veuillez réessayer dans quelques instants.";
+      }
+      if (trimmed.includes("502") || status === 502) {
+        return "Le service est temporairement inaccessible (Erreur 502 - Bad Gateway). Veuillez vérifier la connexion au serveur.";
+      }
+      if (trimmed.includes("504") || status === 504) {
+        return "Délai d'attente dépassé lors de la communication avec le serveur (Erreur 504).";
+      }
+      if (trimmed.includes("404") || status === 404) {
+        return "Ressource demandée introuvable (Erreur 404).";
+      }
+      return status
+        ? `Erreur serveur (${status}) - Service temporairement indisponible`
+        : "Le serveur a renvoyé une erreur inattendue. Veuillez réessayer.";
+    }
+
     return payload;
   }
 
@@ -137,7 +170,7 @@ function extractErrorMessage(payload: unknown): string {
     }
   }
 
-  return "Request failed";
+  return status ? `Erreur serveur (${status})` : "Request failed";
 }
 
 export async function apiFetch<T>(
@@ -305,8 +338,8 @@ export async function apiFetch<T>(
         }
       }
       const errorText = await response.text().catch(() => "");
-      const message = extractErrorMessage(errorText);
-      throw new Error(message || "Request failed");
+      const message = extractErrorMessage(errorText, response.status);
+      throw new Error(message || `Request failed with status ${response.status}`);
     }
 
     if (response.status === 204) {

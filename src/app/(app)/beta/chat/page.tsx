@@ -427,12 +427,13 @@ export default function BetaChatPage() {
         text: m.text,
       }));
 
-      // Call the backend /advisor/chat endpoint via apiFetch
+      // Call the backend /advisor/chat endpoint via apiFetch with extended timeout for LLM generation
       const data = await apiFetch<{ text: string }>("/advisor/chat", {
         method: "POST",
         body: {
           messages: conversationMessages,
         },
+        timeoutMs: 60_000,
       });
       const botMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
@@ -447,18 +448,32 @@ export default function BetaChatPage() {
       setChatMessages((prev) => [...prev, botMsg]);
       playSound("click", false);
     } catch (error: any) {
-      console.error(error);
-      // Use the backend error detail if available, otherwise the generic message
-      const errorMessage =
+      console.error("AI chat error:", error);
+      // Extract and sanitize error message
+      let rawError =
         (error?.detail && typeof error.detail === "string"
           ? error.detail
           : error?.message && typeof error.message === "string"
             ? error.message
             : copy.errorConnect) as string;
+
+      // Ensure raw HTML tags or upstream error pages are never rendered in the chat bubble
+      if (
+        rawError.startsWith("<!DOCTYPE") ||
+        rawError.startsWith("<html") ||
+        rawError.startsWith("<head") ||
+        rawError.startsWith("<body") ||
+        rawError.includes("via_upstream") ||
+        rawError.includes("App Platform failed") ||
+        /<[a-z][\s\S]*>/i.test(rawError)
+      ) {
+        rawError = copy.errorConnect;
+      }
+
       const errorMsg: ChatMessage = {
         id: `msg-error-${Date.now()}`,
         role: "model",
-        text: errorMessage,
+        text: rawError,
         timestamp: new Date().toLocaleTimeString(locale === "ar" ? "ar-MA" : locale === "en" ? "en-US" : "fr-FR", {
           hour: "2-digit",
           minute: "2-digit",
