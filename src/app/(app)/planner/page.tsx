@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchDashboard } from "@/lib/api";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
 import {
@@ -371,7 +371,7 @@ export default function PlannerPage() {
           apiFetch<EnvelopeOut[]>("/envelopes"),
           apiFetch<CategoryEnvelopeMapOut[]>("/mappings").catch(() => []),
           apiFetch<TransactionOut[]>("/transactions"),
-          apiFetch<DashboardOut>("/dashboard"),
+          fetchDashboard(),
           apiFetch<SettingsResponse>("/users/me/settings").catch(() => null),
         ]);
 

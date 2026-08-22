@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchDashboard } from "@/lib/api";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
@@ -102,7 +102,7 @@ export default function AllocatePage() {
     const load = async () => {
       try {
         setLoading(true);
-        const dash = await apiFetch<DashboardOut>("/dashboard");
+        const dash = await fetchDashboard();
         setDashboard(dash);
         const firstTarget = dash.envelopes.map((item) => item.envelope).find((env) => !env.is_cash);
         if (firstTarget) setTargetEnvelopeId(firstTarget.id);
@@ -128,7 +128,7 @@ export default function AllocatePage() {
           description: description || undefined,
         },
       });
-      const dash = await apiFetch<DashboardOut>("/dashboard");
+      const dash = await fetchDashboard();
       setDashboard(dash);
       setAmount("");
       setDescription("");

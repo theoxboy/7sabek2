@@ -1,3 +1,5 @@
+import type { DashboardOut } from "./types";
+
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const isBrowser = typeof window !== "undefined";
@@ -355,4 +357,44 @@ export async function apiFetch<T>(
   }
 
   return executeRequest();
+}
+
+const ZERO_BALANCE_FIELDS = [
+  "opening_balance",
+  "total_allocations",
+  "total_spent",
+  "closing_balance",
+  "total_movements",
+  "sweeps_in",
+  "sweeps_out",
+] as const;
+
+/**
+ * Fetches /dashboard and, when the user has never declared their first income
+ * (sweep_bootstrap.needs_first_income_declaration), zeroes out per-envelope
+ * balance fields. The backend currently leaves those fields populated with
+ * onboarding-configured/target amounts instead of live period balances in
+ * that state, which makes envelopes look funded before any real distribution
+ * ran. This only fires pre-first-income; users who already declared income
+ * see the response unchanged.
+ */
+export async function fetchDashboard(
+  path = "/dashboard",
+  options: ApiFetchOptions = {}
+): Promise<DashboardOut> {
+  const data = await apiFetch<DashboardOut>(path, options);
+  if (data?.sweep_bootstrap?.needs_first_income_declaration && Array.isArray(data.envelopes)) {
+    return {
+      ...data,
+      envelopes: data.envelopes.map((entry) => ({
+        ...entry,
+        balance: ZERO_BALANCE_FIELDS.reduce(
+          (balance, field) =>
+            field in balance ? { ...balance, [field]: "0.00" } : balance,
+          entry.balance
+        ),
+      })),
+    };
+  }
+  return data;
 }

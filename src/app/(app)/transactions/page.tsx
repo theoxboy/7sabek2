@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchDashboard } from "@/lib/api";
 import type {
   CategoryEnvelopeMapOut,
   CategoryOut,
@@ -116,7 +116,7 @@ function TransactionsContent() {
         apiFetch<EnvelopeOut[]>("/envelopes"),
         apiFetch<TransactionOut[]>("/transactions"),
         apiFetch<CategoryEnvelopeMapOut[]>("/mappings"),
-        apiFetch<DashboardOut>("/dashboard"),
+        fetchDashboard(),
       ]);
 
       const mappingMap = mappingList.reduce<Record<string, string>>(

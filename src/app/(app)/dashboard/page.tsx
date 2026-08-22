@@ -10,7 +10,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Cairo } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchDashboard } from "@/lib/api";
 import type {
   CategoryEnvelopeMapOut,
   CategoryOut,
@@ -1492,8 +1492,8 @@ function DashboardContent() {
       const shouldFetchCurrentCycle = !currentCycleDataRef.current || forceRefreshCurrentCycle;
 
       const [dash, currentCycleDash] = await Promise.all([
-        apiFetch<DashboardOut>(`/dashboard${periodQuery}`),
-        (shouldFetchCurrentCycle && isFiltered) ? apiFetch<DashboardOut>("/dashboard") : Promise.resolve(null),
+        fetchDashboard(`/dashboard${periodQuery}`),
+        (shouldFetchCurrentCycle && isFiltered) ? fetchDashboard() : Promise.resolve(null),
       ]);
 
       if (loadSequenceRef.current !== loadSequence) return;

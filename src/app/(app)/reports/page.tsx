@@ -27,7 +27,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchDashboard } from "@/lib/api";
 import type {
   CategoryEnvelopeMapOut,
   CategoryOut,
@@ -852,7 +852,7 @@ function ReportsContent() {
         const [settingsData, dashboardData, txData, categoryData, envelopeData] =
           await Promise.all([
             apiFetch<SettingsResponse>("/users/me/settings"),
-            apiFetch<DashboardOut>(`/dashboard${periodQuery}`),
+            fetchDashboard(`/dashboard${periodQuery}`),
             apiFetch<TransactionOut[]>("/transactions"),
             apiFetch<CategoryOut[]>("/categories"),
             apiFetch<EnvelopeOut[]>("/envelopes"),

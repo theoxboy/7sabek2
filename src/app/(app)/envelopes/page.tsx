@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchDashboard } from "@/lib/api";
 import { listSavedDistributionConfigs, isFixedMode, type DistributionSavedConfig, type DistributionRule } from "@/lib/distribution";
 import type {
   CategoryEnvelopeMapOut,
@@ -765,7 +765,7 @@ export default function EnvelopesPage() {
   const { toast } = useToast();
   const fetcher = (url: string) => apiFetch<any>(url);
 
-  const { data: dashboardData, error: dashboardError, mutate: mutateDashboard } = useSWR<DashboardOut>("/dashboard", fetcher);
+  const { data: dashboardData, error: dashboardError, mutate: mutateDashboard } = useSWR<DashboardOut>("/dashboard", () => fetchDashboard());
   const dashboard = dashboardData ?? null;
 
   const { data: envelopesData, error: envelopesError, mutate: mutateEnvelopes } = useSWR<EnvelopeOut[]>("/envelopes", fetcher);
