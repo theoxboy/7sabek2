@@ -23,6 +23,7 @@ import {
   FlaskConical,
   Lightbulb,
   SlidersHorizontal,
+  MessageSquare,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
@@ -77,6 +78,8 @@ import {
 } from "@/components/i18n/LanguagePreferenceGate";
 import { writeGlobalToursDisabled } from "@/lib/tourFlags";
 import { getAppVersionLabel } from "@/lib/app-version";
+import { QuickTxProvider } from "@/state/QuickTxContext";
+import { QuickTxModal } from "@/components/dashboard/QuickTxModal";
 
 const NOTIFICATION_STORAGE_PREFIX = "floussy.notifications.read";
 const NOTIFICATION_DISMISS_STORAGE_PREFIX = "floussy.notifications.dismissed";
@@ -130,8 +133,8 @@ const NAV_ITEMS = [
   { href: "/envelopes", label: "Envelopes", icon: Wallet },
   { href: "/distribution", label: "Distribution", icon: SlidersHorizontal },
   { href: "/goals", label: "Goals", icon: Target },
-  { href: "/advisor", label: "Advisor", icon: Lightbulb },
-  { href: "/beta", label: "Beta", icon: FlaskConical, betaOnly: true },
+  { href: "/beta", label: "Beta", icon: FlaskConical },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/aide", label: "Aide", icon: CircleHelp },
   { href: "/reports", label: "Reports", icon: ChartBar },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -169,12 +172,13 @@ const APP_SHELL_COPY = {
       "/envelopes": "Enveloppes",
       "/distribution": "Distribution",
       "/goals": "Objectifs",
-      "/advisor": "Conseiller",
       "/beta": "Beta",
+      "/chat": "Chat",
       "/aide": "Aide",
       "/reports": "Rapports",
       "/settings": "Parametres",
     } as Record<string, string>,
+    betaNotificationsLink: "Voir le Centre de Notifications",
   },
   en: {
     workspace: "Workspace",
@@ -207,12 +211,13 @@ const APP_SHELL_COPY = {
       "/envelopes": "Envelopes",
       "/distribution": "Distribution",
       "/goals": "Goals",
-      "/advisor": "Advisor",
       "/beta": "Beta",
+      "/chat": "Chat",
       "/aide": "Help",
       "/reports": "Reports",
       "/settings": "Settings",
     } as Record<string, string>,
+    betaNotificationsLink: "View Notification Center",
   },
   ar: {
     workspace: "المجال ديالك",
@@ -245,12 +250,13 @@ const APP_SHELL_COPY = {
       "/envelopes": "الأظرفة",
       "/distribution": "التوزيع",
       "/goals": "الأهداف",
-      "/advisor": "المستشار",
       "/beta": "بيتا",
+      "/chat": "المحادثة",
       "/aide": "المساعدة",
       "/reports": "التقارير",
       "/settings": "الإعدادات",
     } as Record<string, string>,
+    betaNotificationsLink: "عرض مركز الإشعارات",
   },
 } satisfies Record<
   FloussyLocale,
@@ -278,6 +284,7 @@ const APP_SHELL_COPY = {
     duplicateAlertMeta: string;
     userSubtitle: string;
     nav: Record<string, string>;
+    betaNotificationsLink: string;
   }
 >;
 
@@ -665,7 +672,17 @@ function AppLayoutContent({
     isOnboardingRoute && searchParams?.get("stay_on_onboarding") === "1";
   const isGuestRegisterOnboarding =
     (isBetaOnboarding || isMoneyPlanJourney) && searchParams?.get("register") === "1";
-  const isOnboarding = Boolean(isClassicOnboarding || isBetaOnboarding || isMoneyPlanJourney);
+  const isBetaPortalPage = hasPathPrefix("/beta/portal");
+  const isBetaNotificationsPage = hasPathPrefix("/beta/notifications") || hasPathPrefix("/notifications");
+  const isBetaChatPage = hasPathPrefix("/beta/chat") || hasPathPrefix("/chat");
+  const isOnboarding = Boolean(
+    isClassicOnboarding ||
+    isBetaOnboarding ||
+    isMoneyPlanJourney ||
+    isBetaPortalPage ||
+    isBetaNotificationsPage ||
+    isBetaChatPage
+  );
   const isRegulation = pathname?.startsWith("/regulation");
   const isGamification = pathname === "/gamification";
   const isGoals = pathname?.startsWith("/goals") ?? false;
@@ -716,13 +733,10 @@ function AppLayoutContent({
   const visibleNavItems = useMemo(
     () =>
       NAV_ITEMS.filter((item) => {
-        if (item.href === "/advisor" && status?.advisor_tab_enabled === false) {
-          return false;
-        }
-        if (!item.betaOnly) return true;
+        if (!("betaOnly" in item) || !item.betaOnly) return true;
         return betaAuthorized;
       }),
-    [betaAuthorized, status?.advisor_tab_enabled]
+    [betaAuthorized]
   );
 
   useEffect(() => {
@@ -926,6 +940,11 @@ function AppLayoutContent({
         const [alertsResult] = await Promise.allSettled([
           apiFetch<DashboardAlertOut>("/dashboard/alerts"),
         ]);
+        if (cancelled) return;
+
+        if (alertsResult.status === "fulfilled") {
+          setDashboardAlerts(alertsResult.value);
+        }
         if (isDashboard) {
           return;
         }
@@ -1377,6 +1396,32 @@ function AppLayoutContent({
             : locale === "en"
             ? "Due today"
             : "À traiter aujourd’hui",
+        dismissible: true,
+      });
+    }
+
+    const needsFirstIncomeDeclaration = Boolean(
+      dashboardAlerts?.sweep_bootstrap?.needs_first_income_declaration
+    );
+    if (needsFirstIncomeDeclaration) {
+      items.push({
+        id: "anomaly:first-income-declaration",
+        title:
+          locale === "ar"
+            ? "⏳ باقي خاصك تصرّح بأول دخل"
+            : locale === "en"
+            ? "⏳ First income declaration still needed"
+            : "⏳ Première déclaration de revenu à faire",
+        description:
+          locale === "ar"
+            ? "صرّح بأول دخل ليك من بعد الـ onboarding باش تبدا الدورات على أساس حقيقي."
+            : locale === "en"
+            ? "Declare your first income after onboarding to start cycles on a real basis."
+            : "Déclare ton premier revenu après l’onboarding pour démarrer les cycles sur une base réelle.",
+        href: "/transactions?open_new_income=1",
+        tone: "warning",
+        icon: Wallet,
+        meta: locale === "ar" ? "خطوة أولى" : locale === "fr" ? "Première étape" : "First step",
         dismissible: true,
       });
     }
@@ -2352,10 +2397,20 @@ function AppLayoutContent({
                           )}
                         </div>
                         {notifications.length > 0 ? (
-                          <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+                          <div className="border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400 text-center">
                             {shellCopy.notificationsFooter}
                           </div>
                         ) : null}
+                        <div className="border-t border-slate-200/60 px-4 py-3 bg-slate-100/35 flex justify-center rounded-b-3xl">
+                          <Link
+                            href="/notifications"
+                            onClick={() => setNotificationsOpen(false)}
+                            className="inline-flex items-center justify-center gap-1.5 text-xs font-black text-emerald-600 hover:text-emerald-700 hover:underline active:scale-95 transition-all"
+                          >
+                            <Bell className="w-3.5 h-3.5" />
+                            <span>{shellCopy.betaNotificationsLink}</span>
+                          </Link>
+                        </div>
                         </PopoverContent>
                       </Popover>
                     )}
@@ -2481,6 +2536,7 @@ function AppLayoutContent({
 
         `}</style>
       ) : null}
+      <QuickTxModal />
     </div>
   );
 }
@@ -2492,7 +2548,9 @@ export default function AppLayout({
 }) {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[var(--surface)]" />}>
-      <AppLayoutContent>{children}</AppLayoutContent>
+      <QuickTxProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </QuickTxProvider>
     </Suspense>
   );
 }

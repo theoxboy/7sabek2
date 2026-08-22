@@ -15,6 +15,7 @@ import {
   Rows3,
   CarFront,
   Mail,
+  MessageSquare,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -69,6 +70,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navAudit: string;
     navSessions: string;
     navEmails: string;
+    navContactMessages: string;
     newConnection: string;
     chooseSession: string;
     connectionDetails: string;
@@ -112,6 +114,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navAudit: "Journal d’audit",
     navSessions: "Historique connexions",
     navEmails: "Emails",
+    navContactMessages: "Messages Contact",
     newConnection: "Nouvelle connexion superadmin détectée",
     chooseSession: "Une autre session est active avec ce compte. Choisis la session à conserver.",
     connectionDetails: "Détails de la nouvelle connexion",
@@ -154,6 +157,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navAudit: "Audit log",
     navSessions: "Session history",
     navEmails: "Emails",
+    navContactMessages: "Contact Messages",
     newConnection: "New superadmin sign-in detected",
     chooseSession: "Another session is active on this account. Choose which session to keep.",
     connectionDetails: "Details of the new sign-in",
@@ -196,6 +200,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navAudit: "سجل التتبع",
     navSessions: "سجل الولوجات",
     navEmails: "الإيميلات",
+    navContactMessages: "رسائل الاتصال",
     newConnection: "لقينا دخول جديد ديال superadmin",
     chooseSession: "كاينة session أخرى خدامة بهاد الحساب. اختار شكون تبقى هي الخدامة.",
     connectionDetails: "تفاصيل الدخول الجديد",
@@ -268,6 +273,7 @@ export default function SuperAdminLayout({
     { href: "/superadmin/audit", label: copy.navAudit, icon: ClipboardList, enabled: true },
     { href: "/superadmin/sessions", label: copy.navSessions, icon: Clock3, enabled: true },
     { href: "/superadmin/emails", label: copy.navEmails, icon: Mail, enabled: true },
+    { href: "/superadmin/contact-messages", label: copy.navContactMessages, icon: MessageSquare, enabled: true },
   ];
 
   const formatCountdown = (seconds: number) => {

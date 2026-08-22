@@ -29,8 +29,9 @@ import { Switch } from "@/components/ui/Switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { normalizePercentRows } from "@/components/distribution/PercentNormalizer";
+import { isFixedMode, isPercentMode } from "@/lib/distribution";
 
-type Mode = "none" | "fixed" | "percent";
+type Mode = "none" | "fixed" | "percent" | "fixed_per_period" | "percent_of_income";
 type TargetType = "envelope" | "goal";
 
 type Row = {
@@ -142,7 +143,7 @@ export function DistributionDialog({ open, onOpenChange }: DistributionDialogPro
 
   const percentTotal = useMemo(() => {
     return rows
-      .filter((row) => row.mode === "percent")
+      .filter((row) => isPercentMode(row.mode))
       .reduce((sum, row) => sum + parseNum(row.percent), 0);
   }, [rows]);
 
@@ -260,10 +261,10 @@ export function DistributionDialog({ open, onOpenChange }: DistributionDialogPro
     const toItem = (row: Row) => {
       const payload: DistributionConfigIn["envelopes"][number] = {
         target_id: row.targetId,
-        mode: row.mode,
+        mode: isFixedMode(row.mode) ? "fixed" : isPercentMode(row.mode) ? "percent" : "none",
         enabled: row.mode !== "none",
       };
-      if (row.mode === "fixed") {
+      if (isFixedMode(row.mode)) {
         if (!row.fixedAmount || parseNum(row.fixedAmount) <= 0) {
           errors.push(`${row.name}: montant fixe requis`);
         }
@@ -273,7 +274,7 @@ export function DistributionDialog({ open, onOpenChange }: DistributionDialogPro
         payload.fixed_amount = row.fixedAmount ?? "0";
         payload.fixed_priority = row.fixedPriority ?? 1;
       }
-      if (row.mode === "percent") {
+      if (isPercentMode(row.mode)) {
         if (!row.percent || parseNum(row.percent) <= 0) {
           errors.push(`${row.name}: pourcentage requis`);
         }
@@ -433,34 +434,34 @@ export function DistributionDialog({ open, onOpenChange }: DistributionDialogPro
                         </Button>
                         <Button
                           size="sm"
-                          variant={row.mode === "fixed" ? "primary" : "secondary"}
+                          variant={isFixedMode(row.mode) ? "primary" : "secondary"}
                           onClick={() => changeMode(row, "fixed")}
                         >
                           Fixe
                         </Button>
                         <Button
                           size="sm"
-                          variant={row.mode === "percent" ? "primary" : "secondary"}
+                          variant={isPercentMode(row.mode) ? "primary" : "secondary"}
                           onClick={() => changeMode(row, "percent")}
                         >
                           %
                         </Button>
                       </div>
                       <Input
-                        value={row.mode === "fixed" ? row.fixedAmount ?? "" : row.percent ?? ""}
+                        value={isFixedMode(row.mode) ? row.fixedAmount ?? "" : row.percent ?? ""}
                         onChange={(event) =>
-                          row.mode === "fixed"
+                          isFixedMode(row.mode)
                             ? updateRow(row.targetType, row.targetId, {
-                                fixedAmount: event.target.value,
-                              })
+                                  fixedAmount: event.target.value,
+                                })
                             : updateRow(row.targetType, row.targetId, {
-                                percent: event.target.value,
-                              })
+                                  percent: event.target.value,
+                                })
                         }
                         disabled={row.mode === "none"}
-                        placeholder={row.mode === "fixed" ? "Montant" : "Pourcentage"}
+                        placeholder={isFixedMode(row.mode) ? "Montant" : "Pourcentage"}
                       />
-                      {row.mode === "fixed" ? (
+                      {isFixedMode(row.mode) ? (
                         <Input
                           type="number"
                           value={String(row.fixedPriority ?? 1)}
@@ -519,9 +520,9 @@ export function DistributionDialog({ open, onOpenChange }: DistributionDialogPro
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-semibold">Fixe</p>
-                {simulation.items.filter((item) => item.mode === "fixed").length > 0 ? (
+                {simulation.items.filter((item) => isFixedMode(item.mode)).length > 0 ? (
                   simulation.items
-                    .filter((item) => item.mode === "fixed")
+                    .filter((item) => isFixedMode(item.mode))
                     .map((item) => (
                       <div
                         key={`${item.target_type}-${item.target_id}-fixed`}
@@ -540,9 +541,9 @@ export function DistributionDialog({ open, onOpenChange }: DistributionDialogPro
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-semibold">%</p>
-                {simulation.items.filter((item) => item.mode === "percent").length > 0 ? (
+                {simulation.items.filter((item) => isPercentMode(item.mode)).length > 0 ? (
                   simulation.items
-                    .filter((item) => item.mode === "percent")
+                    .filter((item) => isPercentMode(item.mode))
                     .map((item) => (
                       <div
                         key={`${item.target_type}-${item.target_id}-percent`}

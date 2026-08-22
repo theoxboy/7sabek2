@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Camera, Eye, EyeOff } from "lucide-react";
+import { Camera, Eye, EyeOff, Home } from "lucide-react";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
 
 import { apiFetch } from "@/lib/api";
@@ -273,6 +273,10 @@ const REGISTER_COPY = {
     mobileTitle: "Crée ton espace budget",
     mobileBody: "Quelques étapes pour personnaliser ton expérience.",
     stepBadge: (step: number) => `Inscription • Étape ${step} sur 5`,
+    chipSalary: "Salaire",
+    chipRent: "Loyer",
+    chipDebt: "Crédit",
+    fabor: "c’est faboooor",
     createAccount: "Créer un compte",
     createAccountSubtitle: "Commence avec tes informations puis complète tes identifiants.",
     maintenanceSuffix: "Les inscriptions sont désactivées pendant la maintenance.",
@@ -322,6 +326,11 @@ const REGISTER_COPY = {
     alreadyAccount: "Déjà un compte ?",
     login: "Se connecter",
     flagAlt: (name: string) => `Drapeau ${name}`,
+    acceptTermsPrefix: "En créant votre compte, vous acceptez les ",
+    acceptTermsCGULink: "Conditions Générales d'Utilisation (CGU)",
+    acceptTermsAnd: " et la ",
+    acceptTermsPrivacyLink: "Politique de Confidentialité",
+    acceptTermsSuffix: " de 7sabek.ma.",
   },
   en: {
     photoMustBeImage: "The file must be an image.",
@@ -362,6 +371,10 @@ const REGISTER_COPY = {
     mobileTitle: "Create your budget space",
     mobileBody: "A few steps to personalize your experience.",
     stepBadge: (step: number) => `Register • Step ${step} of 5`,
+    chipSalary: "Salary",
+    chipRent: "Rent",
+    chipDebt: "Loan",
+    fabor: "it’s freeeee",
     createAccount: "Create an account",
     createAccountSubtitle: "Start with your profile details, then complete your credentials.",
     maintenanceSuffix: "Signups are disabled during maintenance.",
@@ -411,6 +424,11 @@ const REGISTER_COPY = {
     alreadyAccount: "Already have an account?",
     login: "Sign in",
     flagAlt: (name: string) => `${name} flag`,
+    acceptTermsPrefix: "By creating your account, you accept the ",
+    acceptTermsCGULink: "General Terms of Use (CGU)",
+    acceptTermsAnd: " and the ",
+    acceptTermsPrivacyLink: "Privacy Policy",
+    acceptTermsSuffix: " of 7sabek.ma.",
   },
   ar: {
     photoMustBeImage: "الملف خاصو يكون صورة.",
@@ -451,6 +469,10 @@ const REGISTER_COPY = {
     mobileTitle: "صاوب حسابك فـ 7sabek",
     mobileBody: "غير شحال هادي ديال الخطوات باش نخصصو التجربة ديالك.",
     stepBadge: (step: number) => `خطوة التسجيل • ${step} من 5`,
+    chipSalary: "السالير",
+    chipRent: "الكراء",
+    chipDebt: "كريدي",
+    fabor: "فابووووور",
     createAccount: "صاوب حساب",
     createAccountSubtitle: "بدا بالمعلومات الأساسية، ومن بعد كمل بيانات الدخول.",
     maintenanceSuffix: "التسجيل موقف أثناء الصيانة.",
@@ -500,6 +522,11 @@ const REGISTER_COPY = {
     alreadyAccount: "عندك حساب من قبل؟",
     login: "دخل لحسابك",
     flagAlt: (name: string) => `علم ${name}`,
+    acceptTermsPrefix: "بإنشاء حسابك، فإنك توافق على ",
+    acceptTermsCGULink: "الشروط العامة للاستخدام (CGU)",
+    acceptTermsAnd: " و ",
+    acceptTermsPrivacyLink: "سياسة الخصوصية",
+    acceptTermsSuffix: " لـ 7sabek.ma.",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
@@ -529,8 +556,9 @@ export default function RegisterPage() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const inputClass =
-    "border-gray-200 focus-visible:ring-emerald-500 focus-visible:ring-offset-white";
+    "h-[50px] rounded-xl border-[#E3E8DF] bg-white text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-medium placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0";
   const [locale, setLocale] = useState<FloussyLocale>("fr");
+  const [introReady, setIntroReady] = useState(false);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -572,6 +600,14 @@ export default function RegisterPage() {
   const supportEmail = status?.support_email || "elidryssi@gmail.com";
   const isOnboardingStep = !user && step === 4;
   const copy = REGISTER_COPY[locale];
+  // A tab opened in the background freezes CSS animations at frame 0, which would
+  // leave the panel invisible. Only arm the one-shot intro when the page is on screen.
+  useEffect(() => {
+    if (reduceMotion) return;
+    if (typeof document === "undefined") return;
+    if (document.visibilityState === "visible") setIntroReady(true);
+  }, [reduceMotion]);
+
   const pageDir = getLocaleDirection(locale);
   const pageFontClass = locale === "ar" ? `${arabicFont.className} register-arabic-font` : bodyFont.className;
   const headingClass = locale === "ar" ? "register-title" : displayFont.className;
@@ -616,7 +652,7 @@ export default function RegisterPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const prefillRaw = window.sessionStorage.getItem(REGISTER_ONBOARDING_PREFILL_KEY);
+      const prefillRaw = window.localStorage.getItem(REGISTER_ONBOARDING_PREFILL_KEY);
       if (prefillRaw) {
         const prefill = JSON.parse(prefillRaw) as RegisterPrefillPayload;
         if (prefill.first_name) setFirstName(prefill.first_name);
@@ -634,14 +670,14 @@ export default function RegisterPage() {
         if (prefill.currency) setCurrency(prefill.currency);
       }
 
-      const raw = window.sessionStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
+      const raw = window.localStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as RegisterOnboardingPayload;
       if (parsed?.answers && parsed?.draft_objects) {
         setRegisterOnboardingPayload(parsed);
         if (
           new URLSearchParams(window.location.search).get("resume") === "1" &&
-          window.sessionStorage.getItem(REGISTER_ONBOARDING_COMPLETED_KEY) === "1"
+          window.localStorage.getItem(REGISTER_ONBOARDING_COMPLETED_KEY) === "1"
         ) {
           setStep(5);
           setError(null);
@@ -655,7 +691,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.sessionStorage.getItem(REGISTER_LEAD_ID_KEY) || "";
+    const saved = window.localStorage.getItem(REGISTER_LEAD_ID_KEY) || "";
     if (saved) setRegistrationLeadId(saved);
   }, []);
 
@@ -668,7 +704,7 @@ export default function RegisterPage() {
         });
         const nextLeadId = (result?.lead_id || "").trim();
         if (nextLeadId && typeof window !== "undefined") {
-          window.sessionStorage.setItem(REGISTER_LEAD_ID_KEY, nextLeadId);
+          window.localStorage.setItem(REGISTER_LEAD_ID_KEY, nextLeadId);
           setRegistrationLeadId(nextLeadId);
         }
       } catch (err) {
@@ -700,7 +736,7 @@ export default function RegisterPage() {
       if (!event.data || event.data.type !== REGISTER_ONBOARDING_MESSAGE_TYPE) return;
       const payload = event.data.payload as RegisterOnboardingPayload | undefined;
       if (!payload?.answers || !payload?.draft_objects) return;
-      window.sessionStorage.setItem(REGISTER_ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
+      window.localStorage.setItem(REGISTER_ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
       setRegisterOnboardingPayload(payload);
       setError(null);
       setStep(5);
@@ -926,7 +962,7 @@ export default function RegisterPage() {
 
   const persistRegisterOnboardingPrefill = () => {
     if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(
+    window.localStorage.setItem(
       REGISTER_ONBOARDING_PREFILL_KEY,
       JSON.stringify({
         first_name: firstName.trim(),
@@ -1031,10 +1067,10 @@ export default function RegisterPage() {
         },
       });
       if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(REGISTER_LEAD_ID_KEY);
-        window.sessionStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
-        window.sessionStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
-        window.sessionStorage.setItem(REGISTER_FORCE_ONBOARDING_KEY, "1");
+        window.localStorage.removeItem(REGISTER_LEAD_ID_KEY);
+        window.localStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
+        window.localStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
+        window.localStorage.setItem(REGISTER_FORCE_ONBOARDING_KEY, "1");
       }
       await refreshAuthSession();
       router.push("/onboarding?post_register=1");
@@ -1139,13 +1175,13 @@ export default function RegisterPage() {
         },
       });
       if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(REGISTER_LEAD_ID_KEY);
-        window.sessionStorage.removeItem(REGISTER_ONBOARDING_PREFILL_KEY);
-        window.sessionStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
-        window.sessionStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
+        window.localStorage.removeItem(REGISTER_LEAD_ID_KEY);
+        window.localStorage.removeItem(REGISTER_ONBOARDING_PREFILL_KEY);
+        window.localStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
+        window.localStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
       }
       if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
+        window.localStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
       }
       await refreshAuthSession();
       router.push("/dashboard");
@@ -1223,71 +1259,142 @@ export default function RegisterPage() {
 
   return (
     <div
-      className={`relative min-h-screen overflow-hidden bg-[#f6f1e9] ${pageFontClass}`}
+      className={`rg-root relative min-h-screen bg-[#F6F8F4] ${pageFontClass} ${introReady ? "rg-intro" : ""}`}
       dir={pageDir}
       data-register-locale={locale}
       style={locale === "ar" ? { fontFamily: `var(--font-cairo), "Cairo", sans-serif` } : undefined}
     >
-      <div className="pointer-events-none absolute -top-24 left-1/3 h-64 w-64 rounded-full bg-emerald-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 right-10 h-72 w-72 rounded-full bg-orange-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(#9ca3af_1px,transparent_1px)] [background-size:24px_24px]" />
       <div
-        className={`relative mx-auto flex min-h-screen w-full flex-col items-center justify-center gap-10 px-4 ${copyClass} ${
-          isOnboardingStep
-            ? "max-w-[1600px] py-6"
-            : "max-w-6xl py-12 md:grid md:grid-cols-[1.05fr_0.95fr]"
+        className={`grid min-h-screen grid-cols-1 ${
+          isOnboardingStep ? "" : "lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
         }`}
       >
-        <div
-          className={`hidden flex-col justify-between gap-10 rounded-[32px] bg-[#0f172a] p-10 text-white shadow-2xl shadow-emerald-500/20 md:flex ${copyClass} ${
-            isOnboardingStep ? "md:hidden" : ""
+        <aside
+          className={`rg-panel relative hidden flex-col justify-between gap-7 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-11 text-[#EAF4EF] ${copyClass} ${
+            isOnboardingStep ? "" : "lg:flex"
           }`}
+          onPointerMove={(event) => {
+            if (reduceMotion) return;
+            const target = event.currentTarget;
+            const rect = target.getBoundingClientRect();
+            target.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+            target.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+          }}
         >
-          <div className="space-y-4">
-            <span className="text-xs uppercase tracking-[0.3em] text-emerald-200">
-              7sabek
-            </span>
+          <span className="rg-blob rg-blob-a" aria-hidden="true" />
+          <span className="rg-blob rg-blob-b" aria-hidden="true" />
+          <span className="rg-spot" aria-hidden="true" />
+
+          <div className="relative z-10">
+            {/* The brand PNGs are square with wide transparent padding, so the box
+                has to be ~2.4x the intended visual height. */}
+            <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
+          </div>
+
+          <div className="relative z-10">
             <h2
-              className={`${headingClass} text-3xl font-semibold leading-tight`}
+              className={`${headingClass} rg-rise text-[2rem] font-extrabold leading-[1.1] text-white`}
+              style={{ "--d": ".18s" } as React.CSSProperties}
             >
               {copy.mobileTitle}
             </h2>
-            <p className="text-sm text-slate-200/80">
+            <p
+              className="rg-rise mt-3.5 max-w-[38ch] text-[0.95rem] leading-relaxed text-[#B9CFC5]"
+              style={{ "--d": ".3s" } as React.CSSProperties}
+            >
               {copy.createAccountSubtitle}
             </p>
+            <div className="mt-7 flex flex-col gap-3">
+              {[copy.heroPoint1, copy.heroPoint2, copy.heroPoint3].map((point, index) => (
+                <div
+                  key={point}
+                  className="rg-rise flex items-start gap-3 text-[0.87rem] font-semibold text-[#DCEAE3]"
+                  style={{ "--d": `${0.42 + index * 0.08}s` } as React.CSSProperties}
+                >
+                  <span className="mt-px flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full bg-[#17C777]/20 text-[#17C777]">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                  </span>
+                  <span>{point}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-3 text-sm text-emerald-100">
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              {copy.heroPoint1}
-            </div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              {copy.heroPoint2}
-            </div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              {copy.heroPoint3}
-            </div>
+
+          <div className="rg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".72s" } as React.CSSProperties}>
+            {[
+              { label: copy.chipSalary, value: "+12 400", dot: "#17C777", up: true },
+              { label: copy.chipRent, value: "-3 200", dot: "#0A241D", up: false },
+              { label: copy.chipDebt, value: "-2 100", dot: "#8B7CF6", up: false },
+            ].map((chip) => (
+              <span
+                key={chip.label}
+                className="rg-chip flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-2 text-[0.76rem] font-bold text-[#DCEAE3] backdrop-blur"
+              >
+                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: chip.dot }} />
+                <span>{chip.label}</span>
+                <span className={`tabular-nums font-extrabold ${chip.up ? "text-[#17C777]" : ""}`} dir="ltr">
+                  {chip.value}
+                </span>
+              </span>
+            ))}
           </div>
-        </div>
-        <motion.div
-          className={`w-full ${isOnboardingStep ? "max-w-none" : "max-w-lg"}`}
-          initial={reduceMotion ? undefined : { opacity: 0, y: 20 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        >
-        <div className={`mb-6 flex flex-col items-center gap-3 text-center md:hidden ${copyClass} ${isOnboardingStep ? "hidden" : ""}`}>
-          <BrandLogo locale={locale} className="h-28 w-auto object-contain" />
-          <h2 className={`${headingClass} text-2xl text-gray-900`}>
-            {copy.mobileTitle}
-          </h2>
-          <p className="text-sm text-gray-600">
-            {copy.mobileBody}
-          </p>
-        </div>
+        </aside>
+
+        <main className={`flex flex-col px-5 pb-12 pt-6 sm:px-8 lg:px-14 lg:pt-8 ${copyClass}`}>
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              href="/"
+              aria-label="7sabek"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] transition hover:border-[#17C777] hover:text-[#0B8F53]"
+            >
+              <Home className="h-4 w-4" />
+            </Link>
+            <span className="text-[0.7rem] font-semibold text-[#7C8D86]">7sabek</span>
+          </div>
+
+          <div className="flex flex-1 justify-center pt-8">
+            <motion.div
+              className={`w-full ${isOnboardingStep ? "max-w-none" : "max-w-[520px]"}`}
+              initial={reduceMotion ? undefined : { opacity: 0, y: 22 }}
+              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            >
+            <div className={`mb-7 flex flex-col items-center gap-2 text-center lg:hidden ${copyClass} ${isOnboardingStep ? "hidden" : ""}`}>
+              <BrandLogo locale={locale} className="h-20 w-auto object-contain" />
+            </div>
+
+            {!isOnboardingStep && !user ? (
+              <div className="mb-6">
+                <div className="flex items-center justify-between gap-3 text-[0.78rem] font-extrabold text-[#7C8D86]">
+                  <span>{copy.stepBadge(step)}</span>
+                </div>
+                <div className="rg-bar mt-2.5 h-[5px] overflow-hidden rounded-full bg-[#EEF1EA]">
+                  <span
+                    className="block h-full rounded-full bg-[linear-gradient(90deg,#17C777,#0B8F53)] transition-[width] duration-500 ease-out"
+                    style={{ width: `${step * 20}%` }}
+                  />
+                </div>
+                <div className="mt-3.5 flex gap-[7px]">
+                  {[1, 2, 3, 4, 5].map((index) => (
+                    <span
+                      key={index}
+                      className={`flex h-[30px] flex-1 items-center justify-center rounded-[9px] text-[0.72rem] font-extrabold transition ${
+                        index === step
+                          ? "scale-[1.06] bg-[#0A241D] text-white"
+                          : index < step
+                            ? "bg-[#E2F7EC] text-[#0B8F53]"
+                            : "bg-[#EEF1EA] text-[#7C8D86]"
+                      }`}
+                    >
+                      {index}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
         <Card
-          className={`w-full ${copyClass} ${
-            isOnboardingStep
-              ? "space-y-4 rounded-[32px] border border-white/70 bg-[var(--surface)]/70 p-4 shadow-[0_28px_70px_-44px_rgba(15,23,42,0.8)] backdrop-blur md:p-6"
-              : "space-y-6 rounded-[28px] border border-white/70 bg-[var(--surface)]/80 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.8)] backdrop-blur"
+          className={`w-full border-0 bg-transparent p-0 shadow-none ${copyClass} ${
+            isOnboardingStep ? "space-y-4" : "space-y-5"
           }`}
         >
           <motion.div
@@ -1314,15 +1421,12 @@ export default function RegisterPage() {
               </div>
             ) : (
               <>
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600">
-                  {copy.stepBadge(step)}
-                </span>
                 <h1
-                  className={`${headingClass} text-3xl font-semibold tracking-tight text-gray-900`}
+                  className={`${headingClass} text-[clamp(1.7rem,3vw,2.2rem)] font-extrabold tracking-tight text-[#0A241D]`}
                 >
                   {copy.createAccount}
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="mt-2.5 text-[0.96rem] leading-relaxed text-[#4E625A]">
                   {copy.createAccountSubtitle}
                 </p>
               </>
@@ -1469,6 +1573,26 @@ export default function RegisterPage() {
                         className={inputClass}
                       />
                     </div>
+                  </div>
+
+                  <div className="text-center text-xs text-gray-500 mt-4 px-2 select-none leading-relaxed">
+                    {copy.acceptTermsPrefix}
+                    <Link
+                      href="/cgu"
+                      target="_blank"
+                      className="font-semibold text-emerald-600 hover:text-emerald-700 underline transition-colors"
+                    >
+                      {copy.acceptTermsCGULink}
+                    </Link>
+                    {copy.acceptTermsAnd}
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      className="font-semibold text-emerald-600 hover:text-emerald-700 underline transition-colors"
+                    >
+                      {copy.acceptTermsPrivacyLink}
+                    </Link>
+                    {copy.acceptTermsSuffix}
                   </div>
                 </>
               ) : step === 2 ? (
@@ -1777,7 +1901,7 @@ export default function RegisterPage() {
                     type="button"
                     variant="secondary"
                     onClick={handlePrev}
-                    className="border-gray-200 text-gray-700 hover:border-emerald-500 hover:text-emerald-500"
+                    className="h-[50px] rounded-xl border-[#E3E8DF] bg-white px-6 font-bold text-[#0A241D] hover:border-[#0A241D]"
                   >
                     {copy.back}
                   </Button>
@@ -1796,7 +1920,7 @@ export default function RegisterPage() {
                     }}
                     isLoading={loading && step === 3}
                     disabled={registrationBlocked || loading}
-                    className="bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
+                    className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
                   >
                     {step === 3 ? copy.createAndStartOnboarding : step === 4 ? copy.onboardingOpen : copy.continue}
                   </Button>
@@ -1805,78 +1929,102 @@ export default function RegisterPage() {
                     type="submit"
                     isLoading={loading}
                     disabled={registrationBlocked || loading}
-                    className="bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
+                    className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
                   >
                     {copy.createFinalAccount}
                   </Button>
                 )}
               </div>
 
-              <div className={`text-center text-sm text-gray-500 ${isOnboardingStep ? "hidden" : ""}`}>
-                {copy.alreadyAccount}{" "}
-                <Link
-                  href="/login"
-                  className="font-semibold text-emerald-600 hover:text-emerald-700"
-                >
+              <div className={`flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A] ${isOnboardingStep ? "hidden" : ""}`}>
+                <span>{copy.alreadyAccount}</span>
+                <Link href="/login" className="font-extrabold text-[#0B8F53] hover:underline">
                   {copy.login}
                 </Link>
+                <span className="rg-sticker inline-flex items-center gap-1.5 rounded-full bg-[#F2A93B] px-3 py-1.5 text-[0.78rem] font-extrabold text-[#3A2400] shadow-[0_8px_18px_-8px_rgba(242,169,59,0.8)]">
+                  <span aria-hidden="true">✦</span>
+                  {copy.fabor}
+                </span>
               </div>
             </motion.form>
           )}
         </Card>
-      </motion.div>
+            </motion.div>
+          </div>
+        </main>
       </div>
-      {locale === "ar" ? (
-        <style jsx global>{`
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');
 
-          [data-register-locale="ar"],
-          [data-register-locale="ar"] *,
-          .register-arabic-font,
-          .register-arabic-font * {
-            font-family: "Cairo", sans-serif !important;
-            font-optical-sizing: auto;
-            font-variation-settings: "slnt" 0;
-            letter-spacing: 0 !important;
-          }
+      <style jsx global>{`
+        .rg-blob { position: absolute; border-radius: 9999px; filter: blur(70px); pointer-events: none; }
+        .rg-blob-a {
+          width: 420px; height: 420px; background: rgba(23,199,119,0.32);
+          top: -150px; inset-inline-start: -140px; animation: rgDrift 18s ease-in-out infinite;
+        }
+        .rg-blob-b {
+          width: 340px; height: 340px; background: rgba(76,126,255,0.22);
+          bottom: -130px; inset-inline-end: -110px; animation: rgDrift 23s ease-in-out infinite reverse;
+        }
+        @keyframes rgDrift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(50px, 44px) scale(1.12); }
+        }
+        .rg-spot {
+          position: absolute; inset: 0; pointer-events: none; opacity: 0;
+          transition: opacity 0.45s ease;
+          background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 30%), rgba(23,199,119,0.16), transparent 66%);
+        }
+        .rg-panel:hover .rg-spot { opacity: 1; }
+        .rg-chip { animation: rgFloat 5.6s ease-in-out infinite; }
+        .rg-chip:nth-child(2) { animation-delay: 0.9s; }
+        .rg-chip:nth-child(3) { animation-delay: 1.8s; }
+        @keyframes rgFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-7px); }
+        }
+        .rg-intro .rg-rise {
+          opacity: 0; transform: translateY(16px);
+          animation: rgRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation-delay: var(--d, 0s);
+        }
+        @keyframes rgRise { to { opacity: 1; transform: none; } }
+        [dir="rtl"] .rg-bar { transform: scaleX(-1); }
+        .rg-cta { position: relative; overflow: hidden; }
+        .rg-cta::after {
+          content: ""; position: absolute; top: 0; left: -140%; width: 60%; height: 100%;
+          background: linear-gradient(100deg, transparent, rgba(255,255,255,0.5), transparent);
+          transform: skewX(-18deg); transition: left 0.65s ease;
+        }
+        .rg-cta:hover::after { left: 150%; }
+        .rg-sticker { transform: rotate(-4deg); animation: rgWob 4.2s ease-in-out infinite; }
+        @keyframes rgWob {
+          0%, 100% { transform: rotate(-4deg) scale(1); }
+          50% { transform: rotate(3deg) scale(1.05); }
+        }
 
-          [data-register-locale="ar"] svg,
-          [data-register-locale="ar"] button svg,
-          [data-register-locale="ar"] a svg,
-          .register-arabic-font svg,
-          .register-arabic-font button svg,
-          .register-arabic-font a svg {
-            font-family: initial !important;
-          }
+        [data-register-locale="ar"],
+        [data-register-locale="ar"] *,
+        .register-arabic-font,
+        .register-arabic-font * {
+          font-family: "Cairo", sans-serif !important;
+          font-optical-sizing: auto;
+          letter-spacing: 0 !important;
+        }
+        [data-register-locale="ar"] svg,
+        .register-arabic-font svg { font-family: initial !important; }
+        [data-register-locale="ar"] .register-title,
+        .register-arabic-font .register-title {
+          font-family: "Cairo", sans-serif !important;
+          font-weight: 800 !important;
+          letter-spacing: 0 !important;
+        }
 
-          [data-register-locale="ar"] .register-title,
-          .register-arabic-font .register-title {
-            font-family: "Cairo", sans-serif !important;
-            font-weight: 800 !important;
-            letter-spacing: 0 !important;
-          }
-
-          [data-register-locale="ar"] .register-copy,
-          [data-register-locale="ar"] .register-copy p,
-          [data-register-locale="ar"] .register-copy span,
-          [data-register-locale="ar"] .register-copy a,
-          [data-register-locale="ar"] .register-copy button,
-          [data-register-locale="ar"] .register-copy label,
-          [data-register-locale="ar"] .register-copy input,
-          [data-register-locale="ar"] .register-copy div,
-          .register-arabic-font .register-copy,
-          .register-arabic-font .register-copy p,
-          .register-arabic-font .register-copy span,
-          .register-arabic-font .register-copy a,
-          .register-arabic-font .register-copy button,
-          .register-arabic-font .register-copy label,
-          .register-arabic-font .register-copy input,
-          .register-arabic-font .register-copy div {
-            font-family: "Cairo", sans-serif !important;
-            letter-spacing: 0 !important;
-          }
-        `}</style>
-      ) : null}
+        @media (prefers-reduced-motion: reduce) {
+          .rg-blob, .rg-chip, .rg-sticker { animation: none !important; }
+          .rg-intro .rg-rise { animation: none !important; opacity: 1 !important; transform: none !important; }
+          .rg-cta::after { display: none; }
+          .rg-spot { display: none; }
+        }
+      `}</style>
     </div>
   );
 }

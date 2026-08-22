@@ -1,4 +1,6 @@
-type Mode = "none" | "fixed" | "percent";
+import { isPercentMode } from "@/lib/distribution";
+
+type Mode = "none" | "fixed" | "percent" | "fixed_per_period" | "percent_of_income";
 
 export type PercentRow = {
   mode: Mode;
@@ -13,7 +15,7 @@ const toNumber = (value?: string) => {
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
 export const normalizePercentRows = <T extends PercentRow>(rows: T[]): T[] => {
-  const percentRows = rows.filter((row) => row.mode === "percent");
+  const percentRows = rows.filter((row) => isPercentMode(row.mode));
   const total = percentRows.reduce((sum, row) => sum + toNumber(row.percent), 0);
   if (total <= 0 || percentRows.length === 0) return rows;
 

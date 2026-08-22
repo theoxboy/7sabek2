@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Cairo } from "next/font/google";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { apiFetch } from "@/lib/api";
 import type {
@@ -15,6 +16,7 @@ import type {
   CategoryOut,
   DashboardOut,
   DashboardTrendPointOut,
+  DistributionConfigOut,
   DistributionSimulateOut,
   GoalOut,
   IncomeReminderOut,
@@ -41,7 +43,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Separator } from "@/components/ui/Separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDeleteTransactionDialog } from "@/components/transactions/ConfirmDeleteTransactionDialog";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -60,7 +62,13 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Area,
+  AreaChart,
 } from "recharts";
+import { Wallet, TrendingDown, TrendingUp, Scale, Calendar, ChevronDown, Plus, Sparkles, Layers, Bell, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { addDays, startOfYear } from "@/lib/reports/compute";
 import {
   getLocaleDirection,
@@ -70,6 +78,9 @@ import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreference
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { isInternalIncomeCategory, localizeCategoryName } from "@/lib/categoryCatalog";
 import { areToursGloballyDisabled } from "@/lib/tourFlags";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { useQuickTx } from "@/state/QuickTxContext";
+import { isFixedMode, isPercentMode } from "@/lib/distribution";
 
 const formatMoney = (value: string | number | undefined) => {
   if (value === undefined) return "0.00";
@@ -137,18 +148,6 @@ function localizeSystemEnvelopeName(name: string, locale: FloussyLocale) {
   return localizeEnvelopeLabel(name, locale);
 }
 
-function isDebtEnvelopeName(name: string) {
-  const normalized = name.trim().toLowerCase();
-  return (
-    normalized.startsWith("dettes —") ||
-    normalized.startsWith("debts —") ||
-    normalized.startsWith("الديون") ||
-    normalized.includes("dette") ||
-    normalized.includes("debt") ||
-    normalized.includes("credit") ||
-    normalized.includes("قرض")
-  );
-}
 
 type EnvelopeSpend = {
   name: string;
@@ -511,6 +510,7 @@ type DashboardCopy = {
   widgetCashLeft: string;
   widgetRisk: string;
   widgetRiskDesc: string;
+  widgetRiskAllHealthy: string;
   widgetDebtGoalsPressure: string;
   widgetDebtPressure: string;
   widgetGoalsPressure: string;
@@ -554,6 +554,17 @@ type DashboardCopy = {
   quickTxApplyRecurring: string;
   quickTxDescriptionSuggestions: string;
   quickTxAmountAnomaly: (amount: string, usual: string) => string;
+  tooltipAvailableCash: string;
+  tooltipPeriodExpenses: string;
+  tooltipPeriodNet: string;
+  budgetSummaryTitle: string;
+  chartSpent: string;
+  chartReserved: string;
+  chartFree: string;
+  chartTotalResources: string;
+  chartTooltipSpent: string;
+  chartTooltipReserved: string;
+  chartTooltipFree: string;
 };
 
 const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
@@ -742,6 +753,7 @@ const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     widgetCashLeft: "Reste cash",
     widgetRisk: "Enveloppes à risque",
     widgetRiskDesc: "Priorité aux enveloppes proches ou au-dessus de la limite.",
+    widgetRiskAllHealthy: "✅ Toutes les enveloppes sont dans les limites — aucune alerte.",
     widgetDebtGoalsPressure: "Pression dettes & objectifs",
     widgetDebtPressure: "Dettes",
     widgetGoalsPressure: "Objectifs",
@@ -791,6 +803,17 @@ const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     quickTxDescriptionSuggestions: "Descriptions suggérées",
     quickTxAmountAnomaly: (amount: string, usual: string) =>
       `Montant inhabituel (${amount}). Montant habituel: ${usual}.`,
+    tooltipAvailableCash: "Cash restant disponible non encore alloué aux enveloppes.",
+    tooltipPeriodExpenses: "Somme de toutes les dépenses effectuées dans la période active.",
+    tooltipPeriodNet: "Revenus totaux moins l'ensemble des dépenses de la période.",
+    budgetSummaryTitle: "Résumé du Budget de la Période",
+    chartSpent: "Dépensé",
+    chartReserved: "Réservé",
+    chartFree: "Cash Libre",
+    chartTotalResources: "Ressources",
+    chartTooltipSpent: "Dépenses réelles effectuées",
+    chartTooltipReserved: "Montant alloué aux enveloppes resté non dépensé",
+    chartTooltipFree: "Argent disponible non alloué à une enveloppe",
   },
   en: {
     unknownError: "Unknown error",
@@ -969,6 +992,7 @@ const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     widgetCashLeft: "Cash left",
     widgetRisk: "At-risk envelopes",
     widgetRiskDesc: "Priority to envelopes near or above limit.",
+    widgetRiskAllHealthy: "✅ All envelopes are within limits — no alerts.",
     widgetDebtGoalsPressure: "Debt & goals pressure",
     widgetDebtPressure: "Debts",
     widgetGoalsPressure: "Goals",
@@ -1018,6 +1042,17 @@ const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     quickTxDescriptionSuggestions: "Suggested descriptions",
     quickTxAmountAnomaly: (amount: string, usual: string) =>
       `Unusual amount (${amount}). Usual amount: ${usual}.`,
+    tooltipAvailableCash: "Remaining available cash not yet allocated to any envelopes.",
+    tooltipPeriodExpenses: "Sum of all expenses made during the active period.",
+    tooltipPeriodNet: "Total income minus all expenses in this period.",
+    budgetSummaryTitle: "Period Budget Summary",
+    chartSpent: "Spent",
+    chartReserved: "Reserved",
+    chartFree: "Free Cash",
+    chartTotalResources: "Resources",
+    chartTooltipSpent: "Actual expenses incurred",
+    chartTooltipReserved: "Amount allocated to envelopes but not yet spent",
+    chartTooltipFree: "Money available and not allocated to any envelope",
   },
   ar: {
     unknownError: "وقع مشكل غير متوقع. عاود المحاولة.",
@@ -1196,6 +1231,7 @@ const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     widgetCashLeft: "الباقي فالكاش",
     widgetRisk: "أظرفة فيها خطر",
     widgetRiskDesc: "أولوية للأظرفة القريبة للحد أو الخارجة عليه.",
+    widgetRiskAllHealthy: "✅ جميع الأظرفة فحدودها — ما كاين حتى تحذير.",
     widgetDebtGoalsPressure: "ضغط الديون والأهداف",
     widgetDebtPressure: "الديون",
     widgetGoalsPressure: "الأهداف",
@@ -1245,6 +1281,17 @@ const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     quickTxDescriptionSuggestions: "أوصاف مقترحة",
     quickTxAmountAnomaly: (amount: string, usual: string) =>
       `المبلغ غير معتاد (${amount}). المبلغ المعتاد: ${usual}.`,
+    tooltipAvailableCash: "الفلوس السائلة اللي باقا ومازال ما تفرقاتش على الأظرفة.",
+    tooltipPeriodExpenses: "مجموع كاع المصاريف اللي تقيدو فهاد الفترة.",
+    tooltipPeriodNet: "المداخيل كاملة ناقص كاع المصاريف ديال هاد الفترة.",
+    budgetSummaryTitle: "ملخص ميزانية الفترة",
+    chartSpent: "مخسور",
+    chartReserved: "مخصص",
+    chartFree: "فلوس حرة",
+    chartTotalResources: "الموارد",
+    chartTooltipSpent: "المصاريف الحقيقية اللي تخلصات",
+    chartTooltipReserved: "المبالغ المخصصة للأظرفة واللي مازال ما تخسراتش",
+    chartTooltipFree: "الفلوس اللي باقة ومامخصصة لحتى شي ظرف",
   },
 };
 
@@ -1255,10 +1302,8 @@ export default function DashboardPage() {
     </Suspense>
   );
 }
-
 function DashboardContent() {
-  // Keep SSR and first client render identical to avoid hydration mismatch.
-  // Then sync to browser preference after mount.
+  const { openQuickTx } = useQuickTx();
   const [locale, setLocale] = useState<FloussyLocale>("fr");
   const [data, setData] = useState<DashboardOut | null>(null);
   const [categories, setCategories] = useState<CategoryOut[]>([]);
@@ -1268,6 +1313,10 @@ function DashboardContent() {
   const [transactions, setTransactions] = useState<TransactionOut[]>([]);
   const [cashSplitPreview, setCashSplitPreview] =
     useState<DistributionSimulateOut | null>(null);
+  // Distribution config is always available (unlike cashSplitPreview which
+  // requires available_to_allocate > 0). Used to identify fixed-expense envelopes.
+  const [distributionConfig, setDistributionConfig] =
+    useState<DistributionConfigOut | null>(null);
   const [latestOnboardingRecord, setLatestOnboardingRecord] =
     useState<OnboardingV2RecordOut | null>(null);
   const [autoSweepEnabled, setAutoSweepEnabled] = useState<boolean | null>(null);
@@ -1292,6 +1341,7 @@ function DashboardContent() {
   const [envelopeFilter, setEnvelopeFilter] = useState<
     "active" | "overspent" | "near"
   >("active");
+  const [showAllEnvelopes, setShowAllEnvelopes] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1300,6 +1350,15 @@ function DashboardContent() {
     start: string;
     end: string;
   } | null>(null);
+  const [currentCycleData, setCurrentCycleData] = useState<DashboardOut | null>(null);
+  const currentCycleDataRef = useRef<DashboardOut | null>(null);
+  const lastPeriodQueryRef = useRef("");
+  const updateCurrentCycleData = useCallback((val: DashboardOut | null) => {
+    setCurrentCycleData(val);
+    currentCycleDataRef.current = val;
+  }, []);
+
+
   const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
   const [periodPreset, setPeriodPreset] = useState<
     "7d" | "30d" | "90d" | "ytd" | "custom"
@@ -1307,23 +1366,7 @@ function DashboardContent() {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [periodError, setPeriodError] = useState<string | null>(null);
-  const [quickTxOpen, setQuickTxOpen] = useState(false);
-  const [quickTxSubmitting, setQuickTxSubmitting] = useState(false);
-  const [quickTxError, setQuickTxError] = useState<string | null>(null);
-  const [quickTxStep, setQuickTxStep] = useState<QuickTxFlowStep>("form");
-  const [quickTxDistributionPreview, setQuickTxDistributionPreview] =
-    useState<DistributionSimulateOut | null>(null);
-  const [quickTxReminderIdsToMark, setQuickTxReminderIdsToMark] = useState<string[]>([]);
-  const [quickTxPreferenceBoost, setQuickTxPreferenceBoost] = useState<
-    Record<string, number>
-  >({});
-  const [quickTxDraft, setQuickTxDraft] = useState<QuickTransactionDraft>({
-    type: "expense",
-    category_id: "",
-    amount: "",
-    occurred_on: getLocalTodayISO(),
-    description: "",
-  });
+  const [sweepInfoOpen, setSweepInfoOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -1344,8 +1387,7 @@ function DashboardContent() {
   const kpiNetRef = useRef<HTMLDivElement | null>(null);
   const envelopesRef = useRef<HTMLDivElement | null>(null);
   const recentRef = useRef<HTMLDivElement | null>(null);
-  const spendingRef = useRef<HTMLDivElement | null>(null);
-  const trendRef = useRef<HTMLDivElement | null>(null);
+  const summaryRef = useRef<HTMLDivElement | null>(null);
   const quickRef = useRef<HTMLDivElement | null>(null);
   const fabRef = useRef<HTMLDivElement | null>(null);
   const navDashboardRef = useRef<HTMLElement | null>(null);
@@ -1356,7 +1398,6 @@ function DashboardContent() {
   const navAideRef = useRef<HTMLElement | null>(null);
   const navReportsRef = useRef<HTMLElement | null>(null);
   const navSettingsRef = useRef<HTMLElement | null>(null);
-  const quickTxSubmitLockRef = useRef(false);
   const loadSequenceRef = useRef(0);
   const deferredLoadTimerRef = useRef<number | null>(null);
   const copy = DASHBOARD_COPY[locale];
@@ -1434,7 +1475,7 @@ function DashboardContent() {
     return { start: customStart || today, end: customEnd || end };
   }, [periodPreset, customStart, customEnd]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (forceRefreshCurrentCycle = false) => {
     const loadSequence = loadSequenceRef.current + 1;
     loadSequenceRef.current = loadSequence;
     if (deferredLoadTimerRef.current) {
@@ -1444,9 +1485,26 @@ function DashboardContent() {
     setLoading(true);
     setError(null);
     try {
-      const dash = await apiFetch<DashboardOut>(`/dashboard${periodQuery}`);
+      const isFiltered = Boolean(periodQuery && periodQuery !== "");
+      const filterChanged = lastPeriodQueryRef.current !== periodQuery;
+      lastPeriodQueryRef.current = periodQuery;
+
+      const shouldFetchCurrentCycle = !currentCycleDataRef.current || forceRefreshCurrentCycle;
+
+      const [dash, currentCycleDash] = await Promise.all([
+        apiFetch<DashboardOut>(`/dashboard${periodQuery}`),
+        (shouldFetchCurrentCycle && isFiltered) ? apiFetch<DashboardOut>("/dashboard") : Promise.resolve(null),
+      ]);
+
       if (loadSequenceRef.current !== loadSequence) return;
       setData(dash);
+      if (isFiltered) {
+        if (currentCycleDash) {
+          updateCurrentCycleData(currentCycleDash);
+        }
+      } else {
+        updateCurrentCycleData(dash);
+      }
       setLoading(false);
 
       const criticalResults = await Promise.allSettled([
@@ -1483,6 +1541,7 @@ function DashboardContent() {
           apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
           apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
           apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
+          apiFetch<DistributionConfigOut>("/distribution/config"),
         ]).then((results) => {
           if (loadSequenceRef.current !== loadSequence) return;
 
@@ -1491,6 +1550,7 @@ function DashboardContent() {
           const trendResult = results[2];
           const manualUnmappedResult = results[3];
           const onboardingResult = results[4];
+          const distributionConfigResult = results[5];
 
           if (mappingsResult.status === "fulfilled") {
             const mappingMap = mappingsResult.value.reduce<Record<string, string>>(
@@ -1520,6 +1580,9 @@ function DashboardContent() {
             setLatestOnboardingRecord(onboardingResult.value[0] ?? null);
           } else {
             setLatestOnboardingRecord(null);
+          }
+          if (distributionConfigResult.status === "fulfilled") {
+            setDistributionConfig(distributionConfigResult.value);
           }
         });
       }, 250);
@@ -1668,23 +1731,7 @@ function DashboardContent() {
     }
   }, [incomeReminderDialogOpen]);
 
-  useEffect(() => {
-    if (!mounted || !quickTxPreferenceKey) return;
-    try {
-      const raw = localStorage.getItem(quickTxPreferenceKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, number>;
-      const cleaned: Record<string, number> = {};
-      Object.entries(parsed).forEach(([categoryId, value]) => {
-        if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-          cleaned[categoryId] = value;
-        }
-      });
-      setQuickTxPreferenceBoost(cleaned);
-    } catch {
-      setQuickTxPreferenceBoost({});
-    }
-  }, [mounted, quickTxPreferenceKey]);
+
 
   const currentPeriod = activePeriod;
 
@@ -1749,8 +1796,8 @@ function DashboardContent() {
       .map((item) => localizeSystemEnvelopeName(item.envelope.name, locale));
   }, [data, locale]);
 
-  const sweepStatus = data?.sweep_status ?? null;
-  const sweepBootstrap = data?.sweep_bootstrap ?? null;
+  const sweepStatus = currentCycleData?.sweep_status ?? null;
+  const sweepBootstrap = currentCycleData?.sweep_bootstrap ?? null;
   const needsFirstIncomeDeclaration = Boolean(
     sweepBootstrap?.needs_first_income_declaration
   );
@@ -1848,6 +1895,10 @@ function DashboardContent() {
     }));
   }, [data, locale]);
 
+  const sortedTrends = useMemo(() => {
+    return [...trendPoints].sort((a, b) => a.period.localeCompare(b.period));
+  }, [trendPoints]);
+
   const showTodoSection =
     needsFirstIncomeDeclaration ||
     unmappedCount > 0 ||
@@ -1924,271 +1975,6 @@ function DashboardContent() {
     [categories, categoryKindById, mappedCategoryIds]
   );
 
-  const quickTxCategories = quickTxDraft.type === "income" ? incomeCategories : expenseCategories;
-  const expenseTransactionsSorted = useMemo(
-    () =>
-      transactions
-        .filter((tx) => tx.type === "expense")
-        .sort((a, b) => b.occurred_on.localeCompare(a.occurred_on)),
-    [transactions]
-  );
-  const expenseTxByCategory = useMemo(() => {
-    const map = new Map<string, TransactionOut[]>();
-    expenseTransactionsSorted.forEach((tx) => {
-      const list = map.get(tx.category_id) ?? [];
-      list.push(tx);
-      map.set(tx.category_id, list);
-    });
-    return map;
-  }, [expenseTransactionsSorted]);
-  const mostRecentExpenseCategoryId = expenseTransactionsSorted[0]?.category_id ?? null;
-  const quickTxRefDate = quickTxDraft.occurred_on || getLocalTodayISO();
-  const quickTxDraftDate = parseIsoDate(quickTxRefDate);
-  const quickTxDraftDay = quickTxDraftDate?.getDay() ?? null;
-  const quickTxAmountParsed = parseAmountInput(quickTxDraft.amount);
-
-  const smartExpenseSuggestions = useMemo(() => {
-    if (expenseCategories.length === 0) return [] as CategoryOut[];
-    const nowHour = new Date().getHours();
-    const maxPreference = Math.max(
-      1,
-      ...Object.values(quickTxPreferenceBoost).map((value) => Number(value) || 0)
-    );
-    const ranked = expenseCategories.map((cat) => {
-      const txs = expenseTxByCategory.get(cat.id) ?? [];
-      const count7 = txs.filter((tx) => {
-        const days = daysBetweenIso(tx.occurred_on, quickTxRefDate);
-        return days >= 0 && days <= 7;
-      }).length;
-      const count30 = txs.filter((tx) => {
-        const days = daysBetweenIso(tx.occurred_on, quickTxRefDate);
-        return days >= 0 && days <= 30;
-      }).length;
-
-      const last = txs[0]?.occurred_on ?? null;
-      const recencyDays = last ? daysBetweenIso(last, quickTxRefDate) : Number.POSITIVE_INFINITY;
-      const recencyScore = recencyDays === Number.POSITIVE_INFINITY ? 0 : Math.max(0, 1 - recencyDays / 30);
-
-      const dayMatchScore =
-        quickTxDraftDay === null || txs.length === 0
-          ? 0
-          : txs
-              .slice(0, 12)
-              .filter((tx) => parseIsoDate(tx.occurred_on)?.getDay() === quickTxDraftDay).length /
-            Math.max(1, Math.min(12, txs.length));
-
-      const historicalAmounts = txs
-        .map((tx) => Number(tx.amount))
-        .filter((value) => Number.isFinite(value) && value > 0);
-      const medianAmount = median(historicalAmounts);
-      const amountCloseness =
-        quickTxAmountParsed && medianAmount > 0
-          ? Math.max(
-              0,
-              1 - Math.min(Math.abs(quickTxAmountParsed - medianAmount) / Math.max(medianAmount, 1), 1)
-            )
-          : 0.5;
-
-      const preferenceScore = (quickTxPreferenceBoost[cat.id] ?? 0) / maxPreference;
-      const recentCategoryBoost = mostRecentExpenseCategoryId === cat.id ? 1 : 0;
-
-      const normalizedName = normalizeName(cat.name);
-      let contextBoost = 0;
-      if (
-        (normalizedName.includes("carburant") ||
-          normalizedName.includes("transport") ||
-          normalizedName.includes("taxi")) &&
-        nowHour <= 11
-      ) {
-        contextBoost = 1;
-      } else if (
-        (normalizedName.includes("restaurant") ||
-          normalizedName.includes("sortie") ||
-          normalizedName.includes("shopping")) &&
-        nowHour >= 18
-      ) {
-        contextBoost = 1;
-      }
-
-      const score =
-        Math.min(1, count30 / 10) * 0.35 +
-        Math.min(1, count7 / 4) * 0.2 +
-        recencyScore * 0.15 +
-        dayMatchScore * 0.1 +
-        amountCloseness * 0.1 +
-        preferenceScore * 0.05 +
-        recentCategoryBoost * 0.03 +
-        contextBoost * 0.02;
-
-      return { category: cat, score };
-    });
-
-    return ranked
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map((item) => item.category);
-  }, [
-    expenseCategories,
-    expenseTxByCategory,
-    mostRecentExpenseCategoryId,
-    quickTxAmountParsed,
-    quickTxDraftDay,
-    quickTxPreferenceBoost,
-    quickTxRefDate,
-  ]);
-
-  const quickTxAmountSuggestions = useMemo(() => {
-    if (quickTxDraft.type === "income") return [1000, 2500, 5000, 10000];
-    if (!quickTxDraft.category_id) return [50, 100, 200, 500];
-    const txs = expenseTxByCategory.get(quickTxDraft.category_id) ?? [];
-    const amounts = txs
-      .map((tx) => Number(tx.amount))
-      .filter((value) => Number.isFinite(value) && value > 0);
-    if (amounts.length === 0) return [50, 100, 200, 500];
-
-    const frequencies = new Map<number, number>();
-    amounts.forEach((value) => {
-      const rounded = Number(value.toFixed(2));
-      frequencies.set(rounded, (frequencies.get(rounded) ?? 0) + 1);
-    });
-    const topFrequent = [...frequencies.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 2)
-      .map(([value]) => value);
-    const med = median(amounts);
-    const last = Number((txs[0]?.amount ?? 0).toString());
-
-    const unique = Array.from(
-      new Set(
-        [last, ...topFrequent, med]
-          .map((value) => Number(value.toFixed(2)))
-          .filter((value) => Number.isFinite(value) && value > 0)
-      )
-    );
-    return unique.slice(0, 4);
-  }, [expenseTxByCategory, quickTxDraft.category_id, quickTxDraft.type]);
-
-  const quickTxLastSimilarExpense = useMemo(() => {
-    if (quickTxDraft.type !== "expense") return null;
-    if (!quickTxDraft.category_id) return null;
-    const txs = expenseTxByCategory.get(quickTxDraft.category_id) ?? [];
-    return txs[0] ?? null;
-  }, [expenseTxByCategory, quickTxDraft.category_id, quickTxDraft.type]);
-
-  const quickTxRecurringSuggestion = useMemo(() => {
-    if (quickTxDraft.type !== "expense" || !quickTxDraft.category_id) return null;
-    const txs = expenseTxByCategory.get(quickTxDraft.category_id) ?? [];
-    const recent = txs.filter((tx) => {
-      const days = daysBetweenIso(tx.occurred_on, quickTxRefDate);
-      return days >= 0 && days <= 60;
-    });
-    if (recent.length < 3) return null;
-    const recentAmounts = recent
-      .slice(0, 6)
-      .map((tx) => Number(tx.amount))
-      .filter((value) => Number.isFinite(value) && value > 0);
-    if (recentAmounts.length < 3) return null;
-
-    const med = median(recentAmounts);
-    const avgAbsDev =
-      recentAmounts.reduce((sum, value) => sum + Math.abs(value - med), 0) /
-      recentAmounts.length;
-    const variability = avgAbsDev / Math.max(med, 1);
-    if (variability > 0.35) return null;
-
-    return {
-      amount: Number(med.toFixed(2)),
-      description: recent[0]?.description ?? "",
-    };
-  }, [expenseTxByCategory, quickTxDraft.category_id, quickTxDraft.type, quickTxRefDate]);
-
-  const quickTxDescriptionSuggestions = useMemo(() => {
-    if (quickTxDraft.type !== "expense") return [] as string[];
-    const selectedCategory = expenseCategories.find(
-      (cat) => cat.id === quickTxDraft.category_id
-    );
-    if (!selectedCategory) return [] as string[];
-    const localizedCategory = localizeCategoryName(selectedCategory.name, locale);
-    const suffixes =
-      locale === "ar"
-        ? ["", "يومي", "بطاقة"]
-        : locale === "fr"
-        ? ["", "quotidien", "carte"]
-        : ["", "regular", "card"];
-    return Array.from(
-      new Set(
-        suffixes
-          .map((suffix) => `${localizedCategory}${suffix ? ` ${suffix}` : ""}`.trim())
-          .filter(Boolean)
-      )
-    ).slice(0, 3);
-  }, [expenseCategories, locale, quickTxDraft.category_id, quickTxDraft.type]);
-
-  const quickTxAmountIsValid = parseAmountInput(quickTxDraft.amount) !== null;
-  const quickTxEffectiveCategoryId =
-    quickTxDraft.type === "income"
-      ? defaultIncomeCategory?.id ?? incomeCategories[0]?.id ?? ""
-      : quickTxDraft.category_id;
-  const quickTxCanSubmit =
-    quickTxAmountIsValid &&
-    Boolean(quickTxDraft.occurred_on) &&
-    Boolean(quickTxEffectiveCategoryId) &&
-    quickTxCategories.length > 0;
-
-  useEffect(() => {
-    if (!quickTxOpen) return;
-    if (quickTxDraft.type === "income") {
-      const fallbackId = defaultIncomeCategory?.id ?? incomeCategories[0]?.id ?? "";
-      if (!fallbackId) return;
-      if (quickTxDraft.category_id !== fallbackId) {
-        setQuickTxDraft((prev) => ({ ...prev, category_id: fallbackId }));
-      }
-      return;
-    }
-    if (!quickTxCategories.some((cat) => cat.id === quickTxDraft.category_id)) {
-      setQuickTxDraft((prev) => ({
-        ...prev,
-        category_id: smartExpenseSuggestions[0]?.id ?? quickTxCategories[0]?.id ?? "",
-      }));
-    }
-  }, [
-    defaultIncomeCategory,
-    incomeCategories,
-    quickTxCategories,
-    quickTxDraft.category_id,
-    quickTxDraft.type,
-    quickTxOpen,
-    smartExpenseSuggestions,
-  ]);
-
-  const quickTxMappedEnvelopeHint = useMemo(() => {
-    if (quickTxDraft.type !== "expense" || !quickTxDraft.category_id) return null;
-    const mappedEnvelopeId = mappings[quickTxDraft.category_id];
-    if (!mappedEnvelopeId) return null;
-    const mappedEnvelopeName =
-      data?.envelopes.find((item) => item.envelope.id === mappedEnvelopeId)?.envelope.name ??
-      "";
-    if (!mappedEnvelopeName) return null;
-    return copy.quickTxMappedTo(localizeSystemEnvelopeName(mappedEnvelopeName, locale));
-  }, [copy, data?.envelopes, locale, mappings, quickTxDraft.category_id, quickTxDraft.type]);
-
-  const quickTxIncomePeriodWarning = useMemo(() => {
-    if (quickTxDraft.type !== "income" || !quickTxDraft.occurred_on || !activePeriod) return null;
-    const date = quickTxDraft.occurred_on;
-    const start = activePeriod.start;
-    const end = activePeriod.end;
-    const dateLabel = formatLocaleDate(date, locale);
-    const startLabel = formatLocaleDate(start, locale);
-    const endLabel = formatLocaleDate(end, locale);
-    if (date < start) {
-      return copy.quickTxBeforePeriod(dateLabel, startLabel, endLabel, periodArrow);
-    }
-    if (date >= end) {
-      return copy.quickTxAfterPeriod(dateLabel, startLabel, endLabel, periodArrow);
-    }
-    return null;
-  }, [activePeriod, copy, locale, periodArrow, quickTxDraft.occurred_on, quickTxDraft.type]);
-
   const openQuickTransactionDialog = useCallback(
     (
       type: "income" | "expense",
@@ -2198,228 +1984,17 @@ function DashboardContent() {
         reminderIdsToMark?: string[];
       }
     ) => {
-      const today = getLocalTodayISO();
-      const fallbackIncomeCategoryId =
-        defaultIncomeCategory?.id ?? incomeCategories[0]?.id ?? "";
-      const fallbackExpenseCategoryId = expenseCategories[0]?.id ?? "";
-      const parsedBootstrapAmount =
-        options?.bootstrapAmount ? parseAmountInput(options.bootstrapAmount) : null;
-      const bootstrapDate = options?.bootstrapDate ?? null;
-      const validBootstrapDate =
-        bootstrapDate && bootstrapDate <= today ? bootstrapDate : today;
-      setQuickTxError(null);
-      setQuickTxReminderIdsToMark(
-        type === "income" ? Array.from(new Set(options?.reminderIdsToMark ?? [])) : []
-      );
-      setQuickTxStep("form");
-      setQuickTxDistributionPreview(null);
-      setQuickTxDraft({
-        type,
-        category_id:
-          type === "income" ? fallbackIncomeCategoryId : fallbackExpenseCategoryId,
-        amount: parsedBootstrapAmount ? parsedBootstrapAmount.toFixed(2) : "",
-        occurred_on: validBootstrapDate,
-        description: "",
-      });
-      setQuickTxOpen(true);
+      openQuickTx(type, options);
     },
-    [defaultIncomeCategory?.id, expenseCategories, incomeCategories]
+    [openQuickTx]
   );
-
-  const handleOpenDistributionFromQuickTx = useCallback(() => {
-    if (quickTxDraft.type !== "income") return;
-    try {
-      sessionStorage.setItem(
-        QUICK_TX_INCOME_RESUME_STORAGE_KEY,
-        JSON.stringify({
-          draft: quickTxDraft,
-          reminderIdsToMark: quickTxReminderIdsToMark,
-        })
-      );
-    } catch {
-      // ignore
-    }
-    router.push("/envelopes");
-  }, [quickTxDraft, quickTxReminderIdsToMark, router]);
-
-  const handleSubmitQuickTransaction = async () => {
-    if (quickTxSubmitLockRef.current) return;
-    setQuickTxError(null);
-    const amount = parseAmountInput(quickTxDraft.amount);
-    if (amount === null) {
-      setQuickTxError(copy.quickTxAmountRequired);
-      return;
-    }
-    const effectiveCategoryId = quickTxEffectiveCategoryId;
-    if (!effectiveCategoryId) {
-      setQuickTxError(copy.quickTxCategoryRequired);
-      return;
-    }
-    if (quickTxDraft.type === "expense" && !mappings[effectiveCategoryId]) {
-      setQuickTxError(copy.quickTxNoExpenseCategories);
-      return;
-    }
-
-    if (quickTxDraft.type === "income" && quickTxStep === "form") {
-      quickTxSubmitLockRef.current = true;
-      setQuickTxSubmitting(true);
-      try {
-        const preview = await apiFetch<DistributionSimulateOut>("/distribution/simulate", {
-          method: "POST",
-          body: {
-            income_amount: amount.toFixed(2),
-            use_cash_available: false,
-            occurred_on: quickTxDraft.occurred_on,
-          },
-        });
-        setQuickTxDistributionPreview(preview);
-        setQuickTxStep("income_preview");
-      } catch (err) {
-        setQuickTxError(formatApiError(err, copy.quickTxUnknownError));
-      } finally {
-        quickTxSubmitLockRef.current = false;
-        setQuickTxSubmitting(false);
-      }
-      return;
-    }
-
-    quickTxSubmitLockRef.current = true;
-    setQuickTxSubmitting(true);
-    try {
-      await apiFetch<TransactionOut>("/transactions", {
-        method: "POST",
-        body: {
-          type: quickTxDraft.type,
-          category_id: effectiveCategoryId,
-          amount: amount.toFixed(2),
-          occurred_on: quickTxDraft.occurred_on,
-          description: quickTxDraft.description || undefined,
-        },
-      });
-      if (quickTxDraft.type === "income" && quickTxReminderIdsToMark.length > 0) {
-        await Promise.all(
-          quickTxReminderIdsToMark.map((reminderId) =>
-            apiFetch<IncomeReminderOut>(
-              `/income-reminders/${reminderId}/mark-declared`,
-              { method: "POST" }
-            )
-          )
-        );
-      }
-      toast({
-        title:
-          quickTxDraft.type === "income"
-            ? copy.quickTxSavedIncome
-            : copy.quickTxSavedExpense,
-        variant: "success",
-      });
-      if (quickTxDraft.type === "expense" && quickTxPreferenceKey) {
-        setQuickTxPreferenceBoost((prev) => {
-          const next = {
-            ...prev,
-            [effectiveCategoryId]: (prev[effectiveCategoryId] ?? 0) + 1,
-          };
-          try {
-            localStorage.setItem(quickTxPreferenceKey, JSON.stringify(next));
-          } catch {
-            // ignore
-          }
-          return next;
-        });
-      }
-      setQuickTxOpen(false);
-      setQuickTxStep("form");
-      setQuickTxDistributionPreview(null);
-      setQuickTxReminderIdsToMark([]);
-      await loadData();
-      if (quickTxDraft.type === "income") {
-        router.refresh();
-      }
-    } catch (err) {
-      setQuickTxError(formatApiError(err, copy.quickTxUnknownError));
-    } finally {
-      quickTxSubmitLockRef.current = false;
-      setQuickTxSubmitting(false);
-    }
-  };
 
   useEffect(() => {
     if (!mounted) return;
-    if (searchParams.get("quick_tx_resume") !== "income") return;
-    try {
-      const raw = sessionStorage.getItem(QUICK_TX_INCOME_RESUME_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        draft?: QuickTransactionDraft;
-        reminderIdsToMark?: string[];
-      };
-      if (!parsed?.draft || parsed.draft.type !== "income") return;
-      setQuickTxDraft(parsed.draft);
-      setQuickTxReminderIdsToMark(
-        Array.isArray(parsed.reminderIdsToMark) ? parsed.reminderIdsToMark : []
-      );
-      setQuickTxStep("form");
-      setQuickTxDistributionPreview(null);
-      setQuickTxOpen(true);
-      sessionStorage.removeItem(QUICK_TX_INCOME_RESUME_STORAGE_KEY);
-      const next = new URLSearchParams(searchParams.toString());
-      next.delete("quick_tx_resume");
-      const nextQuery = next.toString();
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-    } catch {
-      sessionStorage.removeItem(QUICK_TX_INCOME_RESUME_STORAGE_KEY);
+    if (searchParams.get("quick_tx_resume") === "income") {
+      openQuickTx("income");
     }
-  }, [mounted, pathname, router, searchParams]);
-
-  const quickTxCompletion = useMemo(() => {
-    const checks = [
-      quickTxAmountIsValid,
-      Boolean(quickTxDraft.occurred_on),
-      Boolean(quickTxEffectiveCategoryId),
-    ];
-    const done = checks.filter(Boolean).length;
-    return Math.round((done / checks.length) * 100);
-  }, [
-    quickTxAmountIsValid,
-    quickTxEffectiveCategoryId,
-    quickTxDraft.occurred_on,
-  ]);
-
-  const quickTxAmountAnomalyMessage = useMemo(() => {
-    if (
-      quickTxDraft.type !== "expense" ||
-      !quickTxDraft.category_id ||
-      !quickTxAmountParsed
-    ) {
-      return null;
-    }
-    const txs = expenseTxByCategory.get(quickTxDraft.category_id) ?? [];
-    const values = txs
-      .slice(0, 10)
-      .map((tx) => Number(tx.amount))
-      .filter((value) => Number.isFinite(value) && value > 0);
-    if (values.length < 3) return null;
-    const usual = median(values);
-    if (usual <= 0) return null;
-    if (quickTxAmountParsed <= usual * 1.8) return null;
-    return copy.quickTxAmountAnomaly(
-      formatMoney(quickTxAmountParsed),
-      formatMoney(usual)
-    );
-  }, [
-    copy,
-    expenseTxByCategory,
-    quickTxAmountParsed,
-    quickTxDraft.category_id,
-    quickTxDraft.type,
-  ]);
-
-  const handleQuickTxEnter = (event: React.KeyboardEvent) => {
-    if (event.key !== "Enter" || event.shiftKey) return;
-    if (!quickTxCanSubmit || quickTxSubmitting) return;
-    event.preventDefault();
-    void handleSubmitQuickTransaction();
-  };
+  }, [mounted, searchParams, openQuickTx]);
 
   const tourSteps = useMemo<TourStep[]>(() => {
     const steps: TourStep[] = [
@@ -2470,20 +2045,11 @@ function DashboardContent() {
       description: copy.tourRecentDescription,
       ref: recentRef,
     });
-    if (spendingByEnvelope.length > 0) {
-      steps.push({
-        title: copy.tourSpendingTitle,
-        description: copy.tourSpendingDescription,
-        ref: spendingRef,
-      });
-    }
-    if (trendPoints.length > 0) {
-      steps.push({
-        title: copy.tourTrendTitle,
-        description: copy.tourTrendDescription,
-        ref: trendRef,
-      });
-    }
+    steps.push({
+      title: copy.budgetSummaryTitle,
+      description: copy.tourSpendingDescription,
+      ref: summaryRef,
+    });
     steps.push({
       title: copy.tourQuickTitle,
       description: copy.tourQuickDescription,
@@ -2636,6 +2202,8 @@ function DashboardContent() {
           !isOverspent && allocated > 0 && remaining / allocated <= 0.2;
         const isCash = Boolean(item.envelope.is_cash);
         const isSavings = Boolean(item.envelope.is_default_savings);
+        const isDebt = Boolean(item.envelope.is_debt);
+        const isGoal = Boolean(item.envelope.is_goal);
         const status: "overspent" | "near" | "healthy" =
           isOverspent ? "overspent" : nearLimit ? "near" : "healthy";
         return {
@@ -2649,6 +2217,8 @@ function DashboardContent() {
           status,
           isCash,
           isSavings,
+          isDebt,
+          isGoal,
         };
       })
       .sort((a, b) => {
@@ -2670,6 +2240,58 @@ function DashboardContent() {
     [envelopeRows]
   );
 
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    const spentVal = expenseTotal;
+    const reservedVal = envelopeRows.reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
+    const freeVal = Number(data.available_to_allocate || 0);
+    const total = spentVal + reservedVal + freeVal;
+
+    if (total === 0) {
+      return [
+        {
+          name: copy.chartFree,
+          value: 1,
+          percentage: 0,
+          color: "var(--border, #cbd5e1)",
+          tooltip: copy.chartTooltipFree
+        }
+      ];
+    }
+
+    return [
+      {
+        name: copy.chartSpent,
+        value: spentVal,
+        percentage: total > 0 ? (spentVal / total) * 100 : 0,
+        color: "var(--accent-error, #ef4444)",
+        tooltip: copy.chartTooltipSpent
+      },
+      {
+        name: copy.chartReserved,
+        value: reservedVal,
+        percentage: total > 0 ? (reservedVal / total) * 100 : 0,
+        color: "var(--accent-strong, #6366f1)",
+        tooltip: copy.chartTooltipReserved
+      },
+      {
+        name: copy.chartFree,
+        value: freeVal,
+        percentage: total > 0 ? (freeVal / total) * 100 : 0,
+        color: "var(--accent-success, #10b981)",
+        tooltip: copy.chartTooltipFree
+      }
+    ].filter(item => item.value > 0);
+  }, [data, expenseTotal, envelopeRows, copy, locale]);
+
+  const totalBudget = useMemo(() => {
+    if (!data) return 0;
+    const spentVal = expenseTotal;
+    const reservedVal = envelopeRows.reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
+    const freeVal = Number(data.available_to_allocate || 0);
+    return spentVal + reservedVal + freeVal;
+  }, [data, expenseTotal, envelopeRows]);
+
   const topEnvelopes = useMemo(() => {
     let filtered = focusEnvelopeRows;
     if (envelopeFilter === "overspent") {
@@ -2686,7 +2308,7 @@ function DashboardContent() {
 
   const pinnedDebtEnvelope = useMemo(
     () =>
-      focusEnvelopeRows.find((item) => isDebtEnvelopeName(item.name)) ?? null,
+      focusEnvelopeRows.find((item) => item.isDebt) ?? null,
     [focusEnvelopeRows]
   );
 
@@ -2711,7 +2333,7 @@ function DashboardContent() {
     [focusEnvelopeRows]
   );
   const debtEnvelopeIdSet = useMemo(
-    () => new Set(focusEnvelopeRows.filter((item) => isDebtEnvelopeName(item.name)).map((item) => item.id)),
+    () => new Set(focusEnvelopeRows.filter((item) => item.isDebt).map((item) => item.id)),
     [focusEnvelopeRows]
   );
 
@@ -2720,7 +2342,7 @@ function DashboardContent() {
     const fixed = items
       .filter(
         (item) =>
-          item.mode === "fixed" &&
+          isFixedMode(item.mode) &&
           item.target_type === "envelope" &&
           !debtEnvelopeIdSet.has(item.target_id)
       )
@@ -2728,13 +2350,13 @@ function DashboardContent() {
     const debtGoals = items
       .filter(
         (item) =>
-          item.mode === "fixed" &&
+          isFixedMode(item.mode) &&
           (item.target_type === "goal" ||
             (item.target_type === "envelope" && debtEnvelopeIdSet.has(item.target_id)))
       )
       .reduce((sum, item) => sum + Number(item.amount), 0);
     const flexible = items
-      .filter((item) => item.mode === "percent")
+      .filter((item) => isPercentMode(item.mode))
       .reduce((sum, item) => sum + Number(item.amount), 0);
     return {
       fixed,
@@ -2840,9 +2462,9 @@ function DashboardContent() {
   }, [selectedModeValues]);
 
   const distributionCoverage = useMemo(() => {
-    const totalRules = (cashSplitPreview?.items ?? []).filter((item) => item.mode === "percent").length;
+    const totalRules = (cashSplitPreview?.items ?? []).filter((item) => isPercentMode(item.mode)).length;
     const coveredRules = (cashSplitPreview?.items ?? []).filter(
-      (item) => item.mode === "percent" && Number(item.amount) > 0
+      (item) => isPercentMode(item.mode) && Number(item.amount) > 0
     ).length;
     return { coveredRules, totalRules };
   }, [cashSplitPreview]);
@@ -2870,7 +2492,7 @@ function DashboardContent() {
         href: "/envelopes?filter=overspent",
       });
     }
-    const hasPercentRules = (cashSplitPreview?.items ?? []).some((item) => item.mode === "percent");
+    const hasPercentRules = (cashSplitPreview?.items ?? []).some((item) => isPercentMode(item.mode));
     if (
       Number(data?.available_to_allocate ?? 0) > 0 &&
       (!cashSplitPreview || !hasPercentRules)
@@ -2878,7 +2500,7 @@ function DashboardContent() {
       anomalies.push({
         key: "distribution-config",
         text: copy.widgetAnomalyNoConfig,
-        href: "/envelopes",
+        href: "/distribution",
         help: copy.widgetAnomalyNoConfigHelp,
       });
     }
@@ -2918,7 +2540,7 @@ function DashboardContent() {
         title: copy.deletedTitle,
         description: copy.deletedDescription,
       });
-      await loadData();
+      await loadData(true);
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : copy.unknownError;
@@ -2934,15 +2556,16 @@ function DashboardContent() {
   };
 
   const handleRunSweep = async () => {
-    if (!currentPeriod?.end) return;
+    const sweepDate = currentCycleData?.current_period?.end;
+    if (!sweepDate) return;
     setRunningSweep(true);
     try {
       await apiFetch<{ periods_swept: number; sweeps_created: number }>("/sweeps", {
         method: "POST",
-        body: { as_of: currentPeriod.end },
+        body: { as_of: sweepDate },
       });
       toast({ title: copy.sweepDoneTitle, description: copy.sweepDoneDescription });
-      await loadData();
+      await loadData(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : copy.unknownError;
       toast({ title: copy.sweepErrorTitle, description: message, variant: "danger" });
@@ -2979,6 +2602,132 @@ function DashboardContent() {
           if (success) setDeleteTarget(null);
         }}
       />
+
+      {/* Épargne Automatique (Sweep) Info Dialog */}
+      <Dialog open={sweepInfoOpen} onOpenChange={setSweepInfoOpen}>
+        <DialogContent className="max-w-md p-6 rounded-3xl bg-gradient-to-b from-white to-emerald-50/30 dark:from-slate-900 dark:to-emerald-950/5 border border-emerald-100 dark:border-emerald-900/40 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300">
+              <span className="text-lg">ℹ️</span>
+              {locale === "ar" ? "شنو هو التوفير التلقائي؟" : locale === "fr" ? "Qu'est-ce que l'épargne automatique ?" : "What is automatic savings?"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed mt-2">
+              {locale === "ar"
+                ? "فاش كيسالي الشهر، أي مبلغ بقا شايط فـ الأظرفة المؤقتة (الأظرفة اللي ماكيرجعش رصيدها تلقائياً للشهر الجاي) كيمشي نيشان لظرف التوفير الرئيسي (Tawfir) باش مايضيعش وباش تكبر الإدخار ديالك."
+                : locale === "fr"
+                ? "À la fin de chaque période de budget, l'argent qui reste dans vos enveloppes temporaires (sans report automatique du solde) est automatiquement transféré vers votre enveloppe d'Épargne (Tawfir) pour constituer votre réserve."
+                : "At the end of each budget period, any remaining money in your temporary envelopes (without automatic rollover) is automatically moved to your default Savings (Tawfir) envelope to grow your reserve."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {currentCycleData?.envelopes && (() => {
+            // Build a set of fixed-expense envelope IDs from the distribution config.
+            // We use distributionConfig (always loaded) rather than cashSplitPreview
+            // because cashSplitPreview is only available when available_to_allocate > 0.
+            // Fixed-mode envelopes are mandatory expenses (rent, bills, etc.) and must
+            // never appear as "potential savings" in the sweep projection.
+            const fixedDistributionEnvelopeIds = new Set(
+              (distributionConfig?.envelopes ?? [])
+                .filter((item) => isFixedMode(item.mode) && item.enabled)
+                .map((item) => item.target_id)
+            );
+
+            // Only include flexible (non-fixed) temporary envelopes in the sweep projection.
+            // Excludes: rollover envelopes, system envelopes (savings, cash, goal, debt),
+            // and any envelope covered by a fixed distribution rule.
+            const affectedEnvelopes = currentCycleData.envelopes.filter(
+              (item) =>
+                !item.envelope.rollover_enabled &&
+                !item.envelope.is_default_savings &&
+                !item.envelope.is_cash &&
+                !item.envelope.is_goal &&
+                !item.envelope.is_debt &&
+                !fixedDistributionEnvelopeIds.has(String(item.envelope.id))
+            );
+
+            const totalToSweep = affectedEnvelopes.reduce(
+              (sum, item) => sum + Math.max(0, Number(item.balance.closing_balance || 0)),
+              0
+            );
+
+            const savingsEnvelope = currentCycleData.envelopes.find((item) => item.envelope.is_default_savings);
+            const currentSavings = savingsEnvelope ? Number(savingsEnvelope.balance.closing_balance || 0) : 0;
+            const projectedSavings = currentSavings + totalToSweep;
+            const currency = currentCycleData.user.currency || "DH";
+
+            return (
+              <div className="space-y-5 mt-4">
+                {/* List of Envelopes */}
+                <div className="space-y-2">
+                  <h5 className="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">
+                    {locale === "ar" ? "الأظرفة المرنة المتأثرة" : locale === "fr" ? "Enveloppes flexibles concernées" : "Flexible envelopes affected"}
+                  </h5>
+                  {affectedEnvelopes.length === 0 ? (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic py-2">
+                      {locale === "ar" ? "لا توجد أظرفة مرنة حاليا." : locale === "fr" ? "Aucune enveloppe flexible active." : "No active flexible envelopes."}
+                    </p>
+                  ) : (
+                    <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800">
+                      {affectedEnvelopes.map((item) => (
+                        <div key={item.envelope.id} className="flex items-center justify-between text-xs py-2">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {localizeSystemEnvelopeName(item.envelope.name, locale)}
+                          </span>
+                          <span className="font-bold text-slate-900 dark:text-slate-200">
+                            {Number(item.balance.closing_balance).toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Savings Projection Visual transition */}
+                <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/40 dark:bg-emerald-950/10 p-4 space-y-3">
+                  <h5 className="text-xs font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span>🌱</span>
+                    {locale === "ar" ? "توقعات رصيد التوفير (Tawfir)" : locale === "fr" ? "Projection de l'Épargne (Tawfir)" : "Savings Projection (Tawfir)"}
+                  </h5>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-center flex-1">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">{locale === "ar" ? "الرصيد الحالي" : locale === "fr" ? "Actuel" : "Current"}</p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-1">
+                        {currentSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
+                      </p>
+                    </div>
+
+                    <div className="text-emerald-500 font-extrabold text-xl animate-[pulse_1.5s_ease-in-out_infinite]">
+                      ➔
+                    </div>
+
+                    <div className="text-center flex-1">
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">{locale === "ar" ? "الرصيد المتوقع" : locale === "fr" ? "Potentiel" : "Potential"}</p>
+                      <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                        {projectedSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
+                      </p>
+                    </div>
+                  </div>
+                  {totalToSweep > 0 && (
+                    <p className="text-[10px] text-center text-emerald-700/80 dark:text-emerald-500/80 italic leading-normal pt-1 border-t border-emerald-100/30">
+                      {locale === "ar"
+                        ? `هاد المبلغ يقدر يمشي للتوفير فآخر الدورة... إلى ما صرفتيهش من الأظرفة المرنة! 💡`
+                        : locale === "fr"
+                        ? `Ce montant peut alimenter votre épargne en fin de période... si vous ne le dépensez pas depuis vos enveloppes flexibles ! 💡`
+                        : `This amount could go to savings at end of period... if unspent from your flexible envelopes! 💡`}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setSweepInfoOpen(false)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-2 text-sm shadow">
+              {locale === "ar" ? "فهمت" : locale === "fr" ? "Compris" : "Understood"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={incomeReminderDialogOpen}
         onOpenChange={setIncomeReminderDialogOpen}
@@ -3104,422 +2853,6 @@ function DashboardContent() {
       </Dialog>
 
       <Dialog
-        open={quickTxOpen}
-	        onOpenChange={(nextOpen) => {
-	          if (quickTxSubmitting) return;
-	          setQuickTxOpen(nextOpen);
-	          if (!nextOpen) {
-	            setQuickTxError(null);
-              setQuickTxStep("form");
-              setQuickTxDistributionPreview(null);
-	            setQuickTxReminderIdsToMark([]);
-	          }
-	        }}
-      >
-        <DialogContent className="quick-tx-dialog max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 animate-[pulse_2.2s_ease-in-out_infinite]">
-                {quickTxDraft.type === "income" ? "＋" : "−"}
-              </span>
-              {copy.quickTxTitle}
-            </DialogTitle>
-            <DialogDescription>{copy.quickTxDescription}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 quick-tx-fadein">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                <span>{copy.quickTxProgressLabel}</span>
-                <span>{quickTxCompletion}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 transition-all duration-500"
-                  style={{ width: `${quickTxCompletion}%` }}
-                  role="progressbar"
-                  aria-label={copy.quickTxProgressLabel}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={quickTxCompletion}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-1)] p-1">
-              <button
-                type="button"
-                className={`rounded-xl px-3 py-2 text-sm transition ${
-                  quickTxDraft.type === "income"
-                    ? "bg-[var(--surface)] font-semibold text-emerald-700 shadow-sm quick-tx-tab-active"
-                    : "text-[var(--muted)] hover:bg-[var(--surface)]/70 hover:-translate-y-0.5"
-                }`}
-                onClick={() =>
-                  setQuickTxDraft((prev) => ({
-                    ...prev,
-                    type: "income",
-                    category_id:
-                      defaultIncomeCategory?.id ?? incomeCategories[0]?.id ?? "",
-                  }))
-                }
-                disabled={quickTxSubmitting}
-              >
-                {copy.quickTxIncomeTab}
-              </button>
-              <button
-                type="button"
-                className={`rounded-xl px-3 py-2 text-sm transition ${
-                  quickTxDraft.type === "expense"
-                    ? "bg-[var(--surface)] font-semibold text-red-700 shadow-sm quick-tx-tab-active"
-                    : "text-[var(--muted)] hover:bg-[var(--surface)]/70 hover:-translate-y-0.5"
-                }`}
-                onClick={() =>
-                  setQuickTxDraft((prev) => ({
-                    ...prev,
-                    type: "expense",
-                    category_id: expenseCategories[0]?.id ?? "",
-                  }))
-                }
-                disabled={quickTxSubmitting}
-              >
-                {copy.quickTxExpenseTab}
-              </button>
-            </div>
-
-            {quickTxDraft.type === "expense" && smartExpenseSuggestions.length > 0 ? (
-              <div className="grid gap-2">
-                <p className="text-xs text-[var(--muted)]">{copy.quickTxSmartCategories}</p>
-                <div className="flex flex-wrap gap-2">
-                  {smartExpenseSuggestions.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={`quick-tx-chip rounded-full border px-3 py-1 text-xs ${
-                        quickTxDraft.category_id === category.id
-                          ? "border-emerald-300 bg-[var(--surface-2)] text-emerald-700"
-                          : "border-[var(--border)] bg-[var(--surface)]"
-                      }`}
-                      onClick={() =>
-                        setQuickTxDraft((prev) => ({
-                          ...prev,
-                          category_id: category.id,
-                        }))
-                      }
-                    >
-                      {localizeCategoryName(category.name, locale)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="grid gap-2">
-              <Label htmlFor="quick-tx-amount">{copy.quickTxAmount}</Label>
-              <input
-                id="quick-tx-amount"
-                value={quickTxDraft.amount}
-                onKeyDown={handleQuickTxEnter}
-                onChange={(event) =>
-                  setQuickTxDraft((prev) => ({ ...prev, amount: event.target.value }))
-                }
-                placeholder="0.00"
-                inputMode="decimal"
-                className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm focus:border-emerald-400 focus:outline-none"
-                disabled={quickTxSubmitting}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <p className="text-xs text-[var(--muted)]">{copy.quickTxSuggestedAmounts}</p>
-              <div className="flex flex-wrap gap-2">
-                {quickTxAmountSuggestions.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className="quick-tx-chip rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs hover:border-emerald-300 hover:bg-[var(--surface-2)]"
-                    onClick={() =>
-                      setQuickTxDraft((prev) => ({
-                        ...prev,
-                        amount: value.toFixed(2),
-                      }))
-                    }
-                    disabled={quickTxSubmitting}
-                  >
-                    {value} {data?.user.currency ?? "MAD"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="quick-tx-date">{copy.quickTxDate}</Label>
-                <input
-                  id="quick-tx-date"
-                  type="date"
-                  value={quickTxDraft.occurred_on}
-                  onKeyDown={handleQuickTxEnter}
-                  lang={locale === "ar" ? "ar-MA" : locale === "fr" ? "fr-FR" : "en-CA"}
-                  onChange={(event) =>
-                    setQuickTxDraft((prev) => ({
-                      ...prev,
-                      occurred_on: event.target.value,
-                    }))
-                  }
-                  className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm focus:border-emerald-400 focus:outline-none"
-                  disabled={quickTxSubmitting}
-                />
-                {quickTxDraft.occurred_on ? (
-                  <p className="text-xs text-[var(--muted)]">
-                    {copy.quickTxSelectedDateLabel}: {formatLocaleDate(quickTxDraft.occurred_on, locale)}
-                  </p>
-                ) : null}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="quick-tx-category">{copy.quickTxCategory}</Label>
-                <select
-                  id="quick-tx-category"
-                  value={quickTxDraft.category_id}
-                  onKeyDown={handleQuickTxEnter}
-                  onChange={(event) =>
-                    setQuickTxDraft((prev) => ({
-                      ...prev,
-                      category_id: event.target.value,
-                    }))
-                  }
-                  className="h-11 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-emerald-400 focus:outline-none"
-                  disabled={quickTxSubmitting || quickTxDraft.type === "income"}
-                >
-                  <option value="">{copy.quickTxSelectCategory}</option>
-                  {quickTxCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {localizeCategoryName(category.name, locale)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {quickTxLastSimilarExpense && quickTxDraft.type === "expense" ? (
-              <Alert>
-                <AlertDescription className="flex items-center justify-between gap-2">
-                  <span>
-                    {copy.quickTxLastExpenseLabel}: {formatMoney(quickTxLastSimilarExpense.amount)}{" "}
-                    {data?.user.currency ?? "MAD"} ·{" "}
-                    {formatLocaleDate(quickTxLastSimilarExpense.occurred_on, locale)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setQuickTxDraft((prev) => ({
-                        ...prev,
-                        amount: Number(quickTxLastSimilarExpense.amount).toFixed(2),
-                        description: quickTxLastSimilarExpense.description ?? prev.description,
-                      }))
-                    }
-                  >
-                    {copy.quickTxUseLastExpense}
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
-            {quickTxRecurringSuggestion && quickTxDraft.type === "expense" ? (
-              <Alert tone="warning">
-                <AlertDescription className="flex items-center justify-between gap-2">
-                  <span>
-                    {copy.quickTxRecurringHint}: {formatMoney(quickTxRecurringSuggestion.amount)}{" "}
-                    {data?.user.currency ?? "MAD"}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setQuickTxDraft((prev) => ({
-                        ...prev,
-                        amount: quickTxRecurringSuggestion.amount.toFixed(2),
-                        description:
-                          quickTxRecurringSuggestion.description || prev.description,
-                      }))
-                    }
-                  >
-                    {copy.quickTxApplyRecurring}
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
-            {quickTxMappedEnvelopeHint ? (
-              <Alert>
-                <AlertDescription>{quickTxMappedEnvelopeHint}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {quickTxAmountAnomalyMessage ? (
-              <Alert tone="warning">
-                <AlertDescription>{quickTxAmountAnomalyMessage}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {quickTxIncomePeriodWarning ? (
-              <Alert tone="warning">
-                <AlertDescription>{quickTxIncomePeriodWarning}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {(quickTxDraft.type === "income" && quickTxCategories.length === 0) ||
-            (quickTxDraft.type === "expense" && quickTxCategories.length === 0) ? (
-              <Alert tone="warning">
-                <AlertDescription className="flex items-center justify-between gap-2">
-                  <span>
-                    {quickTxDraft.type === "income"
-                      ? copy.quickTxNoIncomeCategories
-                      : copy.quickTxNoExpenseCategories}
-                  </span>
-                  <Button asChild size="sm" variant="secondary">
-                    <Link href="/categories">{copy.quickMapCategories}</Link>
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
-            <div className="grid gap-2">
-              <Label htmlFor="quick-tx-description">{copy.quickTxDescriptionField}</Label>
-              <input
-                id="quick-tx-description"
-                value={quickTxDraft.description}
-                onKeyDown={handleQuickTxEnter}
-                onChange={(event) =>
-                  setQuickTxDraft((prev) => ({
-                    ...prev,
-                    description: event.target.value,
-                  }))
-                }
-                placeholder={copy.quickTxDescriptionPlaceholder}
-                className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm focus:border-emerald-400 focus:outline-none"
-                disabled={quickTxSubmitting}
-              />
-              {quickTxDescriptionSuggestions.length > 0 ? (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="text-xs text-[var(--muted)]">
-                    {copy.quickTxDescriptionSuggestions}
-                  </span>
-                  {quickTxDescriptionSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      className="quick-tx-chip rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
-                      onClick={() =>
-                        setQuickTxDraft((prev) => ({
-                          ...prev,
-                          description: suggestion,
-                        }))
-                      }
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {quickTxError ? (
-              <Alert tone="error">
-                <AlertDescription>{quickTxError}</AlertDescription>
-              </Alert>
-            ) : null}
-            {quickTxDraft.type === "income" && quickTxStep === "income_preview" ? (
-              <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3">
-                <p className="text-sm font-semibold text-emerald-900">
-                  {locale === "ar"
-                    ? "معاينة التوزيع قبل تأكيد الدخل"
-                    : locale === "en"
-                    ? "Distribution preview before income confirmation"
-                    : "Aperçu de la répartition avant confirmation du revenu"}
-                </p>
-                {quickTxDistributionPreview?.items?.length ? (
-                  <div className="space-y-2">
-                    {quickTxDistributionPreview.items.map((item) => (
-                      <div
-                        key={`${item.target_type}:${item.target_id}`}
-                        className="flex items-center justify-between rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs"
-                      >
-                        <span className="text-[var(--ink)]">{item.name}</span>
-                        <span className="font-semibold text-emerald-800">
-                          {formatMoney(item.amount)} {data?.user.currency ?? "MAD"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-[var(--muted)]">
-                    {locale === "ar"
-                      ? "ما كايناش قواعد توزيع نشيطة حالياً."
-                      : locale === "en"
-                      ? "No active distribution rules currently."
-                      : "Aucune règle de répartition active pour le moment."}
-                  </p>
-                )}
-              </div>
-            ) : null}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                if (quickTxDraft.type === "income" && quickTxStep === "income_preview") {
-                  setQuickTxStep("form");
-                  return;
-                }
-                setQuickTxOpen(false);
-              }}
-              disabled={quickTxSubmitting}
-            >
-              {quickTxDraft.type === "income" && quickTxStep === "income_preview"
-                ? locale === "ar"
-                  ? "رجوع للتعديل"
-                  : locale === "en"
-                  ? "Back to edit"
-                  : "Retour modification"
-                : copy.cancel}
-            </Button>
-            {quickTxDraft.type === "income" && quickTxStep === "income_preview" ? (
-              <Button
-                variant="secondary"
-                onClick={handleOpenDistributionFromQuickTx}
-                disabled={quickTxSubmitting}
-              >
-                {locale === "ar"
-                  ? "بدّل التوزيع"
-                  : locale === "en"
-                  ? "Change distribution"
-                  : "Modifier la répartition"}
-              </Button>
-            ) : null}
-              <Button
-                onClick={handleSubmitQuickTransaction}
-                disabled={
-                  quickTxSubmitting ||
-                  !quickTxCanSubmit
-                }
-                className="quick-tx-submit"
-              >
-              {quickTxSubmitting
-                ? copy.executing
-                : quickTxDraft.type === "income" && quickTxStep === "form"
-                ? locale === "ar"
-                  ? "متابعة"
-                  : locale === "en"
-                  ? "Continue"
-                  : "Continuer"
-                : quickTxDraft.type === "income"
-                ? copy.quickTxSubmitIncome
-                : copy.quickTxSubmitExpense}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
         open={introOpen}
         onOpenChange={(next) => {
           if (!next) {
@@ -3637,370 +2970,590 @@ function DashboardContent() {
         />
       ) : null}
 
-      <div ref={headerRef} className="dashboard-v2__hero">
-        <div className="dashboard-v2__hero-content">
-          <div className="space-y-2">
-            <h1 className={`${titleClass} dashboard-v2__title`}>{copy.title}</h1>
-            <p className="text-sm text-[var(--muted)]">
-              {copy.subtitle}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
-            <span className="rounded-full border border-emerald-200 bg-[var(--surface)]/80 px-3 py-1">
-              {activePeriod
-                ? `${activePeriod.start} ${periodArrow} ${activePeriod.end}`
-                : copy.noPeriod}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-emerald-700 hover:bg-[var(--surface-2)] hover:text-emerald-800"
-              onClick={() => {
-                const start =
-                  activePeriod?.start ?? getLocalTodayISO();
-                const end =
-                  activePeriod?.end ?? getLocalTodayISO();
-                setPeriodPreset("custom");
-                setCustomStart(start);
-                setCustomEnd(end);
-                setPeriodError(null);
-                setPeriodDialogOpen(true);
-              }}
-            >
-              {copy.changePeriod}
-            </Button>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            className="bg-emerald-700 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-800"
-            onClick={() => openQuickTransactionDialog("expense")}
-          >
-            {copy.addExpense}
-          </Button>
-          <Button
-            variant="secondary"
-            className="border-emerald-200 text-emerald-700 hover:border-emerald-300 hover:bg-[var(--surface-2)]"
-            onClick={() =>
-              openQuickTransactionDialog("income", {
-                bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                bootstrapAmount:
-                  sweepBootstrap?.last_income_amount ??
-                  sweepBootstrap?.expected_income_amount ??
-                  null,
-              })
-            }
-          >
-            {copy.addIncome}
-          </Button>
-          {sweepDue ? (
-            <Button
-              variant="ghost"
-              className="border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-              onClick={handleRunSweep}
-              disabled={runningSweep}
-            >
-              {runningSweep ? copy.sweepRunning : copy.sweep}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      {loading || !data ? (
+        <DashboardSkeleton pageDir={pageDir} locale={locale} copy={copy} />
+      ) : (
+        <>
+          {/* Dashboard Cockpit Redesign */}
+          <div ref={headerRef} className="dashboard-cockpit relative overflow-hidden p-6 mb-6">
+            {/* Background glowing decorations */}
+            <div className="dashboard-cockpit__decorative-glow dashboard-cockpit__decorative-glow--emerald" />
+            <div className="dashboard-cockpit__decorative-glow dashboard-cockpit__decorative-glow--indigo" />
 
-      {error ? (
-        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      ) : null}
+            {/* Header section (Title, Period and Main Buttons) */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[var(--border)] dark:border-slate-800">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h1 className={`${titleClass} text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--ink)]`}>
+                    {copy.title}
+                  </h1>
+                  {isKpiStartState && (
+                    <Badge tone="muted" className="text-[10px] py-0.5 px-2">
+                      {locale === "ar" ? "بداية" : locale === "fr" ? "Mode démarrage" : "Startup mode"}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs md:text-sm text-[var(--muted)]">
+                  {copy.subtitle}
+                </p>
+              </div>
 
-      {showTodoSection ? (
-        <div ref={todoRef} className="dashboard-attention">
-          <Section title={copy.todo} className="dashboard-panel">
-            <div className="grid gap-3">
-            {needsFirstIncomeDeclaration ? (
-              <Alert tone="warning" className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription className="space-y-1">
-                  <p className="font-medium">{copy.sweepBootstrapTitle}</p>
-                  <p>{copy.sweepBootstrapDesc}</p>
-                </AlertDescription>
-                <div className="flex items-center gap-2">
-                  <InfoHint label={copy.sweepBootstrapTitle}>
-                    <p>{copy.sweepBootstrapHelp}</p>
-                  </InfoHint>
+              {/* Action Buttons & Period Selector */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Period Selector */}
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/80 hover:bg-[var(--surface-2)] px-3.5 py-1.5 text-xs text-[var(--ink)] font-semibold transition-all duration-200 shadow-sm hover:shadow cursor-pointer group select-none dark:border-slate-800"
+                  onClick={() => {
+                    const start = activePeriod?.start ?? getLocalTodayISO();
+                    const end = activePeriod?.end ?? getLocalTodayISO();
+                    setPeriodPreset("custom");
+                    setCustomStart(start);
+                    setCustomEnd(end);
+                    setPeriodError(null);
+                    setPeriodDialogOpen(true);
+                  }}
+                >
+                  <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="tabular-nums">
+                    {activePeriod
+                      ? `${formatLocaleDate(activePeriod.start, locale)} ${periodArrow} ${formatLocaleDate(activePeriod.end, locale)}`
+                      : copy.noPeriod}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-[var(--muted)] group-hover:translate-y-0.5 transition-transform" />
+                </button>
+
+                {/* Sweep Button */}
+                {sweepDue ? (
                   <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() =>
-                      openQuickTransactionDialog("income", {
-                        bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                        bootstrapAmount:
-                          sweepBootstrap?.last_income_amount ??
-                          sweepBootstrap?.expected_income_amount ??
-                          null,
-                      })
-                    }
-                  >
-                    {copy.sweepBootstrapAction}
-                  </Button>
-                </div>
-              </Alert>
-            ) : null}
-            {dueIncomeReminders.length > 0 ? (
-              <Alert className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription>
-                  💰 {copy.incomeDialogDescription(dueIncomeReminders.length)}{" "}
-                  {dueIncomeReminders.length <= 2
-                    ? `(${dueIncomeReminders
-                        .map((reminder) => reminder.name)
-                        .join(", ")})`
-                    : ""}
-                </AlertDescription>
-                <div className="flex flex-wrap items-center gap-2">
-	                  <Button
-	                    variant="secondary"
-	                    size="sm"
-	                    onClick={() =>
-	                      openQuickTransactionDialog("income", {
-	                        bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-	                        bootstrapAmount:
-	                          sweepBootstrap?.last_income_amount ??
-	                          sweepBootstrap?.expected_income_amount ??
-	                          null,
-	                        reminderIdsToMark: dueIncomeReminders.map(
-	                          (reminder) => reminder.id
-	                        ),
-	                      })
-	                    }
-	                  >
-	                    {copy.declareIncome}
-	                  </Button>
-	                </div>
-              </Alert>
-            ) : null}
-            {unmappedCount > 0 ? (
-              <Alert tone="warning" className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription className="space-y-1">
-                  <p className="font-medium">{copy.categoriesToMap(unmappedCount)}</p>
-                  <p>{copy.categoriesToMapDesc}</p>
-                </AlertDescription>
-                <div className="flex items-center gap-2">
-                  <InfoHint label={copy.categoriesToMap(unmappedCount)}>
-                    <p>{copy.categoriesToMapHelp}</p>
-                  </InfoHint>
-                  <Button asChild variant="secondary" size="sm">
-                    <Link href="/categories">{copy.mapNow}</Link>
-                  </Button>
-                </div>
-              </Alert>
-            ) : null}
-            {overspentEnvelopes.length > 0 ? (
-              <Alert tone="error" className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription className="space-y-1">
-                  <p className="font-medium">
-                    {copy.overspentAlert(
-                      overspentEnvelopes.length,
-                      overspentEnvelopes.slice(0, 3).join(", ")
-                    )}
-                  </p>
-                  <p>{copy.overspentDesc}</p>
-                </AlertDescription>
-                <div className="flex items-center gap-2">
-                  <InfoHint label={copy.overspentAlert(
-                    overspentEnvelopes.length,
-                    overspentEnvelopes.slice(0, 3).join(", ")
-                  )}>
-                    <p>{copy.overspentHelp}</p>
-                  </InfoHint>
-                  <Button asChild variant="secondary" size="sm">
-                    <Link href="/envelopes?filter=overspent">{copy.seeAll}</Link>
-                  </Button>
-                </div>
-              </Alert>
-            ) : null}
-            {sweepDue ? (
-              <Alert className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription className="space-y-1">
-                  <p className="font-medium">{copy.sweepReady}</p>
-                  <p>{copy.sweepReadyDesc}</p>
-                </AlertDescription>
-                <div className="flex items-center gap-2">
-                  <InfoHint label={copy.sweepReady}>
-                    <p>{copy.sweepHelp}</p>
-                  </InfoHint>
-                  <Button
-                    variant="secondary"
-                    size="sm"
+                    variant="ghost"
+                    className="border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-400 dark:hover:bg-amber-950/40 text-xs font-semibold px-3 py-1.5 rounded-full"
                     onClick={handleRunSweep}
                     disabled={runningSweep}
                   >
-                    {runningSweep ? copy.executing : copy.sweepExecute}
+                    {runningSweep ? copy.sweepRunning : copy.sweep}
                   </Button>
-                </div>
-              </Alert>
-            ) : !needsFirstIncomeDeclaration &&
-              (unmappedCount > 0 || overspentEnvelopes.length > 0) ? (
-              <Alert className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription className="space-y-1">
-                  <p className="font-medium">{copy.sweepNotDue}</p>
-                  <p>{copy.sweepNotDueDesc}</p>
-                </AlertDescription>
-                <InfoHint label={copy.sweepNotDue}>
-                  <p>{copy.sweepHelp}</p>
-                </InfoHint>
-              </Alert>
-            ) : null}
-            </div>
-          </Section>
-        </div>
-      ) : null}
+                ) : null}
 
-      {data && !hideDashboardDetailsUntilFirstIncome ? (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {isKpiStartState ? (
-            <div className="sm:col-span-2 xl:col-span-4">
-              <Alert className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <AlertDescription className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge tone="muted">
-                      {locale === "ar"
-                        ? "مازال البداية"
-                        : locale === "fr"
-                        ? "Mode démarrage"
-                        : "Startup mode"}
-                    </Badge>
-                    <InfoHint
-                      label={
-                        locale === "ar"
-                          ? "توضيح"
-                          : locale === "fr"
-                          ? "Contexte"
-                          : "Context"
-                      }
-                    >
-                      <p>
-                        {locale === "ar"
-                          ? "معلومات onboarding التقديرية ماشي عمليات مالية فعلية."
-                          : locale === "fr"
-                          ? "Les estimations onboarding ne sont pas des opérations financières réelles."
-                          : "Onboarding estimates are not real financial transactions."}
-                      </p>
-                    </InfoHint>
-                  </div>
-                  <p>
-                    {locale === "ar"
-                      ? "سجّل أول دخل ولا مصروف باش تبان المؤشرات الحقيقية ديال هاد الفترة."
-                      : locale === "fr"
-                      ? "Ajoute un premier revenu ou une première dépense pour afficher des indicateurs réels sur cette période."
-                      : "Add your first income or expense to show real indicators for this period."}
-                  </p>
-                </AlertDescription>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      openQuickTransactionDialog("income", {
-                        bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                        bootstrapAmount:
-                          sweepBootstrap?.last_income_amount ??
-                          sweepBootstrap?.expected_income_amount ??
-                          null,
-                      })
-                    }
-                  >
-                    {copy.fabDeclareIncome}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => openQuickTransactionDialog("expense")}
-                  >
-                    {copy.fabDeclareExpense}
-                  </Button>
-                </div>
-              </Alert>
+                {/* Quick Add Buttons */}
+                <Button
+                  className="bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/10 hover:shadow-lg transition-all duration-200 gap-1.5 px-4 py-1.5 rounded-full"
+                  onClick={() => openQuickTransactionDialog("expense")}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>{copy.addExpense}</span>
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="border-indigo-200 hover:border-indigo-300 text-indigo-700 hover:bg-indigo-50/50 dark:border-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-950/20 text-xs font-bold gap-1.5 px-4 py-1.5 rounded-full"
+                  onClick={() =>
+                    openQuickTransactionDialog("income", {
+                      bootstrapDate: sweepBootstrap?.last_income_date ?? null,
+                      bootstrapAmount:
+                        sweepBootstrap?.last_income_amount ??
+                        sweepBootstrap?.expected_income_amount ??
+                        null,
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>{copy.addIncome}</span>
+                </Button>
+              </div>
             </div>
-          ) : null}
-          <div ref={kpiAvailableRef}>
-            <Card className="dashboard-kpi-card">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.availableCash}
-              </p>
-              <p className="mt-2 text-2xl font-semibold">
-                <AnimatedNumber
-                  value={Number(data.available_to_allocate)}
-                  format={formatMoney}
-                />
-              </p>
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                {isKpiStartState
-                  ? locale === "ar"
-                    ? "مازال ما كاين حتى دخل فعلي مسجل فهاد الفترة."
-                    : locale === "fr"
-                    ? "Aucun revenu réel n'est encore enregistré sur cette période."
-                    : "No real income has been recorded in this period yet."
-                  : copy.notAllocated}
-              </p>
-            </Card>
+
+            {/* Three Column Grid (Flows, Envelopes, Attention/Alerts) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+              
+              {/* Column 1: Flows Overview (نظرة عامة على التدفقات) */}
+              <div className="flex flex-col gap-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1.5 mb-1">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  {locale === "ar" ? "نظرة عامة على التدفقات" : locale === "fr" ? "Flux de la période" : "Flows Overview"}
+                </h3>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* KPI Available Cash */}
+                  <div
+                    ref={kpiAvailableRef}
+                    className="dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 border-s-emerald-500 flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
+                        {copy.availableCash}
+                      </span>
+                      <Wallet className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        <AnimatedNumber value={Number(data.available_to_allocate)} format={formatMoney} />{" "}
+                        <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
+                      </div>
+                      <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
+                        {isKpiStartState
+                          ? locale === "ar" ? "لا يوجد دخل بعد" : locale === "fr" ? "Aucun revenu" : "No income"
+                          : copy.notAllocated}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* KPI Expense */}
+                  <div
+                    ref={kpiExpenseRef}
+                    className="dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 border-s-rose-500 flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 truncate">
+                        {copy.periodExpenses}
+                      </span>
+                      <TrendingDown className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
+                        <AnimatedNumber value={expenseTotal} format={formatMoney} />{" "}
+                        <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
+                      </div>
+                      <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
+                        {locale === "ar"
+                          ? `${periodExpenseMappedTransactions.length} عملية`
+                          : locale === "fr"
+                          ? `${periodExpenseMappedTransactions.length} op.`
+                          : `${periodExpenseMappedTransactions.length} tx.`}
+                        {unmappedCount > 0 ? copy.unmappedSuffix(unmappedCount) : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* KPI Income */}
+                  <div
+                    ref={kpiIncomeRef}
+                    className="dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 border-s-indigo-500 flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 truncate">
+                        {copy.periodIncome}
+                      </span>
+                      <TrendingUp className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 tabular-nums">
+                        <AnimatedNumber value={incomeTotal} format={formatMoney} />{" "}
+                        <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
+                      </div>
+                      <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
+                        {locale === "ar"
+                          ? `${periodIncomeTransactions.length} مداخيل`
+                          : locale === "fr"
+                          ? `${periodIncomeTransactions.length} revenu(s)`
+                          : `${periodIncomeTransactions.length} income(s)`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* KPI Net */}
+                  {(() => {
+                    const isPositive = netTotal >= 0;
+                    const netColorClass = isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+                    const borderSideClass = isPositive ? "border-s-emerald-500" : "border-s-rose-500";
+                    return (
+                      <div
+                        ref={kpiNetRef}
+                        className={`dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 ${borderSideClass} flex flex-col justify-between`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className={`text-[10px] font-semibold ${netColorClass} flex items-center gap-1 truncate`}>
+                            {copy.periodNet}
+                          </span>
+                          <Scale className={`h-3.5 w-3.5 ${isPositive ? "text-emerald-500" : "text-rose-500"} shrink-0`} />
+                        </div>
+                        <div className="mt-2">
+                          <div className={`text-base font-extrabold ${netColorClass} tabular-nums`}>
+                            <AnimatedNumber value={netTotal} format={formatMoney} />{" "}
+                            <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
+                          </div>
+                          <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
+                            {lastActivityLabel}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Column 2: Envelopes Overview (الأظرفة) */}
+              <div className="flex flex-col gap-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1.5 mb-1">
+                  <Layers className="h-3.5 w-3.5 text-indigo-500" />
+                  {locale === "ar" ? "وضعية الأظرفة" : locale === "fr" ? "Statut des enveloppes" : "Envelopes Status"}
+                </h3>
+
+                <div className="dashboard-cockpit__subcard p-4 flex flex-col justify-between flex-1 gap-4">
+                  {/* Stats numbers */}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        {focusEnvelopeRows.filter(e => !e.isOverspent && !e.nearLimit).length}
+                      </div>
+                      <div className="text-[9px] text-[var(--muted)] mt-0.5 font-medium">
+                        {locale === "ar" ? "سليمة" : locale === "fr" ? "Saines" : "Healthy"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-base font-extrabold text-amber-600 dark:text-amber-400 tabular-nums">
+                        {focusEnvelopeRows.filter(e => e.nearLimit && !e.isOverspent).length}
+                      </div>
+                      <div className="text-[9px] text-[var(--muted)] mt-0.5 font-medium">
+                        {locale === "ar" ? "قريبة للحد" : locale === "fr" ? "Limites" : "Near limit"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
+                        {focusEnvelopeRows.filter(e => e.isOverspent).length}
+                      </div>
+                      <div className="text-[9px] text-[var(--muted)] mt-0.5 font-medium">
+                        {locale === "ar" ? "تجاوزت" : locale === "fr" ? "Dépassées" : "Overspent"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Horizontal Stacked Progress Bar */}
+                  {(() => {
+                    const totalEnv = focusEnvelopeRows.length || 1;
+                    const healthyCount = focusEnvelopeRows.filter(e => !e.isOverspent && !e.nearLimit).length;
+                    const nearCount = focusEnvelopeRows.filter(e => e.nearLimit && !e.isOverspent).length;
+                    const overspentCount = focusEnvelopeRows.filter(e => e.isOverspent).length;
+                    
+                    const healthyPct = (healthyCount / totalEnv) * 100;
+                    const nearPct = (nearCount / totalEnv) * 100;
+                    const overspentPct = (overspentCount / totalEnv) * 100;
+
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="envelope-progress-bar-container">
+                          {overspentCount > 0 && (
+                            <div
+                              className="envelope-progress-bar-segment envelope-progress-bar-segment--overspent"
+                              style={{ width: `${overspentPct}%` }}
+                            />
+                          )}
+                          {nearCount > 0 && (
+                            <div
+                              className="envelope-progress-bar-segment envelope-progress-bar-segment--near"
+                              style={{ width: `${nearPct}%` }}
+                            />
+                          )}
+                          {healthyCount > 0 && (
+                            <div
+                              className="envelope-progress-bar-segment envelope-progress-bar-segment--healthy"
+                              style={{ width: `${healthyPct}%` }}
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-[var(--muted)]">
+                          <span>{focusEnvelopeRows.length} {locale === "ar" ? "أظرفة مفعلة" : locale === "fr" ? "enveloppes actives" : "active envelopes"}</span>
+                          <Link href="/envelopes" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+                            {copy.viewAllEnvelopes}
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Column 3: Urgent Needs / Attention (الحاجات المستعجلة) */}
+              <div ref={todoRef} className="flex flex-col gap-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1.5 mb-1">
+                  <Bell className="h-3.5 w-3.5 text-rose-500 animate-pulse" />
+                  {locale === "ar" ? "الحاجات المستعجلة" : locale === "fr" ? "Urgent à faire" : "Urgent Needs"}
+                </h3>
+
+                <div className={`dashboard-cockpit__subcard p-4 flex flex-col flex-1 gap-3 ${
+                  showTodoSection
+                    ? "justify-between overflow-y-auto max-h-[190px] sm:max-h-[220px]"
+                    : "justify-center items-center min-h-[140px] sm:min-h-[170px]"
+                }`}>
+                  {showTodoSection ? (
+                    <div className="space-y-2">
+                      {/* First income reminder */}
+                      {needsFirstIncomeDeclaration && (
+                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--warning flex flex-col gap-1.5">
+                          <p className="text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            {copy.sweepBootstrapTitle}
+                          </p>
+                          <div className="flex items-center justify-between gap-2.5">
+                            <span className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-500 leading-tight">
+                              {copy.sweepBootstrapDesc}
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="bg-amber-100 hover:bg-amber-200 border-amber-200 text-amber-900 font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full"
+                              onClick={() =>
+                                openQuickTransactionDialog("income", {
+                                  bootstrapDate: sweepBootstrap?.last_income_date ?? null,
+                                  bootstrapAmount:
+                                    sweepBootstrap?.last_income_amount ??
+                                    sweepBootstrap?.expected_income_amount ??
+                                    null,
+                                })
+                              }
+                            >
+                              {copy.sweepBootstrapAction}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Due Income Reminders */}
+                      {dueIncomeReminders.length > 0 && (
+                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--info flex flex-col gap-1.5">
+                          <p className="text-[11px] sm:text-xs font-bold text-indigo-800 dark:text-indigo-400 flex items-center gap-1.5">
+                            💰 {copy.incomeDialogDescription(dueIncomeReminders.length)}
+                          </p>
+                          <div className="flex items-center justify-between gap-2.5">
+                            <span className="text-[10px] sm:text-[11px] text-indigo-700 dark:text-indigo-500 leading-tight truncate max-w-[130px] sm:max-w-none">
+                              {dueIncomeReminders.map((reminder) => reminder.name).join(", ")}
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="bg-indigo-100 hover:bg-indigo-200 border-indigo-200 text-indigo-900 font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full"
+                              onClick={() =>
+                                openQuickTransactionDialog("income", {
+                                  bootstrapDate: sweepBootstrap?.last_income_date ?? null,
+                                  bootstrapAmount:
+                                    sweepBootstrap?.last_income_amount ??
+                                    sweepBootstrap?.expected_income_amount ??
+                                    null,
+                                  reminderIdsToMark: dueIncomeReminders.map((r) => r.id),
+                                })
+                              }
+                            >
+                              {copy.declareIncome}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Categories to map */}
+                      {unmappedCount > 0 && (
+                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--warning flex flex-col gap-1.5">
+                          <p className="text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            {locale === "ar" ? `فئات غير مربوطة (${unmappedCount})` : `Catégories non liées (${unmappedCount})`}
+                          </p>
+                          <div className="flex items-center justify-between gap-2.5">
+                            <span className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-500 leading-tight">
+                              {copy.categoriesToMapDesc}
+                            </span>
+                            <Button asChild variant="secondary" size="sm" className="font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full">
+                              <Link href="/categories">{copy.mapNow}</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Overspent envelopes */}
+                      {overspentEnvelopes.length > 0 && (
+                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--error flex flex-col gap-1.5">
+                          <p className="text-[11px] sm:text-xs font-bold text-rose-800 dark:text-rose-400 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            {copy.overspentAlert(overspentEnvelopes.length, overspentEnvelopes.slice(0, 2).join(", "))}
+                          </p>
+                          <div className="flex items-center justify-between gap-2.5">
+                            <span className="text-[10px] sm:text-[11px] text-rose-700 dark:text-rose-500 leading-tight">
+                              {copy.overspentDesc}
+                            </span>
+                            <Button asChild variant="secondary" size="sm" className="font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full">
+                              <Link href="/envelopes?filter=overspent">{copy.seeAll}</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sweep Ready */}
+                      {sweepDue && (
+                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--success flex flex-col gap-1.5">
+                          <p className="text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            {copy.sweepReady}
+                          </p>
+                          <div className="flex items-center justify-between gap-2.5">
+                            <span className="text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-500 leading-tight">
+                              {copy.sweepReadyDesc}
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="bg-emerald-100 hover:bg-emerald-200 border-emerald-200 text-emerald-900 font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full"
+                              onClick={handleRunSweep}
+                              disabled={runningSweep}
+                            >
+                              {runningSweep ? copy.executing : copy.sweepExecute}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Default Success/Healthy state */
+                    <motion.div
+                      className="flex flex-col items-center justify-center text-center py-2 px-4 gap-3 w-full h-full select-none"
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.35, ease: "easeOut" }}
+                    >
+                      <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/30 flex items-center justify-center shadow-[0_8px_20px_-6px_rgba(16,185,129,0.35)] dark:shadow-none border border-emerald-200/40 dark:border-emerald-800/20 transition-transform hover:scale-105 duration-300">
+                        <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm sm:text-base font-extrabold text-emerald-700 dark:text-emerald-400 tracking-tight">
+                          {locale === "ar" ? "كل شيء ممتاز!" : locale === "fr" ? "Tout est sous contrôle !" : "All under control!"}
+                        </p>
+                        <p className="text-[11px] sm:text-xs text-[var(--muted)] leading-relaxed max-w-[240px]">
+                          {locale === "ar" ? "جميع المقاييس سليمة. لا توجد تنبيهات عاجلة." : locale === "fr" ? "Toutes vos enveloppes et transactions sont bien gérées." : "All your envelopes and transactions are well managed."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
-          <div ref={kpiExpenseRef}>
-            <Card className="dashboard-kpi-card">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.periodExpenses}
-              </p>
-              <p className="mt-2 text-2xl font-semibold">
-                <AnimatedNumber value={expenseTotal} format={formatMoney} />
-              </p>
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                {locale === "ar"
-                  ? `${periodExpenseMappedTransactions.length} عملية مصروف مربوطة`
-                  : locale === "fr"
-                  ? `${periodExpenseMappedTransactions.length} opération(s) de dépense mappée(s)`
-                  : `${periodExpenseMappedTransactions.length} mapped expense transaction(s)`}
-                {unmappedCount > 0 ? copy.unmappedSuffix(unmappedCount) : ""}
-              </p>
-            </Card>
-          </div>
-          <div ref={kpiIncomeRef}>
-            <Card className="dashboard-kpi-card">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.periodIncome}
-              </p>
-              <p className="mt-2 text-2xl font-semibold">
-                {formatMoney(incomeTotal)}
-              </p>
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                {locale === "ar"
-                  ? `${periodIncomeTransactions.length} عملية دخل فهاد الفترة`
-                  : locale === "fr"
-                  ? `${periodIncomeTransactions.length} opération(s) de revenu sur la période`
-                  : `${periodIncomeTransactions.length} income transaction(s) in period`}
-              </p>
-            </Card>
-          </div>
-          <div ref={kpiNetRef}>
-            <Card className="dashboard-kpi-card">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.periodNet}
-              </p>
-              <p className="mt-2 text-2xl font-semibold">
-                <AnimatedNumber value={netTotal} format={formatMoney} />
-              </p>
-              <p className="mt-2 text-xs text-[var(--muted)]">{lastActivityLabel}</p>
-            </Card>
-          </div>
-        </section>
-      ) : null}
+
+
 
       {!hideDashboardDetailsUntilFirstIncome ? (
         <>
+          {/* Épargne Automatique Countdown Widget */}
+          {currentCycleData?.current_period?.end && (() => {
+            const today = getLocalTodayISO();
+            const diff = daysBetweenIso(today, currentCycleData.current_period.end);
+            const daysRemaining = diff >= 0 ? diff : 0;
+
+            // Exclude envelopes with a fixed distribution rule (mandatory expenses).
+            // Use distributionConfig (always loaded) not cashSplitPreview (conditional).
+            const fixedDistributionEnvelopeIds = new Set(
+              (distributionConfig?.envelopes ?? [])
+                .filter((item) => isFixedMode(item.mode) && item.enabled)
+                .map((item) => item.target_id)
+            );
+
+            const affectedEnvelopes = currentCycleData.envelopes.filter(
+              (item) =>
+                !item.envelope.rollover_enabled &&
+                !item.envelope.is_default_savings &&
+                !item.envelope.is_cash &&
+                !item.envelope.is_goal &&
+                !item.envelope.is_debt &&
+                !fixedDistributionEnvelopeIds.has(String(item.envelope.id))
+            );
+
+            const totalToSweep = affectedEnvelopes.reduce(
+              (sum, item) => sum + Math.max(0, Number(item.balance.closing_balance || 0)),
+              0
+            );
+
+            const savingsEnvelope = currentCycleData.envelopes.find((item) => item.envelope.is_default_savings);
+            const currentSavings = savingsEnvelope ? Number(savingsEnvelope.balance.closing_balance || 0) : 0;
+            const projectedSavings = currentSavings + totalToSweep;
+            const currency = currentCycleData.user.currency || "DH";
+
+            return (
+              <motion.div
+                className="mb-4 rounded-[24px] border border-emerald-100 dark:border-emerald-900/50 bg-gradient-to-r from-emerald-50/60 via-teal-50/40 to-cyan-50/60 dark:from-slate-900 dark:via-emerald-950/10 dark:to-cyan-950/10 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 dark:from-emerald-500 dark:to-teal-500 flex items-center justify-center text-white text-xl shadow-[0_8px_16px_-6px_rgba(16,185,129,0.4)] shrink-0">
+                    💰
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
+                      {locale === "ar" ? "توفير تلقائي جاي" : locale === "fr" ? "Épargne automatique à venir" : "Upcoming automatic savings"}
+                      <button
+                        type="button"
+                        onClick={() => setSweepInfoOpen(true)}
+                        className="h-5 w-5 inline-flex items-center justify-center rounded-full bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900 dark:hover:bg-emerald-800 text-emerald-700 dark:text-emerald-300 transition-colors text-[10px] font-bold"
+                        title="Info"
+                      >
+                        i
+                      </button>
+                    </h4>
+                    <p className="text-xs text-emerald-800/80 dark:text-emerald-400/80">
+                      {locale === "ar"
+                        ? `ما صرفتيهش من الأظرفة المرنة؟ يمشي للتوفير تلقائياً فآخر الدورة.`
+                        : locale === "fr"
+                        ? `Ce que vous n'avez pas dépensé dans vos enveloppes flexibles ira automatiquement en épargne.`
+                        : `Unspent money from your flexible envelopes automatically goes to savings at period end.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6 shrink-0 justify-between sm:justify-end border-t sm:border-t-0 border-emerald-100/50 dark:border-emerald-900/30 pt-3 sm:pt-0">
+                  <div className="text-left sm:text-right">
+                    <p className="text-[10px] uppercase font-semibold tracking-wider text-emerald-700/60 dark:text-emerald-500/60">
+                      {locale === "ar" ? "الوقت المتبقي" : locale === "fr" ? "Temps restant" : "Time remaining"}
+                    </p>
+                    <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                      {daysRemaining} {locale === "ar" ? "أيام" : locale === "fr" ? (daysRemaining > 1 ? "jours" : "jour") : (daysRemaining > 1 ? "days" : "day")}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase font-semibold tracking-wider text-emerald-700/60 dark:text-emerald-500/60">
+                      {locale === "ar" ? "المبلغ المتوقع" : locale === "fr" ? "Épargne projetée" : "Projected savings"}
+                    </p>
+                    <p className="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">
+                      {projectedSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
+
           <div className="dashboard-main-grid">
-      <section className="dashboard-main-health grid gap-4">
+          <motion.div
+            ref={summaryRef}
+            className="dashboard-main-summary flex flex-col gap-4"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+            whileHover={{ scale: 1.01 }}
+          >
+            <DashboardCharts
+              locale={locale}
+              chartData={chartData}
+              totalBudget={totalBudget}
+              spendingByEnvelope={spendingByEnvelope}
+              sortedTrends={sortedTrends}
+              data={data}
+              formatMoney={formatMoney}
+              formatLocaleDate={formatLocaleDate}
+            />
+          </motion.div>
+
+          <motion.section
+            className="dashboard-main-health grid gap-4"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
         <Section
           title={copy.widgetCashSplit}
           className="dashboard-panel"
           actions={
             <div className="flex gap-2">
               <Button asChild variant="secondary" size="sm">
-                <Link href="/envelopes">{copy.widgetOpenDistribution}</Link>
+                <Link href="/distribution">{copy.widgetOpenDistribution}</Link>
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/sweeps">{copy.widgetOpenSweeps}</Link>
@@ -4008,156 +3561,325 @@ function DashboardContent() {
             </div>
           }
         >
-          <p className="text-xs text-[var(--muted)]">{copy.widgetCashSplitDesc}</p>
-	          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-	            <Card className="dashboard-list-card min-w-0">
-	              <p className="text-xs text-[var(--muted)]">{copy.widgetPlanDirection}</p>
-	              <p className="mt-1 truncate text-sm font-semibold tracking-tight">{planDirectionLabel}</p>
-	            </Card>
-	            <Card className="dashboard-list-card min-w-0">
-	              <p className="text-xs text-[var(--muted)]">{copy.widgetPlanCoverage}</p>
-	              <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
-	                {distributionCoverage.coveredRules}/{distributionCoverage.totalRules}
-	              </p>
-	            </Card>
-	            <Card className="dashboard-list-card min-w-0">
-	              <p className="text-xs text-[var(--muted)]">{copy.widgetAutoSweep}</p>
-	              <p className="mt-1 truncate text-sm font-semibold tracking-tight">
-	                {autoSweepEnabled ? copy.widgetAutoSweepOn : copy.widgetAutoSweepOff}
-	              </p>
-	            </Card>
-	          </div>
-          {planRebalance.total > 0 ? (
-            <div className="mt-3 rounded-2xl border border-[#e5e7eb] bg-[var(--surface)] p-3">
-              <div className="flex h-3 overflow-hidden rounded-full border border-[#e5e7eb]">
-                <div className="bg-[#ef4444]" style={{ width: `${planRebalance.debtPct}%` }} />
-                <div className="bg-[#6366f1]" style={{ width: `${planRebalance.goalsPct}%` }} />
-                <div className="bg-[#22c55e]" style={{ width: `${planRebalance.moronaPct}%` }} />
-              </div>
-	              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-	                <Card className="dashboard-list-card min-w-0">
-	                  <p className="text-xs text-[var(--muted)]">{copy.widgetDebt}</p>
-	                  <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
-	                    {formatMoney(planRebalance.debt)}
-	                  </p>
-	                </Card>
-	                <Card className="dashboard-list-card min-w-0">
-	                  <p className="text-xs text-[var(--muted)]">{copy.widgetGoals}</p>
-	                  <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
-	                    {formatMoney(planRebalance.goals)}
-	                  </p>
-	                </Card>
-	                <Card className="dashboard-list-card min-w-0">
-	                  <p className="text-xs text-[var(--muted)]">{copy.widgetMorona}</p>
-	                  <p className="mt-1 truncate text-sm font-semibold tabular-nums tracking-tight">
-	                    {formatMoney(planRebalance.morona)}
-	                  </p>
-	                </Card>
-	              </div>
+          {/* Subtitle + meta badges */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-[var(--muted)]">{copy.widgetCashSplitDesc}</p>
+            <div className="flex flex-wrap gap-1.5">
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                style={{ background: "rgba(99,102,241,0.10)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.22)" }}
+              >
+                <span style={{ width:5, height:5, borderRadius:"50%", background:"#6366f1", display:"inline-block", flexShrink:0 }} />
+                {planDirectionLabel}
+              </span>
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                style={autoSweepEnabled
+                  ? { background:"rgba(16,185,129,0.10)", color:"#059669", border:"1px solid rgba(16,185,129,0.25)" }
+                  : { background:"rgba(148,163,184,0.10)", color:"var(--muted)", border:"1px solid rgba(148,163,184,0.22)" }}
+              >
+                <span style={{ width:5, height:5, borderRadius:"50%", background:autoSweepEnabled ? "#10b981" : "#94a3b8", display:"inline-block", flexShrink:0 }} />
+                {copy.widgetAutoSweep}: {autoSweepEnabled ? copy.widgetAutoSweepOn : copy.widgetAutoSweepOff}
+              </span>
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                style={{ background:"rgba(234,179,8,0.10)", color:"#b45309", border:"1px solid rgba(234,179,8,0.25)" }}
+              >
+                {copy.widgetPlanCoverage}: {distributionCoverage.coveredRules}/{distributionCoverage.totalRules}
+              </span>
             </div>
-          ) : (
-            <p className="mt-3 text-xs text-[var(--muted)]">{copy.widgetNoPlan}</p>
-          )}
-	          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-	            <Card className="dashboard-list-card min-w-0">
-	              <p className="text-xs text-[var(--muted)]">{copy.widgetFixed}</p>
-	              <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight">
-	                {formatMoney(cashSplitLayerTotals.fixed)}
-	              </p>
-	            </Card>
-	            <Card className="dashboard-list-card min-w-0">
-	              <p className="text-xs text-[var(--muted)]">{copy.widgetCashLeft}</p>
-	              <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight">
-	                {formatMoney(cashSplitLayerTotals.cashLeft)}
-	              </p>
-	            </Card>
-	          </div>
-	        </Section>
+          </div>
+
+          {/* Main layout: ring chart + breakdown */}
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+            {/* SVG Ring / Donut */}
+            {(() => {
+              const currency = data?.user.currency ?? "MAD";
+              const totalCash = Number(cashSplitPreview?.cash_before ?? 0);
+              const debtVal = cashSplitLayerTotals.debtGoals;
+              const fixedVal = cashSplitLayerTotals.fixed;
+              const flexVal = cashSplitLayerTotals.flexible;
+              const cashLeftVal = Math.max(0, cashSplitLayerTotals.cashLeft);
+              const grandTotal = debtVal + fixedVal + flexVal + cashLeftVal || 1;
+              const segments: { pct: number; color: string; label: string }[] = [
+                { pct: (debtVal / grandTotal) * 100, color: "#ef4444", label: copy.widgetDebt },
+                { pct: (fixedVal / grandTotal) * 100, color: "#f59e0b", label: copy.widgetFixed },
+                { pct: (flexVal / grandTotal) * 100, color: "#6366f1", label: copy.widgetMorona },
+                { pct: (cashLeftVal / grandTotal) * 100, color: "#10b981", label: copy.widgetCashLeft },
+              ];
+              const cx = 54; const cy = 54; const r = 42; const sw = 13;
+              const circ = 2 * Math.PI * r;
+              let offset = 0;
+              return (
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <div className="relative" style={{ width:108, height:108 }}>
+                    <svg width="108" height="108" viewBox="0 0 108 108">
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(148,163,184,0.14)" strokeWidth={sw} />
+                      {segments.map((seg, i) => {
+                        const gapLen = (1.5 / 360) * circ;
+                        const segLen = Math.max(0, (seg.pct / 100) * circ - gapLen);
+                        const dash = `${segLen} ${circ - segLen}`;
+                        const dashOffset = circ * (1 - offset / 100);
+                        const el = (
+                          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+                            stroke={seg.color} strokeWidth={sw}
+                            strokeDasharray={dash} strokeDashoffset={dashOffset}
+                            strokeLinecap="round"
+                            transform={`rotate(-90 ${cx} ${cy})`}
+                            style={{ transition:"stroke-dasharray 0.6s ease" }}
+                          />
+                        );
+                        offset += seg.pct;
+                        return el;
+                      })}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ pointerEvents:"none" }}>
+                      <span className="text-[9px] font-medium text-[var(--muted)]">{currency}</span>
+                      <span className="tabular-nums font-bold leading-tight text-[var(--ink)]"
+                        style={{ fontSize: totalCash >= 10000 ? "0.7rem" : "0.78rem" }}>
+                        {formatMoney(totalCash)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 w-full" style={{ minWidth:110 }}>
+                    {segments.map((seg, i) => (
+                      <div key={i} className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span style={{ width:7, height:7, borderRadius:"50%", background:seg.color, display:"inline-block", flexShrink:0 }} />
+                          <span className="text-[10px] text-[var(--muted)] truncate">{seg.label}</span>
+                        </div>
+                        <span className="text-[10px] font-semibold tabular-nums text-[var(--ink)] shrink-0">{seg.pct.toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Breakdown rows */}
+            <div className="flex-1 min-w-0 flex flex-col gap-2">
+              {planRebalance.total > 0 ? (
+                <>
+                  {/* Segmented bar */}
+                  <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background:"rgba(148,163,184,0.14)", gap:"1px" }}>
+                    <div className="rounded-l-full transition-all duration-700"
+                      style={{ width:`${planRebalance.debtPct}%`, background:"linear-gradient(90deg,#ef4444,#f87171)", minWidth: planRebalance.debtPct > 0 ? 4 : 0 }} />
+                    <div className="transition-all duration-700"
+                      style={{ width:`${planRebalance.goalsPct}%`, background:"linear-gradient(90deg,#6366f1,#818cf8)", minWidth: planRebalance.goalsPct > 0 ? 4 : 0 }} />
+                    <div className="rounded-r-full transition-all duration-700"
+                      style={{ width:`${planRebalance.moronaPct}%`, background:"linear-gradient(90deg,#22c55e,#4ade80)", minWidth: planRebalance.moronaPct > 0 ? 4 : 0 }} />
+                  </div>
+                  {/* Debt / Goals / Flex rows */}
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    {[
+                      { label: copy.widgetDebt,   value: planRebalance.debt,   color:"#ef4444", bg:"rgba(239,68,68,0.07)",   pct: planRebalance.debtPct },
+                      { label: copy.widgetGoals,  value: planRebalance.goals,  color:"#6366f1", bg:"rgba(99,102,241,0.07)",  pct: planRebalance.goalsPct },
+                      { label: copy.widgetMorona, value: planRebalance.morona, color:"#22c55e", bg:"rgba(34,197,94,0.07)",   pct: planRebalance.moronaPct },
+                    ].map((item) => (
+                      <div key={item.label}
+                        className="flex items-center justify-between rounded-xl px-2.5 py-1.5"
+                        style={{ background: item.bg, border:`1px solid ${item.color}22` }}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span style={{ width:7, height:7, borderRadius:"50%", background:item.color, display:"inline-block", flexShrink:0, boxShadow:`0 0 0 2px ${item.color}22` }} />
+                          <span className="text-xs font-medium text-[var(--ink)] truncate">{item.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ms-2">
+                          <span className="text-[10px] tabular-nums font-semibold" style={{ color:item.color }}>{item.pct.toFixed(0)}%</span>
+                          <span className="text-xs font-bold tabular-nums text-[var(--ink)]">{formatMoney(item.value)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-[var(--muted)]">{copy.widgetNoPlan}</p>
+              )}
+
+              {/* Fixed + Cash Left */}
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5"
+                  style={{ background:"rgba(245,158,11,0.07)", border:"1px solid rgba(245,158,11,0.2)" }}>
+                  <span className="text-[10px] text-[var(--muted)]">{copy.widgetFixed}</span>
+                  <span className="text-sm font-bold tabular-nums text-[var(--ink)]">{formatMoney(cashSplitLayerTotals.fixed)}</span>
+                </div>
+                <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5"
+                  style={cashSplitLayerTotals.cashLeft > 0
+                    ? { background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.22)" }
+                    : { background:"rgba(148,163,184,0.08)", border:"1px solid rgba(148,163,184,0.18)" }}>
+                  <span className="text-[10px] text-[var(--muted)]">{copy.widgetCashLeft}</span>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: cashSplitLayerTotals.cashLeft > 0 ? "#059669" : "var(--ink)" }}>
+                    {formatMoney(cashSplitLayerTotals.cashLeft)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
 
         <Section title={copy.widgetRisk} className="dashboard-panel">
           <p className="text-xs text-[var(--muted)]">{copy.widgetRiskDesc}</p>
           <div className="mt-3 grid gap-2">
             {riskEnvelopes.length === 0 ? (
-              <EmptyState
-                title={copy.noEnvelopeTitle}
-                description={copy.noEnvelopeDescription}
-              />
+              <Alert>
+                <AlertDescription className="text-sm">{copy.widgetRiskAllHealthy}</AlertDescription>
+              </Alert>
             ) : (
-              riskEnvelopes.map((item) => (
-                <Card key={item.id} className="dashboard-list-card flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-[var(--muted)]">
-                      {formatMoney(item.spent)} / {formatMoney(item.allocated)} {copy.spentLabel}
-                    </p>
-                  </div>
-                  <Badge tone={statusMeta(item.status).tone}>{statusMeta(item.status).label}</Badge>
-                </Card>
-              ))
+              riskEnvelopes.map((item) => {
+                const meta = statusMeta(item.status);
+                const pct = item.allocated > 0
+                  ? Math.min(Math.abs(item.spent) / item.allocated, 1.15)
+                  : item.isOverspent ? 1.15 : 0;
+                const barPct = Math.min(pct * 100, 115);
+                const barColor = item.isOverspent
+                  ? "var(--accent-error, #ef4444)"
+                  : item.nearLimit
+                  ? "var(--accent-warning, #f59e0b)"
+                  : "var(--accent-success, #10b981)";
+                const overage = item.isOverspent ? Math.abs(item.remaining) : null;
+                return (
+                  <Card key={item.id} className="dashboard-list-card" style={{ overflow: "hidden" }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-semibold truncate">{item.name}</p>
+                          <Badge tone={meta.tone}>{meta.label}</Badge>
+                        </div>
+                        <div
+                          style={{
+                            height: "6px",
+                            borderRadius: "3px",
+                            background: "var(--border, #e2e8f0)",
+                            overflow: "hidden",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${Math.min(barPct, 100)}%`,
+                              background: barColor,
+                              borderRadius: "3px",
+                              transition: "width 0.4s ease",
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-[var(--muted)]">
+                          {formatMoney(item.spent)}
+                          {" / "}
+                          {formatMoney(item.allocated)}
+                          {" "}{copy.spentLabel}
+                          {overage !== null && (
+                            <span style={{ color: "var(--accent-error, #ef4444)", fontWeight: 600, marginInlineStart: "0.4em" }}>
+                              (+{formatMoney(overage)})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })
             )}
           </div>
+          {riskEnvelopes.length > 0 && (
+            <div className="mt-3">
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/envelopes">{copy.viewAllEnvelopes}</Link>
+              </Button>
+            </div>
+          )}
         </Section>
-      </section>
+      </motion.section>
 
-      <section className="dashboard-main-insights grid gap-4">
+      <motion.section
+        className="dashboard-main-insights grid gap-4"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.35 }}
+      >
         <Section title={copy.widgetDebtGoalsPressure} className="dashboard-panel">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetDebtPressure}</p>
-              <p className="mt-1 text-lg font-semibold">{formatMoney(debtPressureTotals.monthlyAllocation)}</p>
-              <p className="text-xs text-[var(--muted)]">
+          <div
+            className="flex items-stretch gap-0 mt-2 rounded-lg overflow-hidden"
+            style={{ border: "1px solid var(--border)" }}
+          >
+            {/* Debt side */}
+            <div className="flex-1 flex flex-col justify-center px-3 py-2.5">
+              <p className="text-[11px] text-[var(--muted)] font-medium uppercase tracking-wide leading-none mb-1">
+                {copy.widgetDebtPressure}
+              </p>
+              <p className="text-base font-bold tabular-nums leading-tight">
+                {formatMoney(debtPressureTotals.monthlyAllocation)}
+              </p>
+              <p className="text-[11px] text-[var(--muted)] mt-0.5 leading-tight">
                 {debtPressureTotals.rulesCount > 0
                   ? `${debtPressureTotals.rulesCount} ${
-                      locale === "ar" ? "ظرف دين" : locale === "fr" ? "enveloppe(s) dette" : "debt envelope(s)"
+                      locale === "ar" ? "ظرف دين" : locale === "fr" ? "enveloppe(s)" : "envelope(s)"
                     }`
                   : copy.widgetNoDebt}
               </p>
-            </Card>
-            <Card className="dashboard-list-card">
-              <p className="text-xs text-[var(--muted)]">{copy.widgetGoalsPressure}</p>
-              <p className="mt-1 text-lg font-semibold">{goalsCompletionPct.toFixed(1)}%</p>
-              <p className="text-xs text-[var(--muted)]">
+            </div>
+
+            {/* Divider */}
+            <div style={{ width: "1px", background: "var(--border)" }} />
+
+            {/* Goals side */}
+            <div className="flex-1 flex flex-col justify-center px-3 py-2.5">
+              <p className="text-[11px] text-[var(--muted)] font-medium uppercase tracking-wide leading-none mb-1">
+                {copy.widgetGoalsPressure}
+              </p>
+              <div className="flex items-baseline gap-1.5">
+                <p
+                  className="text-base font-bold tabular-nums leading-tight"
+                  style={{
+                    color: goalsCompletionPct >= 80
+                      ? "var(--accent-success, #10b981)"
+                      : goalsCompletionPct >= 40
+                      ? "var(--accent-warning, #f59e0b)"
+                      : "var(--ink)",
+                  }}
+                >
+                  {goalsCompletionPct.toFixed(1)}%
+                </p>
+              </div>
+              {goals.length > 0 && (
+                <div style={{ height: "4px", borderRadius: "2px", background: "var(--border, #e2e8f0)", overflow: "hidden", margin: "4px 0" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.min(goalsCompletionPct, 100)}%`,
+                      background: goalsCompletionPct >= 80
+                        ? "var(--accent-success, #10b981)"
+                        : goalsCompletionPct >= 40
+                        ? "var(--accent-warning, #f59e0b)"
+                        : "var(--accent-strong, #6366f1)",
+                      borderRadius: "2px",
+                      transition: "width 0.5s ease",
+                    }}
+                  />
+                </div>
+              )}
+              <p className="text-[11px] text-[var(--muted)] leading-tight">
                 {goals.length > 0
                   ? `${formatMoney(goalsPressureTotals.current)} / ${formatMoney(goalsPressureTotals.target)}`
                   : copy.widgetNoGoals}
               </p>
-            </Card>
+            </div>
           </div>
         </Section>
 
-        <Section title={copy.widgetAnomalies} className="dashboard-panel">
-          <p className="text-xs text-[var(--muted)]">{copy.widgetAnomaliesDesc}</p>
-          <div className="mt-3 grid gap-2">
-            {systemAnomalies.length === 0 ? (
-              <Alert>
-                <AlertDescription>
-                  {locale === "ar"
-                    ? "ما كاين حتى خلل دابا."
-                    : locale === "fr"
-                    ? "Aucune anomalie détectée."
-                    : "No anomaly detected."}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              systemAnomalies.map((item) => (
-                <Alert key={item.key} tone="warning">
-                  <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span>
-                      {item.text}
-                      {item.help ? ` — ${item.help}` : ""}
-                    </span>
-                    <Button asChild variant="secondary" size="sm">
-                      <Link href={item.href}>{copy.seeAll}</Link>
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              ))
-            )}
-          </div>
-        </Section>
-      </section>
 
-      <div ref={envelopesRef} className="dashboard-main-envelopes">
+
+
+      </motion.section>
+
+      <motion.div
+        ref={envelopesRef}
+        className="dashboard-main-envelopes"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
+      >
         <Section
           title={copy.topEnvelopes}
           className="dashboard-panel"
@@ -4174,14 +3896,36 @@ function DashboardContent() {
         >
           <Tabs
             value={envelopeFilter}
-            onValueChange={(value) =>
-              setEnvelopeFilter(value as "active" | "overspent" | "near")
-            }
+            onValueChange={(value) => {
+              setEnvelopeFilter(value as "active" | "overspent" | "near");
+              setShowAllEnvelopes(false);
+            }}
           >
             <TabsList>
-              <TabsTrigger value="active">{copy.filterActive}</TabsTrigger>
-              <TabsTrigger value="overspent">{copy.filterOverspent}</TabsTrigger>
-              <TabsTrigger value="near">{copy.filterNear}</TabsTrigger>
+              <TabsTrigger value="active">
+                {copy.filterActive}
+                {focusEnvelopeRows.filter((e) => !e.isOverspent).length > 0 && (
+                  <span style={{ marginInlineStart: "0.35em", fontSize: "0.68rem", background: "var(--accent-success, #10b981)", color: "#fff", borderRadius: "999px", padding: "0 5px", lineHeight: "1.5", fontWeight: 700, verticalAlign: "middle", display: "inline-block" }}>
+                    {focusEnvelopeRows.filter((e) => !e.isOverspent).length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="overspent">
+                {copy.filterOverspent}
+                {focusEnvelopeRows.filter((e) => e.isOverspent).length > 0 && (
+                  <span style={{ marginInlineStart: "0.35em", fontSize: "0.68rem", background: "var(--accent-error, #ef4444)", color: "#fff", borderRadius: "999px", padding: "0 5px", lineHeight: "1.5", fontWeight: 700, verticalAlign: "middle", display: "inline-block" }}>
+                    {focusEnvelopeRows.filter((e) => e.isOverspent).length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="near">
+                {copy.filterNear}
+                {focusEnvelopeRows.filter((e) => e.nearLimit && !e.isOverspent).length > 0 && (
+                  <span style={{ marginInlineStart: "0.35em", fontSize: "0.68rem", background: "var(--accent-warning, #f59e0b)", color: "#fff", borderRadius: "999px", padding: "0 5px", lineHeight: "1.5", fontWeight: 700, verticalAlign: "middle", display: "inline-block" }}>
+                    {focusEnvelopeRows.filter((e) => e.nearLimit && !e.isOverspent).length}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <Separator className="my-4" />
@@ -4198,26 +3942,40 @@ function DashboardContent() {
           ) : null}
           {pinnedDebtEnvelope &&
           !topEnvelopes.some((item) => item.id === pinnedDebtEnvelope.id) ? (
-            <Card className="dashboard-list-card mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{pinnedDebtEnvelope.name}</p>
-                  <Badge tone="warning">
-                    {locale === "ar" ? "دين" : locale === "fr" ? "Dette" : "Debt"}
-                  </Badge>
+            <div
+              className="mb-3 rounded-lg p-3"
+              style={{
+                background: "rgba(245,158,11,0.06)",
+                border: "1px solid var(--accent-warning, #f59e0b)",
+                borderInlineStartWidth: "3px",
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span style={{ fontSize: "0.8rem" }}>📌</span>
+                    <p className="text-sm font-semibold truncate">{pinnedDebtEnvelope.name}</p>
+                    <Badge tone="warning">
+                      {locale === "ar" ? "دين" : locale === "fr" ? "Dette" : "Debt"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-[var(--muted)]">
+                    {locale === "ar"
+                      ? "مثبّت فالعرض باش يبقى باين فالقرار."
+                      : locale === "fr"
+                      ? "Épinglé pour rester visible dans la décision."
+                      : "Pinned to stay visible in decision view."}
+                  </p>
                 </div>
-                <p className="text-xs text-[var(--muted)]">
-                  {locale === "ar"
-                    ? "مثبّت فالعرض باش يبقى باين فالقرار."
-                    : locale === "fr"
-                    ? "Épinglé pour rester visible dans la décision."
-                    : "Pinned to stay visible in decision view."}
-                </p>
+                <div
+                  className="shrink-0 text-end"
+                  style={{ color: pinnedDebtEnvelope.remaining >= 0 ? "var(--accent-success, #10b981)" : "var(--accent-error, #ef4444)" }}
+                >
+                  <p className="text-base font-bold tabular-nums">{formatMoney(pinnedDebtEnvelope.remaining)}</p>
+                  <p className="text-[10px] text-[var(--muted)] leading-tight">{data?.user.currency ?? "MAD"}</p>
+                </div>
               </div>
-              <div className="text-lg font-semibold">
-                {formatMoney(pinnedDebtEnvelope.remaining)} {data?.user.currency ?? "MAD"}
-              </div>
-            </Card>
+            </div>
           ) : null}
           {topEnvelopes.length === 0 ? (
             <EmptyState
@@ -4225,38 +3983,88 @@ function DashboardContent() {
               description={copy.noEnvelopeDescription}
             />
           ) : (
-            <div className="grid gap-3">
-              {topEnvelopes.map((item) => (
-                <Card
-                  key={item.id}
-                  className="dashboard-list-card flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <Badge tone={statusMeta(item.status).tone}>
-                        {statusMeta(item.status).label}
-                      </Badge>
+            <>
+              <div className="grid gap-2">
+                {(showAllEnvelopes ? topEnvelopes : topEnvelopes.slice(0, 2)).map((item) => {
+                  const meta = statusMeta(item.status);
+                  const pct = item.allocated > 0 ? Math.min(item.spent / item.allocated, 1) : 0;
+                  const barPct = pct * 100;
+                  const accentColor = item.isOverspent
+                    ? "var(--accent-error, #ef4444)"
+                    : item.nearLimit
+                    ? "var(--accent-warning, #f59e0b)"
+                    : "var(--accent-success, #10b981)";
+                  const remainingColor = item.remaining >= 0
+                    ? "var(--accent-success, #10b981)"
+                    : "var(--accent-error, #ef4444)";
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-lg p-3"
+                      style={{
+                        background: "var(--surface-raised, var(--surface))",
+                        border: "1px solid var(--border)",
+                        borderInlineStart: `3px solid ${accentColor}`,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <p className="text-sm font-semibold truncate">{item.name}</p>
+                            <Badge tone={meta.tone}>{meta.label}</Badge>
+                          </div>
+                          {item.allocated > 0 && (
+                            <div style={{ height: "5px", borderRadius: "3px", background: "var(--border, #e2e8f0)", overflow: "hidden", marginBottom: "6px" }}>
+                              <div style={{ height: "100%", width: `${barPct}%`, background: accentColor, borderRadius: "3px", transition: "width 0.4s ease" }} />
+                            </div>
+                          )}
+                          <p className="text-xs text-[var(--muted)]">
+                            {item.allocated > 0
+                              ? `${formatMoney(item.spent)} / ${formatMoney(item.allocated)} ${copy.spentLabel}`
+                              : `${copy.spentFallback}: ${formatMoney(item.spent)}`}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-end" style={{ color: remainingColor }}>
+                          <p className="text-base font-bold tabular-nums">{formatMoney(item.remaining)}</p>
+                          <p className="text-[10px] text-[var(--muted)] leading-tight">{data?.user.currency ?? "MAD"}</p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-[var(--muted)]">
-                      {item.allocated > 0
-                        ? `${formatMoney(item.spent)} / ${formatMoney(
-                            item.allocated
-                          )} ${copy.spentLabel}`
-                        : `${copy.spentFallback}: ${formatMoney(item.spent)}`}
-                    </p>
-                  </div>
-                  <div className="text-lg font-semibold">
-                    {formatMoney(item.remaining)} {data?.user.currency ?? "MAD"}
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+              {topEnvelopes.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllEnvelopes((v) => !v)}
+                  className="mt-3 w-full text-center text-xs font-medium py-1.5 rounded-md transition-colors"
+                  style={{
+                    color: "var(--accent-strong, #6366f1)",
+                    background: "var(--surface-raised, transparent)",
+                    border: "1px dashed var(--border)",
+                  }}
+                >
+                  {showAllEnvelopes
+                    ? (locale === "ar" ? "شوف أقل ▲" : locale === "fr" ? "Voir moins ▲" : "Show less ▲")
+                    : (locale === "ar"
+                        ? `شوف ${topEnvelopes.length - 2} أكثر ▼`
+                        : locale === "fr"
+                        ? `Voir ${topEnvelopes.length - 2} de plus ▼`
+                        : `Show ${topEnvelopes.length - 2} more ▼`)}
+                </button>
+              )}
+            </>
           )}
         </Section>
-      </div>
+      </motion.div>
 
-      <div ref={recentRef} className="dashboard-main-recent">
+      <motion.div
+        ref={recentRef}
+        className="dashboard-main-recent"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.45 }}
+      >
         <Section title={copy.recentExpenses} className="dashboard-panel">
           {expenseTotal === 0 ? (
             <EmptyState
@@ -4269,102 +4077,51 @@ function DashboardContent() {
               description={copy.noRecentDescription}
             />
           ) : (
-            <div className="grid gap-3">
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
               {recentExpenses.map((tx) => (
-                <Card
+                <div
                   key={tx.id}
-                  className="dashboard-list-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex items-center justify-between gap-3 py-2 first:pt-1 last:pb-1"
                 >
-                  <div>
-                    <p className="text-sm font-medium">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate leading-snug">
                       {tx.description || copy.expenseFallback}
                     </p>
-                    <p className="text-xs text-[var(--muted)]">
-                      {resolveCategoryName(tx.category_id)} ·{" "}
-                      {resolveEnvelopeName(tx)} · {formatLocaleDate(tx.occurred_on, locale)}
+                    <p className="text-[11px] text-[var(--muted)] truncate leading-snug mt-0.5">
+                      {resolveCategoryName(tx.category_id)}
+                      {" \u00b7 "}
+                      {resolveEnvelopeName(tx)}
+                      {" \u00b7 "}
+                      {formatLocaleDate(tx.occurred_on, locale)}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="error">{formatMoney(tx.amount)}</Badge>
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href="/transactions">{copy.edit}</Link>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span
+                      className="text-sm font-bold tabular-nums"
+                      style={{ color: "var(--accent-error, #ef4444)" }}
+                    >
+                      {formatMoney(tx.amount)}
+                    </span>
+                    <Button asChild variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <Link href="/transactions" title={copy.edit}>&#9999;&#65039;</Link>
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="ghost"
                       size="sm"
+                      className="h-7 w-7 p-0"
+                      title={copy.delete}
                       onClick={() => setDeleteTarget(tx)}
                     >
-                      {copy.delete}
+                      &#128465;&#65039;
                     </Button>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}
         </Section>
-      </div>
+      </motion.div>
 
-      {spendingByEnvelope.length > 0 ? (
-        <div ref={spendingRef} className="dashboard-main-spending">
-          <Section title={copy.spendingByEnvelope} className="dashboard-panel">
-            <div className="grid gap-4 lg:grid-cols-[2fr,1fr]">
-              <Card interactive className="dashboard-chart-card">
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={spendingByEnvelope}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="total" fill="var(--accent-strong)" radius={6} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-              <Card interactive className="dashboard-chart-card">
-                <div className="divide-y divide-[var(--border)]">
-                  {spendingByEnvelope.map((item) => (
-                    <div key={item.name} className="flex justify-between py-2 text-sm">
-                      <span>{item.name}</span>
-                      <span>{formatMoney(item.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-          </Section>
-        </div>
-      ) : null}
-
-      {trendPoints.length > 0 ? (
-        <div ref={trendRef} className="dashboard-main-trend">
-          <Section title={copy.netWorthTrend} className="dashboard-panel">
-            <Card interactive className="dashboard-chart-card overflow-hidden">
-              <div className="h-64 overflow-hidden">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendPoints} margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis
-                      dataKey="period"
-                      tickFormatter={(value) => formatLocaleDate(String(value), locale)}
-                      minTickGap={18}
-                    />
-                    <YAxis width={48} />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="closing"
-                      stroke="var(--accent-strong)"
-                      strokeWidth={3}
-                      dot={{ r: 3 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          </Section>
-        </div>
-      ) : null}
 
       </div>
 
@@ -4387,33 +4144,24 @@ function DashboardContent() {
             </Card>
           </Section>
         ) : null}
-        <Section title={copy.quickActions} className="dashboard-panel relative z-10 mt-8">
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => openQuickTransactionDialog("expense")}>
-              {copy.quickAddExpense}
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/envelopes">{copy.quickAllocateCash}</Link>
-            </Button>
-            {unmappedCount > 0 ? (
-              <Button asChild variant="ghost">
-                <Link href="/categories">{copy.quickMapCategories}</Link>
-              </Button>
-            ) : null}
-          </div>
-        </Section>
+
+
       </div>
         </>
       ) : null}
+        </>
+      )}
 
       {mounted
         ? createPortal(
             <div
               ref={fabRef}
-              className="fixed bottom-6 right-6 z-50 flex flex-col gap-3"
+              className={`fixed bottom-6 z-50 flex flex-col gap-3 ${
+                pageDir === "rtl" ? "left-6" : "right-6"
+              }`}
             >
               <Button
-                className="rounded-full bg-emerald-600 px-5 shadow-lg hover:bg-emerald-700"
+                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 h-12 w-12 sm:w-auto sm:h-auto px-0 sm:px-5 py-0 sm:py-2.5 shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 flex items-center justify-center sm:justify-start gap-2 font-medium text-white"
                 onClick={() =>
                   openQuickTransactionDialog("income", {
                     bootstrapDate: sweepBootstrap?.last_income_date ?? null,
@@ -4423,14 +4171,20 @@ function DashboardContent() {
                       null,
                   })
                 }
+                title={copy.fabDeclareIncome}
+                aria-label={copy.fabDeclareIncome}
               >
-                {copy.fabDeclareIncome}
+                <TrendingUp className="h-5 w-5 shrink-0" />
+                <span className="hidden sm:inline">{copy.fabDeclareIncome}</span>
               </Button>
               <Button
-                className="rounded-full bg-red-600 px-5 shadow-lg hover:bg-red-700"
+                className="rounded-full bg-gradient-to-r from-rose-500 to-red-600 h-12 w-12 sm:w-auto sm:h-auto px-0 sm:px-5 py-0 sm:py-2.5 shadow-lg hover:from-rose-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center sm:justify-start gap-2 font-medium text-white"
                 onClick={() => openQuickTransactionDialog("expense")}
+                title={copy.fabDeclareExpense}
+                aria-label={copy.fabDeclareExpense}
               >
-                {copy.fabDeclareExpense}
+                <TrendingDown className="h-5 w-5 shrink-0" />
+                <span className="hidden sm:inline">{copy.fabDeclareExpense}</span>
               </Button>
             </div>,
             document.body
@@ -4546,6 +4300,158 @@ function DashboardContent() {
           letter-spacing: 0 !important;
         }
       `}</style>
+    </div>
+  );
+}
+
+function DashboardSkeleton({ pageDir, locale, copy }: { pageDir: string; locale: string; copy: any }) {
+  const isRtl = pageDir === "rtl";
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Dashboard Cockpit Skeleton */}
+      <div className="dashboard-cockpit animate-pulse p-6">
+        {/* Header section skeleton */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[var(--border)] dark:border-slate-800">
+          <div className="space-y-3">
+            <div className="h-8 w-48 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="h-4 w-72 rounded-lg bg-[var(--surface-2)] dark:bg-slate-800" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="h-8 w-32 rounded-full bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="h-8 w-28 rounded-full bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="h-8 w-28 rounded-full bg-[var(--surface-2)] dark:bg-slate-800" />
+          </div>
+        </div>
+
+        {/* Three Column Grid skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+          {/* Column 1: Flows skeleton */}
+          <div className="space-y-3">
+            <div className="h-4 w-36 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm space-y-2 dark:border-slate-800">
+                  <div className="h-3 w-16 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                  <div className="h-5 w-20 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                  <div className="h-2.5 w-24 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Envelopes status skeleton */}
+          <div className="space-y-3">
+            <div className="h-4 w-36 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm space-y-4 dark:border-slate-800 flex-1 flex flex-col justify-between">
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5">
+                    <div className="h-5 w-8 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                    <div className="h-2.5 w-12 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <div className="h-2 w-full rounded-full bg-[var(--surface-2)] dark:bg-slate-800" />
+                <div className="flex justify-between items-center">
+                  <div className="h-2.5 w-20 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                  <div className="h-2.5 w-16 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Column 3: Urgent needs skeleton */}
+          <div className="space-y-3">
+            <div className="h-4 w-36 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm space-y-3 dark:border-slate-800 flex-1 flex flex-col justify-center items-center">
+              <div className="h-10 w-10 rounded-full bg-[var(--surface-2)] dark:bg-slate-800 animate-pulse" />
+              <div className="h-3.5 w-28 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+              <div className="h-2.5 w-48 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid Skeleton */}
+      <div className="dashboard-main-grid">
+        {/* Left Column (Circular summary chart & recent expenses) */}
+        <div className="flex flex-col gap-4">
+          {/* Circular Chart Card Skeleton */}
+          <div className="rounded-[26px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4 animate-pulse">
+            <div className="h-6 w-48 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-8 py-6">
+              {/* Outer circular indicator skeleton */}
+              <div className="relative flex items-center justify-center h-44 w-44 rounded-full border-[18px] border-[var(--surface-2)] dark:border-slate-800">
+                <div className="h-24 w-24 rounded-full bg-[var(--surface-2)] dark:bg-slate-800" />
+              </div>
+              <div className="space-y-3 w-full max-w-[200px]">
+                <div className="h-4 w-full rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                <div className="h-4 w-[80%] rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                <div className="h-4 w-[60%] rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+              </div>
+            </div>
+          </div>
+
+          {/* Top Envelopes list skeleton */}
+          <div className="rounded-[26px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4 animate-pulse">
+            <div className="flex justify-between items-center">
+              <div className="h-6 w-36 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+              <div className="h-8 w-24 rounded-lg bg-[var(--surface-2)] dark:bg-slate-800" />
+            </div>
+            <div className="h-10 w-48 rounded-lg bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((k) => (
+                <div
+                  key={k}
+                  className="flex items-center justify-between h-14 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4"
+                >
+                  <div className="space-y-2">
+                    <div className="h-4 w-24 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                    <div className="h-3 w-36 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                  </div>
+                  <div className="h-6 w-20 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column (Cash Split, Risk, Anomalies) */}
+        <div className="flex flex-col gap-4">
+          {/* Cash Split Widget Skeleton */}
+          <div className="rounded-[26px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4 animate-pulse">
+            <div className="flex justify-between items-center">
+              <div className="h-6 w-36 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+              <div className="h-8 w-28 rounded-lg bg-[var(--surface-2)] dark:bg-slate-800" />
+            </div>
+            <div className="h-4 w-64 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="h-12 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+              <div className="h-12 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+              <div className="h-12 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+            </div>
+            <div className="h-8 w-full rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+          </div>
+
+          {/* Risk Envelopes Skeleton */}
+          <div className="rounded-[26px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4 animate-pulse">
+            <div className="h-6 w-44 rounded-xl bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="h-4 w-56 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+            <div className="space-y-2">
+              {[1, 2].map((r) => (
+                <div
+                  key={r}
+                  className="flex items-center justify-between h-12 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4"
+                >
+                  <div className="h-4 w-28 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                  <div className="h-6 w-16 rounded bg-[var(--surface-2)] dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

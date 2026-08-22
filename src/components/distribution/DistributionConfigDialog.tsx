@@ -13,6 +13,8 @@ import {
   patchSettings,
   upsertRules,
   type DistributionRow,
+  isFixedMode,
+  isPercentMode,
 } from "@/lib/distribution";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -30,6 +32,7 @@ import { Separator } from "@/components/ui/Separator";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { SortableTableRows } from "@/components/distribution/SortableTableRows";
+import { normalizePercentRows } from "@/components/distribution/PercentNormalizer";
 import { cn } from "@/lib/cn";
 import { GripVertical, Info } from "lucide-react";
 import {
@@ -53,6 +56,7 @@ type DistributionConfigDialogProps = {
   baselineFixedSimulationItems?: Array<{ name: string; amount: number }>;
   simulationBaseAmount?: number | null;
   showRolloverControls?: boolean;
+  dynamicPoolAmount?: number;
   rebalanceConfig?: {
     totalPool: number;
     debtAmount: number;
@@ -547,6 +551,10 @@ const distributionNameEquivalentKey = (value: string) => {
     loyer: "rent",
     rent: "rent",
     "الكراء": "rent",
+    "الدار": "maison",
+    "صيانة الدار": "entretien_maison",
+    "entretien maison": "entretien_maison",
+    "entretien_maison": "entretien_maison",
     "transport public": "public_transport",
     "public transport": "public_transport",
     "النقل العمومي": "public_transport",
@@ -619,7 +627,7 @@ function buildAutomaticConfigName(
   enabledRows.forEach((row) => {
     const name = normalizeForMatch(row.name);
     const weight =
-      row.mode === "fixed"
+      isFixedMode(row.mode)
         ? Math.max(1, parseNumber(row.fixedAmount))
         : Math.max(1, parseNumber(row.percent));
     if (AUTO_NAME_KEYWORDS.safety.some((keyword) => name.includes(keyword))) {
@@ -710,13 +718,13 @@ const simulateDistribution = (
 ): SimulationPreview => {
   const activeRows = rows.filter((row) => row.enabled && row.mode !== "none");
   const fixedRows = activeRows
-    .filter((row) => row.mode === "fixed")
+    .filter((row) => isFixedMode(row.mode))
     .sort(
       (left, right) =>
         (left.rank ?? 9999) - (right.rank ?? 9999)
     );
   const percentRows = activeRows
-    .filter((row) => row.mode === "percent")
+    .filter((row) => isPercentMode(row.mode))
     .sort(
       (left, right) =>
         (left.rank ?? 9999) - (right.rank ?? 9999)
@@ -861,6 +869,7 @@ export function DistributionConfigDialog({
   baselineFixedSimulationItems = EMPTY_BASELINE_FIXED_SIMULATION_ITEMS,
   simulationBaseAmount = null,
   showRolloverControls = true,
+  dynamicPoolAmount = undefined,
   rebalanceConfig = null,
   onApplyRebalance,
 }: DistributionConfigDialogProps) {
@@ -987,7 +996,7 @@ export function DistributionConfigDialog({
         ? envelopeRows.filter(
             (row) =>
               row.enabled &&
-              row.mode === "percent" &&
+              isPercentMode(row.mode) &&
               !isDebtLikeEnvelopeName(row.name)
           )
         : envelopeRows.filter((row) => !fixedEnvelopeSet.has(row.targetId)),
@@ -1014,14 +1023,14 @@ export function DistributionConfigDialog({
       .filter(
         (row) =>
           row.enabled &&
-          row.mode === "percent" &&
+          isPercentMode(row.mode) &&
           !isHiddenDebtLikeOnboardingRow(row)
       )
       .reduce((sum, row) => sum + parseNumber(row.percent), 0);
   }, [isHiddenDebtLikeOnboardingRow, rows]);
   const fixedTotal = useMemo(() => {
     return rows
-      .filter((row) => row.enabled && row.mode === "fixed")
+      .filter((row) => row.enabled && isFixedMode(row.mode))
       .reduce((sum, row) => sum + parseNumber(row.fixedAmount), 0);
   }, [rows]);
 
@@ -1117,7 +1126,9 @@ export function DistributionConfigDialog({
 
   const userGreeting = copy.bravo(userName);
   const percentModeLabel = autoPercentMode === "equal" ? copy.equal : copy.ranked;
-  const rebalanceTotalPool = Math.max(0, Number(rebalanceConfig?.totalPool ?? 0) || 0);
+  const rebalanceTotalPool = dynamicPoolAmount !== undefined
+    ? Math.max(0, dynamicPoolAmount)
+    : Math.max(0, Number(rebalanceConfig?.totalPool ?? 0) || 0);
   const rebalanceEnabled = onboardingSetupOnlyMode && rebalanceTotalPool > 0 && Boolean(onApplyRebalance);
   const rebalanceDebtPct = Math.max(0, Math.min(100, rebalanceCut1Pct));
   const rebalanceGoalsPct = Math.max(0, Math.min(100, rebalanceCut2Pct - rebalanceCut1Pct));
@@ -1158,7 +1169,7 @@ export function DistributionConfigDialog({
       .filter(
         (row) =>
           row.enabled &&
-          row.mode === "percent" &&
+          isPercentMode(row.mode) &&
           !isHiddenDebtLikeOnboardingRow(row)
       )
       .sort((left, right) => (left.rank ?? 9999) - (right.rank ?? 9999));
@@ -1343,7 +1354,7 @@ export function DistributionConfigDialog({
                     isDebtLikeEnvelopeName(row.name) ||
                     isGoalLikeEnvelopeName(row.name) ||
                     fixedBaselineNameSet.has(normalizedNameKey) ||
-                    row.mode === "fixed" ||
+                    isFixedMode(row.mode) ||
                     parseNumber(row.fixedAmount) > 0;
                   if (lockedFromMorona) {
                     return {
@@ -1495,10 +1506,20 @@ export function DistributionConfigDialog({
     if (onboardingSetupOnlyMode) {
       if (effectiveWizardStep === 3) {
         const hasEnabledPercentRow = rows.some(
-          (row) => row.targetType === "envelope" && row.mode === "percent" && row.enabled
+          (row) => row.targetType === "envelope" && isPercentMode(row.mode) && row.enabled
         );
         if (!hasEnabledPercentRow) {
           setError(copy.percentSelectionRequired);
+          return;
+        }
+        if (percentWarning) {
+          setError(
+            locale === "ar"
+              ? `المجموع ديال النسب المئوية ديالك هو ${percentTotal.toFixed(2)}%. عفاك ضبطو ل 100% ولا نقصو باش تكمل.`
+              : locale === "fr"
+              ? `Le total de vos pourcentages est de ${percentTotal.toFixed(2)}%. Veuillez l'ajuster à 100% ou le réduire pour continuer.`
+              : `The total of your percentages is ${percentTotal.toFixed(2)}%. Please adjust it to 100% or reduce it to continue.`
+          );
           return;
         }
         setWizardStep(4);
@@ -1540,10 +1561,20 @@ export function DistributionConfigDialog({
     }
     if (wizardStep === 3) {
       const hasEnabledPercentRow = rows.some(
-        (row) => row.targetType === "envelope" && row.mode === "percent" && row.enabled
+        (row) => row.targetType === "envelope" && isPercentMode(row.mode) && row.enabled
       );
       if (!hasEnabledPercentRow) {
         setError(copy.percentSelectionRequired);
+        return;
+      }
+      if (percentWarning) {
+        setError(
+          locale === "ar"
+            ? `المجموع ديال النسب المئوية ديالك هو ${percentTotal.toFixed(2)}%. عفاك ضبطو ل 100% ولا نقصو باش تكمل.`
+            : locale === "fr"
+            ? `Le total de vos pourcentages est de ${percentTotal.toFixed(2)}%. Veuillez l'ajuster à 100% ou le réduire pour continuer.`
+            : `The total of your percentages is ${percentTotal.toFixed(2)}%. Please adjust it to 100% or reduce it to continue.`
+        );
         return;
       }
       setWizardStep(4);
@@ -1650,6 +1681,19 @@ export function DistributionConfigDialog({
 
   const handleSave = async () => {
     if (saving) return;
+    if (percentWarning) {
+      toast({
+        title: copy.error,
+        description:
+          locale === "ar"
+            ? `المجموع ديال النسب المئوية ديالك هو ${percentTotal.toFixed(2)}%. عفاك ضبطو ل 100% ولا نقصو باش تكمل.`
+            : locale === "fr"
+            ? `Le total de vos pourcentages est de ${percentTotal.toFixed(2)}%. Veuillez l'ajuster à 100% ou le réduire pour continuer.`
+            : `The total of your percentages is ${percentTotal.toFixed(2)}%. Please adjust it to 100% or reduce it to continue.`,
+        variant: "danger",
+      });
+      return;
+    }
     const now = new Date();
     const name = buildAutomaticConfigName(rows, autoPercentMode, now, locale);
     const persistedId =
@@ -1739,7 +1783,7 @@ export function DistributionConfigDialog({
     const percentRows = rows.filter(
       (row) =>
         row.enabled &&
-        row.mode === "percent" &&
+        isPercentMode(row.mode) &&
         !isHiddenDebtLikeOnboardingRow(row)
     );
     const percentSignature = percentRows
@@ -1812,7 +1856,7 @@ export function DistributionConfigDialog({
     const initialFixed = skipExistingFixedPreselection
       ? []
       : selectableFixedEnvelopeRows
-          .filter((row) => row.mode === "fixed")
+          .filter((row) => isFixedMode(row.mode))
           .map((row) => row.targetId);
     setFixedEnvelopeIds(initialFixed);
     fixedSelectionInitRef.current = true;
@@ -1995,25 +2039,32 @@ export function DistributionConfigDialog({
           {getDisplayEnvelopeName(row.name)}
         </div>
         <div className="flex gap-2">
-          {options.allowedModes.map((mode) => (
-            <Button
-              key={mode}
-              type="button"
-              variant={row.mode === mode ? "primary" : "secondary"}
-              size="sm"
-              className={cn(
-                "px-2 text-xs",
-                row.mode === mode ? "shadow-none" : "bg-[var(--surface)]"
-              )}
-              onClick={() => handleModeChange(row, mode)}
-            >
-              {mode === "fixed" ? copy.fixed : mode === "percent" ? "%" : locale === "ar" ? "بلا" : locale === "fr" ? "Aucun" : "None"}
-            </Button>
-          ))}
+          {options.allowedModes.map((mode) => {
+            const isActive =
+              row.mode === mode ||
+              (isFixedMode(row.mode) && isFixedMode(mode)) ||
+              (isPercentMode(row.mode) && isPercentMode(mode));
+            return (
+              <Button
+                key={mode}
+                type="button"
+                variant={isActive ? "primary" : "secondary"}
+                size="sm"
+                className={cn(
+                  "px-2 text-xs",
+                  isActive ? "shadow-none" : "bg-[var(--surface)]"
+                )}
+                onClick={() => handleModeChange(row, mode)}
+              >
+                {isFixedMode(mode) ? copy.fixed : isPercentMode(mode) ? "%" : locale === "ar" ? "بلا" : locale === "fr" ? "Aucun" : "None"}
+              </Button>
+            );
+          })}
         </div>
         <Input
           value={
-            row.mode === options.inputMode
+            (options.inputMode === "fixed" && isFixedMode(row.mode)) ||
+            (options.inputMode === "percent" && isPercentMode(row.mode))
               ? options.inputMode === "fixed"
                 ? row.fixedAmount ?? ""
                 : row.percent ?? ""
@@ -2021,25 +2072,25 @@ export function DistributionConfigDialog({
           }
           onChange={(event) => {
             const value = event.target.value;
-            if (options.inputMode === "fixed" && row.mode === "fixed") {
+            if (options.inputMode === "fixed" && isFixedMode(row.mode)) {
               updateRow(row.targetType, row.targetId, {
                 fixedAmount: normalizeFixedInput(value),
               });
             }
-            if (options.inputMode === "percent" && row.mode === "percent") {
+            if (options.inputMode === "percent" && isPercentMode(row.mode)) {
               updateRow(row.targetType, row.targetId, {
                 percent: normalizePercentInput(value),
               });
             }
           }}
           onBlur={() => {
-            if (options.inputMode === "fixed" && row.mode === "fixed") {
+            if (options.inputMode === "fixed" && isFixedMode(row.mode)) {
               const amount = parseNumber(row.fixedAmount);
               updateRow(row.targetType, row.targetId, {
                 fixedAmount: amount ? amount.toFixed(2) : "",
               });
             }
-            if (options.inputMode === "percent" && row.mode === "percent") {
+            if (options.inputMode === "percent" && isPercentMode(row.mode)) {
               const value = clampPercent(parseNumber(row.percent));
               updateRow(row.targetType, row.targetId, {
                 percent: value.toFixed(2),
@@ -2049,7 +2100,10 @@ export function DistributionConfigDialog({
         disabled={
           options.readOnly ||
           row.mode === "none" ||
-          row.mode !== options.inputMode ||
+          !(
+            (options.inputMode === "fixed" && isFixedMode(row.mode)) ||
+            (options.inputMode === "percent" && isPercentMode(row.mode))
+          ) ||
           !row.enabled
         }
         placeholder={options.inputMode === "fixed" ? copy.amount : "%"}
@@ -2227,9 +2281,27 @@ export function DistributionConfigDialog({
               ) : null}
             </div>
             {effectiveWizardStep === 3 && percentWarning ? (
-              <Alert tone="warning">
-                <AlertDescription>
-                  {copy.backendNormalizes}
+              <Alert tone="error" className="mt-2">
+                <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span>
+                    {locale === "ar"
+                      ? `المجموع ديال النسب المئوية ديالك هو ${percentTotal.toFixed(2)}%. عفاك ضبطو ل 100% ولا نقصو باش تكمل.`
+                      : locale === "fr"
+                      ? `Le total de vos pourcentages est de ${percentTotal.toFixed(2)}%. Veuillez l'ajuster à 100% ou le réduire pour continuer.`
+                      : `The total of your percentages is ${percentTotal.toFixed(2)}%. Please adjust it to 100% or reduce it to continue.`}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0 border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+                    onClick={() => {
+                      setRows((prev) => normalizePercentRows(prev));
+                      setError(null);
+                    }}
+                  >
+                    {locale === "ar" ? "ضبط ل 100%" : locale === "fr" ? "Ajuster à 100%" : "Adjust to 100%"}
+                  </Button>
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -2398,7 +2470,7 @@ export function DistributionConfigDialog({
                                   <div className="mt-3 grid gap-2">
                                     <Label className="text-xs">{copy.amount}</Label>
                                     <Input
-                                      value={row.mode === "fixed" ? row.fixedAmount ?? "" : ""}
+                                      value={isFixedMode(row.mode) ? row.fixedAmount ?? "" : ""}
                                       onChange={(event) => {
                                         const value = event.target.value;
                                         updateRow(row.targetType, row.targetId, {

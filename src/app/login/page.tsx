@@ -18,7 +18,6 @@ import { getLoginOptions, verifyLogin } from "@/lib/passkeys";
 import BrandLogo from "@/components/BrandLogo";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
@@ -97,6 +96,10 @@ const LOGIN_COPY = {
     quickSignInDivider: "ou",
     quickSignInError:
       "Connexion rapide impossible. Utilise ton email et mot de passe ou réessaie.",
+    chipSalary: "Salaire",
+    chipRent: "Loyer",
+    chipDebt: "Crédit",
+    fabor: "c’est faboooor",
   },
   en: {
     invalidCredentials: "Incorrect email or password.",
@@ -157,6 +160,10 @@ const LOGIN_COPY = {
     quickSignInVerifying: "Verifying...",
     quickSignInDivider: "or",
     quickSignInError: "Quick sign-in failed. Use email and password or try again.",
+    chipSalary: "Salary",
+    chipRent: "Rent",
+    chipDebt: "Loan",
+    fabor: "it’s freeeee",
   },
   ar: {
     invalidCredentials: "الإيميل ولا كلمة السر ماشي صحيحة.",
@@ -217,6 +224,10 @@ const LOGIN_COPY = {
     quickSignInDivider: "أو",
     quickSignInError:
       "ما قدرناش ندخلوك بالدخول السريع. استعمل الإيميل وكلمة السر أو عاود حاول.",
+    chipSalary: "السالير",
+    chipRent: "الكراء",
+    chipDebt: "كريدي",
+    fabor: "فابووووور",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
@@ -225,7 +236,7 @@ export default function LoginPage() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const inputClass =
-    "border-gray-200 focus-visible:ring-emerald-500 focus-visible:ring-offset-white";
+    "h-[50px] rounded-xl border-[#E3E8DF] bg-white ps-11 text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-medium placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0";
   const [locale, setLocale] = useState<FloussyLocale>("fr");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(false);
@@ -249,6 +260,7 @@ export default function LoginPage() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [maintenanceConfirm, setMaintenanceConfirm] = useState(false);
+  const [introReady, setIntroReady] = useState(false);
 
   const getAuthErrorMessage = (message: string) => {
     const lower = message.toLowerCase();
@@ -442,6 +454,14 @@ export default function LoginPage() {
     );
   }, []);
 
+  // A tab opened in the background freezes CSS animations at frame 0, which would
+  // leave the panel invisible. Only arm the one-shot intro when the page is on screen.
+  useEffect(() => {
+    if (reduceMotion) return;
+    if (typeof document === "undefined") return;
+    if (document.visibilityState === "visible") setIntroReady(true);
+  }, [reduceMotion]);
+
   useEffect(() => {
     if (!retryAfterSeconds || retryAfterSeconds <= 0) return;
     const timer = setInterval(() => {
@@ -631,375 +651,437 @@ export default function LoginPage() {
   const passkeysEnabled = Boolean(status?.features?.passkeys);
   const showQuickSignIn = passkeysEnabled && passkeysSupported;
 
+  const ICON_WRAP =
+    "pointer-events-none absolute inset-y-0 start-0 flex w-11 items-center justify-center text-[#7C8D86] transition-colors";
+
   return (
     <div
-      className={`relative min-h-screen overflow-hidden bg-[#f6f1e9] ${pageFontClass}`}
+      className={`lg-root relative min-h-screen bg-[#F6F8F4] ${pageFontClass} ${introReady ? "lg-intro" : ""}`}
       dir={pageDir}
       data-login-locale={locale}
     >
-      <div className="pointer-events-none absolute -top-24 left-1/3 h-64 w-64 rounded-full bg-emerald-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 right-10 h-72 w-72 rounded-full bg-orange-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(#9ca3af_1px,transparent_1px)] [background-size:24px_24px]" />
-      <div className={`relative mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center gap-10 px-4 py-12 md:grid md:grid-cols-[1.05fr_0.95fr] ${copyClass}`}>
-        <div className="hidden flex-col justify-between gap-10 rounded-[32px] bg-[#0f172a] p-10 text-white shadow-2xl shadow-emerald-500/20 md:flex">
-          <div className="space-y-4">
-            <span className="text-xs uppercase tracking-[0.3em] text-emerald-200">
-              {copy.welcomeBadge}
-            </span>
-            <h2
-              className={`${headingClass} text-3xl font-semibold leading-tight`}
-            >
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        {/* ---------------- brand panel ---------------- */}
+        <aside
+          className="lg-panel relative hidden flex-col justify-between gap-7 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-11 text-[#EAF4EF] lg:flex"
+          onPointerMove={(event) => {
+            if (reduceMotion) return;
+            const target = event.currentTarget;
+            const rect = target.getBoundingClientRect();
+            target.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+            target.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+          }}
+        >
+          <span className="lg-blob lg-blob-a" aria-hidden="true" />
+          <span className="lg-blob lg-blob-b" aria-hidden="true" />
+          <span className="lg-spot" aria-hidden="true" />
+
+          <div className="relative z-10">
+            {/* The brand PNGs are square with wide transparent padding, so the box
+                has to be ~2.4x the intended visual height. */}
+            <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
+          </div>
+
+          <div className="relative z-10">
+            <h2 className={`${headingClass} lg-rise text-[2rem] font-extrabold leading-[1.1] text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
               {copy.heroTitle}
             </h2>
-            <p className="text-sm text-slate-200/80">
+            <p className="lg-rise mt-3.5 max-w-[38ch] text-[0.95rem] leading-relaxed text-[#B9CFC5]" style={{ "--d": ".3s" } as React.CSSProperties}>
               {copy.heroBody}
             </p>
+            <div className="mt-7 flex flex-col gap-3">
+              {[copy.heroPoint1, copy.heroPoint2, copy.heroPoint3].map((point, index) => (
+                <div
+                  key={point}
+                  className="lg-rise flex items-start gap-3 text-[0.87rem] font-semibold text-[#DCEAE3]"
+                  style={{ "--d": `${0.42 + index * 0.08}s` } as React.CSSProperties}
+                >
+                  <span className="mt-px flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full bg-[#17C777]/20 text-[#17C777]">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                  </span>
+                  <span>{point}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-3 text-sm text-emerald-100">
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              {copy.heroPoint1}
-            </div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              {copy.heroPoint2}
-            </div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              {copy.heroPoint3}
-            </div>
-          </div>
-        </div>
-        <motion.div
-          className="w-full max-w-md"
-        initial={reduceMotion ? undefined : { opacity: 0, y: 20 }}
-        animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
-        <div className="mb-6 flex flex-col items-center gap-3 text-center md:hidden">
-          <BrandLogo locale={locale} className="h-28 w-auto object-contain" />
-          <h2 className={`${headingClass} text-2xl text-gray-900`}>
-            {copy.mobileTitle}
-          </h2>
-          <p className="text-sm text-gray-600">
-            {copy.mobileBody}
-          </p>
-        </div>
-        <div className="relative">
-          <Link
-            href="/"
-            className="absolute -top-12 left-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-[var(--surface)]/90 text-gray-600 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-200 hover:text-emerald-600"
-            aria-label={copy.backHome}
-          >
-            <Home className="h-4 w-4" />
-          </Link>
-          <Card className="w-full space-y-6 rounded-[28px] border border-white/70 bg-[var(--surface)]/80 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.8)] backdrop-blur">
-          <motion.div
-            className="space-y-1"
-            initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-          >
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600">
-              {copy.pill}
-            </span>
-            <h1
-              className={`${headingClass} text-3xl font-semibold tracking-tight text-gray-900`}
-            >
-              {copy.title}
-            </h1>
-            <p className="text-sm text-gray-500">
-              {copy.subtitle}
-            </p>
-          </motion.div>
-          {showMaintenanceBanner ? (
-            <SystemMessageCard
-              variant="maintenance"
-              message={maintenanceMessage}
-              suffix={copy.maintenanceSuffix}
-            />
-          ) : null}
-          {showAnnouncementBanner ? (
-            loginAnnouncements.map((announcement) => (
-              <SystemMessageCard
-                key={announcement.id}
-                variant="announcement"
-                message={announcement.message}
-                announcementType={announcement.type}
-              />
-            ))
-          ) : null}
 
-          {user ? (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                {copy.connectedAs}{" "}
-                <span className="font-medium text-gray-900">{user.email}</span>
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() =>
-                    router.push(
-                      user.role === "superadmin" ? "/superadmin" : "/dashboard"
-                    )
-                  }
-                  className="bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
-                >
-                  {copy.goDashboard}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={handleLogout}
-                  className="border-gray-200 text-gray-700 hover:border-emerald-500 hover:text-emerald-500"
-                >
-                  {copy.logout}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <motion.div
-              initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.45 }}
-            >
-              <form
-                onSubmit={handleLogin}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  const target = event.target as HTMLElement | null;
-                  if (!target) return;
-                  if (target.tagName !== "INPUT") return;
-                  event.preventDefault();
-                  event.currentTarget.requestSubmit();
-                }}
-                className="space-y-4"
+          <div className="lg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".72s" } as React.CSSProperties}>
+            {[
+              { label: copy.chipSalary, value: "+12 400", dot: "#17C777", up: true },
+              { label: copy.chipRent, value: "-3 200", dot: "#0A241D", up: false },
+              { label: copy.chipDebt, value: "-2 100", dot: "#8B7CF6", up: false },
+            ].map((chip) => (
+              <span
+                key={chip.label}
+                className="lg-chip flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-2 text-[0.76rem] font-bold text-[#DCEAE3] backdrop-blur"
               >
-                <div className="space-y-2">
-                  <Label htmlFor="email">{copy.email}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">{copy.password}</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showLoginPassword ? "text" : "password"}
-                      required
-                      autoComplete="current-password"
-                      data-clarity-mask="true"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      className={`${inputClass} pr-10`}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full p-0 text-gray-500 hover:text-emerald-600"
-                      onClick={() => setShowLoginPassword((prev) => !prev)}
-                      aria-label={
-                        showLoginPassword
-                          ? copy.hidePassword
-                          : copy.showPassword
-                      }
-                    >
-                      {showLoginPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <div className="text-right text-xs text-gray-500">
-                  <Link
-                    href="/forgot-password"
-                    className="font-medium text-emerald-600 hover:text-emerald-700"
-                  >
-                    {copy.forgotPassword}
-                  </Link>
-                </div>
-                {maintenanceActive ? (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    <p className="font-semibold">{copy.maintenanceActive}</p>
-                    <p className="mt-1 text-xs text-amber-700">
-                      {copy.maintenanceOnlySuperadmins}
-                    </p>
-                    <label className="mt-3 flex items-center gap-2 text-xs text-amber-800">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                        checked={maintenanceConfirm}
-                        onChange={(event) => setMaintenanceConfirm(event.target.checked)}
-                      />
-                      {copy.iAmSuperadmin}
-                    </label>
-                  </div>
-                ) : null}
-                {retryAfterSeconds ? (
-                  <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {copy.retryIn}{" "}
-                    <span className="font-semibold">
-                      {formatDuration(retryAfterSeconds)}
-                    </span>
-                    .
-                  </p>
-                ) : error ? (
-                  <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
-                  </p>
-                ) : null}
-                <Button
-                  type="submit"
-                  isLoading={loading}
-                  disabled={loginDisabled}
-                  className="w-full bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
-                >
-                  {copy.login}
-                </Button>
-                {showQuickSignIn ? (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center gap-3" aria-hidden="true">
-                      <span className="h-px flex-1 bg-gray-200" />
-                      <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                        {copy.quickSignInDivider}
-                      </span>
-                      <span className="h-px flex-1 bg-gray-200" />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      aria-label={`${copy.quickSignInTitle} - ${copy.quickSignInMethod}`}
-                      className="h-11 w-full rounded-full border border-gray-200 bg-white/70 px-4 text-sm font-medium text-gray-700 shadow-none transition hover:bg-gray-50 hover:text-gray-900"
-                      onClick={handleQuickSignIn}
-                      disabled={quickSignInLoading || loading}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <Fingerprint className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                        <span>{quickSignInLoading ? copy.quickSignInVerifying : copy.quickSignInTitle}</span>
-                        <span className="text-xs font-normal text-gray-500">{copy.quickSignInMethod}</span>
-                      </span>
-                    </Button>
-                    {quickSignInError ? (
-                      <p className="text-center text-xs text-red-600">{quickSignInError}</p>
-                    ) : null}
-                  </div>
-                ) : null}
-                {forceReset ? (
-                  <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-gray-600">
-                    <p className="font-semibold text-gray-900">
-                      {copy.resetRequired}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {copy.resetRequiredBody}
-                    </p>
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <Label>{copy.newPassword}</Label>
-                        <Input
-                          type="password"
-                          autoComplete="new-password"
-                          data-clarity-mask="true"
-                          value={newPassword}
-                          onChange={(event) => setNewPassword(event.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>{copy.confirmPassword}</Label>
-                        <Input
-                          type="password"
-                          autoComplete="new-password"
-                          data-clarity-mask="true"
-                          value={confirmNewPassword}
-                          onChange={(event) =>
-                            setConfirmNewPassword(event.target.value)
-                          }
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleForceReset}
-                        isLoading={loading}
-                        className="w-full bg-emerald-500 text-white hover:bg-emerald-600"
-                      >
-                        {copy.update}
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-              </form>
-              <div className="mt-4 text-center text-sm text-gray-500">
-                {copy.noAccountYet}{" "}
-                <Link
-                  href="/register"
-                  className="font-semibold text-emerald-600 hover:text-emerald-700"
-                >
-                  {copy.createAccount}
-                </Link>
+                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: chip.dot }} />
+                <span>{chip.label}</span>
+                <span className={`tabular-nums font-extrabold ${chip.up ? "text-[#17C777]" : ""}`} dir="ltr">
+                  {chip.value}
+                </span>
+              </span>
+            ))}
+          </div>
+        </aside>
+
+        {/* ---------------- form panel ---------------- */}
+        <main className={`flex flex-col px-5 pb-12 pt-6 sm:px-8 lg:px-14 lg:pt-8 ${copyClass}`}>
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              href="/"
+              aria-label={copy.backHome}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] transition hover:border-[#17C777] hover:text-[#0B8F53]"
+            >
+              <Home className="h-4 w-4" />
+            </Link>
+            <span className="text-[0.7rem] font-semibold text-[#7C8D86]">7sabek {appVersionLabel}</span>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center pt-8">
+            <motion.div
+              className="w-full max-w-[470px]"
+              initial={reduceMotion ? undefined : { opacity: 0, y: 22 }}
+              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="mb-7 flex flex-col items-center gap-3 text-center lg:hidden">
+                <BrandLogo locale={locale} className="h-20 w-auto object-contain" />
               </div>
+
+              <h1 className={`${headingClass} text-[clamp(1.7rem,3vw,2.2rem)] font-extrabold tracking-tight text-[#0A241D]`}>
+                {copy.title}
+              </h1>
+              <p className="mt-2.5 text-[0.96rem] leading-relaxed text-[#4E625A]">{copy.subtitle}</p>
+
+              {showMaintenanceBanner ? (
+                <div className="mt-5">
+                  <SystemMessageCard variant="maintenance" message={maintenanceMessage} suffix={copy.maintenanceSuffix} />
+                </div>
+              ) : null}
+              {showAnnouncementBanner
+                ? loginAnnouncements.map((announcement) => (
+                    <div key={announcement.id} className="mt-3">
+                      <SystemMessageCard
+                        variant="announcement"
+                        message={announcement.message}
+                        announcementType={announcement.type}
+                      />
+                    </div>
+                  ))
+                : null}
+
+              {user ? (
+                <div className="mt-6 space-y-4">
+                  <p className="text-sm text-[#4E625A]">
+                    {copy.connectedAs} <span className="font-bold text-[#0A241D]">{user.email}</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => router.push(user.role === "superadmin" ? "/superadmin" : "/dashboard")}
+                      className="h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] hover:bg-[#0B8F53] hover:text-white"
+                    >
+                      {copy.goDashboard}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={handleLogout}
+                      className="h-[50px] rounded-xl border-[#E3E8DF] bg-white px-6 font-bold text-[#0A241D] hover:border-[#0A241D]"
+                    >
+                      {copy.logout}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <form
+                    onSubmit={handleLogin}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      const target = event.target as HTMLElement | null;
+                      if (!target) return;
+                      if (target.tagName !== "INPUT") return;
+                      event.preventDefault();
+                      event.currentTarget.requestSubmit();
+                    }}
+                    className="mt-6"
+                  >
+                    <div className="lg-field">
+                      <Label htmlFor="email" className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">
+                        {copy.email}
+                      </Label>
+                      <div className="lg-control relative flex items-center">
+                        <span className={ICON_WRAP}>
+                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></svg>
+                        </span>
+                        <Input
+                          id="email"
+                          type="email"
+                          required
+                          autoComplete="email"
+                          placeholder="nom@exemple.ma"
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="lg-field mt-4">
+                      <Label htmlFor="password" className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">
+                        {copy.password}
+                      </Label>
+                      <div className="lg-control relative flex items-center">
+                        <span className={ICON_WRAP}>
+                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                        </span>
+                        <Input
+                          id="password"
+                          type={showLoginPassword ? "text" : "password"}
+                          required
+                          autoComplete="current-password"
+                          data-clarity-mask="true"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          className={`${inputClass} pe-12`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute end-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg p-0 text-[#7C8D86] hover:bg-[#EEF1EA] hover:text-[#0A241D]"
+                          onClick={() => setShowLoginPassword((prev) => !prev)}
+                          aria-label={showLoginPassword ? copy.hidePassword : copy.showPassword}
+                        >
+                          {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <div className="mt-2.5 flex justify-end">
+                        <Link href="/forgot-password" className="text-[0.83rem] font-bold text-[#0B8F53] hover:underline">
+                          {copy.forgotPassword}
+                        </Link>
+                      </div>
+                    </div>
+
+                    {maintenanceActive ? (
+                      <div className="mt-4 rounded-2xl border border-[#F2A93B]/40 bg-[#FDF2DF] px-4 py-3.5 text-sm text-[#8A5A0F]">
+                        <p className="font-extrabold">{copy.maintenanceActive}</p>
+                        <p className="mt-1 text-xs">{copy.maintenanceOnlySuperadmins}</p>
+                        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-bold">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-[#F2A93B]/60 text-[#B97913] focus:ring-[#F2A93B]"
+                            checked={maintenanceConfirm}
+                            onChange={(event) => setMaintenanceConfirm(event.target.checked)}
+                          />
+                          {copy.iAmSuperadmin}
+                        </label>
+                      </div>
+                    ) : null}
+
+                    {retryAfterSeconds ? (
+                      <p className="mt-4 rounded-2xl border border-[#F2686B]/30 bg-[#FDECEC] px-4 py-3 text-sm font-semibold text-[#B33A3D]">
+                        {copy.retryIn} <span className="font-extrabold tabular-nums">{formatDuration(retryAfterSeconds)}</span>.
+                      </p>
+                    ) : error ? (
+                      <p className="mt-4 rounded-2xl border border-[#F2686B]/30 bg-[#FDECEC] px-4 py-3 text-sm font-semibold text-[#B33A3D]">
+                        {error}
+                      </p>
+                    ) : null}
+
+                    <Button
+                      type="submit"
+                      isLoading={loading}
+                      disabled={loginDisabled}
+                      className="lg-cta mt-5 h-[52px] w-full rounded-xl bg-[#17C777] text-[0.95rem] font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
+                    >
+                      {copy.login}
+                    </Button>
+
+                    {showQuickSignIn ? (
+                      <div className="mt-5">
+                        <div className="flex items-center gap-3.5" aria-hidden="true">
+                          <span className="h-px flex-1 bg-[#E3E8DF]" />
+                          <span className="text-[0.76rem] font-bold uppercase tracking-wide text-[#7C8D86]">
+                            {copy.quickSignInDivider}
+                          </span>
+                          <span className="h-px flex-1 bg-[#E3E8DF]" />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          aria-label={`${copy.quickSignInTitle} - ${copy.quickSignInMethod}`}
+                          className="mt-4 h-[52px] w-full rounded-xl border-[#E3E8DF] bg-white text-[0.92rem] font-bold text-[#0A241D] shadow-none transition hover:-translate-y-px hover:border-[#0A241D]"
+                          onClick={handleQuickSignIn}
+                          disabled={quickSignInLoading || loading}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Fingerprint className="h-4 w-4 text-[#0B8F53]" aria-hidden="true" />
+                            <span>{quickSignInLoading ? copy.quickSignInVerifying : copy.quickSignInTitle}</span>
+                            <span className="text-xs font-semibold text-[#7C8D86]">{copy.quickSignInMethod}</span>
+                          </span>
+                        </Button>
+                        {quickSignInError ? (
+                          <p className="mt-2 text-center text-xs font-semibold text-[#B33A3D]">{quickSignInError}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {forceReset ? (
+                      <div className="mt-5 rounded-2xl border border-[#17C777]/30 bg-[#E2F7EC] p-4">
+                        <p className="font-extrabold text-[#0A241D]">{copy.resetRequired}</p>
+                        <p className="mt-1 text-xs text-[#4E625A]">{copy.resetRequiredBody}</p>
+                        <div className="mt-3.5 space-y-3">
+                          <div>
+                            <Label className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">{copy.newPassword}</Label>
+                            <Input
+                              type="password"
+                              autoComplete="new-password"
+                              data-clarity-mask="true"
+                              value={newPassword}
+                              onChange={(event) => setNewPassword(event.target.value)}
+                              className={`${inputClass} ps-4`}
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">{copy.confirmPassword}</Label>
+                            <Input
+                              type="password"
+                              autoComplete="new-password"
+                              data-clarity-mask="true"
+                              value={confirmNewPassword}
+                              onChange={(event) => setConfirmNewPassword(event.target.value)}
+                              className={`${inputClass} ps-4`}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={handleForceReset}
+                            isLoading={loading}
+                            className="h-[50px] w-full rounded-xl bg-[#17C777] font-bold text-[#06301F] hover:bg-[#0B8F53] hover:text-white"
+                          >
+                            {copy.update}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </form>
+
+                  <p className="mt-6 flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">
+                    <span>{copy.noAccountYet}</span>
+                    <Link href="/register" className="font-extrabold text-[#0B8F53] hover:underline">
+                      {copy.createAccount}
+                    </Link>
+                    <span className="lg-sticker inline-flex items-center gap-1.5 rounded-full bg-[#F2A93B] px-3 py-1.5 text-[0.78rem] font-extrabold text-[#3A2400] shadow-[0_8px_18px_-8px_rgba(242,169,59,0.8)]">
+                      <span aria-hidden="true">✦</span>
+                      {copy.fabor}
+                    </span>
+                  </p>
+                </>
+              )}
             </motion.div>
-          )}
-          <p className="pt-1 text-center text-xs text-gray-400">7sabek {appVersionLabel}</p>
-          </Card>
-        </div>
-      </motion.div>
+          </div>
+        </main>
       </div>
-      {locale === "ar" ? (
-        <style jsx global>{`
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');
 
-          [data-login-locale="ar"],
-          [data-login-locale="ar"] *,
-          .login-arabic-font,
-          .login-arabic-font * {
-            font-family: "Cairo", sans-serif !important;
-            font-optical-sizing: auto;
-            font-variation-settings: "slnt" 0;
-            letter-spacing: 0 !important;
-          }
+      <style jsx global>{`
+        .lg-blob {
+          position: absolute;
+          border-radius: 9999px;
+          filter: blur(70px);
+          pointer-events: none;
+        }
+        .lg-blob-a {
+          width: 420px;
+          height: 420px;
+          background: rgba(23, 199, 119, 0.32);
+          top: -150px;
+          inset-inline-start: -140px;
+          animation: lgDrift 18s ease-in-out infinite;
+        }
+        .lg-blob-b {
+          width: 340px;
+          height: 340px;
+          background: rgba(76, 126, 255, 0.22);
+          bottom: -130px;
+          inset-inline-end: -110px;
+          animation: lgDrift 23s ease-in-out infinite reverse;
+        }
+        @keyframes lgDrift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(50px, 44px) scale(1.12); }
+        }
+        .lg-spot {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.45s ease;
+          background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 30%), rgba(23, 199, 119, 0.16), transparent 66%);
+        }
+        .lg-panel:hover .lg-spot { opacity: 1; }
+        .lg-chip { animation: lgFloat 5.6s ease-in-out infinite; }
+        .lg-chip:nth-child(2) { animation-delay: 0.9s; }
+        .lg-chip:nth-child(3) { animation-delay: 1.8s; }
+        @keyframes lgFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-7px); }
+        }
+        .lg-intro .lg-rise {
+          opacity: 0;
+          transform: translateY(16px);
+          animation: lgRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation-delay: var(--d, 0s);
+        }
+        @keyframes lgRise { to { opacity: 1; transform: none; } }
+        .lg-control { transition: transform 0.18s ease; }
+        .lg-control:focus-within { transform: translateY(-1px); }
+        .lg-control:focus-within span:first-child { color: #0b8f53; }
+        .lg-cta { position: relative; overflow: hidden; }
+        .lg-cta::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: -140%;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+          transform: skewX(-18deg);
+          transition: left 0.65s ease;
+        }
+        .lg-cta:hover::after { left: 150%; }
+        .lg-sticker { transform: rotate(-4deg); animation: lgWob 4.2s ease-in-out infinite; }
+        @keyframes lgWob {
+          0%, 100% { transform: rotate(-4deg) scale(1); }
+          50% { transform: rotate(3deg) scale(1.05); }
+        }
+        [data-login-locale="ar"],
+        [data-login-locale="ar"] *,
+        .login-arabic-font,
+        .login-arabic-font * {
+          font-family: "Cairo", sans-serif !important;
+          font-optical-sizing: auto;
+          letter-spacing: 0 !important;
+        }
+        [data-login-locale="ar"] svg,
+        .login-arabic-font svg {
+          font-family: initial !important;
+        }
+        [data-login-locale="ar"] .login-title,
+        .login-arabic-font .login-title {
+          font-family: "Cairo", sans-serif !important;
+          font-weight: 800 !important;
+          letter-spacing: 0 !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lg-blob, .lg-chip, .lg-sticker { animation: none !important; }
+          .lg-intro .lg-rise { animation: none !important; opacity: 1 !important; transform: none !important; }
+          .lg-cta::after { display: none; }
+          .lg-spot { display: none; }
+        }
+      `}</style>
 
-          [data-login-locale="ar"] svg,
-          [data-login-locale="ar"] button svg,
-          [data-login-locale="ar"] a svg,
-          .login-arabic-font svg,
-          .login-arabic-font button svg,
-          .login-arabic-font a svg {
-            font-family: initial !important;
-          }
-
-          [data-login-locale="ar"] .login-title,
-          .login-arabic-font .login-title {
-            font-family: "Cairo", sans-serif !important;
-            font-weight: 800 !important;
-            letter-spacing: 0 !important;
-          }
-
-          [data-login-locale="ar"] .login-copy,
-          [data-login-locale="ar"] .login-copy p,
-          [data-login-locale="ar"] .login-copy span,
-          [data-login-locale="ar"] .login-copy a,
-          [data-login-locale="ar"] .login-copy button,
-          [data-login-locale="ar"] .login-copy label,
-          [data-login-locale="ar"] .login-copy input,
-          [data-login-locale="ar"] .login-copy div,
-          .login-arabic-font .login-copy,
-          .login-arabic-font .login-copy p,
-          .login-arabic-font .login-copy span,
-          .login-arabic-font .login-copy a,
-          .login-arabic-font .login-copy button,
-          .login-arabic-font .login-copy label,
-          .login-arabic-font .login-copy input,
-          .login-arabic-font .login-copy div {
-            font-family: "Cairo", sans-serif !important;
-            letter-spacing: 0 !important;
-          }
-        `}</style>
-      ) : null}
     </div>
   );
 }

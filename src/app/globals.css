@@ -706,23 +706,18 @@ body.onboarding-route-ar-body a svg {
   gap: 16px;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   grid-template-areas:
-    "trend health"
-    "spending health"
-    "envelopes insights"
+    "summary health"
+    "envelopes health"
     "recent insights";
 }
 
-.dashboard-main-trend {
-  grid-area: trend;
+.dashboard-main-summary {
+  grid-area: summary;
 }
 
 .dashboard-main-health {
   grid-area: health;
   align-content: start;
-}
-
-.dashboard-main-spending {
-  grid-area: spending;
 }
 
 .dashboard-main-envelopes {
@@ -742,9 +737,8 @@ body.onboarding-route-ar-body a svg {
   .dashboard-main-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
+      "summary"
       "health"
-      "trend"
-      "spending"
       "envelopes"
       "recent"
       "insights";
@@ -1031,9 +1025,8 @@ body.onboarding-route-ar-body a svg {
   .dashboard-main-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
+      "summary"
       "health"
-      "trend"
-      "spending"
       "envelopes"
       "recent"
       "insights";
@@ -1092,3 +1085,192 @@ body.onboarding-route-ar-body a svg {
   opacity: 1 !important;
   pointer-events: auto !important;
 }
+
+/* Custom shake animation for incorrect PIN state */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+  20%, 40%, 60%, 80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* Custom soft ripple animation for fingerprint scan in light mode */
+@keyframes ripple-light {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.animate-ripple-light {
+  animation: ripple-light 2s infinite ease-out;
+}
+
+/* Accent pulse */
+@keyframes scan-pulse-light {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.animate-scan-pulse-light {
+  animation: scan-pulse-light 1.5s infinite ease-in-out;
+}
+
+/* Custom neon soft glow for successful biometrics */
+.shadow-emerald-glow {
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.2), 0 8px 10px -6px rgba(16, 185, 129, 0.2);
+}
+
+.shadow-indigo-glow {
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.15), 0 8px 10px -6px rgba(99, 102, 241, 0.15);
+}
+
+/* Quick fade animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Accent pulse slow for background light orbits */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.45; transform: scale(1) translate(0px, 0px); }
+  50% { opacity: 0.85; transform: scale(1.15) translate(8px, -15px); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s infinite ease-in-out;
+}
+
+/* ==========================================================================
+   DASHBOARD COCKPIT (GLASSMORPHIC REDESIGN)
+   ========================================================================== */
+.dashboard-cockpit {
+  border-radius: 28px;
+  border: 1px solid rgba(16, 112, 84, 0.16);
+  background: radial-gradient(circle at 95% 5%, rgba(16, 185, 129, 0.08), transparent 45%),
+              radial-gradient(circle at 5% 95%, rgba(99, 102, 241, 0.05), transparent 45%),
+              linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 100%);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 50px -28px rgba(10, 45, 36, 0.35);
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .dashboard-cockpit {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle at 95% 5%, rgba(16, 185, 129, 0.06), transparent 45%),
+              radial-gradient(circle at 5% 95%, rgba(99, 102, 241, 0.04), transparent 45%),
+              linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 15, 30, 0.9) 100%);
+  box-shadow: 0 24px 55px -32px rgba(0, 0, 0, 0.8);
+}
+
+.dashboard-cockpit__decorative-glow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.dashboard-cockpit__decorative-glow--emerald {
+  top: -20px;
+  right: 10%;
+  width: 180px;
+  height: 180px;
+  background: var(--accent);
+}
+
+.dashboard-cockpit__decorative-glow--indigo {
+  bottom: -20px;
+  left: 10%;
+  width: 180px;
+  height: 180px;
+  background: #6366f1;
+}
+
+.dashboard-cockpit__subcard {
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(6px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .dashboard-cockpit__subcard {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.dashboard-cockpit__subcard:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: var(--shadow-soft);
+}
+
+[data-theme="dark"] .dashboard-cockpit__subcard:hover {
+  background: rgba(30, 41, 59, 0.45);
+}
+
+/* Envelopes custom progress bar */
+.envelope-progress-bar-container {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+}
+
+[data-theme="dark"] .envelope-progress-bar-container {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.envelope-progress-bar-segment {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.envelope-progress-bar-segment--overspent {
+  background: linear-gradient(90deg, #f43f5e, #fda4af);
+}
+
+.envelope-progress-bar-segment--near {
+  background: linear-gradient(90deg, #fb923c, #fde047);
+}
+
+.envelope-progress-bar-segment--healthy {
+  background: linear-gradient(90deg, #10b981, #6ee7b7);
+}
+
+/* Alert subcard item */
+.dashboard-cockpit__alert-item {
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.dashboard-cockpit__alert-item--warning {
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+.dashboard-cockpit__alert-item--error {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.15);
+}
+
+.dashboard-cockpit__alert-item--info {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.15);
+}
+
+.dashboard-cockpit__alert-item--success {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+

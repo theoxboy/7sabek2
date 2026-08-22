@@ -639,9 +639,10 @@ const groupByWeek = (
     { income: number; expense: number; count: number; avgSize: number }
   >();
   rows.forEach((row) => {
-    const date = new Date(row.date);
+    const [year, month, day] = row.date.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
     const weekStart = new Date(date);
-    weekStart.setDate(date.getDate() - date.getDay());
+    weekStart.setUTCDate(date.getUTCDate() - date.getUTCDay());
     const key = weekStart.toISOString().slice(0, 10);
     const current = weekMap.get(key) ?? {
       income: 0,
@@ -675,12 +676,14 @@ const buildHeatmapCells = (
 ) => {
   const map = new Map(series.map((row) => [row.date, row.expense]));
   const cells: { date: string; value: number }[] = [];
-  const cursor = new Date(start);
-  const endDate = new Date(end);
+  const [sYear, sMonth, sDay] = start.split("-").map(Number);
+  const [eYear, eMonth, eDay] = end.split("-").map(Number);
+  const cursor = new Date(Date.UTC(sYear, sMonth - 1, sDay));
+  const endDate = new Date(Date.UTC(eYear, eMonth - 1, eDay));
   while (cursor <= endDate) {
     const iso = cursor.toISOString().slice(0, 10);
     cells.push({ date: iso, value: map.get(iso) ?? 0 });
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return cells;
 };

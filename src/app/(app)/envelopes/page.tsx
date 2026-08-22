@@ -2,6 +2,7 @@
 
 import { type CSSProperties, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import useSWR from "swr";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
-import { listSavedDistributionConfigs } from "@/lib/distribution";
+import { listSavedDistributionConfigs, isFixedMode, type DistributionSavedConfig, type DistributionRule } from "@/lib/distribution";
 import type {
   CategoryEnvelopeMapOut,
   CategoryOut,
@@ -762,20 +763,62 @@ export default function EnvelopesPage() {
   const createRef = useRef<HTMLDivElement | null>(null);
   const advancedRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
-  const [dashboard, setDashboard] = useState<DashboardOut | null>(null);
-  const [balanceOverrides, setBalanceOverrides] = useState<Record<string, string>>(
-    {}
-  );
-  const [envelopes, setEnvelopes] = useState<EnvelopeOut[]>([]);
-  const [fixedEnvelopeIds, setFixedEnvelopeIds] = useState<string[]>([]);
-  const [fixedEnvelopeAmounts, setFixedEnvelopeAmounts] = useState<Record<string, number>>({});
-  const [categories, setCategories] = useState<CategoryOut[]>([]);
-  const [goals, setGoals] = useState<GoalOut[]>([]);
-  const [onboardingRecord, setOnboardingRecord] = useState<OnboardingV2RecordOut | null>(null);
-  const [mappings, setMappings] = useState<Record<string, string>>({});
-  const [transactions, setTransactions] = useState<TransactionOut[]>([]);
+  const fetcher = (url: string) => apiFetch<any>(url);
+
+  const { data: dashboardData, error: dashboardError, mutate: mutateDashboard } = useSWR<DashboardOut>("/dashboard", fetcher);
+  const dashboard = dashboardData ?? null;
+
+  const { data: envelopesData, error: envelopesError, mutate: mutateEnvelopes } = useSWR<EnvelopeOut[]>("/envelopes", fetcher);
+  const envelopes = envelopesData ?? [];
+
+  const { data: categoriesData, error: categoriesError } = useSWR<CategoryOut[]>("/categories", fetcher);
+  const categories = categoriesData ?? [];
+
+  const { data: mappingsList, error: mappingsError } = useSWR<CategoryEnvelopeMapOut[]>("/mappings", fetcher);
+
+  const { data: transactionsData, error: transactionsError, mutate: mutateTransactions } = useSWR<TransactionOut[]>("/transactions", fetcher);
+  const transactions = transactionsData ?? [];
+
+  const { data: distributionConfigData } = useSWR<DistributionConfigOut>("/distribution/config", fetcher);
+  const distributionConfig = distributionConfigData ?? null;
+
+  const { data: savedConfigsData, mutate: mutateSavedConfigs } = useSWR<DistributionSavedConfig[]>("/distribution/configs", fetcher);
+  const savedConfigs = savedConfigsData ?? [];
+
+  const { data: goalsData, mutate: mutateGoals } = useSWR<GoalOut[]>("/goals", fetcher);
+  const goals = goalsData ?? [];
+
+  const { data: onboardingRecords } = useSWR<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1", fetcher);
+  const onboardingRecord = onboardingRecords?.[0] ?? null;
+
+  const { data: distributionRulesData, mutate: mutateDistributionRules } = useSWR<DistributionRule[]>("/distribution/rules", fetcher);
+  const distributionRules = distributionRulesData ?? [];
+
+  const mappings = useMemo(() => {
+    if (!mappingsList) return {};
+    return mappingsList.reduce<Record<string, string>>(
+      (acc, item) => ({
+        ...acc,
+        [item.category_id]: item.envelope_id,
+      }),
+      {}
+    );
+  }, [mappingsList]);
+
+  const [balanceOverrides, setBalanceOverrides] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const mutateAll = async () => {
+    await Promise.all([
+      mutateDashboard(),
+      mutateEnvelopes(),
+      mutateTransactions(),
+      mutateSavedConfigs(),
+      mutateGoals(),
+      mutateDistributionRules(),
+    ]);
+  };
 
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -859,99 +902,53 @@ export default function EnvelopesPage() {
     };
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Guard protected fan-out calls: when session is expired we should fail
-      // fast on /auth/me instead of triggering multiple 401s in parallel.
-      await apiFetch("/auth/me");
-
-      const [dash, envs, cats, mappingList, txs, distributionConfig, savedConfigs, goalsData, onboardingRecords] = await Promise.all([
-        apiFetch<DashboardOut>("/dashboard"),
-        apiFetch<EnvelopeOut[]>("/envelopes"),
-        apiFetch<CategoryOut[]>("/categories"),
-        apiFetch<CategoryEnvelopeMapOut[]>("/mappings"),
-        apiFetch<TransactionOut[]>("/transactions"),
-        apiFetch<DistributionConfigOut>("/distribution/config").catch(() => null),
-        listSavedDistributionConfigs().catch(() => []),
-        apiFetch<GoalOut[]>("/goals").catch(() => []),
-        apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1").catch(() => []),
-      ]);
-
-      const mappingMap = mappingList.reduce<Record<string, string>>(
-        (acc, item) => ({
-          ...acc,
-          [item.category_id]: item.envelope_id,
-        }),
-        {}
-      );
-
-      setDashboard(dash);
-      setEnvelopes(envs);
-      const activeSavedConfig = savedConfigs.find((config) => config.is_active) ?? null;
-      const activeSavedEnvelopeFixedRows = (activeSavedConfig?.rows ?? []).filter((row) => {
-        if (row.target_type !== "envelope") return false;
-        if (!row.enabled || row.mode !== "fixed") return false;
-        const amount = Number(row.fixed_amount ?? "0");
-        return Number.isFinite(amount) && amount > 0;
-      });
-
-      const fixedIds = activeSavedEnvelopeFixedRows.length > 0
-        ? activeSavedEnvelopeFixedRows.map((row) => row.target_id)
-        : (distributionConfig?.envelopes ?? [])
-        .filter((item) => {
-          if (!item.enabled || item.mode !== "fixed") return false;
-          const amount = Number(item.fixed_amount ?? "0");
-          return Number.isFinite(amount) && amount > 0;
-        })
-        .map((item) => item.target_id);
-      const fixedAmounts = activeSavedEnvelopeFixedRows.length > 0
-        ? activeSavedEnvelopeFixedRows.reduce<Record<string, number>>((acc, row) => {
-            const amount = Number(row.fixed_amount ?? "0");
-            if (!Number.isFinite(amount) || amount <= 0) return acc;
-            acc[row.target_id] = amount;
-            return acc;
-          }, {})
-        : (distributionConfig?.envelopes ?? []).reduce<Record<string, number>>(
-            (acc, item) => {
-              if (!item.enabled || item.mode !== "fixed") return acc;
-              const amount = Number(item.fixed_amount ?? "0");
-              if (!Number.isFinite(amount) || amount <= 0) return acc;
-              acc[item.target_id] = amount;
-              return acc;
-            },
-            {}
-          );
-      setFixedEnvelopeIds(fixedIds);
-      setFixedEnvelopeAmounts(fixedAmounts);
-      setCategories(cats);
-      setGoals(goalsData);
-      setOnboardingRecord(onboardingRecords[0] ?? null);
-      setMappings(mappingMap);
-      setTransactions(txs);
-      const periodResults = await Promise.allSettled(
-        envs.map((env) => apiFetch<EnvelopePeriodOut[]>(`/envelopes/${env.id}/periods`))
-      );
-      const overrides: Record<string, string> = {};
-      periodResults.forEach((result, index) => {
-        if (result.status === "fulfilled" && result.value.length > 0) {
-          overrides[envs[index].id] = result.value[0].closing_balance;
-        }
-      });
-      setBalanceOverrides(overrides);
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.unknownError;
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const swrLoading =
+      !dashboardData && !dashboardError &&
+      !envelopesData && !envelopesError &&
+      !categoriesData && !categoriesError;
+    setLoading(swrLoading);
+  }, [dashboardData, dashboardError, envelopesData, envelopesError, categoriesData, categoriesError]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const anyError = dashboardError || envelopesError || categoriesError || mappingsError || transactionsError;
+    if (anyError) {
+      const message = anyError instanceof Error ? anyError.message : String(anyError);
+      setError(message);
+    } else {
+      setError(null);
+    }
+  }, [dashboardError, envelopesError, categoriesError, mappingsError, transactionsError]);
+
+  useEffect(() => {
+    if (!envelopes || envelopes.length === 0) return;
+    let active = true;
+    const fetchOverrides = async () => {
+      try {
+        const periodResults = await Promise.allSettled(
+          envelopes.map((env) => apiFetch<EnvelopePeriodOut[]>(`/envelopes/${env.id}/periods`))
+        );
+        if (!active) return;
+        const overrides: Record<string, string> = {};
+        periodResults.forEach((result, index) => {
+          if (result.status === "fulfilled" && result.value.length > 0) {
+            overrides[envelopes[index].id] = result.value[0].closing_balance;
+          }
+        });
+        setBalanceOverrides(overrides);
+      } catch (err) {
+        console.error("Failed to load period balances", err);
+      }
+    };
+    fetchOverrides();
+    return () => {
+      active = false;
+    };
+  }, [envelopes]);
+
+  const loadData = async () => {
+    await mutateAll();
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -1036,24 +1033,11 @@ export default function EnvelopesPage() {
     return key === "flexibilite" || key === "equilibre";
   };
   const isDebtEnvelope = (env: EnvelopeOut) => {
-    const key = normalizeSystemEnvelopeKey(env.name);
-    return (
-      key.includes("dettes") ||
-      key.includes("debt") ||
-      key.includes("debts") ||
-      key.includes("credit") ||
-      key.includes("repayment")
-    );
+    return Boolean(env.is_debt);
   };
 
   const isRolloverOffForbiddenEnvelope = (env: EnvelopeOut) => {
-    const key = normalizeSystemEnvelopeKey(env.name);
-    const isDebt =
-      key.includes("dettes") ||
-      key.includes("debt") ||
-      key.includes("debts") ||
-      key.includes("credit") ||
-      key.includes("repayment");
+    const isDebt = isDebtEnvelope(env);
     const isFixedActive = fixedEnvelopeIdSet.has(env.id);
     return Boolean(env.is_goal) || isDebt || isFixedActive;
   };
@@ -1149,76 +1133,92 @@ export default function EnvelopesPage() {
     () => standardEnvelopes.filter((env) => env.rollover_enabled),
     [standardEnvelopes]
   );
-  const fixedEnvelopeIdSet = useMemo(() => new Set(fixedEnvelopeIds), [fixedEnvelopeIds]);
-  useEffect(() => {
-    if (loading || autoFixRunningRef.current) return;
-    if (envelopes.length === 0 || fixedEnvelopeIdSet.size === 0) return;
-    const invalidFixedRollover = envelopes.filter(
-      (env) =>
-        fixedEnvelopeIdSet.has(env.id) &&
-        !env.rollover_enabled &&
-        !env.is_cash &&
-        !env.is_default_savings
-    );
-    if (invalidFixedRollover.length === 0) return;
 
-    autoFixRunningRef.current = true;
-    void (async () => {
-      try {
-        await Promise.all(
-          invalidFixedRollover.map((env) =>
-            apiFetch(`/envelopes/${env.id}`, {
-              method: "PATCH",
-              body: { rollover_enabled: true },
-            })
-          )
-        );
-        await loadData();
+  const activeSavedConfig = useMemo(() => {
+    return savedConfigs.find((config) => config.is_active) ?? null;
+  }, [savedConfigs]);
 
-        if (typeof window !== "undefined") {
-          const alreadyShown =
-            window.localStorage.getItem(FIXED_ROLLOVER_AUTOFIX_TOAST_ONCE_KEY) ===
-            "1";
-          if (!alreadyShown) {
-            const names = invalidFixedRollover
-              .map((env) => localizeEnvelopeName(env.name))
-              .join("، ");
-            toast({
-              title:
-                locale === "ar"
-                  ? "تصحيح تلقائي للترحيل"
-                  : locale === "en"
-                  ? "Automatic rollover correction"
-                  : "Correction automatique du rollover",
-              description:
-                locale === "ar"
-                  ? `لقينا ${invalidFixedRollover.length} ظرف/أظرفة عندهم مبلغ ثابت وكانو rollover OFF. صححناهم تلقائياً وخليّنا rollover ON: ${names}`
-                  : locale === "en"
-                  ? `Detected ${invalidFixedRollover.length} fixed-amount envelope(s) with rollover OFF. They were auto-corrected to rollover ON: ${names}`
-                  : `Le système a détecté ${invalidFixedRollover.length} enveloppe(s) à montant fixe avec rollover OFF. Correction automatique appliquée vers rollover ON : ${names}`,
-              variant: "default",
-            });
-            window.localStorage.setItem(
-              FIXED_ROLLOVER_AUTOFIX_TOAST_ONCE_KEY,
-              "1"
-            );
-          }
+  const activeSavedEnvelopeFixedRows = useMemo(() => {
+    return (activeSavedConfig?.rows ?? []).filter((row) => {
+      if (row.target_type !== "envelope") return false;
+      if (!row.enabled || !isFixedMode(row.mode)) return false;
+      const amount = Number(row.fixed_amount ?? "0");
+      return Number.isFinite(amount) && amount > 0;
+    });
+  }, [activeSavedConfig]);
+
+  const fixedEnvelopeIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    // 1. Live distribution rules (distributionRules)
+    (distributionRules ?? []).forEach((rule) => {
+      if (rule.target_type === "envelope" && rule.enabled && isFixedMode(rule.mode)) {
+        const amount = Number(rule.amount ?? "0");
+        if (Number.isFinite(amount) && amount > 0) {
+          ids.add(rule.target_id);
         }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : copy.unknownError;
-        setError(message);
-      } finally {
-        autoFixRunningRef.current = false;
       }
-    })();
-  }, [
-    copy.unknownError,
-    envelopes,
-    fixedEnvelopeIdSet,
-    loading,
-    locale,
-    toast,
-  ]);
+    });
+
+    // 2. Draft configuration (distributionConfig)
+    (distributionConfig?.envelopes ?? []).forEach((item) => {
+      if (item.enabled && isFixedMode(item.mode)) {
+        const amount = Number(item.fixed_amount ?? "0");
+        if (Number.isFinite(amount) && amount > 0) {
+          ids.add(item.target_id);
+        }
+      }
+    });
+
+    // 3. Active saved configuration
+    if (activeSavedEnvelopeFixedRows.length > 0) {
+      activeSavedEnvelopeFixedRows.forEach((row) => {
+        ids.add(row.target_id);
+      });
+    }
+
+    const result = Array.from(ids);
+    console.log("Fixed IDs:", result);
+    return result;
+  }, [activeSavedEnvelopeFixedRows, distributionConfig, distributionRules]);
+
+  const fixedEnvelopeAmounts = useMemo(() => {
+    const amounts: Record<string, number> = {};
+
+    // 1. Draft configuration (lowest priority)
+    (distributionConfig?.envelopes ?? []).forEach((item) => {
+      if (item.enabled && isFixedMode(item.mode)) {
+        const amount = Number(item.fixed_amount ?? "0");
+        if (Number.isFinite(amount) && amount > 0) {
+          amounts[item.target_id] = amount;
+        }
+      }
+    });
+
+    // 2. Live rules (medium priority)
+    (distributionRules ?? []).forEach((rule) => {
+      if (rule.target_type === "envelope" && rule.enabled && isFixedMode(rule.mode)) {
+        const amount = Number(rule.amount ?? "0");
+        if (Number.isFinite(amount) && amount > 0) {
+          amounts[rule.target_id] = amount;
+        }
+      }
+    });
+
+    // 3. Active saved configuration (highest priority)
+    if (activeSavedEnvelopeFixedRows.length > 0) {
+      activeSavedEnvelopeFixedRows.forEach((row) => {
+        const amount = Number(row.fixed_amount ?? "0");
+        if (Number.isFinite(amount) && amount > 0) {
+          amounts[row.target_id] = amount;
+        }
+      });
+    }
+
+    return amounts;
+  }, [activeSavedEnvelopeFixedRows, distributionConfig, distributionRules]);
+
+  const fixedEnvelopeIdSet = useMemo(() => new Set(fixedEnvelopeIds), [fixedEnvelopeIds]);
   const rolloverOffSortedEnvelopes = useMemo(
     () =>
       [...rolloverOffEnvelopes].sort((a, b) => {
@@ -1712,7 +1712,7 @@ export default function EnvelopesPage() {
       setPeriodError(null);
       try {
         const data = await apiFetch<EnvelopePeriodOut[]>(
-          `/envelopes/${selectedEnvelopeId}/periods`
+          `/envelopes/${selectedEnvelopeId}/periods?t=${Date.now()}`
         );
         setPeriods(data);
         if (data.length > 0) {
@@ -1741,7 +1741,7 @@ export default function EnvelopesPage() {
       setTransferError(null);
       try {
         const data = await apiFetch<EnvelopeTransferLogOut[]>(
-          `/envelopes/${selectedEnvelopeId}/transfer-logs`
+          `/envelopes/${selectedEnvelopeId}/transfer-logs?t=${Date.now()}`
         );
         setTransferLogs(data);
       } catch (err) {
@@ -1764,7 +1764,7 @@ export default function EnvelopesPage() {
       setAdjustmentError(null);
       try {
         const data = await apiFetch<EnvelopeAdjustmentLogOut[]>(
-          `/envelopes/${selectedEnvelopeId}/adjustment-logs`
+          `/envelopes/${selectedEnvelopeId}/adjustment-logs?t=${Date.now()}`
         );
         setAdjustmentLogs(data);
       } catch (err) {

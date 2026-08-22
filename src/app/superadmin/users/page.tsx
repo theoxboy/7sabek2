@@ -350,6 +350,21 @@ export default function SuperAdminUsersPage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const searchParam = params.get("q") || params.get("search");
+      const idParam = params.get("id");
+      if (searchParam) {
+        setSearch(searchParam);
+      }
+      if (idParam) {
+        setSelectedUserId(idParam);
+      }
+    }
+  }, []);
+
+
+  useEffect(() => {
     let active = true;
     const run = async () => {
       if (!active) return;

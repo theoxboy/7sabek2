@@ -71,6 +71,7 @@ const EMPTY_SETTINGS: PlatformSettingsOut = {
     fallback_gateway_ids: [],
     request_timeout_ms: 60000,
   },
+  advisor_global_instructions: "",
   rate_limit_login_max: 10,
   rate_limit_login_window_minutes: 10,
   rate_limit_register_max: 5,
@@ -833,6 +834,8 @@ export default function SuperAdminSettingsPage() {
           announcements,
           ai_gateways: Array.isArray(data.ai_gateways) ? data.ai_gateways : [],
           ai_routing: data.ai_routing ?? EMPTY_SETTINGS.ai_routing,
+          advisor_global_instructions:
+            data.advisor_global_instructions ?? EMPTY_SETTINGS.advisor_global_instructions,
         });
         const nextFilters: Record<string, string> = {};
         announcements.forEach((announcement) => {
@@ -950,6 +953,7 @@ export default function SuperAdminSettingsPage() {
         announcements,
         ai_gateways: formState.ai_gateways ?? [],
         ai_routing: formState.ai_routing ?? EMPTY_SETTINGS.ai_routing,
+        advisor_global_instructions: formState.advisor_global_instructions ?? "",
         rate_limit_login_max: Number(formState.rate_limit_login_max),
         rate_limit_login_window_minutes: Number(
           formState.rate_limit_login_window_minutes
@@ -1008,6 +1012,8 @@ export default function SuperAdminSettingsPage() {
         announcements: updatedAnnouncements,
         ai_gateways: Array.isArray(updated.ai_gateways) ? updated.ai_gateways : [],
         ai_routing: updated.ai_routing ?? EMPTY_SETTINGS.ai_routing,
+        advisor_global_instructions:
+          updated.advisor_global_instructions ?? EMPTY_SETTINGS.advisor_global_instructions,
       });
       const nextFilters: Record<string, string> = {};
       updatedAnnouncements.forEach((announcement) => {
@@ -2144,6 +2150,33 @@ export default function SuperAdminSettingsPage() {
                 }
               />
             </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Global AI Advisor Instructions */}
+      <Card className="spike-card p-6">
+        <div className="space-y-4">
+          <div>
+            <p className="spike-title">Instructions globales Advisor IA</p>
+            <p className="spike-subtitle">
+              Ces instructions s&rsquo;appliquent &agrave; tous les utilisateurs du chat Floussy AI.
+              Le superadmin peut d&eacute;finir un comportement, un ton ou des r&egrave;gles suppl&eacute;mentaires.
+            </p>
+          </div>
+          <div>
+            <textarea
+              rows={6}
+              className="xs:spike-input w-full resize-y text-sm leading-relaxed"
+              placeholder="Ex: &laquo; Ne donne jamais de conseil juridique. R&eacute;ponds toujours en fran&ccedil;ais. &raquo;"
+              value={formState.advisor_global_instructions ?? ""}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  advisor_global_instructions: event.target.value,
+                }))
+              }
+            />
           </div>
         </div>
       </Card>

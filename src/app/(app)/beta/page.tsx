@@ -47,6 +47,27 @@ const BETA_PAGES: Record<
       href: "/onboarding",
       status: "active",
     },
+    {
+      id: "beta-portal",
+      title: "Portail d'Authentification (Biométrie & PIN)",
+      description: "Portail sécurisé avec capteur d'empreinte digitale simulé et code PIN.",
+      href: "/beta/portal",
+      status: "active",
+    },
+    {
+      id: "beta-notifications",
+      title: "Centre de Notifications",
+      description: "Flux d'activités avec filtres et simulateur interactif d'alertes.",
+      href: "/notifications",
+      status: "active",
+    },
+    {
+      id: "beta-chat",
+      title: "Floussy AI Smart Conseiller",
+      description: "Chat d'assistance connecté à vos alertes avec suggestions proactives.",
+      href: "/chat",
+      status: "active",
+    },
   ],
   en: [
     {
@@ -56,6 +77,27 @@ const BETA_PAGES: Record<
       href: "/onboarding",
       status: "active",
     },
+    {
+      id: "beta-portal",
+      title: "Authentication Portal (Biometrics & PIN)",
+      description: "Secure portal with simulated fingerprint sensor and PIN code entry.",
+      href: "/beta/portal",
+      status: "active",
+    },
+    {
+      id: "beta-notifications",
+      title: "Notification Center",
+      description: "Activity feed with filters and interactive alerts simulator.",
+      href: "/notifications",
+      status: "active",
+    },
+    {
+      id: "beta-chat",
+      title: "Floussy AI Smart Conseiller",
+      description: "AI advisor chat connected to your alerts with proactive action buttons.",
+      href: "/chat",
+      status: "active",
+    },
   ],
   ar: [
     {
@@ -63,6 +105,27 @@ const BETA_PAGES: Record<
       title: "Onboarding v2 (تجريب)",
       description: "مسار جديد أسرع ومركّز على الأهداف.",
       href: "/onboarding",
+      status: "active",
+    },
+    {
+      id: "beta-portal",
+      title: "بوابة تسجيل الدخول (البصمة والرقم السري)",
+      description: "بوابة آمنة مع جهاز محاكاة للبصمة والرمز السري.",
+      href: "/beta/portal",
+      status: "active",
+    },
+    {
+      id: "beta-notifications",
+      title: "مركز الإشعارات",
+      description: "تغذية الإشعارات مع فلترة وجهاز محاكاة تفاعلي للتنبيهات.",
+      href: "/notifications",
+      status: "active",
+    },
+    {
+      id: "beta-chat",
+      title: "مستشار الذكاء الاصطناعي Floussy AI",
+      description: "محادثة ذكية متصلة بتنبيهاتك وتقترح إجراءات عملية.",
+      href: "/chat",
       status: "active",
     },
   ],

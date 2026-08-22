@@ -228,8 +228,11 @@ export async function getDistributionOnboardingStatus(payload: {
   });
 }
 
+export const isFixedMode = (mode: string): boolean => mode === "fixed" || mode === "fixed_per_period";
+export const isPercentMode = (mode: string): boolean => mode === "percent" || mode === "percent_of_income";
+
 const normalizeRuleMode = (mode: DistributionRule["mode"]): RuleMode => {
-  if (mode === "fixed" || mode === "fixed_per_period") return "fixed";
+  if (isFixedMode(mode)) return "fixed";
   return "percent";
 };
 

@@ -229,6 +229,7 @@ type PersistableOnboardingRecordSnapshot = {
   isSweepSetupScreen: boolean;
   isCompletionScreen: boolean;
   isRegisterGuestMode: boolean;
+  initialStage?: OnboardingRecordStage;
 };
 
 type QueuedOnboardingSaveRequest = {
@@ -1389,7 +1390,7 @@ function formatIsoDateLabel(value: string): string {
 function readRegisterPrefillAnswers(): Answers {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.sessionStorage.getItem(REGISTER_ONBOARDING_PREFILL_KEY);
+    const raw = window.localStorage.getItem(REGISTER_ONBOARDING_PREFILL_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, string>;
     return {
@@ -1407,7 +1408,7 @@ function readRegisterPrefillAnswers(): Answers {
 function readRegisterOnboardingDraft(): { answers: Answers; draft_objects?: unknown } | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
+    const raw = window.localStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { answers?: Answers; draft_objects?: unknown };
     if (!parsed.answers || typeof parsed.answers !== "object") return null;
@@ -1513,6 +1514,9 @@ function resolveOnboardingRecordStage(
   snapshot: PersistableOnboardingRecordSnapshot,
   stageOverride?: OnboardingRecordStage
 ): OnboardingRecordStage {
+  if (snapshot.initialStage === "completed") {
+    return "completed";
+  }
   return deriveCompatOnboardingRecordStage(
     readOnboardingProgressSnapshot(
       snapshot.draftObjects.onboarding_progress_v2,
@@ -2613,6 +2617,8 @@ function getDistributionNameEquivalentKey(name: string): string {
   if (normalized === "الماكلة") return "food";
   if (normalized === "الصحة") return "health";
   if (normalized === "مصاريف السكن") return "housing_charges";
+  if (normalized === "الدار") return "maison";
+  if (normalized === "صيانة الدار") return "entretien_maison";
   if (normalized === "الطوارئ" || normalized === "طوارئ") return "emergency_buffer";
   if (normalized === "التوازن") return "balance_buffer";
   if (normalized === "النقل العمومي") return "public_transport";
@@ -2630,6 +2636,7 @@ function getDistributionNameEquivalentKey(name: string): string {
     return "bills";
   }
   if (normalized === "مساعدة العائلة") return "family_aid";
+  if (normalized === "الباقي الحر") return "free_balance";
   const slug = slugify(normalized);
   if (!slug) return normalized;
   if (slug === "nourriture" || slug === "courses" || slug === "food") return "food";
@@ -4721,7 +4728,8 @@ function isExcludedMoronaTargetKey(key: string): boolean {
     key === "debts" ||
     key === "goals" ||
     key === "emergency_buffer" ||
-    key === "balance_buffer"
+    key === "balance_buffer" ||
+    key === "free_balance"
   );
 }
 
@@ -10552,9 +10560,9 @@ function buildDraftObjects(
 
   const guidanceDirectionSnapshot = getGuidanceDirectionSnapshot(answers);
   const objectivePolicy = getObjectivePolicy(answers);
-  const sanity = computeSanity(answers);
+  let sanity = computeSanity(answers);
   const salaryScheduleProfile = buildSalaryScheduleProfile(answers);
-  const salaryAmountEffects = buildSalaryAmountEffects(
+  let salaryAmountEffects = buildSalaryAmountEffects(
     answers,
     sanity,
     salaryScheduleProfile,
@@ -10943,6 +10951,22 @@ function buildDraftObjects(
     contributionPlanModes[1];
   const totalGoalContributionPerCycle =
     hasGoal && completeGoals.length > 0 ? selectedContributionMode.goal_per_cycle : 0;
+
+  const goalsTotalPerIncome = toMonthlyAmountFromCycle(totalGoalContributionPerCycle, answers);
+  const essentialLoadVal = getSanityEssentialLoadTotal(sanity);
+  sanity = {
+    ...sanity,
+    goalsTotalPerIncome: roundAmount(goalsTotalPerIncome),
+    remaining: sanity.incomeEstimate !== null && sanity.incomeEstimate > 0
+      ? Number((sanity.incomeEstimate - essentialLoadVal - goalsTotalPerIncome).toFixed(2))
+      : null,
+  };
+  salaryAmountEffects = buildSalaryAmountEffects(
+    answers,
+    sanity,
+    salaryScheduleProfile,
+    objectivePolicy
+  );
   const sinkingFundsTotalPerCycle = roundAmount(
     sinkingFundCandidates.reduce((sum, item) => sum + item.per_cycle_amount, 0)
   );
@@ -11439,6 +11463,28 @@ export function BetaOnboardingV2PageContent({
   const [proposalCustomError, setProposalCustomError] = useState("");
   const [salaryPreviewState] = useState<SalaryPreviewState>({});
   const [proposalDebugOpen, setProposalDebugOpen] = useState(false);
+  const [dynamicPoolAmount, setDynamicPoolAmount] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.sessionStorage.getItem("floussy.quickTx.incomeResume.v1");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const simulatedPool = Number(parsed?.dynamicPoolAmount);
+          const amount = Number(parsed?.draft?.amount);
+          if (Number.isFinite(simulatedPool) && simulatedPool > 0) {
+            setDynamicPoolAmount(simulatedPool);
+          } else if (Number.isFinite(amount) && amount > 0) {
+            setDynamicPoolAmount(amount);
+          }
+          window.sessionStorage.removeItem("floussy.quickTx.incomeResume.v1");
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+  }, []);
   const [guidanceDebtDelta, setGuidanceDebtDelta] = useState(0);
   const [guidanceReserveDelta, setGuidanceReserveDelta] = useState(0);
   const [guidanceGoalDelta, setGuidanceGoalDelta] = useState(0);
@@ -11482,6 +11528,7 @@ export function BetaOnboardingV2PageContent({
   const sweepAutoFilledDateRef = useRef<string | null>(null);
   const latestOnboardingRecordSnapshotRef =
     useRef<PersistableOnboardingRecordSnapshot | null>(null);
+  const initialOnboardingRecordStageRef = useRef<OnboardingRecordStage | null>(null);
   const financialSummaryIncomeRef = useRef<HTMLDivElement>(null);
   const financialSummaryDebtRef = useRef<HTMLDivElement>(null);
   const financialSummaryGoalRef = useRef<HTMLDivElement>(null);
@@ -11600,6 +11647,7 @@ export function BetaOnboardingV2PageContent({
     isSweepSetupScreen,
     isCompletionScreen,
     isRegisterGuestMode,
+    initialStage: initialOnboardingRecordStageRef.current ?? undefined,
   };
   const objectiveEffects = draftObjects.objective_effects;
   const proposalPreview = draftObjects.envelopes_proposal_v1;
@@ -11960,7 +12008,7 @@ export function BetaOnboardingV2PageContent({
     () =>
       distributionEffectiveEligibleEnvelopeNames.map((name) => ({
         id: getDistributionNameEquivalentKey(name) || normalizeProposalName(name) || name,
-        name: getEnvelopeLabelForUi(name),
+        name,
         kind: "distribution_target",
       })),
     [distributionEffectiveEligibleEnvelopeNames]
@@ -14925,6 +14973,9 @@ export function BetaOnboardingV2PageContent({
         );
         if (cancelled) return;
         const latest = Array.isArray(records) ? records[0] ?? null : null;
+        if (latest?.stage === "completed" || latest?.stage === "review" || latest?.stage === "in_progress") {
+          initialOnboardingRecordStageRef.current = latest.stage;
+        }
         setHasRestoredPersistedRecord(Boolean(latest));
         if (
           resolvedJourneyMode === "money_plan" &&
@@ -17141,7 +17192,10 @@ export function BetaOnboardingV2PageContent({
         });
         return;
       }
-      const stage = resolveOnboardingRecordStage(snapshot, stageOverride);
+      let stage = resolveOnboardingRecordStage(snapshot, stageOverride);
+      if (isStandaloneDistributionRoute && authUser?.has_completed_onboarding_v2) {
+        stage = "completed";
+      }
       const saveKey = buildOnboardingSaveKey(
         snapshot.answers,
         snapshot.draftObjects,
@@ -17221,7 +17275,7 @@ export function BetaOnboardingV2PageContent({
 
   useEffect(() => {
     if (!isRegisterGuestMode || typeof window === "undefined") return;
-    window.sessionStorage.setItem(
+    window.localStorage.setItem(
       REGISTER_ONBOARDING_DRAFT_KEY,
       JSON.stringify({
         answers,
@@ -17293,11 +17347,11 @@ export function BetaOnboardingV2PageContent({
           answers,
           draft_objects: recordDraftObjects,
         };
-        window.sessionStorage.setItem(
+        window.localStorage.setItem(
           REGISTER_ONBOARDING_DRAFT_KEY,
           JSON.stringify(payload)
         );
-        window.sessionStorage.setItem(REGISTER_ONBOARDING_COMPLETED_KEY, "1");
+        window.localStorage.setItem(REGISTER_ONBOARDING_COMPLETED_KEY, "1");
         if (window.parent && window.parent !== window) {
           window.parent.postMessage(
             {
@@ -17313,7 +17367,7 @@ export function BetaOnboardingV2PageContent({
       return;
     }
     if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
+      window.localStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
     }
     try {
       await persistOnboardingRecord(true);
@@ -20921,28 +20975,28 @@ export function BetaOnboardingV2PageContent({
                                   <span>الدين (+ / -)</span>
                                   <span>{formatMad(guidanceDebtDelta)}</span>
                                 </div>
-                                <input type="range" min={-400} max={600} step={50} value={guidanceDebtDelta} onChange={(e) => setGuidanceDebtDelta(Number(e.target.value))} className="w-full" />
+                                <input type="range" min={-400} max={600} step={50} value={guidanceDebtDelta} onChange={(e) => guidanceSetDebtDeltaSafe(Number(e.target.value))} className="w-full" />
                               </label>
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
                                   <span>الاحتياط (+ / -)</span>
                                   <span>{formatMad(guidanceReserveDelta)}</span>
                                 </div>
-                                <input type="range" min={-300} max={500} step={50} value={guidanceReserveDelta} onChange={(e) => setGuidanceReserveDelta(Number(e.target.value))} className="w-full" />
+                                <input type="range" min={-300} max={500} step={50} value={guidanceReserveDelta} onChange={(e) => guidanceSetReserveDeltaSafe(Number(e.target.value))} className="w-full" />
                               </label>
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
                                   <span>الأهداف (+ / -)</span>
                                   <span>{formatMad(guidanceGoalDelta)}</span>
                                 </div>
-                                <input type="range" min={-300} max={500} step={50} value={guidanceGoalDelta} onChange={(e) => setGuidanceGoalDelta(Number(e.target.value))} className="w-full" />
+                                <input type="range" min={-300} max={500} step={50} value={guidanceGoalDelta} onChange={(e) => guidanceSetGoalDeltaSafe(Number(e.target.value))} className="w-full" />
                               </label>
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
                                   <span>تنقيص المرونة</span>
                                   <span>{guidanceFlexibleCutPct}%</span>
                                 </div>
-                                <input type="range" min={0} max={40} step={5} value={guidanceFlexibleCutPct} onChange={(e) => setGuidanceFlexibleCutPct(Number(e.target.value))} className="w-full" />
+                                <input type="range" min={0} max={40} step={5} value={guidanceFlexibleCutPct} onChange={(e) => guidanceSetFlexCutSafe(Number(e.target.value))} className="w-full" />
                               </label>
                             </div>
                           </div>
@@ -23425,6 +23479,7 @@ export function BetaOnboardingV2PageContent({
           hideFixedSelectionStep={true}
           baselineFixedSimulationItems={distributionBaselineFixedSimulationItems}
           simulationBaseAmount={guidanceFlexPlannedAmountEffective}
+          dynamicPoolAmount={journeyMode === "money_plan" ? dynamicPoolAmount : undefined}
           rebalanceConfig={{
             totalPool: rebalanceTotalPool,
             debtAmount: guidanceDebtPlannedAmountEffective,

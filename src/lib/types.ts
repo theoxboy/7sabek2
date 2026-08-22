@@ -159,6 +159,7 @@ export type EnvelopeOut = {
   deletable: boolean;
   is_cash?: boolean;
   is_goal?: boolean;
+  is_debt?: boolean;
   created_at?: string;
 };
 
@@ -402,6 +403,7 @@ export type DashboardAlertOut = {
     end: string;
   } | null;
   sweep_status?: SweepStatusOut | null;
+  sweep_bootstrap?: SweepBootstrapOut | null;
 };
 
 export type DashboardTrendPointOut = {
@@ -504,6 +506,7 @@ export type PlatformStatusOut = {
   announcements: PlatformAnnouncementOut[];
   ai_gateways?: AIGatewayOut[];
   ai_routing?: AIRoutingOut;
+  advisor_global_instructions: string;
   account_deletion_grace_days: number;
   features?: {
     passkeys?: boolean;
@@ -534,6 +537,7 @@ export type PlatformSettingsOut = {
   announcements: AnnouncementItem[];
   ai_gateways: AIGatewayOut[];
   ai_routing: AIRoutingOut;
+  advisor_global_instructions: string;
   rate_limit_login_max: number;
   rate_limit_login_window_minutes: number;
   rate_limit_register_max: number;

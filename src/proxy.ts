@@ -4,7 +4,16 @@ import type { NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const response = NextResponse.next();
   const isDev = process.env.NODE_ENV !== "production";
-  const devConnectSrc = isDev ? " http://localhost:8000 http://127.0.0.1:8000" : "";
+  
+  let devConnectSrc = "";
+  if (isDev) {
+    const hostHeader = request.headers.get("host") || "";
+    const hostname = hostHeader.split(":")[0];
+    devConnectSrc = " http://localhost:8000 http://127.0.0.1:8000";
+    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+      devConnectSrc += ` http://${hostname}:8000`;
+    }
+  }
 
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");

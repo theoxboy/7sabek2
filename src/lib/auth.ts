@@ -9,6 +9,7 @@ export type AuthUser = {
   is_beta_tester: boolean;
   force_onboarding_v2_review: boolean;
   force_tour_replay_version: number;
+  has_completed_onboarding_v2?: boolean;
   currency: string;
   sweep_interval_days: number;
   next_sweep_date?: string | null;

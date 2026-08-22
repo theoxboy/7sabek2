@@ -10,9 +10,10 @@ export default function BetaLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
   const isOnboardingAlias = pathname?.startsWith("/beta/onboarding-v2");
+  const isBypassedPage = isOnboardingAlias || pathname?.startsWith("/beta/notifications") || pathname?.startsWith("/beta/chat");
 
   useEffect(() => {
-    if (isOnboardingAlias) {
+    if (isBypassedPage) {
       return;
     }
     let active = true;
@@ -33,9 +34,9 @@ export default function BetaLayout({ children }: { children: React.ReactNode }) 
     return () => {
       active = false;
     };
-  }, [isOnboardingAlias, router]);
+  }, [isBypassedPage, router]);
 
-  if (!isOnboardingAlias && checking) {
+  if (!isBypassedPage && checking) {
     return <p className="text-sm text-[var(--muted)]">Vérification de l’accès beta...</p>;
   }
 

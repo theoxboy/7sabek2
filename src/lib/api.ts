@@ -37,11 +37,13 @@ type ApiFetchOptions = {
 let authRedirectInProgress = false;
 let authRefreshInFlight: Promise<boolean> | null = null;
 let sessionUnauthorized = false;
+let isRefreshing = false;
+let refreshQueue: Array<(failed: boolean) => void> = [];
 const GET_DEDUPE_TTL_MS = 4_000;
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 const recentGetResponses = new Map<string, { expiresAt: number; value: unknown }>();
 
-function clearGetRequestState() {
+export function clearGetRequestState() {
   inFlightGetRequests.clear();
   recentGetResponses.clear();
 }
@@ -49,6 +51,8 @@ function clearGetRequestState() {
 export function resetAuthClientState(): void {
   sessionUnauthorized = false;
   authRedirectInProgress = false;
+  isRefreshing = false;
+  refreshQueue = [];
   clearGetRequestState();
 }
 
@@ -139,6 +143,9 @@ export async function apiFetch<T>(
   options: ApiFetchOptions = {}
 ): Promise<T> {
   const method = options.method ?? "GET";
+  if (method !== "GET") {
+    clearGetRequestState();
+  }
   const retryAuth = options.retryAuth ?? true;
   const suppressAuthRedirect = options.suppressAuthRedirect ?? false;
   const timeoutMs = options.timeoutMs ?? 10_000;
@@ -241,10 +248,45 @@ export async function apiFetch<T>(
     if (!response.ok) {
       if (response.status === 401 && isProtectedAuthCall && typeof window !== "undefined") {
         if (retryAuth && !isAuthRefresh) {
-          const refreshed = await tryRefreshSession();
-          if (refreshed) {
-            sessionUnauthorized = false;
-            return apiFetch<T>(path, { ...options, retryAuth: false });
+          if (isRefreshing) {
+            return new Promise<T>((resolve, reject) => {
+              refreshQueue.push((failed) => {
+                if (failed) {
+                  reject(new Error("Not authenticated"));
+                } else {
+                  resolve(apiFetch<T>(path, { ...options, retryAuth: false }));
+                }
+              });
+            });
+          }
+
+          isRefreshing = true;
+          try {
+            const refreshed = await tryRefreshSession();
+            if (refreshed) {
+              sessionUnauthorized = false;
+              isRefreshing = false;
+              const queue = [...refreshQueue];
+              refreshQueue = [];
+              for (const cb of queue) {
+                cb(false);
+              }
+              return apiFetch<T>(path, { ...options, retryAuth: false });
+            } else {
+              isRefreshing = false;
+              const queue = [...refreshQueue];
+              refreshQueue = [];
+              for (const cb of queue) {
+                cb(true);
+              }
+            }
+          } catch (e) {
+            isRefreshing = false;
+            const queue = [...refreshQueue];
+            refreshQueue = [];
+            for (const cb of queue) {
+              cb(true);
+            }
           }
         }
 

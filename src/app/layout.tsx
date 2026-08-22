@@ -7,6 +7,7 @@ import { GlobalMessageLayer } from "@/components/announcements/GlobalMessageLaye
 import LanguagePreferenceGate from "@/components/i18n/LanguagePreferenceGate";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import AddToHomeScreenPrompt from "@/components/pwa/AddToHomeScreenPrompt";
+import { CookieConsentManager } from "@/components/privacy/CookieConsentManager";
 import { getLocaleDirection, readLocaleCookie } from "@/lib/localePreference";
 
 const geistSans = Geist({
@@ -67,6 +68,7 @@ export default async function RootLayout({
         <LanguagePreferenceGate />
         <GlobalMessageLayer />
         <AddToHomeScreenPrompt />
+        <CookieConsentManager locale={serverLocale} />
         <Toaster>{children}</Toaster>
       </body>
     </html>

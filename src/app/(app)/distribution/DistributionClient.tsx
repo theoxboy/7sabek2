@@ -52,6 +52,39 @@ function DistributionLoadingCard() {
   );
 }
 
+import { useQuickTx } from "@/state/QuickTxContext";
+import { Button } from "@/components/ui/Button";
+
 export default function DistributionClient() {
-  return <DistributionPageContent journeyMode="money_plan" />;
+  const { openQuickTx } = useQuickTx();
+  const [locale, setLocale] = useState<FloussyLocale>("fr");
+
+  useEffect(() => {
+    const sync = () => setLocale(getBrowserLocalePreference() ?? "fr");
+    sync();
+    window.addEventListener(LANGUAGE_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, sync);
+  }, []);
+
+  const buttonLabel =
+    locale === "ar"
+      ? "＋ تصريح دخل"
+      : locale === "en"
+      ? "＋ Log Income"
+      : "＋ Déclarer un revenu";
+
+  return (
+    <div className="relative min-h-screen">
+      <div className="absolute top-4 right-4 z-50">
+        <Button
+          type="button"
+          onClick={() => openQuickTx("income")}
+          className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md font-semibold"
+        >
+          {buttonLabel}
+        </Button>
+      </div>
+      <DistributionPageContent journeyMode="money_plan" />
+    </div>
+  );
 }
