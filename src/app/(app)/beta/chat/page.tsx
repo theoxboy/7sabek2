@@ -289,6 +289,109 @@ const parseButtons = (text: string) => {
   return { cleanText, buttons };
 };
 
+// Component to render text with rich Markdown formatting (Bold, Lists, Code, Italics)
+function FormattedChatMessage({ text, isUser }: { text: string; isUser: boolean }) {
+  const lines = text.split("\n");
+
+  const formatInline = (str: string) => {
+    const parts: React.ReactNode[] = [];
+    // Match **bold**, `code`, or *italic*
+    const regex = /(\*\*\s*[\s\S]+?\s*\*\*|`[^`]+`|\*[^*]+\*)/g;
+    let lastIdx = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(str)) !== null) {
+      const matchStart = match.index;
+      const matchText = match[0];
+
+      if (matchStart > lastIdx) {
+        parts.push(str.substring(lastIdx, matchStart));
+      }
+
+      if (matchText.startsWith("**") && matchText.endsWith("**")) {
+        const cleanBold = matchText.slice(2, -2).trim();
+        parts.push(
+          <strong
+            key={`b-${matchStart}`}
+            className={`font-black ${isUser ? "text-white font-extrabold" : "text-slate-950 font-black tracking-tight"}`}
+          >
+            {cleanBold}
+          </strong>
+        );
+      } else if (matchText.startsWith("`") && matchText.endsWith("`")) {
+        const cleanCode = matchText.slice(1, -1);
+        parts.push(
+          <code
+            key={`c-${matchStart}`}
+            className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold ${
+              isUser ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-800 border border-emerald-100/60"
+            }`}
+          >
+            {cleanCode}
+          </code>
+        );
+      } else if (matchText.startsWith("*") && matchText.endsWith("*")) {
+        const cleanItalic = matchText.slice(1, -1).trim();
+        parts.push(
+          <em key={`i-${matchStart}`} className="italic">
+            {cleanItalic}
+          </em>
+        );
+      }
+
+      lastIdx = regex.lastIndex;
+    }
+
+    if (lastIdx < str.length) {
+      parts.push(str.substring(lastIdx));
+    }
+
+    return parts.length > 0 ? parts : str;
+  };
+
+  return (
+    <div className="space-y-1.5 leading-relaxed">
+      {lines.map((line, lineIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={lineIdx} className="h-1" />;
+        }
+
+        // Bullet point lines starting with • or - or *
+        if (trimmed.startsWith("•") || (trimmed.startsWith("-") && !trimmed.startsWith("---")) || trimmed.startsWith("* ")) {
+          const content = trimmed.replace(/^[•\-\*]\s*/, "");
+          return (
+            <div key={lineIdx} className="flex items-start gap-2 py-0.5">
+              <span className={`inline-block w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isUser ? "bg-white" : "bg-emerald-500"}`} />
+              <span className="flex-1">{formatInline(content)}</span>
+            </div>
+          );
+        }
+
+        // Numbered list items e.g. 1. 2.
+        const numMatch = trimmed.match(/^(\d+[\.\)])\s*(.*)$/);
+        if (numMatch) {
+          return (
+            <div key={lineIdx} className="flex items-start gap-2 py-0.5">
+              <span className={`font-black text-xs shrink-0 ${isUser ? "text-white/90" : "text-emerald-600"}`}>
+                {numMatch[1]}
+              </span>
+              <span className="flex-1">{formatInline(numMatch[2])}</span>
+            </div>
+          );
+        }
+
+        // Section divider ---
+        if (trimmed === "---") {
+          return <hr key={lineIdx} className={`my-2 border-t ${isUser ? "border-white/20" : "border-slate-200/60"}`} />;
+        }
+
+        return <div key={lineIdx}>{formatInline(line)}</div>;
+      })}
+    </div>
+  );
+}
+
 export default function BetaChatPage() {
   const router = useRouter();
   const { locale, dir } = useAppLocale();
@@ -616,7 +719,7 @@ export default function BetaChatPage() {
                                 : "bg-white text-slate-850 border border-slate-200/50 rounded-tl-none font-semibold"
                             }`}
                           >
-                            {parsed.cleanText}
+                            <FormattedChatMessage text={parsed.cleanText} isUser={msg.role === "user"} />
 
                             {/* Interactive Suggestion Buttons from Chat Response */}
                             {msg.role !== "user" && parsed.buttons.length > 0 && (
