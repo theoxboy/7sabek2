@@ -43,11 +43,10 @@ const resolveStepTarget = (step: TourStep | null) => {
     const mobileTarget = document.querySelector<HTMLElement>(
       `[data-tour-mobile-nav] ${step.selector}`
     );
-    if (mobileTarget) return mobileTarget;
+    if (mobileTarget && isElementVisible(mobileTarget)) return mobileTarget;
   }
   const nodes = Array.from(document.querySelectorAll<HTMLElement>(step.selector));
-  const visible = nodes.find((node) => isElementVisible(node));
-  return visible ?? nodes[0] ?? null;
+  return nodes.find((node) => isElementVisible(node)) ?? null;
 };
 
 type GlobalTourState = {
@@ -211,33 +210,21 @@ export function useGlobalTour(
     setState(defaultState);
   }, [pageId, toursDisabledGlobally]);
 
+  // Conditional steps (e.g. dashboard's todo/FAB cards, envelopes' advanced card) can
+  // appear/disappear mid-tour, shifting `total`. Clamp the step index back into range
+  // instead of blowing away the whole tour, so an in-progress tour survives that shift.
   useEffect(() => {
     if (!state.active) return;
+    if (total === 0) {
+      setState(defaultState);
+      writeState(pageId, defaultState);
+      return;
+    }
     if (state.stepIndex >= 0 && state.stepIndex < total) return;
-    setState(defaultState);
-    writeState(pageId, defaultState);
-    // Transactions tour was reported with stale persisted state; clear flags to restart cleanly.
-    if (pageId === "transactions" && typeof window !== "undefined") {
-      try {
-        window.localStorage.removeItem(`${TOUR_SEEN_PREFIX}.${pageId}`);
-        window.localStorage.removeItem(`${TOUR_DONE_PREFIX}.${pageId}`);
-      } catch {
-        // ignore
-      }
-      setIsSeen(false);
-      setIsDone(false);
-    }
-  }, [pageId, state.active, state.stepIndex, total]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    if (total === 0) return;
-    if (state.stepIndex >= total) {
-      const nextState = { ...state, stepIndex: Math.max(0, total - 1) };
-      setState(nextState);
-      writeState(pageId, nextState);
-    }
-  }, [isActive, state, total, pageId]);
+    const clamped = { ...state, stepIndex: Math.max(0, total - 1) };
+    setState(clamped);
+    writeState(pageId, clamped);
+  }, [pageId, state, total]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -373,6 +360,9 @@ function GlobalTourOverlayInner({
   const [tooltipSize, setTooltipSize] = useState<{ width: number; height: number } | null>(
     null
   );
+  const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
+    typeof window === "undefined" ? false : window.innerWidth < 768
+  );
   const resolveTarget = useCallback(() => resolveStepTarget(step), [step]);
 
   useLayoutEffect(() => {
@@ -389,6 +379,7 @@ function GlobalTourOverlayInner({
 
   useEffect(() => {
     const handle = () => {
+      setIsNarrowViewport(window.innerWidth < 768);
       const target = resolveTarget();
       if (!target) return;
       setRect(target.getBoundingClientRect());
@@ -412,10 +403,20 @@ function GlobalTourOverlayInner({
   }, [stepIndex]);
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onSkip();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onSkip]);
+
+  useEffect(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
-    const isMobile = window.innerWidth < 768;
-    const shouldOpenMobileNav = isMobile && isNavSelector(step?.selector);
+    const shouldOpenMobileNav = isNarrowViewport && isNavSelector(step?.selector);
     if (shouldOpenMobileNav) {
       root.classList.add("tour-mobile-nav-open");
     } else {
@@ -424,7 +425,7 @@ function GlobalTourOverlayInner({
     return () => {
       root.classList.remove("tour-mobile-nav-open");
     };
-  }, [step, stepIndex]);
+  }, [step, stepIndex, isNarrowViewport]);
 
   useEffect(() => {
     const target = resolveTarget();
@@ -469,17 +470,28 @@ function GlobalTourOverlayInner({
         viewportWidth - tooltipWidth - safePadding
       )
     : safePadding;
+  const arrowSize = 12;
+  const arrowLeft = rect
+    ? Math.min(
+        Math.max(rect.left + rect.width / 2 - left - arrowSize / 2, 20),
+        tooltipWidth - 20 - arrowSize
+      )
+    : 24;
+  const progressPct = total > 0 ? ((stepIndex + 1) / total) * 100 : 0;
 
   const overlay = (
     <div
       ref={overlayRef}
       className="fixed inset-0 z-[60] pointer-events-auto"
       tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={step.title}
     >
       {rect && isVisible ? (
         <>
           <div
-            className="absolute rounded-3xl border-2 border-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"
+            className="absolute rounded-3xl border-2 border-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.15)] transition-all duration-200 ease-out"
             style={{
               top: Math.max(rect.top - 6, 8),
               left: Math.max(rect.left - 6, 8),
@@ -490,15 +502,21 @@ function GlobalTourOverlayInner({
           />
           <div
             ref={tooltipRef}
-            className="absolute pointer-events-auto w-[360px] max-w-[calc(100vw-32px)] rounded-3xl border border-white/70 bg-[var(--surface)]/95 p-4 text-sm text-slate-700 shadow-2xl"
+            className="absolute pointer-events-auto w-[360px] max-w-[calc(100vw-32px)] rounded-3xl border border-[var(--border)] bg-[var(--surface)]/95 p-4 text-sm text-[var(--muted)] shadow-2xl transition-all duration-200 ease-out"
             style={{ top, left, width: tooltipWidth }}
           >
             <div
-              className={`absolute h-3 w-3 rotate-45 border border-white/70 bg-[var(--surface)]/95 ${
+              className={`absolute h-3 w-3 rotate-45 border border-[var(--border)] bg-[var(--surface)]/95 ${
                 placeBelow ? "-top-1" : "bottom-[-6px]"
               }`}
-              style={{ left: 24 }}
+              style={{ left: arrowLeft }}
             />
+            <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-all duration-200 ease-out"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
                 Étape {stepIndex + 1}/{total}
@@ -507,23 +525,23 @@ function GlobalTourOverlayInner({
                 Guide
               </span>
             </div>
-            <p className="mt-2 text-base font-semibold text-slate-900">
+            <p className="mt-2 text-base font-semibold text-[var(--ink)]">
               {step.title}
             </p>
-            <p className="mt-1 text-sm text-slate-600">{step.description}</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">{step.description}</p>
           </div>
         </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40" />
-          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-[var(--surface)]/95 p-4 text-center text-sm text-slate-700 shadow-2xl">
+          <div className="w-full max-w-sm rounded-3xl border border-[var(--border)] bg-[var(--surface)]/95 p-4 text-center text-sm text-[var(--muted)] shadow-2xl">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
               Étape {stepIndex + 1}/{Math.max(total, 1)}
             </p>
-            <p className="mt-2 text-base font-semibold text-slate-900">
+            <p className="mt-2 text-base font-semibold text-[var(--ink)]">
               Étape hors écran
             </p>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-[var(--muted)]">
               Fais défiler vers le {scrollDirection} pour retrouver l’élément de
               cette étape.
             </p>
@@ -544,15 +562,15 @@ function GlobalTourOverlayInner({
         </div>
       )}
 
-      <div className="fixed bottom-6 left-1/2 pointer-events-auto flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/70 bg-[var(--surface)]/90 px-4 py-2 text-sm text-slate-700 shadow-xl">
+      <div className="fixed bottom-6 left-1/2 pointer-events-auto flex -translate-x-1/2 items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--surface)]/90 px-4 py-2 text-sm text-[var(--muted)] shadow-xl">
         <button
           type="button"
           onClick={() => onSkip()}
-          className="text-xs font-medium text-slate-500 hover:text-slate-700"
+          className="text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
         >
           Passer pour le moment
         </button>
-        <div className="h-5 w-px bg-slate-200" />
+        <div className="h-5 w-px bg-[var(--border)]" />
         <Button
           variant="secondary"
           onClick={() => onPrevious()}

@@ -623,6 +623,7 @@ function AppLayoutContent({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userBootstrapLoading, setUserBootstrapLoading] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const tourForcedNavRef = useRef(false);
   const [actAsId, setActAsId] = useState<string | null>(null);
   const lastPathRef = useRef<string | null>(null);
   const [dashboardAlerts, setDashboardAlerts] = useState<DashboardAlertOut | null>(
@@ -1054,6 +1055,7 @@ function AppLayoutContent({
 
   useEffect(() => {
     setMobileNavOpen(false);
+    tourForcedNavRef.current = false;
     if (typeof window !== "undefined") {
       document.documentElement.classList.remove("tour-mobile-nav-open");
       setActAsId(window.sessionStorage.getItem("floussy.superadmin.act_as"));
@@ -1067,7 +1069,11 @@ function AppLayoutContent({
     const syncFromTour = () => {
       const shouldOpen = root.classList.contains("tour-mobile-nav-open");
       if (shouldOpen) {
+        tourForcedNavRef.current = true;
         setMobileNavOpen(true);
+      } else if (tourForcedNavRef.current) {
+        tourForcedNavRef.current = false;
+        setMobileNavOpen(false);
       }
     };
     const observer = new MutationObserver(syncFromTour);
@@ -2231,7 +2237,10 @@ function AppLayoutContent({
                       variant="ghost"
                       size="sm"
                       className="lg:hidden"
-                      onClick={() => setMobileNavOpen(true)}
+                      onClick={() => {
+                        tourForcedNavRef.current = false;
+                        setMobileNavOpen(true);
+                      }}
                       aria-label={shellCopy.openMenu}
                     >
                       <Menu className="h-5 w-5" aria-hidden />
@@ -2426,7 +2435,10 @@ function AppLayoutContent({
             className={`fixed inset-0 z-40 bg-black/40 transition-opacity lg:hidden ${
               mobileNavOpen ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
-            onClick={() => setMobileNavOpen(false)}
+            onClick={() => {
+              tourForcedNavRef.current = false;
+              setMobileNavOpen(false);
+            }}
             aria-hidden={!mobileNavOpen}
           />
           <aside
@@ -2455,7 +2467,10 @@ function AppLayoutContent({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setMobileNavOpen(false)}
+                  onClick={() => {
+                    tourForcedNavRef.current = false;
+                    setMobileNavOpen(false);
+                  }}
                 >
                   <X className="h-5 w-5" aria-hidden />
                 </Button>
