@@ -90,6 +90,7 @@ const AI_PROVIDER_PRESETS: Array<{
   protocol: string;
   label: string;
   baseUrl: string;
+  defaultModel: string;
   notes: string;
 }> = [
   {
@@ -97,6 +98,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "openai_compatible",
     label: "OpenAI",
     baseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
     notes: "API OpenAI officielle (responses/chat completions).",
   },
   {
@@ -104,6 +106,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "azure_openai",
     label: "Azure OpenAI",
     baseUrl: "https://YOUR_RESOURCE_NAME.openai.azure.com",
+    defaultModel: "gpt-4o-mini",
     notes: "Renseigner deployment/model et api-version dans notes/paths.",
   },
   {
@@ -111,6 +114,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "native_anthropic",
     label: "Anthropic",
     baseUrl: "https://api.anthropic.com/v1",
+    defaultModel: "claude-3-5-haiku-20241022",
     notes: "API native Messages d'Anthropic.",
   },
   {
@@ -118,6 +122,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "native_gemini",
     label: "Google Gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    defaultModel: "gemini-2.0-flash",
     notes: "API native Gemini; possible proxy OpenAI-compatible selon usage.",
   },
   {
@@ -125,6 +130,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "openai_compatible",
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
+    defaultModel: "google/gemini-2.0-flash-001",
     notes: "Schéma proche OpenAI, multi-providers.",
   },
   {
@@ -132,6 +138,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "openai_compatible",
     label: "Groq",
     baseUrl: "https://api.groq.com/openai/v1",
+    defaultModel: "llama-3.3-70b-versatile",
     notes: "OpenAI-compatible Chat Completions.",
   },
   {
@@ -139,6 +146,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "openai_compatible",
     label: "Mistral",
     baseUrl: "https://api.mistral.ai/v1",
+    defaultModel: "mistral-small-latest",
     notes: "Mistral supporte des patterns compatibles OpenAI.",
   },
   {
@@ -146,6 +154,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "openai_compatible",
     label: "Perplexity Sonar",
     baseUrl: "https://api.perplexity.ai",
+    defaultModel: "sonar",
     notes: "Compatibilité OpenAI SDK annoncée.",
   },
   {
@@ -153,6 +162,7 @@ const AI_PROVIDER_PRESETS: Array<{
     protocol: "custom_http",
     label: "Custom HTTP",
     baseUrl: "https://YOUR_AI_GATEWAY_URL",
+    defaultModel: "gpt-4o-mini",
     notes: "Pour tout fournisseur non standard.",
   },
 ];
@@ -177,7 +187,7 @@ const createAIGatewayFromPreset = (
     api_key: "",
     auth_header: "Authorization",
     auth_scheme: "Bearer",
-    model: "",
+    model: p.defaultModel || "gpt-4o-mini",
     enabled: true,
     paths: {},
     extra_headers: {},
