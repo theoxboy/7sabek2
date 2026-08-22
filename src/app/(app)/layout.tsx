@@ -38,6 +38,7 @@ import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
 import BrandLogo from "@/components/BrandLogo";
+import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -623,7 +624,27 @@ function AppLayoutContent({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userBootstrapLoading, setUserBootstrapLoading] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const tourForcedNavRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("floussy.sidebar.collapsed");
+      if (saved === "1") {
+        setSidebarCollapsed(true);
+      }
+    }
+  }, []);
+
+  const toggleSidebarCollapsed = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("floussy.sidebar.collapsed", next ? "1" : "0");
+      }
+      return next;
+    });
+  }, []);
   const [actAsId, setActAsId] = useState<string | null>(null);
   const lastPathRef = useRef<string | null>(null);
   const [dashboardAlerts, setDashboardAlerts] = useState<DashboardAlertOut | null>(
@@ -2136,56 +2157,23 @@ function AppLayoutContent({
           />
           <div className="relative mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 pb-10 pt-8 sm:px-6 lg:px-8 lg:flex-row">
             <nav
-              className="hidden w-full lg:block lg:w-72 lg:shrink-0 lg:self-start lg:sticky lg:top-8 lg:h-[calc(100dvh-4rem)]"
+              className={`hidden lg:block shrink-0 self-start sticky top-8 h-[calc(100dvh-4rem)] transition-all duration-300 ${
+                sidebarCollapsed ? "w-[78px]" : "w-72"
+              }`}
               data-tour="sidebar"
             >
-              <div className="floussy-sidebar">
-                <div className="floussy-sidebar__head">
-                  <div className="floussy-sidebar__brand">
-                    <BrandLogo
-                      locale={locale}
-                      tone="dark"
-                      className="h-14 w-auto object-contain"
-                    />
-                  </div>
-                </div>
-                <ul className="floussy-nav-list floussy-scroll">
-                  {visibleNavItems.map((item) => {
-                    const isActive = pathname === item.href;
-                    const Icon = item.icon;
-                    const tourId = `nav-${item.href.replace("/", "")}`;
-                    return (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          data-tour={tourId}
-                          className={`floussy-nav-item ${isActive ? "is-active" : ""}`}
-                        >
-                          <span className="navbox bg-hover-primary">
-                            <span className="icon-box bgicn-hover-primary">
-                              <Icon className="texthover-primary" aria-hidden />
-                            </span>
-                            <span className="floussy-nav-label">
-                              {shellCopy.nav[item.href] ?? item.label}
-                            </span>
-                            <span className="floussy-nav-dot" aria-hidden />
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <UserSummaryCard
-                  initials={initials}
-                  displayName={displayName}
-                  email={user?.email}
-                  idleLabel="—"
-                  logoutLabel={shellCopy.logout}
-                  onLogout={handleLogout}
-                  versionLabel={appVersionLabel}
-                  className="mx-4 mt-auto mb-4"
-                />
-              </div>
+              <AppSidebar
+                user={user}
+                displayName={displayName}
+                initials={initials}
+                locale={locale}
+                streakDays={streakDays}
+                appVersionLabel={appVersionLabel}
+                onLogout={handleLogout}
+                betaAuthorized={betaAuthorized}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={toggleSidebarCollapsed}
+              />
             </nav>
 
             <div className="flex-1">
@@ -2455,64 +2443,21 @@ function AppLayoutContent({
             role="dialog"
             aria-label={shellCopy.navigation}
           >
-            <div className="floussy-sidebar floussy-sidebar--mobile">
-              <div className="floussy-sidebar__head">
-                <div className="floussy-sidebar__brand">
-                  <BrandLogo
-                    locale={locale}
-                    tone="dark"
-                    className="h-14 w-auto object-contain"
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    tourForcedNavRef.current = false;
-                    setMobileNavOpen(false);
-                  }}
-                >
-                  <X className="h-5 w-5" aria-hidden />
-                </Button>
-              </div>
-              <ul className="floussy-nav-list floussy-scroll">
-                {visibleNavItems.map((item) => {
-                  const isActive = pathname === item.href;
-                  const Icon = item.icon;
-                  const tourId = `nav-${item.href.replace("/", "")}`;
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setMobileNavOpen(false)}
-                        data-tour={tourId}
-                        className={`floussy-nav-item ${isActive ? "is-active" : ""}`}
-                      >
-                        <span className="navbox bg-hover-primary">
-                          <span className="icon-box bgicn-hover-primary">
-                            <Icon className="texthover-primary" aria-hidden />
-                          </span>
-                          <span className="floussy-nav-label">
-                            {shellCopy.nav[item.href] ?? item.label}
-                          </span>
-                          <span className="floussy-nav-dot" aria-hidden />
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-              <UserSummaryCard
-                initials={initials}
-                displayName={displayName}
-                email={user?.email}
-                idleLabel="—"
-                logoutLabel={shellCopy.logout}
-                onLogout={handleLogout}
-                versionLabel={appVersionLabel}
-                className="mx-4 mt-auto mb-4"
-              />
-            </div>
+            <AppSidebar
+              user={user}
+              displayName={displayName}
+              initials={initials}
+              locale={locale}
+              streakDays={streakDays}
+              appVersionLabel={appVersionLabel}
+              onLogout={handleLogout}
+              isMobile
+              onCloseMobile={() => {
+                tourForcedNavRef.current = false;
+                setMobileNavOpen(false);
+              }}
+              betaAuthorized={betaAuthorized}
+            />
           </aside>
         </>
       )}

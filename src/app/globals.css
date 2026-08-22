@@ -210,6 +210,14 @@ body.onboarding-route-ar-body a svg {
   border-radius: 0;
 }
 
+.app-shell-v2 .floussy-sidebar--collapsed {
+  width: 78px;
+}
+
+.app-shell-v2 .floussy-sidebar--collapsed .floussy-sidebar__head {
+  padding: 16px 10px 12px;
+}
+
 .app-shell-v2 .floussy-sidebar__head {
   padding: 20px 20px 14px;
 }
