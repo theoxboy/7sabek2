@@ -1345,15 +1345,28 @@ export function DistributionConfigDialog({
           .map((item) => distributionNameEquivalentKey(item.name))
           .filter(Boolean)
       );
+      // Name keys shared by several envelope rows. The baseline set is keyed by
+      // name, so on its own it would lock every envelope sharing a name with a
+      // fixed commitment, including twins that carry no fixed amount at all.
+      // For those keys only the row's own rule data may lock it.
+      const duplicateNameKeyCounts = new Map<string, number>();
+      merged.forEach((row) => {
+        if (row.targetType !== "envelope") return;
+        const key = distributionNameEquivalentKey(row.name);
+        if (!key) return;
+        duplicateNameKeyCounts.set(key, (duplicateNameKeyCounts.get(key) ?? 0) + 1);
+      });
       const onboardingNormalized = onboardingSetupOnlyMode
         ? merged.map((row) =>
             row.targetType === "envelope"
               ? (() => {
                   const normalizedNameKey = distributionNameEquivalentKey(row.name);
+                  const nameIsAmbiguous =
+                    (duplicateNameKeyCounts.get(normalizedNameKey) ?? 0) > 1;
                   const lockedFromMorona =
                     isDebtLikeEnvelopeName(row.name) ||
                     isGoalLikeEnvelopeName(row.name) ||
-                    fixedBaselineNameSet.has(normalizedNameKey) ||
+                    (!nameIsAmbiguous && fixedBaselineNameSet.has(normalizedNameKey)) ||
                     isFixedMode(row.mode) ||
                     parseNumber(row.fixedAmount) > 0;
                   if (lockedFromMorona) {

@@ -11735,12 +11735,25 @@ export function BetaOnboardingV2PageContent({
   // baseline, and structural ones (debts, goals, savings, buffers) via their
   // API flags and the excluded-key list.
   const distributionRealCandidateEnvelopeNames = useMemo(() => {
+    // Name keys carried by more than one real envelope. The proposal's
+    // fixed-commitment set can only be keyed by name, so when two envelopes
+    // share a name it excludes both - the fixed one legitimately, its flexible
+    // twin by accident, leaving that twin permanently unfundable. For those
+    // keys the per-row rule data in the setup dialog decides instead, which
+    // locks the twin that really carries a fixed amount and no other.
+    const keyCounts = new Map<string, number>();
+    distributionRealEnvelopes.forEach((item) => {
+      const key = getDistributionNameEquivalentKey(item.name);
+      if (!key) return;
+      keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+    });
     return uniqueBySlug(
       distributionRealEnvelopes
         .filter((item) => !item.is_goal && !item.is_debt && !item.is_default_savings)
         .filter((item) => {
           const key = getDistributionNameEquivalentKey(item.name);
           if (!key || isExcludedMoronaTargetKey(key)) return false;
+          if ((keyCounts.get(key) ?? 0) > 1) return true;
           const normalized = normalizeProposalName(item.name);
           if (distributionExplainFixedNameSet.has(normalized)) return false;
           if (distributionExplainFixedNameSet.has(key)) return false;
