@@ -7213,13 +7213,23 @@ function deriveSelectedDomains(answers: Answers): string[] {
   return Array.from(new Set(merged));
 }
 
+// slugify keeps only [a-z0-9], so any name written entirely in Arabic reduces
+// to an empty string. Deduplicating on the slug alone therefore discarded every
+// such name - in an Arabic-first product that silently emptied whole envelope
+// lists. Fall back to the name's own normalized text when it has no Latin slug.
+function dedupeKeyForName(value: string): string {
+  const slug = slugify(value);
+  if (slug) return slug;
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function uniqueBySlug(values: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   values.forEach((value) => {
-    const slug = slugify(value);
-    if (!slug || seen.has(slug)) return;
-    seen.add(slug);
+    const key = dedupeKeyForName(value);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
     result.push(value.trim());
   });
   return result;
@@ -11812,8 +11822,20 @@ export function BetaOnboardingV2PageContent({
         .map((item) => item.final_name.trim())
         .filter(Boolean);
     // Union, proposal order first so an existing setup keeps its layout and
-    // only genuinely new envelopes are appended.
-    return uniqueBySlug([...fromProposal, ...distributionRealCandidateEnvelopeNames]);
+    // only genuinely new envelopes are appended. Deduplicate on the
+    // distribution equivalence key rather than the slug: the proposal names an
+    // envelope "nourriture" where the account stores "الماكلة", and those are
+    // the same target, so slug-level dedup would list it twice and split its
+    // share in two.
+    const seenKeys = new Set<string>();
+    const union: string[] = [];
+    [...fromProposal, ...distributionRealCandidateEnvelopeNames].forEach((name) => {
+      const key = getDistributionNameEquivalentKey(name) || dedupeKeyForName(name);
+      if (!key || seenKeys.has(key)) return;
+      seenKeys.add(key);
+      union.push(name);
+    });
+    return union;
   }, [
     answers,
     distributionExplainFixedNameSet,
