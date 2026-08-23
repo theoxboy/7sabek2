@@ -53,10 +53,13 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-cairo), "Cairo", system-ui, sans-serif;
+  --font-sans: "Cairo", system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
+*,
+*::before,
+*::after,
 html,
 body,
 button,
@@ -65,14 +68,15 @@ select,
 textarea,
 h1, h2, h3, h4, h5, h6,
 p, span, a, label,
+div, section, article, nav, header, footer, main, aside,
 table, th, td {
-  font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   min-height: 100vh;
 }
 
