@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Globe } from "lucide-react";
 import { Bricolage_Grotesque, Cairo, Manrope } from "next/font/google";
 
@@ -745,101 +745,102 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       lang={effectiveLocale}
       data-landing-locale={effectiveLocale}
     >
-      {/* 🚀 GOOGLE PLAY POPUP MODAL */}
-      {showGooglePlayPopup && (
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={() => setShowGooglePlayPopup(false)}
-        >
-          <div
-            className="relative w-full max-w-lg bg-neutral-950 border border-emerald-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-emerald-950/60 text-white overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+      {/* 🚀 GOOGLE PLAY / ANDROID POPUP MODAL */}
+      <AnimatePresence>
+        {showGooglePlayPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+            onClick={() => setShowGooglePlayPopup(false)}
           >
-            {/* Ambient glow */}
-            <div className="absolute -top-24 -right-24 w-60 h-60 bg-emerald-500/25 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-cyan-500/25 rounded-full blur-3xl pointer-events-none" />
-
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={() => setShowGooglePlayPopup(false)}
-              className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white transition-all cursor-pointer"
-              aria-label="Fermer"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="relative w-full max-w-md bg-neutral-950/95 border border-emerald-500/40 rounded-3xl p-6 sm:p-7 shadow-[0_25px_70px_-15px_rgba(16,185,129,0.35)] text-white overflow-hidden text-center"
+              onClick={(e) => e.stopPropagation()}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+              {/* Subtle ambient light glows */}
+              <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="flex items-center gap-3.5 mb-4">
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center shadow-inner">
-                <GooglePlayIcon className="w-10 h-10 flex-shrink-0" />
-              </div>
-              <div>
-                <span className="inline-block px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 rounded-full">
-                  {isArabic ? "تطبيق أندرويد الرسمي" : "Application Android Officielle"}
-                </span>
-                <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
-                  {isArabic ? "حمّل تطبيق 7sabek على أندرويد !" : "7sabek est disponible sur Android !"}
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-neutral-300 text-sm leading-relaxed mb-6">
-              {isArabic
-                ? "تحكم في ميزانيتك وأظرفتك من هاتفك بدون إنترنت، سجل مصاريفك بالدارجة المغربية بالصوت، واحصل على تنبيهات ذكية وتشفير بالبصمة."
-                : "Gérez vos enveloppes hors-ligne, dictez vos transactions en Darija par la voix, sécurisez votre compte avec la biométrie et suivez vos dettes en toute simplicité."}
-            </p>
-
-            {/* Key highlights */}
-            <div className="grid grid-cols-2 gap-2.5 mb-6 text-xs text-neutral-200">
-              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
-                <span className="text-emerald-400 text-base">⚡</span>
-                <span className="font-semibold">{isArabic ? "100% بدون إنترنت" : "100% Hors-Ligne"}</span>
-              </div>
-              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
-                <span className="text-cyan-400 text-base">🎙️</span>
-                <span className="font-semibold">{isArabic ? "صوت بالدارجة المغربية" : "IA Darija Vocale"}</span>
-              </div>
-              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
-                <span className="text-emerald-400 text-base">🛡️</span>
-                <span className="font-semibold">{isArabic ? "دخول بالبصمة" : "Sécurité Biométrique"}</span>
-              </div>
-              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
-                <span className="text-amber-400 text-base">📊</span>
-                <span className="font-semibold">{isArabic ? "تحليلات وديون Salaf" : "Analytics & Dettes"}</span>
-              </div>
-            </div>
-
-            {/* Download Call to Action */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <a
-                href="/7sabek_app.apk"
-                download="7sabek_app.apk"
-                onClick={() => setShowGooglePlayPopup(false)}
-                className="w-full sm:flex-1 inline-flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-neutral-950 font-black py-3 px-6 rounded-2xl shadow-lg shadow-emerald-500/30 transition-all text-sm group"
-              >
-                <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
-                <span>{isArabic ? "تحميل تطبيق أندرويد (APK)" : "Télécharger pour Android (APK)"}</span>
-              </a>
-
+              {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setShowGooglePlayPopup(false)}
-                className="w-full sm:w-auto px-4 py-3 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white transition-all cursor-pointer"
+                aria-label="Fermer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Logo Emblem */}
+              <div className="mx-auto mb-3.5 w-16 h-16 rounded-2xl bg-white/5 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-950/50">
+                <GooglePlayIcon className="w-9 h-9 flex-shrink-0" />
+              </div>
+
+              {/* Status Badge */}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/90 border border-emerald-500/30 rounded-full mb-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {isArabic ? "تطبيق أندرويد الرسمي" : "Disponible sur Android"}
+              </span>
+
+              {/* Main Headline */}
+              <h3 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2">
+                {isArabic ? "7sabek في جيبك أينما كنت !" : "7sabek sur votre smartphone"}
+              </h3>
+
+              {/* Concise 1-sentence description */}
+              <p className="text-neutral-300 text-xs sm:text-sm leading-relaxed mb-5 max-w-sm mx-auto">
+                {isArabic
+                  ? "أظرفة الميزانية 100% بدون إنترنت، تسجيل بالدارجة بالصوت وحماية فورية بالبصمة."
+                  : "Budget par enveloppes 100% hors-ligne, saisie vocale en Darija et verrouillage biométrique."}
+              </p>
+
+              {/* 3 Sleek Highlight Pills */}
+              <div className="flex items-center justify-center gap-2 mb-6 flex-wrap">
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-xl text-neutral-200">
+                  ⚡ {isArabic ? "بدون إنترنت" : "Hors-Ligne"}
+                </span>
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-xl text-neutral-200">
+                  🎙️ {isArabic ? "صوت بالدارجة" : "Voix Darija"}
+                </span>
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-xl text-neutral-200">
+                  🛡️ {isArabic ? "بصمة" : "Biométrie"}
+                </span>
+              </div>
+
+              {/* High-Impact CTA Button */}
+              <motion.a
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                href="/7sabek_app.apk"
+                download="7sabek_app.apk"
+                onClick={() => setShowGooglePlayPopup(false)}
+                className="w-full inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-neutral-950 font-black py-3.5 px-6 rounded-2xl shadow-xl shadow-emerald-500/30 transition-all text-sm cursor-pointer"
+              >
+                <GooglePlayIcon className="w-5 h-5 flex-shrink-0" />
+                <span>{isArabic ? "تحميل التطبيق مجاناً (APK)" : "Télécharger l'Application (APK)"}</span>
+              </motion.a>
+
+              {/* Secondary Action Link */}
+              <button
+                type="button"
+                onClick={() => setShowGooglePlayPopup(false)}
+                className="mt-3 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer py-1 block w-full text-center"
               >
                 {isArabic ? "المتابعة على الموقع" : "Continuer sur le Web"}
               </button>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-white/10 text-center">
-              <p className="text-[11px] text-neutral-400">
-                {isArabic ? "متوافق مع جميع هواتف أندرويد • الإصدار 2.4.0 • مجاني 100%" : "Compatible Android 8.0+ • Version 2.4.0 • 100% Gratuit"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="lp-progress" aria-hidden="true">
         <span style={{ width: `${progress}%` }} />
