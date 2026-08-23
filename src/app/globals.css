@@ -52,14 +52,26 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-cairo), "Cairo", system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+h1, h2, h3, h4, h5, h6,
+p, span, a, label,
+table, th, td {
+  font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   min-height: 100vh;
 }
 
@@ -70,9 +82,9 @@ html[lang="ar"] body * {
   letter-spacing: 0 !important;
 }
 
-html[lang="ar"] svg,
-html[lang="ar"] button svg,
-html[lang="ar"] a svg {
+html svg,
+button svg,
+a svg {
   font-family: initial !important;
 }
 
@@ -84,12 +96,13 @@ html[lang="ar"] a svg {
 /* reCAPTCHA v2 checkbox — no badge hiding needed */
 
 .app-display-font {
-  font-family: var(--font-fraunces), "Times New Roman", serif;
+  font-family: var(--font-cairo), "Cairo", system-ui, sans-serif !important;
   letter-spacing: -0.015em;
 }
 
-.app-shell-v2 {
-  font-family: var(--font-manrope), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+.app-shell-v2,
+.app-shell-v2 * {
+  font-family: var(--font-cairo), "Cairo", var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
   background: linear-gradient(180deg, #f8fafc 0%, #f4f7fb 48%, #eef7f2 100%);
 }
 

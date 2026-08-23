@@ -245,8 +245,8 @@ export default function LoginPage() {
   const supportEmail = status?.support_email || "elidryssi@gmail.com";
   const copy = LOGIN_COPY[locale];
   const pageDir = getLocaleDirection(locale);
-  const pageFontClass = locale === "ar" ? `${arabicFont.className} login-arabic-font` : bodyFont.className;
-  const headingClass = locale === "ar" ? "login-title" : displayFont.className;
+  const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "login-arabic-font" : ""}`;
+  const headingClass = arabicFont.className;
   const copyClass = locale === "ar" ? "login-copy" : "";
 
   const [email, setEmail] = useState("");

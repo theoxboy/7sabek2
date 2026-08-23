@@ -60,9 +60,9 @@ export default async function RootLayout({
   const serverDir = serverLocale === "en" ? "ltr" : getLocaleDirection(serverLocale);
 
   return (
-    <html lang={serverLocale} dir={serverDir}>
+    <html lang={serverLocale} dir={serverDir} className={cairo.className}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} ${cairo.variable} antialiased`}
+        className={`${cairo.className} ${cairo.variable} ${geistSans.variable} ${geistMono.variable} ${manrope.variable} antialiased`}
       >
         <MicrosoftClarity />
         <LanguagePreferenceGate />

@@ -108,8 +108,7 @@ export default function ForgotPasswordPage() {
   const { locale, dir } = useAppLocale("fr");
   useForceArabicDocumentFont(locale === "ar", "forgot-password-ar-body");
   const copy = COPY[locale];
-  const pageFontClass =
-    locale === "ar" ? `${arabicFont.className} forgot-arabic-font` : bodyFont.className;
+  const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "forgot-arabic-font" : ""}`;
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

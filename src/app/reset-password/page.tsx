@@ -159,8 +159,7 @@ export default function ResetPasswordPage() {
   const { locale, dir } = useAppLocale("fr");
   useForceArabicDocumentFont(locale === "ar", "reset-password-ar-body");
   const copy = COPY[locale];
-  const pageFontClass =
-    locale === "ar" ? `${arabicFont.className} reset-arabic-font` : bodyFont.className;
+  const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "reset-arabic-font" : ""}`;
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = useMemo(() => (searchParams.get("token") || "").trim(), [searchParams]);

@@ -609,8 +609,8 @@ export default function RegisterPage() {
   }, [reduceMotion]);
 
   const pageDir = getLocaleDirection(locale);
-  const pageFontClass = locale === "ar" ? `${arabicFont.className} register-arabic-font` : bodyFont.className;
-  const headingClass = locale === "ar" ? "register-title" : displayFont.className;
+  const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "register-arabic-font" : ""}`;
+  const headingClass = arabicFont.className;
   const copyClass = locale === "ar" ? "register-copy" : "";
   const countryLabels = COUNTRY_LABELS[locale];
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";

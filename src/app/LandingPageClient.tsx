@@ -650,8 +650,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const copy = COPY[effectiveLocale];
   const direction = getLocaleDirection(effectiveLocale);
   const isArabic = effectiveLocale === "ar";
-  const pageFontClass = isArabic ? `${arabicFont.className} lp-ar` : bodyFont.className;
-  const headingClass = isArabic ? "lp-title" : displayFont.className;
+  const pageFontClass = `${arabicFont.className} ${isArabic ? "lp-ar" : ""}`;
+  const headingClass = arabicFont.className;
 
   const allocation = useMemo(() => {
     let remaining = salary;
