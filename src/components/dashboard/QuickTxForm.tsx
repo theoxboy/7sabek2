@@ -2785,6 +2785,17 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
         ) : null}
       </div>
 
+      {/* Sits with the action buttons so it is reachable from every step. The
+          other copy of this alert lives inside the form block, which the income
+          preview replaces: a save failing there set the message on a node that
+          was no longer rendered, so a rejected request looked like a button
+          that simply did nothing. */}
+      {quickTxError && quickTxDraft.type === "income" && quickTxStep === "income_preview" ? (
+        <Alert tone="error" className="mt-4">
+          <AlertDescription>{quickTxError}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-[var(--border)] pt-4">
         {/* Render Cancel button only if not inline OR custom onCancel is provided */}
         {(!isInline || onCancel) && (
