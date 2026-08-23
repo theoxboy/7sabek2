@@ -1359,6 +1359,16 @@ export function DistributionConfigDialog({
         if (!key) return;
         duplicateNameKeyCounts.set(key, (duplicateNameKeyCounts.get(key) ?? 0) + 1);
       });
+      // Once real rules exist they say which envelopes carry a fixed amount,
+      // and the row's own mode below reads them. The baseline is the draft's
+      // guess from onboarding: keeping it on top of real rules locks envelopes
+      // the draft assumed were fixed but that were never given a fixed budget,
+      // which drops them from the flexible pool as well and strands them at 0.
+      const hasLiveFixedRules = merged.some(
+        (row) =>
+          row.targetType === "envelope" &&
+          (isFixedMode(row.mode) || parseNumber(row.fixedAmount) > 0)
+      );
       const onboardingNormalized = onboardingSetupOnlyMode
         ? merged.map((row) =>
             row.targetType === "envelope"
@@ -1369,7 +1379,16 @@ export function DistributionConfigDialog({
                   const lockedFromMorona =
                     isDebtLikeEnvelopeName(row.name) ||
                     isGoalLikeEnvelopeName(row.name) ||
-                    (!nameIsAmbiguous && fixedBaselineNameSet.has(normalizedNameKey)) ||
+                    // Baseline still decides in two cases: before any real
+                    // rule exists, and when the key is shared by several
+                    // envelopes. There, one of them really is the fixed
+                    // commitment and nothing in the row data says which, so
+                    // giving them all a share would quietly hand extra money
+                    // to an envelope that is already funded. Leaving them at 0
+                    // is visible and the user can fix it by removing the
+                    // duplicate; a silent misallocation is neither.
+                    (fixedBaselineNameSet.has(normalizedNameKey) &&
+                      (nameIsAmbiguous || !hasLiveFixedRules)) ||
                     isFixedMode(row.mode) ||
                     parseNumber(row.fixedAmount) > 0;
                   if (lockedFromMorona) {

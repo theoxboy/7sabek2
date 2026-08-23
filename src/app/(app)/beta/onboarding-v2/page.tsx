@@ -11837,19 +11837,22 @@ export function BetaOnboardingV2PageContent({
         .filter((item) => {
           const key = getDistributionNameEquivalentKey(item.name);
           if (!key || isExcludedMoronaTargetKey(key)) return false;
-          // Once a config exists its rules are the authority on which
-          // envelopes are fixed, and the filter above has already removed
-          // those. Anything left carries no fixed amount, so treating it as
-          // fixed on the proposal's word alone is what stranded envelopes at
-          // 0: excluded from the flexible pool for being fixed, yet never
-          // given a fixed budget. Before the first config there are no rules
-          // to read, so the proposal still fills in there.
-          if (hasActiveDistributionConfig) return true;
-          if (keyCounts.has(key)) return true;
           const normalized = normalizeProposalName(item.name);
-          if (distributionExplainFixedNameSet.has(normalized)) return false;
-          if (distributionExplainFixedNameSet.has(key)) return false;
-          return true;
+          const draftCallsItFixed =
+            distributionExplainFixedNameSet.has(normalized) ||
+            distributionExplainFixedNameSet.has(key);
+          if (!draftCallsItFixed) return true;
+          // The draft calls it fixed. When several envelopes share the key,
+          // one of them really is the fixed commitment and nothing here says
+          // which, so none may draw from the flexible pool: handing every
+          // namesake a share would quietly top up an already funded envelope.
+          if (keyCounts.has(key)) return false;
+          // Otherwise, once a config exists its rules are the authority and
+          // the filter above already removed everything genuinely fixed. What
+          // is left carries no fixed amount, and trusting the draft over that
+          // is what stranded envelopes at 0 - dropped from the flexible pool
+          // for being fixed, yet never given a fixed budget.
+          return hasActiveDistributionConfig;
         })
         .map((item) => item.name.trim())
         .filter(Boolean)
