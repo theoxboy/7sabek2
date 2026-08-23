@@ -873,12 +873,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <button
               type="button"
               onClick={openLanguagePicker}
-              className="lp-lang"
+              className="lp-lang lp-hide-sm"
               aria-label={isArabic ? "تغيير اللغة" : "Changer de langue"}
               title={isArabic ? "تغيير اللغة" : "Changer de langue"}
             >
               <Globe size={15} />
-              <span className="lp-hide-sm">{getLocaleBadgeLabel(locale)}</span>
+              <span>{getLocaleBadgeLabel(locale)}</span>
             </button>
             {checkingAuth ? null : user ? (
               <>
@@ -916,6 +916,25 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 <a key={link.href} href={link.href} onClick={() => setMobileNav(false)}>{link.label}</a>
               ))}
               <Link href="/login" onClick={() => setMobileNav(false)}>{copy.cta.login}</Link>
+
+              {/* 🌍 Language switcher inside mobile lateral menu */}
+              <div className="flex items-center justify-between pt-3 mt-1 border-t border-[var(--line)]">
+                <span className="text-sm font-semibold text-[var(--ink-soft)]">
+                  {isArabic ? "اللغة" : "Langue"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileNav(false);
+                    openLanguagePicker();
+                  }}
+                  className="lp-lang inline-flex items-center gap-2"
+                  aria-label={isArabic ? "تغيير اللغة" : "Changer de langue"}
+                >
+                  <Globe size={15} />
+                  <span>{getLocaleBadgeLabel(locale)}</span>
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
