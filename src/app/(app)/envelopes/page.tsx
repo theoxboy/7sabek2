@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, useMemo, useState, useEffect, useRef } from "react";
+import { type CSSProperties, useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
@@ -1260,6 +1260,42 @@ export default function EnvelopesPage() {
     return totalFromDebts > 0 ? totalFromDebts : null;
   }, [onboardingRecord]);
 
+  // Outstanding amount per individual debt, keyed by the debt's own name.
+  // debtInitialRemaining above is the total across every debt, which is the
+  // right figure for a summary but wrong for a single envelope's card.
+  const debtRemainingByName = useMemo(() => {
+    const map = new Map<string, number>();
+    const payload = onboardingRecord?.payload;
+    if (!payload || typeof payload !== "object") return map;
+    const debts = (payload as Record<string, unknown>).debts;
+    if (!Array.isArray(debts)) return map;
+    debts.forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const entry = item as Record<string, unknown>;
+      const name = typeof entry.name === "string" ? entry.name.trim().toLowerCase() : "";
+      const amount = Number(entry.remaining_amount ?? 0);
+      if (!name || !Number.isFinite(amount) || amount <= 0) return;
+      map.set(name, amount);
+    });
+    return map;
+  }, [onboardingRecord]);
+
+  // Debt envelopes are named "الديون — x" / "Dettes — x" after the debt itself.
+  const lookupDebtRemaining = useCallback(
+    (envelopeName: string): number | null => {
+      const withoutPrefix = envelopeName
+        .replace(/^\s*(الديون|dettes|dette|debts?)\s*[—–-]\s*/i, "")
+        .trim()
+        .toLowerCase();
+      return (
+        debtRemainingByName.get(withoutPrefix) ??
+        debtRemainingByName.get(envelopeName.trim().toLowerCase()) ??
+        null
+      );
+    },
+    [debtRemainingByName]
+  );
+
   const envelopeMap = useMemo(() => {
     const map = new Map<string, string>();
     envelopes.forEach((env) => {
@@ -2062,17 +2098,25 @@ export default function EnvelopesPage() {
     const goal = isGoalKind ? goalByEnvelopeId.get(env.id) ?? null : null;
     const goalTarget = goal ? Number(goal.target_amount || "0") : 0;
     const goalProgress = goalTarget > 0 ? Math.max(0, Math.min(1, currentBalance / goalTarget)) : 0;
-    const debtRemaining = Math.max(0, currentBalance);
+    // A debt envelope accumulates money towards clearing the debt: its balance
+    // is what has been set aside, not what is still owed. Reading the balance
+    // as the outstanding amount inverted both readouts - an envelope holding
+    // nothing looked like a debt with nothing left to pay, so wiping the income
+    // made every debt appear due to clear this very month.
+    const debtOutstanding = isGoalKind ? 0 : lookupDebtRemaining(env.name) ?? debtInitialRemaining ?? 0;
     const debtProgress =
-      debtInitialRemaining && debtInitialRemaining > 0
-        ? Math.max(0, Math.min(1, 1 - debtRemaining / debtInitialRemaining))
-        : 0;
+      debtOutstanding > 0 ? Math.max(0, Math.min(1, currentBalance / debtOutstanding)) : 0;
     const progressRatio = isGoalKind ? goalProgress : debtProgress;
     const progressPct = `${(progressRatio * 100).toFixed(1)}%`;
     const monthlyContribution = Number(fixedAmount ?? 0);
-    const remainingToHit = isGoalKind ? Math.max(0, goalTarget - currentBalance) : debtRemaining;
+    const remainingToHit = isGoalKind
+      ? Math.max(0, goalTarget - currentBalance)
+      : Math.max(0, debtOutstanding - currentBalance);
+    const hasTarget = isGoalKind ? goalTarget > 0 : debtOutstanding > 0;
     const etaMonths =
-      monthlyContribution > 0 ? Math.max(0, Math.ceil(remainingToHit / monthlyContribution)) : null;
+      hasTarget && monthlyContribution > 0
+        ? Math.max(0, Math.ceil(remainingToHit / monthlyContribution))
+        : null;
     const etaDate =
       etaMonths !== null
         ? (() => {
