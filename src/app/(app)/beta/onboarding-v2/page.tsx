@@ -68,6 +68,8 @@ import {
   activateDistributionConfig,
   deleteDistributionConfig,
   getDistributionOnboardingStatus,
+  getRules,
+  isFixedMode,
   listSavedDistributionConfigs,
   saveDistributionConfig,
   type DistributionOnboardingStatus,
@@ -11483,6 +11485,12 @@ export function BetaOnboardingV2PageContent({
   const [distributionRealEnvelopes, setDistributionRealEnvelopes] = useState<
     EnvelopeOut[]
   >([]);
+  // Envelope ids carrying a live fixed rule. Read straight from the rules
+  // endpoint because a fresh account funds fixed envelopes through rules well
+  // before any config is marked active, so the active config alone cannot say
+  // which envelopes are already fixed.
+  const [distributionLiveFixedEnvelopeIds, setDistributionLiveFixedEnvelopeIds] =
+    useState<Set<string>>(new Set());
   const [distributionSyncingTargets, setDistributionSyncingTargets] = useState(false);
   const [distributionCtaBusy, setDistributionCtaBusy] = useState(false);
   const distributionConfigAliasRef = useRef<Record<string, string>>({});
@@ -11784,7 +11792,7 @@ export function BetaOnboardingV2PageContent({
   // at its fixed amount plus a flexible share on top.
   const distributionFixedRuleEnvelopeIds = useMemo(() => {
     const rows = distributionOnboardingStatus?.active_config?.rows ?? [];
-    const ids = new Set<string>();
+    const ids = new Set<string>(distributionLiveFixedEnvelopeIds);
     rows.forEach((row) => {
       if (row.target_type !== "envelope") return;
       const amount = Number(row.fixed_amount ?? 0);
@@ -11793,10 +11801,28 @@ export function BetaOnboardingV2PageContent({
       }
     });
     return ids;
-  }, [distributionOnboardingStatus?.active_config]);
+  }, [distributionLiveFixedEnvelopeIds, distributionOnboardingStatus?.active_config]);
   const hasActiveDistributionConfig = Boolean(
     distributionOnboardingStatus?.active_config?.rows?.length
   );
+  // Same exclusion expressed as name keys, so it also covers candidates coming
+  // from the proposal, which carries names and never envelope ids. Ambiguous
+  // keys are left out: there the key belongs to two envelopes and only one of
+  // them is fixed, so excluding by key would stall the other one at 0 again.
+  const distributionFixedRuleEnvelopeKeys = useMemo(() => {
+    const keys = new Set<string>();
+    distributionFixedRuleEnvelopeIds.forEach((id) => {
+      const key = distributionEnvelopeKeysById[id];
+      if (key && !distributionAmbiguousEnvelopeNames.keys.has(key)) {
+        keys.add(key);
+      }
+    });
+    return keys;
+  }, [
+    distributionAmbiguousEnvelopeNames.keys,
+    distributionEnvelopeKeysById,
+    distributionFixedRuleEnvelopeIds,
+  ]);
   const distributionRealCandidateEnvelopeNames = useMemo(() => {
     // For an ambiguous name the proposal's fixed-commitment set would exclude
     // both envelopes - the fixed one legitimately, its flexible twin by
@@ -11870,6 +11896,9 @@ export function BetaOnboardingV2PageContent({
     [...fromProposal, ...distributionRealCandidateEnvelopeNames].forEach((name) => {
       const key = getDistributionNameEquivalentKey(name) || dedupeKeyForName(name);
       if (!key || seenKeys.has(key)) return;
+      // An envelope already funded by a fixed rule must not also be offered as
+      // a share of the flexible pool, or it draws twice from one income.
+      if (distributionFixedRuleEnvelopeKeys.has(key)) return;
       seenKeys.add(key);
       union.push(name);
     });
@@ -11877,6 +11906,7 @@ export function BetaOnboardingV2PageContent({
   }, [
     answers,
     distributionExplainFixedNameSet,
+    distributionFixedRuleEnvelopeKeys,
     distributionRealCandidateEnvelopeNames,
     selectedProposalEnvelopes,
     structuralEnvelopeGroupKeys,
@@ -15342,6 +15372,25 @@ export function BetaOnboardingV2PageContent({
       setDistributionEnvelopeIdsByName(next);
       setDistributionEnvelopeKeysById(keysById);
       setDistributionRealEnvelopes(realEnvelopes);
+      try {
+        const rules = await getRules();
+        setDistributionLiveFixedEnvelopeIds(
+          new Set(
+            rules
+              .filter(
+                (rule) =>
+                  rule.target_type === "envelope" &&
+                  rule.enabled &&
+                  isFixedMode(rule.mode) &&
+                  Number(rule.amount ?? 0) > 0
+              )
+              .map((rule) => rule.target_id)
+          )
+        );
+      } catch {
+        // Leave the previous set alone: an empty one would read as "nothing is
+        // fixed" and let a fixed envelope be offered as a flexible target.
+      }
       return next;
     } catch {
       setDistributionEnvelopeIdsByName({});
