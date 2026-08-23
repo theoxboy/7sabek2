@@ -11734,26 +11734,46 @@ export function BetaOnboardingV2PageContent({
   // them. Genuinely fixed envelopes stay out via the proposal's fixed
   // baseline, and structural ones (debts, goals, savings, buffers) via their
   // API flags and the excluded-key list.
-  const distributionRealCandidateEnvelopeNames = useMemo(() => {
-    // Name keys carried by more than one real envelope. The proposal's
-    // fixed-commitment set can only be keyed by name, so when two envelopes
-    // share a name it excludes both - the fixed one legitimately, its flexible
-    // twin by accident, leaving that twin permanently unfundable. For those
-    // keys the per-row rule data in the setup dialog decides instead, which
-    // locks the twin that really carries a fixed amount and no other.
+  // Names carried by more than one real envelope. Exclusion and baseline sets
+  // can only be keyed by name, because the proposal data behind them has names
+  // and not ids, so a name shared by two envelopes makes every name-keyed
+  // decision ambiguous and has to be handled explicitly rather than silently
+  // resolved in favour of whichever envelope is seen first.
+  const distributionAmbiguousEnvelopeNames = useMemo(() => {
     const keyCounts = new Map<string, number>();
+    const normalizedCounts = new Map<string, number>();
     distributionRealEnvelopes.forEach((item) => {
       const key = getDistributionNameEquivalentKey(item.name);
-      if (!key) return;
-      keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+      if (key) keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+      const normalized = normalizeProposalName(item.name);
+      if (normalized) {
+        normalizedCounts.set(normalized, (normalizedCounts.get(normalized) ?? 0) + 1);
+      }
     });
+    const keys = new Set<string>();
+    keyCounts.forEach((count, key) => {
+      if (count > 1) keys.add(key);
+    });
+    const normalized = new Set<string>();
+    normalizedCounts.forEach((count, name) => {
+      if (count > 1) normalized.add(name);
+    });
+    return { keys, normalized };
+  }, [distributionRealEnvelopes]);
+  const distributionRealCandidateEnvelopeNames = useMemo(() => {
+    // For an ambiguous name the proposal's fixed-commitment set would exclude
+    // both envelopes - the fixed one legitimately, its flexible twin by
+    // accident, leaving that twin permanently unfundable. There, the per-row
+    // rule data in the setup dialog decides instead, so the twin that really
+    // carries a fixed amount is locked out of the flexible pool and no other.
+    const keyCounts = distributionAmbiguousEnvelopeNames.keys;
     return uniqueBySlug(
       distributionRealEnvelopes
         .filter((item) => !item.is_goal && !item.is_debt && !item.is_default_savings)
         .filter((item) => {
           const key = getDistributionNameEquivalentKey(item.name);
           if (!key || isExcludedMoronaTargetKey(key)) return false;
-          if ((keyCounts.get(key) ?? 0) > 1) return true;
+          if (keyCounts.has(key)) return true;
           const normalized = normalizeProposalName(item.name);
           if (distributionExplainFixedNameSet.has(normalized)) return false;
           if (distributionExplainFixedNameSet.has(key)) return false;
@@ -11762,7 +11782,11 @@ export function BetaOnboardingV2PageContent({
         .map((item) => item.name.trim())
         .filter(Boolean)
     );
-  }, [distributionExplainFixedNameSet, distributionRealEnvelopes]);
+  }, [
+    distributionAmbiguousEnvelopeNames.keys,
+    distributionExplainFixedNameSet,
+    distributionRealEnvelopes,
+  ]);
   const distributionEligibleEnvelopeNames = useMemo(() => {
     const fromProposal = selectedProposalEnvelopes
         .filter((item) => !isProposalFixedCommitmentLocked(item, answers))
@@ -11841,7 +11865,19 @@ export function BetaOnboardingV2PageContent({
       const name = rawName.trim();
       if (!name) return;
       const normalized = normalizeProposalName(name);
-      if (!normalized || eligibleSet.has(normalized)) return;
+      if (!normalized) return;
+      // Being eligible normally means the envelope draws from the flexible
+      // pool and must not also count as a fixed commitment. That inference
+      // breaks for an ambiguous name: one envelope of the pair is eligible
+      // while its namesake really does carry a fixed amount, and skipping here
+      // would drop that amount from the pool the simulation deducts, showing
+      // the user more to distribute than the account can actually deliver.
+      if (
+        eligibleSet.has(normalized) &&
+        !distributionAmbiguousEnvelopeNames.normalized.has(normalized)
+      ) {
+        return;
+      }
       const amount = Math.max(0, Number(rawAmount ?? 0) || 0);
       if (amount <= 0) return;
       const existing = mergedByNormalizedName.get(normalized);
@@ -11903,7 +11939,12 @@ export function BetaOnboardingV2PageContent({
       name: item.name,
       amount: roundAmount(item.amount),
     }));
-  }, [distributionEligibleEnvelopeNames, draftObjects.fixed_expenses, proposalPreview?.explain_v2]);
+  }, [
+    distributionAmbiguousEnvelopeNames.normalized,
+    distributionEligibleEnvelopeNames,
+    draftObjects.fixed_expenses,
+    proposalPreview?.explain_v2,
+  ]);
   const distributionBaselineFixedNameSet = useMemo(
     () =>
       new Set(
