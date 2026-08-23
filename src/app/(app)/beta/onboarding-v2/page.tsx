@@ -939,6 +939,14 @@ function getString(answers: Answers, key: string): string {
   return getCompatOnboardingAnswerString(answers, key);
 }
 
+// Unlike getString, does not trim on every read — needed for controlled
+// text inputs (goal/debt name) so a trailing space typed by the user isn't
+// stripped from the displayed value before they can type the next word.
+function getRawInputString(answers: Answers, key: string): string {
+  const value = answers[key];
+  return typeof value === "string" ? value : "";
+}
+
 function getList(answers: Answers, key: string): string[] {
   return getCompatOnboardingAnswerList(answers, key);
 }
@@ -19842,7 +19850,7 @@ export function BetaOnboardingV2PageContent({
                                 <Input
                                   type="text"
                                   placeholder="مثلاً: كريدي البنك، سلف العائلة"
-                                  value={getString(answers, `D2_debt_name_${debtIndex}`)}
+                                  value={getRawInputString(answers, `D2_debt_name_${debtIndex}`)}
                                   onChange={(event) =>
                                     setInputAnswer(`D2_debt_name_${debtIndex}`, event.target.value)
                                   }
@@ -20386,7 +20394,7 @@ export function BetaOnboardingV2PageContent({
                                   <Input
                                     type="text"
                                     placeholder="مثلاً: صندوق الطوارئ"
-                                    value={getString(answers, `G1_goal_name_${goalIndex}`)}
+                                    value={getRawInputString(answers, `G1_goal_name_${goalIndex}`)}
                                     onChange={(event) =>
                                       setInputAnswer(`G1_goal_name_${goalIndex}`, event.target.value)
                                     }
@@ -23147,7 +23155,7 @@ export function BetaOnboardingV2PageContent({
                       ref={inputRef}
                       type="text"
                       placeholder="شنو سميّة الدين؟"
-                      value={getString(answers, `D2_debt_name_${currentQuestion.debtIndex ?? 1}`)}
+                      value={getRawInputString(answers, `D2_debt_name_${currentQuestion.debtIndex ?? 1}`)}
                       onChange={(event) =>
                         setInputAnswer(`D2_debt_name_${currentQuestion.debtIndex ?? 1}`, event.target.value)
                       }
