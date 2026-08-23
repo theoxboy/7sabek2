@@ -870,8 +870,15 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               <GooglePlayIcon className="w-4 h-4" />
               <span className="lp-hide-sm">{isArabic ? "تطبيق أندرويد" : "App Android"}</span>
             </button>
-            <button type="button" onClick={openLanguagePicker} className="lp-lang">
-              <Globe size={15} /> {getLocaleBadgeLabel(locale)}
+            <button
+              type="button"
+              onClick={openLanguagePicker}
+              className="lp-lang"
+              aria-label={isArabic ? "تغيير اللغة" : "Changer de langue"}
+              title={isArabic ? "تغيير اللغة" : "Changer de langue"}
+            >
+              <Globe size={15} />
+              <span className="lp-hide-sm">{getLocaleBadgeLabel(locale)}</span>
             </button>
             {checkingAuth ? null : user ? (
               <>
@@ -1370,7 +1377,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-lang:hover { border-color: var(--accent); color: var(--accent-deep); }
         .lp-burger { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--surface); cursor: pointer; color: var(--ink); }
         @media (min-width: 1040px) { .lp-burger { display: none; } }
-        @media (max-width: 520px) { .lp-hide-sm { display: none; } }
+        @media (max-width: 520px) { 
+          .lp-hide-sm { display: none; } 
+          .lp-lang { padding: 0 10px; min-width: 38px; justify-content: center; gap: 0; }
+        }
         .lp-mobilenav { border-top: 1px solid var(--line); background: var(--paper); }
         .lp-mobilenav .lp-wrap { padding-block: 14px 16px; display: flex; flex-direction: column; gap: 13px; font-weight: 700; font-size: .95rem; }
 
