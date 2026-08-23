@@ -1761,6 +1761,20 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
     onCancel?.();
   };
 
+  // On the income preview this same button reads "back to edit", but it ran
+  // the cancel path, and the modal wires cancel to closing itself - so going
+  // back threw the whole entry away and the amount, date and salary-shift
+  // choice had to be typed again. Stepping back now only steps back.
+  const handleBackOrCancel = () => {
+    if (quickTxDraft.type === "income" && quickTxStep === "income_preview") {
+      setQuickTxStep("form");
+      setQuickTxDistributionPreview(null);
+      setQuickTxError(null);
+      return;
+    }
+    handleCancelClick();
+  };
+
   return (
     <div className={`quick-tx-form-container relative w-full transition-all duration-300 ${isInline ? "max-w-xl mx-auto border border-white/70 shadow-lg rounded-3xl p-6 bg-gradient-to-br dark:border-slate-800 " + (quickTxDraft.type === "expense" ? "from-red-50/50 via-rose-50/50 to-orange-50/50 dark:from-slate-900/60 dark:via-rose-950/5 dark:to-orange-950/5" : "from-emerald-50/50 via-teal-50/50 to-cyan-50/50 dark:from-slate-900/60 dark:via-emerald-950/5 dark:to-cyan-950/5") : "bg-transparent p-0"}`}>
       
@@ -2801,7 +2815,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
         {(!isInline || onCancel) && (
           <Button
             variant="secondary"
-            onClick={handleCancelClick}
+            onClick={handleBackOrCancel}
             disabled={quickTxSubmitting}
             className="rounded-xl"
           >
