@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Archive,
+  Bell,
   LayoutDashboard,
   Menu,
   ShieldCheck,
@@ -71,6 +72,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navSessions: string;
     navEmails: string;
     navContactMessages: string;
+    navNotifications: string;
     newConnection: string;
     chooseSession: string;
     connectionDetails: string;
@@ -115,6 +117,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navSessions: "Historique connexions",
     navEmails: "Emails",
     navContactMessages: "Messages Contact",
+    navNotifications: "Notifications Push",
     newConnection: "Nouvelle connexion superadmin détectée",
     chooseSession: "Une autre session est active avec ce compte. Choisis la session à conserver.",
     connectionDetails: "Détails de la nouvelle connexion",
@@ -158,6 +161,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navSessions: "Session history",
     navEmails: "Emails",
     navContactMessages: "Contact Messages",
+    navNotifications: "Push Notifications",
     newConnection: "New superadmin sign-in detected",
     chooseSession: "Another session is active on this account. Choose which session to keep.",
     connectionDetails: "Details of the new sign-in",
@@ -201,6 +205,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navSessions: "سجل الولوجات",
     navEmails: "الإيميلات",
     navContactMessages: "رسائل الاتصال",
+    navNotifications: "إشعارات التطبيق",
     newConnection: "لقينا دخول جديد ديال superadmin",
     chooseSession: "كاينة session أخرى خدامة بهاد الحساب. اختار شكون تبقى هي الخدامة.",
     connectionDetails: "تفاصيل الدخول الجديد",
@@ -274,6 +279,7 @@ export default function SuperAdminLayout({
     { href: "/superadmin/sessions", label: copy.navSessions, icon: Clock3, enabled: true },
     { href: "/superadmin/emails", label: copy.navEmails, icon: Mail, enabled: true },
     { href: "/superadmin/contact-messages", label: copy.navContactMessages, icon: MessageSquare, enabled: true },
+    { href: "/superadmin/notifications", label: copy.navNotifications, icon: Bell, enabled: true },
   ];
 
   const formatCountdown = (seconds: number) => {

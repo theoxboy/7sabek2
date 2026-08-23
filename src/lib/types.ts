@@ -1209,3 +1209,38 @@ export type RegistrationLeadStatsOut = {
   dismissed: number;
   last_24h: number;
 };
+
+export type AdminNotificationItem = {
+  id: number;
+  created_at: string;
+  title_fr: string;
+  title_ar: string;
+  message_fr: string;
+  message_ar: string;
+  notification_type: "general" | "advice" | "alert" | "celebration" | "update";
+  target_audience: "all" | "lang_ar" | "lang_fr" | "specific";
+  target_user_email?: string | null;
+  action_type: "none" | "dashboard" | "distribution" | "savings" | "coach" | "sweeps" | "url";
+  action_url?: string | null;
+  haptic_effect: string;
+  priority: "normal" | "high";
+  is_active: boolean;
+  sent_count: number;
+  read_count: number;
+  created_by_email?: string | null;
+};
+
+export type AdminNotificationCreateIn = {
+  title_fr: string;
+  title_ar: string;
+  message_fr: string;
+  message_ar: string;
+  notification_type: string;
+  target_audience: string;
+  target_user_email?: string | null;
+  action_type: string;
+  action_url?: string | null;
+  haptic_effect: string;
+  priority: string;
+};
+
