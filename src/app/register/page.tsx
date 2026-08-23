@@ -801,6 +801,12 @@ export default function RegisterPage() {
       recaptchaNodeRef.current = node;
       if (node) {
         renderRecaptchaWidget(node);
+      } else {
+        // The step-2 container was unmounted (e.g. user navigated away then
+        // back). The widget instance and any token it produced are gone
+        // with it, so clear both to let a fresh widget render next time.
+        recaptchaWidgetRef.current = null;
+        setRecaptchaToken(null);
       }
     },
     [renderRecaptchaWidget],
