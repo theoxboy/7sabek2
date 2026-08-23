@@ -1364,10 +1364,15 @@ export function DistributionConfigDialog({
       // guess from onboarding: keeping it on top of real rules locks envelopes
       // the draft assumed were fixed but that were never given a fixed budget,
       // which drops them from the flexible pool as well and strands them at 0.
-      const hasLiveFixedRules = merged.some(
-        (row) =>
-          row.targetType === "envelope" &&
-          (isFixedMode(row.mode) || parseNumber(row.fixedAmount) > 0)
+      // Read the account's rules directly. Deriving this from the rows would
+      // always say no: they are filtered down to the flexible targets, so the
+      // very envelopes carrying fixed rules are the ones missing from them.
+      const hasLiveFixedRules = rules.some(
+        (rule) =>
+          rule.target_type === "envelope" &&
+          rule.enabled &&
+          isFixedMode(rule.mode) &&
+          Number(rule.amount ?? 0) > 0
       );
       const onboardingNormalized = onboardingSetupOnlyMode
         ? merged.map((row) =>
