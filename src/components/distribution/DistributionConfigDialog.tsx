@@ -1290,10 +1290,12 @@ export function DistributionConfigDialog({
       const goals = includeGoals
         ? await apiFetch<GoalOut[]>("/goals").catch(() => [])
         : [];
-      const rules =
-        onboardingSetupOnlyMode && !preset
-          ? []
-          : await getRules().catch(() => []);
+      // Fetched even where the rows deliberately start from a clean slate:
+      // building the draft ignores existing rules, but knowing whether the
+      // account already funds envelopes with fixed amounts is what tells the
+      // draft's guesses apart from reality further down.
+      const liveRules = await getRules().catch(() => []);
+      const rules = onboardingSetupOnlyMode && !preset ? [] : liveRules;
       const settings = await getSettings().catch(() => ({
         auto_distribution_enabled: false,
       }));
@@ -1367,7 +1369,7 @@ export function DistributionConfigDialog({
       // Read the account's rules directly. Deriving this from the rows would
       // always say no: they are filtered down to the flexible targets, so the
       // very envelopes carrying fixed rules are the ones missing from them.
-      const hasLiveFixedRules = rules.some(
+      const hasLiveFixedRules = liveRules.some(
         (rule) =>
           rule.target_type === "envelope" &&
           rule.enabled &&
