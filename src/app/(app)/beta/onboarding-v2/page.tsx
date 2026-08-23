@@ -11461,6 +11461,13 @@ export function BetaOnboardingV2PageContent({
   const [distributionEnvelopeKeysById, setDistributionEnvelopeKeysById] = useState<
     Record<string, string>
   >({});
+  // Every non-cash envelope that actually exists on the account, kept whole
+  // rather than collapsed into a key->id map. The two maps above deduplicate by
+  // name key, so an envelope sharing a name with another one disappears from
+  // them entirely; distribution coverage has to be judged against this list.
+  const [distributionRealEnvelopes, setDistributionRealEnvelopes] = useState<
+    EnvelopeOut[]
+  >([]);
   const [distributionSyncingTargets, setDistributionSyncingTargets] = useState(false);
   const [distributionCtaBusy, setDistributionCtaBusy] = useState(false);
   const distributionConfigAliasRef = useRef<Record<string, string>>({});
@@ -11718,9 +11725,33 @@ export function BetaOnboardingV2PageContent({
     });
     return next;
   }, [proposalPreview?.explain_v2]);
-  const distributionEligibleEnvelopeNames = useMemo(() => {
+  // Envelopes that exist on the account and legitimately need a share of the
+  // flexible pool. The onboarding proposal is only a starting point: once the
+  // account is live it can drift from reality (an envelope added later, or one
+  // the proposal assumed would carry a fixed budget but that was created
+  // without one). Those envelopes must still be reachable from the setup
+  // screen, otherwise they are stuck at 0 with no way for the user to fund
+  // them. Genuinely fixed envelopes stay out via the proposal's fixed
+  // baseline, and structural ones (debts, goals, savings, buffers) via their
+  // API flags and the excluded-key list.
+  const distributionRealCandidateEnvelopeNames = useMemo(() => {
     return uniqueBySlug(
-      selectedProposalEnvelopes
+      distributionRealEnvelopes
+        .filter((item) => !item.is_goal && !item.is_debt && !item.is_default_savings)
+        .filter((item) => {
+          const key = getDistributionNameEquivalentKey(item.name);
+          if (!key || isExcludedMoronaTargetKey(key)) return false;
+          const normalized = normalizeProposalName(item.name);
+          if (distributionExplainFixedNameSet.has(normalized)) return false;
+          if (distributionExplainFixedNameSet.has(key)) return false;
+          return true;
+        })
+        .map((item) => item.name.trim())
+        .filter(Boolean)
+    );
+  }, [distributionExplainFixedNameSet, distributionRealEnvelopes]);
+  const distributionEligibleEnvelopeNames = useMemo(() => {
+    const fromProposal = selectedProposalEnvelopes
         .filter((item) => !isProposalFixedCommitmentLocked(item, answers))
         .filter((item) => {
           const finalNorm = normalizeProposalName(item.final_name);
@@ -11742,9 +11773,17 @@ export function BetaOnboardingV2PageContent({
         })
         .filter((item) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(item.final_name)))
         .map((item) => item.final_name.trim())
-        .filter(Boolean)
-    );
-  }, [answers, distributionExplainFixedNameSet, selectedProposalEnvelopes, structuralEnvelopeGroupKeys]);
+        .filter(Boolean);
+    // Union, proposal order first so an existing setup keeps its layout and
+    // only genuinely new envelopes are appended.
+    return uniqueBySlug([...fromProposal, ...distributionRealCandidateEnvelopeNames]);
+  }, [
+    answers,
+    distributionExplainFixedNameSet,
+    distributionRealCandidateEnvelopeNames,
+    selectedProposalEnvelopes,
+    structuralEnvelopeGroupKeys,
+  ]);
   const distributionEligibleEnvelopeIds = useMemo(() => {
     return distributionEligibleEnvelopeNames
       .map((name) => distributionEnvelopeIdsByName[getDistributionNameEquivalentKey(name)])
@@ -12030,24 +12069,23 @@ export function BetaOnboardingV2PageContent({
       ),
     [distributionEffectiveEligibleEnvelopeNames]
   );
+  // Report every envelope the server says is uncovered, minus the ones the
+  // engine excludes by design. Filtering this list against the target set made
+  // the check tautological: an envelope missing FROM the target set is exactly
+  // the failure to report, and that filter dropped precisely those, so the
+  // screen showed full coverage while real envelopes were funded at zero.
   const distributionDisplayUnresolvedEnvelopeNames = useMemo(() => {
     const unresolved = distributionOnboardingStatus?.unresolved_envelope_names ?? [];
-    return unresolved.filter((name) =>
-      distributionVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+    return unresolved.filter(
+      (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
     );
-  }, [
-    distributionOnboardingStatus?.unresolved_envelope_names,
-    distributionVisibleTargetKeySet,
-  ]);
+  }, [distributionOnboardingStatus?.unresolved_envelope_names]);
   const distributionDisplayMissingEnvelopeNames = useMemo(() => {
     const missing = distributionOnboardingStatus?.missing_envelope_names ?? [];
-    return missing.filter((name) =>
-      distributionVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+    return missing.filter(
+      (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
     );
-  }, [
-    distributionOnboardingStatus?.missing_envelope_names,
-    distributionVisibleTargetKeySet,
-  ]);
+  }, [distributionOnboardingStatus?.missing_envelope_names]);
   const distributionDisplayUnresolvedTotal =
     distributionDisplayUnresolvedEnvelopeNames.length;
   const distributionDisplayMissingTotal =
@@ -15178,22 +15216,23 @@ export function BetaOnboardingV2PageContent({
       const items = await apiFetch<EnvelopeOut[]>("/envelopes");
       const next: Record<string, string> = {};
       const keysById: Record<string, string> = {};
-      items
-        .filter((item) => !item.is_cash)
-        .forEach((item) => {
-          const key = getDistributionNameEquivalentKey(item.name);
-          if (!key) return;
-          keysById[item.id] = key;
-          if (!next[key]) {
-            next[key] = item.id;
-          }
-        });
+      const realEnvelopes = items.filter((item) => !item.is_cash);
+      realEnvelopes.forEach((item) => {
+        const key = getDistributionNameEquivalentKey(item.name);
+        if (!key) return;
+        keysById[item.id] = key;
+        if (!next[key]) {
+          next[key] = item.id;
+        }
+      });
       setDistributionEnvelopeIdsByName(next);
       setDistributionEnvelopeKeysById(keysById);
+      setDistributionRealEnvelopes(realEnvelopes);
       return next;
     } catch {
       setDistributionEnvelopeIdsByName({});
       setDistributionEnvelopeKeysById({});
+      setDistributionRealEnvelopes([]);
       return null;
     }
   }, []);
@@ -16732,10 +16771,10 @@ export function BetaOnboardingV2PageContent({
         .filter(Boolean)
     );
     const latestVisibleUnresolved = (latestStatus?.unresolved_envelope_names ?? []).filter(
-      (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+      (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
     );
     const latestVisibleMissing = (latestStatus?.missing_envelope_names ?? []).filter(
-      (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+      (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
     );
     const isFreshValid =
       latestStatusCode === "saved_valid" ||
@@ -17376,16 +17415,11 @@ export function BetaOnboardingV2PageContent({
     try {
       await persistOnboardingRecord(true);
       const latestDistributionStatus = await refreshDistributionStatus(undefined, { force: true });
-      const latestVisibleTargetKeySet = new Set(
-        distributionEffectiveEligibleEnvelopeNames
-          .map((name) => getDistributionNameEquivalentKey(name))
-          .filter(Boolean)
-      );
       const latestVisibleUnresolved = (latestDistributionStatus?.unresolved_envelope_names ?? []).filter(
-        (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+        (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
       );
       const latestVisibleMissing = (latestDistributionStatus?.missing_envelope_names ?? []).filter(
-        (name) => latestVisibleTargetKeySet.has(getDistributionNameEquivalentKey(name))
+        (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
       );
       const distributionReady =
         latestDistributionStatus?.setup_status === "saved_valid" ||
