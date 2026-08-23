@@ -4859,6 +4859,28 @@ function createCustomProposalCandidate(entry: CustomProposalEnvelopeDraft): Enve
   };
 }
 
+// Two proposal entries can name the same envelope: "aide famille" and
+// "famille — aide" both resolve to family aid. Sent as they are, each creates
+// its own envelope, and the account then shows what looks like the same
+// envelope twice - both under the same translated label, so the pair is
+// indistinguishable on screen while only one of them is ever funded. Worse,
+// nothing downstream can tell which of the two carries the fixed budget, since
+// every name-keyed rule sees a single key. Keep the first of each key.
+function dedupeProposalEnvelopesByEquivalentKey(
+  items: EnvelopeProposalResolved[]
+): EnvelopeProposalResolved[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key =
+      getDistributionNameEquivalentKey(item.final_name) ||
+      normalizeProposalName(item.final_name);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function resolveEnvelopeProposalPreview(
   candidates: EnvelopeProposalCandidate[],
   previewState: EnvelopeProposalPreviewState
@@ -11305,7 +11327,9 @@ function buildDraftObjects(
     guidance_direction_v1: guidanceDirectionSnapshot,
     envelopes_proposal_v1: {
       default_excluded_ids: envelopeProposalPreview.default_excluded_ids,
-      selected_envelopes: envelopeProposalPreview.selected_envelopes,
+      selected_envelopes: dedupeProposalEnvelopesByEquivalentKey(
+        envelopeProposalPreview.selected_envelopes
+      ),
       excluded_envelopes: envelopeProposalPreview.excluded_envelopes,
       edited_names: envelopeProposalPreview.edited_names,
       edited_rollover: envelopeProposalPreview.edited_rollover,

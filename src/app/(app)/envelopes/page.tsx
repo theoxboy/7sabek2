@@ -1388,6 +1388,26 @@ export default function EnvelopesPage() {
       setError("ENVELOPE_NAME_REQUIRED");
       return;
     }
+    // Distinct stored names can translate to one label - "aide famille" and
+    // "famille — aide" both display as مساعدة العائلة - and the account then
+    // shows two envelopes the user cannot tell apart, only one of which is
+    // ever funded. Compare what will actually be on screen, not the raw input.
+    const nextLabel = localizeEnvelopeName(trimmed).trim().toLowerCase();
+    const clash = envelopes.find(
+      (env) =>
+        env.id !== editingId &&
+        localizeEnvelopeName(env.name).trim().toLowerCase() === nextLabel
+    );
+    if (clash) {
+      setError(
+        locale === "ar"
+          ? `كاين ظرف آخر كيتسمى "${localizeEnvelopeName(clash.name)}". بدّل السمية باش ما يتخلطوش.`
+          : locale === "en"
+          ? `Another envelope already shows as "${localizeEnvelopeName(clash.name)}". Pick a different name so the two stay distinguishable.`
+          : `Une autre enveloppe s'affiche déjà comme « ${localizeEnvelopeName(clash.name)} ». Choisis un autre nom pour pouvoir les distinguer.`
+      );
+      return;
+    }
     try {
       setUpdating(true);
       await apiFetch(`/envelopes/${editingId}`, {
