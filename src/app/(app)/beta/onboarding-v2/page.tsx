@@ -12190,10 +12190,22 @@ export function BetaOnboardingV2PageContent({
   );
   const distributionEffectiveEligibleEnvelopeNames = useMemo(
     () =>
-      distributionEligibleEnvelopeNames.filter(
-        (name) => !distributionFixedExcludedNameSet.has(getDistributionNameEquivalentKey(name))
-      ),
-    [distributionEligibleEnvelopeNames, distributionFixedExcludedNameSet]
+      distributionEligibleEnvelopeNames.filter((name) => {
+        // Once a config exists, the fixed rules already removed every envelope
+        // that truly carries a fixed amount. Re-applying the proposal's guess
+        // on top of that is what kept envelopes at 0: the draft calls them
+        // fixed, no fixed budget was ever created for them, and this filter
+        // dropped them from the flexible pool as well.
+        if (hasActiveDistributionConfig) return true;
+        return !distributionFixedExcludedNameSet.has(
+          getDistributionNameEquivalentKey(name)
+        );
+      }),
+    [
+      distributionEligibleEnvelopeNames,
+      distributionFixedExcludedNameSet,
+      hasActiveDistributionConfig,
+    ]
   );
   const distributionTargetItems = useMemo<DistributionSetupItem[]>(
     () =>
@@ -15451,9 +15463,15 @@ export function BetaOnboardingV2PageContent({
       options?: { force?: boolean }
     ) => {
       const force = options?.force === true;
-      const effectiveEligibleNames = distributionEffectiveEligibleEnvelopeNames.filter(
-        (name) => !distributionFixedExcludedNameSet.has(getDistributionNameEquivalentKey(name))
-      );
+      // Same rule as the list itself: with a config in place the fixed rules
+      // decide, so re-filtering on the proposal's guess would send the server a
+      // narrower scope than the screen shows and report false full coverage.
+      const effectiveEligibleNames = hasActiveDistributionConfig
+        ? distributionEffectiveEligibleEnvelopeNames
+        : distributionEffectiveEligibleEnvelopeNames.filter(
+            (name) =>
+              !distributionFixedExcludedNameSet.has(getDistributionNameEquivalentKey(name))
+          );
       const effectiveEligibleKeys = effectiveEligibleNames
         .map((name) => getDistributionNameEquivalentKey(name))
         .filter(Boolean);
@@ -15584,6 +15602,7 @@ export function BetaOnboardingV2PageContent({
       distributionOnboardingStatus,
       distributionTargetItems,
       distributionVisibleTargetKeySet,
+      hasActiveDistributionConfig,
     ]
   );
 
