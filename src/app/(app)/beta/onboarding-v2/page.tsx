@@ -2630,6 +2630,10 @@ function getDistributionNameEquivalentKey(name: string): string {
   if (normalized === "الطوارئ" || normalized === "طوارئ") return "emergency_buffer";
   if (normalized === "التوازن") return "balance_buffer";
   if (normalized === "النقل العمومي") return "public_transport";
+  // Without this pair the same envelope keys as "التنقل" when the proposal
+  // names it and as "transport" when the account does, so every name-keyed
+  // comparison between the two treats them as unrelated envelopes.
+  if (normalized === "التنقل") return "transport";
   if (normalized === "تاكسي / نقل خاص" || normalized === "طاكسي / إندرايف") return "taxi_private";
   if (normalized === "الترفيه") return "entertainment";
   if (normalized === "المطاعم" || normalized === "مطاعم") return "restaurants";
@@ -2664,6 +2668,7 @@ function getDistributionNameEquivalentKey(name: string): string {
   }
   if (slug === "equilibre" || slug === "balance") return "balance_buffer";
   if (slug === "transport_public" || slug === "public_transport") return "public_transport";
+  if (slug === "transport" || slug === "deplacements") return "transport";
   if (slug === "taxi_vtc" || slug === "taxi_indrive" || slug === "taxi_private") return "taxi_private";
   if (slug === "loisirs" || slug === "entertainment") return "entertainment";
   if (slug === "restaurants" || slug === "restaurant") return "restaurants";
@@ -11770,6 +11775,28 @@ export function BetaOnboardingV2PageContent({
     });
     return { keys, normalized };
   }, [distributionRealEnvelopes]);
+  // Envelopes already carrying a fixed amount in the active config. They must
+  // never also become percent targets: the envelope would then draw from the
+  // same income twice, once as its fixed commitment and once as a share of the
+  // flexible pool. Keyed by target id because it is language independent -
+  // name matching silently fails whenever the proposal and the account spell
+  // an envelope differently, which is how a transport envelope ended up funded
+  // at its fixed amount plus a flexible share on top.
+  const distributionFixedRuleEnvelopeIds = useMemo(() => {
+    const rows = distributionOnboardingStatus?.active_config?.rows ?? [];
+    const ids = new Set<string>();
+    rows.forEach((row) => {
+      if (row.target_type !== "envelope") return;
+      const amount = Number(row.fixed_amount ?? 0);
+      if (row.mode === "fixed" || (Number.isFinite(amount) && amount > 0)) {
+        ids.add(row.target_id);
+      }
+    });
+    return ids;
+  }, [distributionOnboardingStatus?.active_config]);
+  const hasActiveDistributionConfig = Boolean(
+    distributionOnboardingStatus?.active_config?.rows?.length
+  );
   const distributionRealCandidateEnvelopeNames = useMemo(() => {
     // For an ambiguous name the proposal's fixed-commitment set would exclude
     // both envelopes - the fixed one legitimately, its flexible twin by
@@ -11780,9 +11807,18 @@ export function BetaOnboardingV2PageContent({
     return uniqueBySlug(
       distributionRealEnvelopes
         .filter((item) => !item.is_goal && !item.is_debt && !item.is_default_savings)
+        .filter((item) => !distributionFixedRuleEnvelopeIds.has(item.id))
         .filter((item) => {
           const key = getDistributionNameEquivalentKey(item.name);
           if (!key || isExcludedMoronaTargetKey(key)) return false;
+          // Once a config exists its rules are the authority on which
+          // envelopes are fixed, and the filter above has already removed
+          // those. Anything left carries no fixed amount, so treating it as
+          // fixed on the proposal's word alone is what stranded envelopes at
+          // 0: excluded from the flexible pool for being fixed, yet never
+          // given a fixed budget. Before the first config there are no rules
+          // to read, so the proposal still fills in there.
+          if (hasActiveDistributionConfig) return true;
           if (keyCounts.has(key)) return true;
           const normalized = normalizeProposalName(item.name);
           if (distributionExplainFixedNameSet.has(normalized)) return false;
@@ -11795,7 +11831,9 @@ export function BetaOnboardingV2PageContent({
   }, [
     distributionAmbiguousEnvelopeNames.keys,
     distributionExplainFixedNameSet,
+    distributionFixedRuleEnvelopeIds,
     distributionRealEnvelopes,
+    hasActiveDistributionConfig,
   ]);
   const distributionEligibleEnvelopeNames = useMemo(() => {
     const fromProposal = selectedProposalEnvelopes
