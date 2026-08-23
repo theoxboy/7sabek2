@@ -745,7 +745,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       lang={effectiveLocale}
       data-landing-locale={effectiveLocale}
     >
-      {/* 🚀 GOOGLE PLAY / ANDROID POPUP MODAL */}
+      {/* 🚀 GOOGLE PLAY / ANDROID POPUP MODAL (LIGHT THEME) */}
       <AnimatePresence>
         {showGooglePlayPopup && (
           <motion.div
@@ -753,7 +753,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
-            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setShowGooglePlayPopup(false)}
           >
             <motion.div
@@ -761,18 +761,18 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className="relative w-full max-w-md bg-neutral-950/95 border border-emerald-500/40 rounded-3xl p-6 sm:p-7 shadow-[0_25px_70px_-15px_rgba(16,185,129,0.35)] text-white overflow-hidden text-center"
+              className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] text-slate-900 overflow-hidden text-center"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Subtle ambient light glows */}
-              <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
 
               {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setShowGooglePlayPopup(false)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white transition-all cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
                 aria-label="Fermer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -781,23 +781,23 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               </button>
 
               {/* Logo Emblem */}
-              <div className="mx-auto mb-3.5 w-16 h-16 rounded-2xl bg-white/5 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-950/50">
+              <div className="mx-auto mb-3.5 w-16 h-16 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-center shadow-sm">
                 <GooglePlayIcon className="w-9 h-9 flex-shrink-0" />
               </div>
 
               {/* Status Badge */}
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/90 border border-emerald-500/30 rounded-full mb-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11.5px] font-bold text-emerald-800 bg-emerald-100/70 border border-emerald-300/70 rounded-full mb-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                 {isArabic ? "تطبيق أندرويد الرسمي" : "Disponible sur Android"}
               </span>
 
               {/* Main Headline */}
-              <h3 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2">
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight mb-2">
                 {isArabic ? "7sabek في جيبك أينما كنت !" : "7sabek sur votre smartphone"}
               </h3>
 
               {/* Concise 1-sentence description */}
-              <p className="text-neutral-300 text-xs sm:text-sm leading-relaxed mb-5 max-w-sm mx-auto">
+              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-5 max-w-sm mx-auto">
                 {isArabic
                   ? "أظرفة الميزانية 100% بدون إنترنت، تسجيل بالدارجة بالصوت وحماية فورية بالبصمة."
                   : "Budget par enveloppes 100% hors-ligne, saisie vocale en Darija et verrouillage biométrique."}
@@ -805,13 +805,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
               {/* 3 Sleek Highlight Pills */}
               <div className="flex items-center justify-center gap-2 mb-6 flex-wrap">
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-xl text-neutral-200">
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
                   ⚡ {isArabic ? "بدون إنترنت" : "Hors-Ligne"}
                 </span>
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-xl text-neutral-200">
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
                   🎙️ {isArabic ? "صوت بالدارجة" : "Voix Darija"}
                 </span>
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-xl text-neutral-200">
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
                   🛡️ {isArabic ? "بصمة" : "Biométrie"}
                 </span>
               </div>
@@ -823,7 +823,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 href="/7sabek_app.apk"
                 download="7sabek_app.apk"
                 onClick={() => setShowGooglePlayPopup(false)}
-                className="w-full inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-neutral-950 font-black py-3.5 px-6 rounded-2xl shadow-xl shadow-emerald-500/30 transition-all text-sm cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-600/25 transition-all text-sm cursor-pointer"
               >
                 <GooglePlayIcon className="w-5 h-5 flex-shrink-0" />
                 <span>{isArabic ? "تحميل التطبيق مجاناً (APK)" : "Télécharger l'Application (APK)"}</span>
@@ -833,7 +833,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               <button
                 type="button"
                 onClick={() => setShowGooglePlayPopup(false)}
-                className="mt-3 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer py-1 block w-full text-center"
+                className="mt-3 text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer py-1 block w-full text-center"
               >
                 {isArabic ? "المتابعة على الموقع" : "Continuer sur le Web"}
               </button>
