@@ -20,6 +20,59 @@ import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreference
 
 const QUICK_TX_INCOME_RESUME_STORAGE_KEY = "floussy.quickTx.incomeResume.v1";
 
+// Envelope names are free text the user can edit, so deciding which money
+// belongs to the reallocatable pool by substring is unsafe: "flex" alone also
+// matches an envelope called "Loisirs flex". Every false positive inflates the
+// pool, and the distribution screen then offers more to split than the account
+// can actually deliver. Match canonical names instead, and keep debt keywords
+// to whole words so a longer name cannot match by accident.
+const normalizePoolName = (name: string): string =>
+  name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/^(the|le|la|les|al|el)\s+/, "")
+    .replace(/[\s_-]+/g, " ")
+    .trim();
+
+const FLEXIBILITY_POOL_NAMES = new Set([
+  "flexibility",
+  "flexibilite",
+  "flex",
+  "المرونة",
+  "المرونه",
+  "مرونة",
+  "مرونه",
+]);
+
+const isFlexibilityPoolEnvelope = (name: string): boolean =>
+  FLEXIBILITY_POOL_NAMES.has(normalizePoolName(name));
+
+// Debt envelopes are created under a "Dettes — x" / "الديون — x" convention.
+// The bare keywords stay as a fallback for envelopes created before it, but
+// only as whole words, so "credit" no longer matches "assurance credit".
+const DEBT_POOL_PREFIXES = ["dettes ", "dette ", "الديون ", "دين ", "ديون "];
+const DEBT_POOL_WORDS = new Set([
+  "dette",
+  "dettes",
+  "debt",
+  "debts",
+  "credit",
+  "credits",
+  "loan",
+  "repayment",
+  "قرض",
+  "دين",
+  "ديون",
+  "الديون",
+]);
+
+const isDebtPoolEnvelope = (name: string): boolean => {
+  const normalized = normalizePoolName(name);
+  if (DEBT_POOL_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return true;
+  return normalized.split(" ").some((word) => DEBT_POOL_WORDS.has(word));
+};
+
 const CATEGORY_TRANSLATIONS_MAP: Record<string, string> = {
   "loisirs": "الترفيه",
   "الترفيه": "loisirs",
@@ -1193,16 +1246,13 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
     
     let simulatedPoolAmount: number | undefined = undefined;
     if (quickTxDistributionPreview && quickTxDistributionPreview.items) {
-      const DEBT_KEYWORDS = ["dette", "dettes", "credit", "crédit", "repayment", "loan", "دين", "الديون", "ديون", "قرض"];
-      const FLEX_KEYWORDS = ["flexibility", "flex", "المرونة", "المرونه"];
-      
       let sum = 0;
       quickTxDistributionPreview.items.forEach((item) => {
-        const nameLower = item.name.toLowerCase();
-        const isDebt = DEBT_KEYWORDS.some(kw => nameLower.includes(kw));
-        const isFlex = FLEX_KEYWORDS.some(kw => nameLower.includes(kw));
         const isGoal = item.target_type === "goal";
-        
+        const isDebt = item.target_type === "envelope" && isDebtPoolEnvelope(item.name);
+        const isFlex =
+          item.target_type === "envelope" && isFlexibilityPoolEnvelope(item.name);
+
         if (isDebt || isFlex || isGoal) {
           sum += Number(item.amount) || 0;
         }
