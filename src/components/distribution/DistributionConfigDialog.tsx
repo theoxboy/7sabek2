@@ -122,6 +122,7 @@ const DISTRIBUTION_DIALOG_COPY = {
     autoUpdated: "Auto mis à jour",
     autoEnabled: "Répartition automatique activée.",
     autoDisabled: "Répartition automatique désactivée.",
+    autoHint: "Répartit le revenu dès qu'il est déclaré.",
     error: "Erreur",
     unableToSave: "Impossible de sauver.",
     configSaved: "Configuration enregistrée",
@@ -245,6 +246,7 @@ const DISTRIBUTION_DIALOG_COPY = {
     autoUpdated: "Auto updated",
     autoEnabled: "Automatic distribution enabled.",
     autoDisabled: "Automatic distribution disabled.",
+    autoHint: "Distributes income as soon as it is declared.",
     error: "Error",
     unableToSave: "Unable to save.",
     configSaved: "Configuration saved",
@@ -368,6 +370,7 @@ const DISTRIBUTION_DIALOG_COPY = {
     autoUpdated: "تبدل الأوتوماتيك",
     autoEnabled: "تفعّل التوزيع الأوتوماتيكي.",
     autoDisabled: "تطفى التوزيع الأوتوماتيكي.",
+    autoHint: "كيوزع الدخل ملي كتصرّح بيه.",
     error: "مشكلة",
     unableToSave: "ما قدرناش نحفظو.",
     configSaved: "تحفظ الكونفيك",
@@ -2290,8 +2293,15 @@ export function DistributionConfigDialog({
               })}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3 hidden">
-                <span className="text-sm font-medium text-[var(--ink)]">{copy.auto}</span>
+              {/* This switch governs whether declared income is distributed
+                  on its own. It was hidden, which left the setting stuck off
+                  with no way to reach it, so income never reached any
+                  envelope. */}
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-[var(--ink)]">{copy.auto}</span>
+                  <span className="text-xs text-[var(--muted)]">{copy.autoHint}</span>
+                </div>
                 <Switch
                   checked={autoEnabled}
                   disabled={autoSaving}
