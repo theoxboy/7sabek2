@@ -108,6 +108,9 @@ a svg {
 .app-shell-v2,
 .app-shell-v2 * {
   font-family: var(--font-cairo), "Cairo", var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.app-shell-v2 {
   background: linear-gradient(180deg, #f8fafc 0%, #f4f7fb 48%, #eef7f2 100%);
 }
 
