@@ -1261,8 +1261,7 @@ export default function RegisterPage() {
     <div
       className={`rg-root relative min-h-screen bg-[#F6F8F4] ${pageFontClass} ${introReady ? "rg-intro" : ""}`}
       dir={pageDir}
-      data-register-locale={locale}
-      style={locale === "ar" ? { fontFamily: `var(--font-cairo), "Cairo", sans-serif` } : undefined}
+      style={{ fontFamily: `"Cairo", var(--font-cairo), sans-serif` }}
     >
       <div
         className={`grid min-h-screen grid-cols-1 ${

@@ -79,7 +79,7 @@ export default function NotFound() {
       dir={dir}
       lang={locale}
       className="app-shell-v2 min-h-screen w-full flex flex-col items-center justify-center p-6 relative overflow-hidden"
-      style={isArabic ? { fontFamily: "var(--font-cairo), sans-serif" } : undefined}
+      style={{ fontFamily: '"Cairo", var(--font-cairo), sans-serif' }}
     >
       {/* Background Orbs & Grid Pattern */}
       <div className="app-shell-v2__orb app-shell-v2__orb--one opacity-30 dark:opacity-20" />

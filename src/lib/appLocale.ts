@@ -63,20 +63,20 @@ export function useForceArabicDocumentFont(enabled: boolean, bodyClassName: stri
       body.style.fontFamily = '"Cairo", sans-serif';
       body.classList.add(bodyClassName);
     } else {
-      root.lang = previousLang || "en";
+      root.lang = previousLang || "fr";
       root.dir = previousDir || "ltr";
-      root.style.fontFamily = previousRootFont;
-      body.style.fontFamily = previousBodyFont;
+      root.style.fontFamily = '"Cairo", var(--font-cairo), sans-serif';
+      body.style.fontFamily = '"Cairo", var(--font-cairo), sans-serif';
       body.classList.remove(bodyClassName);
       const runtimeStyle = document.getElementById(styleId);
       if (runtimeStyle) runtimeStyle.remove();
     }
 
     return () => {
-      root.lang = previousLang || "en";
+      root.lang = previousLang || "fr";
       root.dir = previousDir || "ltr";
-      root.style.fontFamily = previousRootFont;
-      body.style.fontFamily = previousBodyFont;
+      root.style.fontFamily = '"Cairo", var(--font-cairo), sans-serif';
+      body.style.fontFamily = '"Cairo", var(--font-cairo), sans-serif';
       body.classList.remove(bodyClassName);
       const runtimeStyle = document.getElementById(styleId);
       if (runtimeStyle) runtimeStyle.remove();

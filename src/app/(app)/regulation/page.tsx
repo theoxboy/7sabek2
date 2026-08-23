@@ -604,12 +604,7 @@ export default function RegulationPage() {
       <div
         className={`${cairo.variable} space-y-6 ${isArabic ? "regulation-arabic-font" : ""}`}
         dir={pageDir}
-        data-regulation-locale={locale}
-        style={
-          isArabic
-            ? { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }
-            : undefined
-        }
+        style={{ fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }}
       >
         <IntroDialog
           open={introOpen}
@@ -639,12 +634,7 @@ export default function RegulationPage() {
       <div
         className={`${cairo.variable} space-y-6 ${isArabic ? "regulation-arabic-font" : ""}`}
         dir={pageDir}
-        data-regulation-locale={locale}
-        style={
-          isArabic
-            ? { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }
-            : undefined
-        }
+        style={{ fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }}
       >
         <IntroDialog
           open={introOpen}
@@ -680,12 +670,7 @@ export default function RegulationPage() {
     <div
       className={`${cairo.variable} relative space-y-8 pb-28 ${isArabic ? "regulation-arabic-font" : ""}`}
       dir={pageDir}
-      data-regulation-locale={locale}
-      style={
-        isArabic
-          ? { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }
-          : undefined
-      }
+      style={{ fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }}
     >
       <IntroDialog
         open={introOpen}

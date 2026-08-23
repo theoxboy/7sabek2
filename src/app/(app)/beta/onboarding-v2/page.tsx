@@ -14328,12 +14328,8 @@ export function BetaOnboardingV2PageContent({
       };
     });
   }, [answers, currentQuestion?.id, effectiveFlowStage, resolvedJourneyMode, questions]);
-  const onboardingShellClass =
-    locale === "ar"
-      ? `${cairo.className} onboarding-arabic-font onboarding-copy`
-      : "onboarding-copy";
-  const onboardingShellStyle =
-    locale === "ar" ? { fontFamily: `var(--font-cairo), "Cairo", sans-serif` } : undefined;
+  const onboardingShellClass = `${cairo.className} onboarding-arabic-font onboarding-copy`;
+  const onboardingShellStyle = { fontFamily: `var(--font-cairo), "Cairo", sans-serif` };
   const isInteractiveGuidanceScreen =
     currentQuestion?.kind === "interactive_guidance" ||
     currentQuestion?.kind === "priority_profile";

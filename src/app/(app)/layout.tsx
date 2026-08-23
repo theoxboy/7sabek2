@@ -1924,19 +1924,10 @@ function AppLayoutContent({
   return (
     <div
       dir={pageDir}
-      data-app-locale={locale}
-      style={
-        locale === "ar"
-          ? {
-              fontFamily: `var(--font-cairo), "Cairo", sans-serif`,
-            }
-          : undefined
-      }
-      className={`app-shell-v2 relative min-h-screen overflow-hidden text-[var(--ink)] ${displayFont.variable} ${bodyFont.variable} ${arabicFont.variable} ${
-        locale === "ar" ? arabicFont.className : ""
-      } ${
-        locale === "ar" ? "is-ar" : ""
-      }`}
+      style={{
+        fontFamily: `var(--font-cairo), "Cairo", sans-serif`,
+      }}
+      className={`app-shell-v2 relative min-h-screen overflow-hidden text-[var(--ink)] ${arabicFont.className} is-ar`}
     >
       <div className="app-shell-v2__orb app-shell-v2__orb--one" aria-hidden />
       <div className="app-shell-v2__orb app-shell-v2__orb--two" aria-hidden />

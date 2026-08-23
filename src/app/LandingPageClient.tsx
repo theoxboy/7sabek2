@@ -1368,8 +1368,15 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           --line: #e3e8df; --line2: #eef1ea;
           --shadow: 0 1px 2px rgba(10,36,29,.04), 0 18px 40px -22px rgba(10,36,29,.22);
           background: var(--paper); color: var(--ink); overflow-x: hidden;
+          font-family: "Cairo", var(--font-cairo), sans-serif !important;
         }
-        .lp-root h1, .lp-root h2, .lp-root h3, .lp-root h4 { margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+        .lp-root, .lp-root * {
+          font-family: "Cairo", var(--font-cairo), sans-serif !important;
+        }
+        .lp-root svg, .lp-root button svg, .lp-root a svg {
+          font-family: initial !important;
+        }
+        .lp-root h1, .lp-root h2, .lp-root h3, .lp-root h4 { margin: 0; letter-spacing: -.01em; text-wrap: balance; font-family: "Cairo", var(--font-cairo), sans-serif !important; }
         .lp-ar h1, .lp-ar h2, .lp-ar h3, .lp-ar h4, .lp-ar .lp-title { letter-spacing: 0 !important; }
         .lp-root p { margin: 0; }
         .lp-root a { color: inherit; text-decoration: none; }

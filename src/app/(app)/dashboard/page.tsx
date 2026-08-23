@@ -2577,17 +2577,10 @@ function DashboardContent() {
   return (
     <div
       dir={pageDir}
-      data-dashboard-locale={locale}
-      style={
-        locale === "ar"
-          ? {
-              fontFamily: `var(--font-cairo), "Cairo", sans-serif`,
-            }
-          : undefined
-      }
-      className={`dashboard-v2 flex flex-col gap-8 ${
-        locale === "ar" ? `${cairo.className} dashboard-arabic-font ${copyClass}` : ""
-      }`}
+      style={{
+        fontFamily: `var(--font-cairo), "Cairo", sans-serif`,
+      }}
+      className={`dashboard-v2 flex flex-col gap-8 ${cairo.className} ${copyClass}`}
     >
       <ConfirmDeleteTransactionDialog
         open={Boolean(deleteTarget)}

@@ -309,7 +309,7 @@ export default function ContactPage() {
       dir={dir}
       lang={locale}
       className="min-h-screen bg-slate-50/50 text-slate-800 relative overflow-hidden"
-      style={isArabic ? { fontFamily: "var(--font-cairo), sans-serif" } : { fontFamily: "var(--font-manrope), sans-serif" }}
+      style={{ fontFamily: '"Cairo", var(--font-cairo), sans-serif' }}
     >
       {/* Background gradients for premium aesthetic */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
