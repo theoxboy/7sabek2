@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/Label";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api";
+import { applyDistribution, getSettings } from "@/lib/distribution";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/Dialog";
 import { isInternalIncomeCategory, localizeCategoryName, getCanonicalCategoryKey } from "@/lib/categoryCatalog";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
@@ -1356,13 +1357,54 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
           )
         );
       }
-      toast({
-        title:
-          quickTxDraft.type === "income"
-            ? copy.quickTxSavedIncome
-            : copy.quickTxSavedExpense,
-        variant: "success",
-      });
+      // The preview step promises the user the split it just showed them, so
+      // apply it now that the income itself is recorded. Skipped when the
+      // account has auto-distribution enabled, because the server applies it
+      // on its own there and running it here too would distribute the same
+      // income a second time.
+      let distributionError: string | null = null;
+      if (quickTxDraft.type === "income" && !editingId && quickTxDistributionPreview) {
+        try {
+          const settings = await getSettings();
+          if (!settings.auto_distribution_enabled) {
+            await applyDistribution({
+              income_amount: amountVal.toFixed(2),
+              use_cash_available: false,
+            });
+          }
+        } catch (err) {
+          distributionError = err instanceof Error ? err.message : String(err);
+        }
+      }
+
+      if (distributionError) {
+        // The income is saved either way; say so plainly and name the part
+        // that did not go through, so the split is not silently skipped.
+        toast({
+          title:
+            locale === "ar"
+              ? "تسجل الدخل، ولكن التوزيع ما تطبقش"
+              : locale === "en"
+              ? "Income saved, but the split was not applied"
+              : "Revenu enregistré, mais la répartition n'a pas été appliquée",
+          description:
+            (locale === "ar"
+              ? "جرب تطبق التوزيع من صفحة التوزيع. التفاصيل: "
+              : locale === "en"
+              ? "Apply the distribution from the distribution page. Details: "
+              : "Applique la répartition depuis la page de répartition. Détail : ") +
+            distributionError,
+          variant: "danger",
+        });
+      } else {
+        toast({
+          title:
+            quickTxDraft.type === "income"
+              ? copy.quickTxSavedIncome
+              : copy.quickTxSavedExpense,
+          variant: "success",
+        });
+      }
       if (quickTxDraft.type === "expense" && quickTxPreferenceKey) {
         setQuickTxPreferenceBoost((prev) => {
           const next = {
