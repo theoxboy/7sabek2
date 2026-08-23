@@ -1374,14 +1374,18 @@ export function DistributionConfigDialog({
               : row
           )
         : merged;
-      const orderedGoals = onboardingNormalized
-        .filter((row) => row.targetType === "goal")
-        .sort((left, right) => left.rank - right.rank)
-        .map((row, index) => ({ ...row, rank: index + 1 }));
+      // Ranks run as one contiguous sequence across both target types:
+      // envelopes keep 1..n (the priority shown in the UI) and goals continue
+      // after them. Numbering each section from 1 made ranks collide across
+      // target types, which scrambled any consumer that sorts rows by rank.
       const envelopesSorted = onboardingNormalized
         .filter((row) => row.targetType === "envelope")
         .sort((left, right) => left.rank - right.rank)
         .map((row, index) => ({ ...row, rank: index + 1 }));
+      const orderedGoals = onboardingNormalized
+        .filter((row) => row.targetType === "goal")
+        .sort((left, right) => left.rank - right.rank)
+        .map((row, index) => ({ ...row, rank: envelopesSorted.length + index + 1 }));
       setRows([...envelopesSorted, ...orderedGoals]);
       setAutoEnabled(preset ? preset.autoEnabled : settings.auto_distribution_enabled);
     } catch (err) {
@@ -1795,9 +1799,17 @@ export function DistributionConfigDialog({
     autoPercentSignatureRef.current = signature;
     if (percentRows.length === 0) return;
 
+    // Tie-break on target type and id so equal ranks can never make the weight
+    // order depend on array position: the biggest share must always land on the
+    // same row for the same config.
     const ordered =
       autoPercentMode === "ranked"
-        ? [...percentRows].sort((a, b) => a.rank - b.rank)
+        ? [...percentRows].sort(
+            (a, b) =>
+              a.rank - b.rank ||
+              a.targetType.localeCompare(b.targetType) ||
+              a.id.localeCompare(b.id)
+          )
         : percentRows;
 
     let allocations: number[] = [];
@@ -1982,19 +1994,18 @@ export function DistributionConfigDialog({
     targetType: DistributionRow["targetType"],
     orderedRows: DistributionRow[]
   ) => {
-    const normalizedSection = orderedRows.map((row, index) => ({
+    const otherRows = rows
+      .filter((row) => row.targetType !== targetType)
+      .sort((left, right) => left.rank - right.rank);
+    const envelopeRows = targetType === "envelope" ? orderedRows : otherRows;
+    const goalRows = targetType === "envelope" ? otherRows : orderedRows;
+    // Same contiguous sequence as the initial load: envelopes take 1..n and
+    // goals continue after, so a drag never produces two rows sharing a rank.
+    const reranked = [...envelopeRows, ...goalRows].map((row, index) => ({
       ...row,
       rank: index + 1,
     }));
-    const otherRows = rows
-      .filter((row) => row.targetType !== targetType)
-      .sort((left, right) => left.rank - right.rank)
-      .map((row, index) => ({ ...row, rank: index + 1 }));
-    setRows(
-      targetType === "envelope"
-        ? [...normalizedSection, ...otherRows]
-        : [...otherRows, ...normalizedSection]
-    );
+    setRows(reranked);
   };
 
   const renderRows = (
