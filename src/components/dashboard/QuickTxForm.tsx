@@ -1473,7 +1473,16 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
   };
 
   const handleSubmitQuickTransaction = async () => {
-    if (quickTxSubmitLockRef.current) return;
+    // The ref blocks a second submit while one is in flight, and the submitting
+    // flag is raised alongside it. Finding the ref engaged while nothing is in
+    // flight means the pair has drifted - the ref outlived its request - and
+    // obeying it would swallow every later click without a word, leaving a
+    // button that looks alive and does nothing. The flag is the honest one, so
+    // clear the stale ref and let the submit through.
+    if (quickTxSubmitLockRef.current) {
+      if (quickTxSubmitting) return;
+      quickTxSubmitLockRef.current = false;
+    }
     setQuickTxError(null);
 
     let effectiveAmount = quickTxDraft.amount;
