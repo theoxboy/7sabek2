@@ -15381,10 +15381,22 @@ export function BetaOnboardingV2PageContent({
           }
           distributionStatusLastRequestKeyRef.current = requestKey;
           setDistributionOnboardingStatus(status);
+          // A saved config is not enough: it can be saved and internally
+          // consistent while still leaving a real envelope with neither a
+          // fixed budget nor a share of the flexible pool. Treating that as
+          // done is what let envelopes reach the account funded at 0 MAD, so
+          // coverage has to hold before the step counts as complete.
+          const blockingGapCount = [
+            ...(status.unresolved_envelope_names ?? []),
+            ...(status.missing_envelope_names ?? []),
+          ].filter(
+            (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
+          ).length;
           const isValid =
-            status.setup_status === "saved_valid" ||
-            status.setup_status === "applied" ||
-            status.setup_status === "legacy_rules_detected";
+            (status.setup_status === "saved_valid" ||
+              status.setup_status === "applied" ||
+              status.setup_status === "legacy_rules_detected") &&
+            blockingGapCount === 0;
           setAnswers((prev) => {
             if (isValid) {
               if (getString(prev, "E11b_distribution_setup") === "done") return prev;
