@@ -536,6 +536,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [locale, setLocale] = useState<FloussyLocale>(initialLocale);
+  const [showGooglePlayPopup, setShowGooglePlayPopup] = useState(false);
 
   const [salary, setSalary] = useState(12400);
   const [checked, setChecked] = useState<boolean[]>(() => Array(6).fill(false));
@@ -545,6 +546,14 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const [progress, setProgress] = useState(0);
   const [mobileNav, setMobileNav] = useState(false);
   const phoneRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-open Google Play popup after landing load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowGooglePlayPopup(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -720,6 +729,15 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
     </svg>
   );
 
+  const GooglePlayIcon = ({ className = "w-7 h-7" }: { className?: string }) => (
+    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M47.2 24.3C40.6 31.4 36.8 42.4 36.8 56.4V455.6c0 14 3.8 25 10.4 32.1l1.8 1.7L273.4 265v-4.4L49 22.6l-1.8 1.7z" fill="#00A0FF" />
+      <path d="M352.4 344L273.4 265v-4.4L352.4 182l2.4 1.4 93.6 53.2c26.7 15.2 26.7 40.1 0 55.3l-93.6 53.2-2.4 1.3z" fill="#FFC107" />
+      <path d="M354.8 342.7L273.4 261.3 47.2 487.7c8.8 9.3 23.3 10.5 39.8 1.1l267.8-146.1" fill="#FF3D00" />
+      <path d="M354.8 171.3L87 25.2C70.5 15.8 56 17 47.2 26.3L273.4 252.7l81.4-81.4z" fill="#4CAF50" />
+    </svg>
+  );
+
   return (
     <div
       className={`lp-root ${pageFontClass} ${introReady ? "lp-intro" : ""}`}
@@ -727,6 +745,102 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       lang={effectiveLocale}
       data-landing-locale={effectiveLocale}
     >
+      {/* 🚀 GOOGLE PLAY POPUP MODAL */}
+      {showGooglePlayPopup && (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setShowGooglePlayPopup(false)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-neutral-950 border border-emerald-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-emerald-950/60 text-white overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Ambient glow */}
+            <div className="absolute -top-24 -right-24 w-60 h-60 bg-emerald-500/25 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-cyan-500/25 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowGooglePlayPopup(false)}
+              className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white transition-all cursor-pointer"
+              aria-label="Fermer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center shadow-inner">
+                <GooglePlayIcon className="w-10 h-10 flex-shrink-0" />
+              </div>
+              <div>
+                <span className="inline-block px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 rounded-full">
+                  {isArabic ? "تطبيق أندرويد الرسمي" : "Application Android Officielle"}
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
+                  {isArabic ? "حمّل تطبيق 7sabek على أندرويد !" : "7sabek est disponible sur Android !"}
+                </h3>
+              </div>
+            </div>
+
+            <p className="text-neutral-300 text-sm leading-relaxed mb-6">
+              {isArabic
+                ? "تحكم في ميزانيتك وأظرفتك من هاتفك بدون إنترنت، سجل مصاريفك بالدارجة المغربية بالصوت، واحصل على تنبيهات ذكية وتشفير بالبصمة."
+                : "Gérez vos enveloppes hors-ligne, dictez vos transactions en Darija par la voix, sécurisez votre compte avec la biométrie et suivez vos dettes en toute simplicité."}
+            </p>
+
+            {/* Key highlights */}
+            <div className="grid grid-cols-2 gap-2.5 mb-6 text-xs text-neutral-200">
+              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
+                <span className="text-emerald-400 text-base">⚡</span>
+                <span className="font-semibold">{isArabic ? "100% بدون إنترنت" : "100% Hors-Ligne"}</span>
+              </div>
+              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
+                <span className="text-cyan-400 text-base">🎙️</span>
+                <span className="font-semibold">{isArabic ? "صوت بالدارجة المغربية" : "IA Darija Vocale"}</span>
+              </div>
+              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
+                <span className="text-emerald-400 text-base">🛡️</span>
+                <span className="font-semibold">{isArabic ? "دخول بالبصمة" : "Sécurité Biométrique"}</span>
+              </div>
+              <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
+                <span className="text-amber-400 text-base">📊</span>
+                <span className="font-semibold">{isArabic ? "تحليلات وديون Salaf" : "Analytics & Dettes"}</span>
+              </div>
+            </div>
+
+            {/* Download Call to Action */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <a
+                href="/7sabek_app.apk"
+                download="7sabek_app.apk"
+                onClick={() => setShowGooglePlayPopup(false)}
+                className="w-full sm:flex-1 inline-flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-neutral-950 font-black py-3 px-6 rounded-2xl shadow-lg shadow-emerald-500/30 transition-all text-sm group"
+              >
+                <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
+                <span>{isArabic ? "تحميل تطبيق أندرويد (APK)" : "Télécharger pour Android (APK)"}</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setShowGooglePlayPopup(false)}
+                className="w-full sm:w-auto px-4 py-3 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              >
+                {isArabic ? "المتابعة على الموقع" : "Continuer sur le Web"}
+              </button>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-white/10 text-center">
+              <p className="text-[11px] text-neutral-400">
+                {isArabic ? "متوافق مع جميع هواتف أندرويد • الإصدار 2.4.0 • مجاني 100%" : "Compatible Android 8.0+ • Version 2.4.0 • 100% Gratuit"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="lp-progress" aria-hidden="true">
         <span style={{ width: `${progress}%` }} />
       </div>
@@ -747,6 +861,15 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           </nav>
 
           <div className="lp-actions">
+            <button
+              type="button"
+              onClick={() => setShowGooglePlayPopup(true)}
+              className="lp-btn lp-btn-ghost lp-btn-sm inline-flex items-center gap-1.5 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-950/40 cursor-pointer"
+              title={isArabic ? "تطبيق أندرويد" : "App Android"}
+            >
+              <GooglePlayIcon className="w-4 h-4" />
+              <span className="lp-hide-sm">{isArabic ? "تطبيق أندرويد" : "App Android"}</span>
+            </button>
             <button type="button" onClick={openLanguagePicker} className="lp-lang">
               <Globe size={15} /> {getLocaleBadgeLabel(locale)}
             </button>
@@ -824,6 +947,26 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 <a href="#simulateur" className="lp-btn lp-btn-ghost">{copy.cta.try}</a>
                 <span className="lp-sticker"><span aria-hidden="true">✦</span>{copy.fabor}</span>
               </div>
+
+              {/* 📱 Google Play Android App Installer Badge */}
+              <div className="mt-3.5 mb-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowGooglePlayPopup(true)}
+                  className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                >
+                  <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-[10.5px] uppercase font-bold text-emerald-400 tracking-wider leading-none">
+                      {isArabic ? "📱 متوفر الآن على أندرويد و Google Play" : "📱 Disponible sur Google Play & Android"}
+                    </span>
+                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white mt-0.5">
+                      {isArabic ? "انقر لتثبيت تطبيق 7sabek على هاتفك أندرويد ←" : "Installer l'application 7sabek sur votre smartphone Android →"}
+                    </span>
+                  </div>
+                </button>
+              </div>
+
               <p className="lp-micro">{copy.hero.micro}</p>
 
               <div className="lp-trust">
