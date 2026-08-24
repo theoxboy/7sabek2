@@ -1,6 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');
 @import "tailwindcss";
 
+/*
+ * Dark mode in this app is a manual, explicit toggle (Réglages > Thème) that
+ * sets [data-theme="dark"] on <html> and persists it in localStorage - it
+ * never follows the OS. Tailwind's dark: variant defaults to
+ * @media (prefers-color-scheme: dark) unless told otherwise, which made every
+ * dark: utility class in the app respond to the OS/browser preference instead
+ * of this toggle: turning dark mode off in Settings still left every dark:
+ * class active for a user whose system theme was dark, while the custom CSS
+ * below (keyed off [data-theme="dark"]) correctly stayed light - a visibly
+ * inconsistent, half-dark UI. This aligns dark: with the same attribute.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   --bg: #ffffff;
   --ink: #111827;

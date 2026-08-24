@@ -62,6 +62,21 @@ export default async function RootLayout({
   return (
     <html lang={serverLocale} dir={serverDir} className={cairo.className}>
       <head>
+        {/*
+          Applies the saved theme before the first paint, on every route.
+          The toggle used to be applied only inside a useEffect on the
+          Settings page itself, so a user who chose dark mode and then landed
+          on any other route directly - a bookmark, a refresh, a fresh tab -
+          got the light theme back until they reopened Settings. A blocking
+          inline script is the only way to set the attribute before React
+          hydrates and before the browser paints, which is also what avoids a
+          light-then-dark flash on every load.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(window.localStorage.getItem("floussy_theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}}catch(e){}})();`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

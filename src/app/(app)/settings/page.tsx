@@ -848,14 +848,11 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    // The attribute itself is applied by a blocking script in the root
+    // layout, before this page even mounts - this only syncs the select's
+    // displayed value with what was actually applied.
     const savedTheme = window.localStorage.getItem("floussy_theme");
-    if (savedTheme === "dark") {
-      setTheme("dark");
-      document.documentElement.setAttribute("data-theme", "dark");
-      return;
-    }
-    setTheme("light");
-    document.documentElement.removeAttribute("data-theme");
+    setTheme(savedTheme === "dark" ? "dark" : "light");
   }, []);
 
   useEffect(() => {
