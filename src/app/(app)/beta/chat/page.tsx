@@ -25,9 +25,15 @@ import {
 } from "lucide-react";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import { apiFetch } from "@/lib/api";
+
+/** One stored turn of the shared advisor conversation (GET /advisor/chat/history). */
+type AdvisorChatHistoryItem = {
+  role: "user" | "assistant";
+  text: string;
+  created_at: string;
+};
 import type { UserOut } from "@/lib/types";
 
-const CHAT_STORAGE_KEY = "floussy.chat.messages";
 
 // Shared Notification Type
 interface NotificationItem {
@@ -414,6 +420,7 @@ export default function BetaChatPage() {
     timestamp: string;
   }
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [chatInput, setChatInput] = useState<string>("");
   const [chatLoading, setChatLoading] = useState<boolean>(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -454,32 +461,47 @@ export default function BetaChatPage() {
     }
   }, []);
 
-  // Load saved chat messages from local storage on mount
+  // The conversation belongs to the account, not to this browser. It used to
+  // live in localStorage, so the same user found a different history on the web
+  // and in the Android app, and clearing site data lost it.
   useEffect(() => {
-    const saved = localStorage.getItem(CHAT_STORAGE_KEY);
-    if (saved) {
+    let cancelled = false;
+    async function loadHistory() {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setChatMessages(parsed);
-          return;
-        }
+        const stored = await apiFetch<AdvisorChatHistoryItem[]>(
+          "/advisor/chat/history?limit=200"
+        );
+        if (cancelled) return;
+        setChatMessages(
+          stored.map((item, index) => ({
+            id: `history-${index}`,
+            role: item.role === "user" ? "user" : "model",
+            text: item.text,
+            timestamp: new Date(item.created_at).toLocaleTimeString(
+              locale === "ar" ? "ar-MA" : locale === "en" ? "en-US" : "fr-FR",
+              { hour: "2-digit", minute: "2-digit" }
+            ),
+          }))
+        );
       } catch {
-        // ignore
+        // Offline or an expired session: start empty rather than block the
+        // screen. Nothing is lost - the server keeps the transcript.
+      } finally {
+        if (!cancelled) setHistoryLoaded(true);
       }
     }
+    loadHistory();
+    return () => {
+      cancelled = true;
+    };
+    // Locale only formats the timestamps of an already fetched list; refetching
+    // on a language switch would be pointless traffic.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Save chat messages to local storage whenever they change
-  useEffect(() => {
-    if (chatMessages.length > 0) {
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatMessages));
-    }
-  }, [chatMessages]);
 
   // Auto-generate context-aware welcome message when entering AI Chat
   useEffect(() => {
-    if (chatMessages.length === 0 && !profileLoading) {
+    if (chatMessages.length === 0 && !profileLoading && historyLoaded) {
       const displayName = userName || "Utilisateur";
       const activeUnreadCount = notifications.filter((n) => !n.read).length;
       const greetText =
@@ -499,7 +521,7 @@ export default function BetaChatPage() {
         },
       ]);
     }
-  }, [chatMessages.length, notifications, userName, copy, locale, profileLoading]);
+  }, [chatMessages.length, notifications, userName, copy, locale, profileLoading, historyLoaded]);
 
   // AI Chat message sender
   const handleSendMessage = async (customPrompt?: string) => {
@@ -589,10 +611,15 @@ export default function BetaChatPage() {
     }
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
     playSound("error", false);
     setChatMessages([]);
-    localStorage.removeItem(CHAT_STORAGE_KEY);
+    try {
+      await apiFetch("/advisor/chat/history", { method: "DELETE" });
+    } catch {
+      // The screen is already empty; the next load will show whatever the
+      // server still holds rather than pretending the delete succeeded.
+    }
   };
 
   const handleCopyMessage = (id: string, text: string) => {
@@ -661,9 +688,7 @@ export default function BetaChatPage() {
                   locale === "en" ? "Are you sure you want to delete the entire conversation?" :
                   "Es-tu sûr de vouloir supprimer toute la conversation ?"
                 )) {
-                  playSound("error", false);
-                  setChatMessages([]);
-                  localStorage.removeItem(CHAT_STORAGE_KEY);
+                  void handleClearChat();
                 }
               }}
               className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-rose-500 hover:text-white border border-slate-200/50 text-rose-400 hover:border-rose-300 transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-black shadow-3xs"
