@@ -24,6 +24,7 @@ import {
   Lightbulb,
   SlidersHorizontal,
   MessageSquare,
+  HandCoins,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
@@ -134,6 +135,7 @@ const NAV_ITEMS = [
   { href: "/envelopes", label: "Envelopes", icon: Wallet },
   { href: "/distribution", label: "Distribution", icon: SlidersHorizontal },
   { href: "/goals", label: "Goals", icon: Target },
+  { href: "/debts", label: "Dettes & Salaf", icon: HandCoins },
   { href: "/beta", label: "Beta", icon: FlaskConical },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/aide", label: "Aide", icon: CircleHelp },
@@ -173,6 +175,7 @@ const APP_SHELL_COPY = {
       "/envelopes": "Enveloppes",
       "/distribution": "Distribution",
       "/goals": "Objectifs",
+      "/debts": "Dettes & Salaf",
       "/beta": "Beta",
       "/chat": "Chat",
       "/aide": "Aide",
@@ -212,6 +215,7 @@ const APP_SHELL_COPY = {
       "/envelopes": "Envelopes",
       "/distribution": "Distribution",
       "/goals": "Goals",
+      "/debts": "Debts & Salaf",
       "/beta": "Beta",
       "/chat": "Chat",
       "/aide": "Help",
@@ -251,6 +255,7 @@ const APP_SHELL_COPY = {
       "/envelopes": "الأظرفة",
       "/distribution": "التوزيع",
       "/goals": "الأهداف",
+      "/debts": "الديون والسلف",
       "/beta": "بيتا",
       "/chat": "المحادثة",
       "/aide": "المساعدة",

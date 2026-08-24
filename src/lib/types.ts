@@ -252,6 +252,44 @@ export type GoalOut = {
   updated_at: string | null;
 };
 
+export type DebtOut = {
+  id: string;
+  user_id: string;
+  contact_name: string;
+  contact_phone: string | null;
+  total_amount: string;
+  paid_amount: string;
+  is_loan_given: boolean; // true = كنسال (On me doit), false = كيسالوني (Je dois)
+  due_date: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+export type DebtCreateIn = {
+  contact_name: string;
+  contact_phone?: string | null;
+  total_amount: number;
+  paid_amount?: number;
+  is_loan_given: boolean;
+  due_date?: string | null;
+  note?: string | null;
+};
+
+export type DebtUpdateIn = {
+  contact_name?: string;
+  contact_phone?: string | null;
+  total_amount?: number;
+  paid_amount?: number;
+  is_loan_given?: boolean;
+  due_date?: string | null;
+  note?: string | null;
+};
+
+export type DebtRepayIn = {
+  amount: number;
+};
+
 export type EnvelopeBalanceOut = {
   envelope: EnvelopeOut;
   period_id: string | null;
