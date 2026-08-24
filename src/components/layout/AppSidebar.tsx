@@ -20,6 +20,7 @@ import {
   LogOut,
   Trophy,
   X,
+  HandCoins,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { Button } from "@/components/ui/Button";
@@ -85,6 +86,12 @@ export const SIDEBAR_SECTIONS: NavSection[] = [
         labelKey: "/goals",
         defaultLabel: "Objectifs",
         icon: Target,
+      },
+      {
+        href: "/debts",
+        labelKey: "/debts",
+        defaultLabel: "Dettes & Salaf",
+        icon: HandCoins,
       },
       {
         href: "/reports",
@@ -153,6 +160,7 @@ const SIDEBAR_I18N = {
     "/envelopes": "Enveloppes",
     "/distribution": "Distribution",
     "/goals": "Objectifs",
+    "/debts": "Dettes & Salaf",
     "/reports": "Rapports",
     "/gamification": "Série & Ranking",
     "/chat": "Assistant IA",
@@ -175,6 +183,7 @@ const SIDEBAR_I18N = {
     "/envelopes": "Envelopes",
     "/distribution": "Distribution",
     "/goals": "Goals",
+    "/debts": "Debts & Salaf",
     "/reports": "Reports",
     "/gamification": "Streak & Ranking",
     "/chat": "AI Assistant",
@@ -197,6 +206,7 @@ const SIDEBAR_I18N = {
     "/envelopes": "الأظرفة",
     "/distribution": "التوزيع",
     "/goals": "الأهداف",
+    "/debts": "الديون والسلف",
     "/reports": "التقارير",
     "/gamification": "السلسلة والتصنيف",
     "/chat": "المساعد الذكي",
