@@ -30,10 +30,13 @@ export function proxy(request: NextRequest) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.clarity.ms https://*.clarity.ms",
+      // 'unsafe-eval' is a development-only allowance: the Next dev server
+      // needs it for hot reload, a production bundle does not, and leaving it
+      // on in production widens every injection into arbitrary execution.
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://www.google.com https://www.gstatic.com https://www.clarity.ms https://*.clarity.ms`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://images.unsplash.com https://www.clarity.ms https://*.clarity.ms https://c.clarity.ms https://c.bing.com https://*.openstreetmap.org https://*.tile.openstreetmap.org",
+      "img-src 'self' data: blob: https://www.clarity.ms https://*.clarity.ms https://c.clarity.ms https://c.bing.com https://*.openstreetmap.org https://*.tile.openstreetmap.org",
       `connect-src 'self' https://api.7sabek.ma https://www.google.com https://*.floussy.online https://www.clarity.ms https://*.clarity.ms https://c.clarity.ms https://*.bing.com${devConnectSrc}`,
       "frame-src https://www.google.com https://www.gstatic.com https://www.openstreetmap.org https://*.openstreetmap.org",
       "frame-ancestors 'none'",
