@@ -464,9 +464,9 @@ export function AppSidebar({
       </div>
 
       {/* Footer / User Card */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-900/40 mt-auto">
+      <div className="p-3 border-t border-[var(--border)] bg-[var(--surface-2)]/50 dark:border-slate-800/80 dark:bg-slate-900/40 mt-auto">
         <div
-          className={`flex items-center rounded-2xl bg-slate-800/50 p-2.5 border border-slate-700/40 transition-all ${
+          className={`flex items-center rounded-2xl bg-[var(--surface)] dark:bg-slate-800/50 p-2.5 border border-[var(--border)] dark:border-slate-700/40 shadow-sm transition-all ${
             collapsed && !isMobile
               ? "justify-center p-1.5"
               : "justify-between gap-2.5"
@@ -480,15 +480,15 @@ export function AppSidebar({
           >
             <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs font-bold text-white shadow-sm ring-2 ring-emerald-500/20">
               {initials || "U"}
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[var(--surface)] dark:ring-slate-900" />
             </div>
 
             {(!collapsed || isMobile) && (
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-slate-100">
+                <p className="truncate text-xs font-semibold text-[var(--ink)]">
                   {displayName}
                 </p>
-                <p className="truncate text-[10px] text-slate-400">
+                <p className="truncate text-[10px] text-[var(--muted)]">
                   {user?.email || i18n.activePlan}
                 </p>
               </div>
@@ -499,7 +499,7 @@ export function AppSidebar({
             <button
               type="button"
               onClick={onLogout}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30 transition-all border border-transparent"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[var(--muted)] hover:bg-rose-500/20 hover:text-rose-500 dark:hover:text-rose-300 hover:border-rose-500/30 transition-all border border-transparent"
               title={i18n.logout}
               aria-label={i18n.logout}
             >
@@ -509,7 +509,7 @@ export function AppSidebar({
         </div>
 
         {(!collapsed || isMobile) && (
-          <div className="mt-2 text-center text-[10px] text-slate-500">
+          <div className="mt-2 text-center text-[10px] text-[var(--muted)] opacity-70">
             7sabek {appVersionLabel}
           </div>
         )}

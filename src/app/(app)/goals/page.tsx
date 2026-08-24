@@ -385,40 +385,41 @@ export default function GoalsPage() {
   };
 
   const glassCard =
-    "rounded-3xl border border-white/10 bg-[var(--surface)]/10 p-5 backdrop-blur-xl shadow-[0_15px_60px_rgba(17,24,39,0.35)]";
+    "rounded-3xl border border-[var(--border)] bg-[var(--surface)] dark:border-white/10 dark:bg-[var(--surface)]/10 p-5 backdrop-blur-xl shadow-[var(--shadow-soft)] text-[var(--ink)] dark:text-white";
   const inputDark =
-    "border-white/10 bg-[var(--surface)]/10 text-white placeholder:text-white/50 focus-visible:ring-cyan-400 focus-visible:ring-offset-0";
+    "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] placeholder:text-[var(--muted)] dark:border-white/10 dark:bg-[var(--surface)]/10 dark:text-white dark:placeholder:text-white/50 focus-visible:ring-cyan-400 focus-visible:ring-offset-0";
   const selectDark =
-    "rounded-2xl border border-white/10 bg-[var(--surface)]/10 px-3 py-2 text-sm text-white";
+    "rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] dark:border-white/10 dark:bg-[var(--surface)]/10 dark:text-white px-3 py-2 text-sm";
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden bg-[#0b0f1c] px-6 pb-12 pt-8 text-white"
+      className="relative min-h-screen overflow-hidden bg-[var(--bg)] px-6 pb-12 pt-8 text-[var(--ink)] dark:text-white"
       dir={pageDir}
     >
-      <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-[radial-gradient(circle,#22d3ee,transparent_70%)] opacity-40 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-20 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,#a855f7,transparent_70%)] opacity-30 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,#34d399,transparent_70%)] opacity-25 blur-3xl" />
+      <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-[radial-gradient(circle,#22d3ee,transparent_70%)] opacity-20 dark:opacity-40 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-20 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,#a855f7,transparent_70%)] opacity-15 dark:opacity-30 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,#34d399,transparent_70%)] opacity-15 dark:opacity-25 blur-3xl" />
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[var(--surface)]/10 px-3 py-2 text-sm font-medium text-white/90 backdrop-blur hover:bg-[var(--surface)]/20"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink)] shadow-sm backdrop-blur hover:bg-[var(--surface-2)] dark:border-white/15 dark:bg-[var(--surface)]/10 dark:text-white/90"
             title={copy.backToDashboard}
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">{copy.backToDashboard}</span>
           </Link>
-          <div className="flex items-center gap-2 text-xs text-white/60">
-            <Target className="h-4 w-4 text-emerald-300" />
+          <div className="flex items-center gap-2 text-xs text-[var(--muted)] dark:text-white/60">
+            <Target className="h-4 w-4 text-emerald-500 dark:text-emerald-300" />
             <span className="sr-only">{copy.activeGoals}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               asChild
               size="sm"
-              className="bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/20"
+              variant="secondary"
+              className="border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:bg-[var(--surface-2)] dark:border-white/15 dark:bg-[var(--surface)]/10 dark:text-white"
             >
               <Link href="/goals/new">
                 <Plus className="h-4 w-4" />
@@ -586,18 +587,18 @@ export default function GoalsPage() {
                             <span className="sr-only">{copy.edit}</span>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="border border-white/10 bg-[#0f1424] text-white">
+                        <DialogContent className="border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] dark:border-white/10 dark:bg-[#0f1424] dark:text-white shadow-2xl">
                           <DialogHeader>
-                            <DialogTitle className="text-white">
+                            <DialogTitle className="text-[var(--ink)] dark:text-white">
                               {copy.editGoalTitle}
                             </DialogTitle>
-                            <DialogDescription className="text-white/60">
+                            <DialogDescription className="text-[var(--muted)] dark:text-white/60">
                               {copy.editGoalDescription}
                             </DialogDescription>
                           </DialogHeader>
                           {editGoal ? (
                             <div className="mt-4 grid gap-3">
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)] dark:text-white/80">
                                 {copy.name}
                                 <Input
                                   className={inputDark}

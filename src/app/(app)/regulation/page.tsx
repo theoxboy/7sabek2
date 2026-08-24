@@ -692,46 +692,46 @@ export default function RegulationPage() {
       <div className="pointer-events-none absolute -right-20 -top-12 h-48 w-48 rounded-full bg-emerald-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 top-32 h-56 w-56 rounded-full bg-orange-200/40 blur-3xl" />
 
-      <div className="rounded-[32px] bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#0f172a] px-6 py-8 text-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.9)]">
+      <div className="rounded-[32px] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 text-[var(--ink)] shadow-[var(--shadow-soft)] dark:border-white/10 dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#111827] dark:to-[#0f172a] dark:text-white">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="warning" className="bg-amber-400/20 text-amber-100">
+          <Badge tone="warning" className="bg-amber-400/20 text-amber-800 dark:text-amber-100">
             {copy.anomalyDetected}
           </Badge>
-          <Badge tone="muted" className="bg-[var(--surface)]/10 text-white">
+          <Badge tone="muted" className="bg-[var(--surface-2)] text-[var(--ink)] dark:bg-[var(--surface)]/10 dark:text-white">
             {copy.unmappedCategories}
           </Badge>
-          <div className="group relative ml-auto text-xs text-white/70">
+          <div className="group relative ml-auto text-xs text-[var(--muted)] dark:text-white/70">
             <span className="cursor-help underline decoration-dotted underline-offset-4">
               {copy.whyAsk}
             </span>
-            <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl border border-white/10 bg-[var(--surface)]/95 p-3 text-xs text-slate-700 shadow-xl opacity-0 transition group-hover:opacity-100">
+            <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--ink)] shadow-xl opacity-0 transition group-hover:opacity-100 dark:border-white/10 dark:bg-slate-900">
               {copy.whyAskBody}
             </div>
           </div>
         </div>
         <div className="mt-5 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">
+            <h1 className="text-2xl font-semibold text-[var(--ink)] dark:text-white">
               {copy.heroTitle}
             </h1>
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-[var(--muted)] dark:text-white/70">
               {copy.heroDescription}
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <div className="rounded-2xl border border-white/10 bg-[var(--surface)]/10 px-4 py-3">
-              <p className="text-xs text-white/60">{copy.statCategories}</p>
-              <p className="text-lg font-semibold">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-white/10 dark:bg-[var(--surface)]/10">
+              <p className="text-xs text-[var(--muted)] dark:text-white/60">{copy.statCategories}</p>
+              <p className="text-lg font-semibold text-[var(--ink)] dark:text-white">
                 {unmappedCategories.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[var(--surface)]/10 px-4 py-3">
-              <p className="text-xs text-white/60">{copy.statRemaining}</p>
-              <p className="text-lg font-semibold">{remaining}</p>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-white/10 dark:bg-[var(--surface)]/10">
+              <p className="text-xs text-[var(--muted)] dark:text-white/60">{copy.statRemaining}</p>
+              <p className="text-lg font-semibold text-[var(--ink)] dark:text-white">{remaining}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[var(--surface)]/10 px-4 py-3">
-              <p className="text-xs text-white/60">{copy.statProgress}</p>
-              <p className="text-lg font-semibold">{progress}%</p>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-white/10 dark:bg-[var(--surface)]/10">
+              <p className="text-xs text-[var(--muted)] dark:text-white/60">{copy.statProgress}</p>
+              <p className="text-lg font-semibold text-[var(--ink)] dark:text-white">{progress}%</p>
             </div>
           </div>
         </div>

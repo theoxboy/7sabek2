@@ -472,17 +472,17 @@ export default function DebtsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-20 pt-4" dir={dir}>
       {/* 🌟 1. Header / Cockpit Hero */}
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/40 via-slate-900/60 to-slate-950 p-6 md:p-8 shadow-xl backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 md:p-8 shadow-[var(--shadow-soft)] backdrop-blur-xl dark:border-emerald-500/20 dark:bg-gradient-to-br dark:from-emerald-950/40 dark:via-slate-900/60 dark:to-slate-950">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <HandCoins className="h-3.5 w-3.5" />
               <span>{copy.heroTitle}</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--ink)]">
               {copy.heroTitle}
             </h1>
-            <p className="text-sm text-slate-300 max-w-xl">{copy.heroDescription}</p>
+            <p className="text-sm text-[var(--muted)] max-w-xl">{copy.heroDescription}</p>
           </div>
 
           <Button
@@ -490,7 +490,7 @@ export default function DebtsPage() {
               resetForm();
               setIsAddOpen(true);
             }}
-            className="self-start md:self-auto gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-950/40 rounded-xl px-5 py-2.5"
+            className="self-start md:self-auto gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-950/20 rounded-xl px-5 py-2.5"
           >
             <Plus className="h-4 w-4" />
             <span>{copy.addDebt}</span>
@@ -500,40 +500,40 @@ export default function DebtsPage() {
         {/* Totals Cockpit Grid */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {/* Total À Récupérer */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 transition-all hover:border-emerald-500/40">
-            <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
+          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4 transition-all hover:border-emerald-300 dark:border-emerald-500/20 dark:bg-emerald-950/20">
+            <div className="flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-400">
               <span className="flex items-center gap-1.5">
                 <ArrowDownLeft className="h-4 w-4" />
                 {copy.totalGiven}
               </span>
-              <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px]">
+              <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold">
                 {debts.filter((d) => d.is_loan_given && parseFloat(d.paid_amount) < parseFloat(d.total_amount)).length} actif(s)
               </span>
             </div>
-            <div className="mt-2 text-2xl font-black tracking-tight text-emerald-300">
+            <div className="mt-2 text-2xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
               {formatMoney(totalGiven)}
             </div>
           </div>
 
           {/* Total À Rembourser */}
-          <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4 transition-all hover:border-rose-500/40">
-            <div className="flex items-center justify-between text-xs font-semibold text-rose-400">
+          <div className="rounded-2xl border border-rose-200/80 bg-rose-50/60 p-4 transition-all hover:border-rose-300 dark:border-rose-500/20 dark:bg-rose-950/20">
+            <div className="flex items-center justify-between text-xs font-semibold text-rose-700 dark:text-rose-400">
               <span className="flex items-center gap-1.5">
                 <ArrowUpRight className="h-4 w-4" />
                 {copy.totalOwed}
               </span>
-              <span className="rounded-md bg-rose-500/10 px-2 py-0.5 text-[10px]">
+              <span className="rounded-md bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold">
                 {debts.filter((d) => !d.is_loan_given && parseFloat(d.paid_amount) < parseFloat(d.total_amount)).length} actif(s)
               </span>
             </div>
-            <div className="mt-2 text-2xl font-black tracking-tight text-rose-300">
+            <div className="mt-2 text-2xl font-black tracking-tight text-rose-700 dark:text-rose-300">
               {formatMoney(totalOwed)}
             </div>
           </div>
 
           {/* Solde Net */}
-          <div className="rounded-2xl border border-slate-700/50 bg-slate-900/40 p-4 transition-all hover:border-slate-600 sm:col-span-2 md:col-span-1">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-4 transition-all hover:border-slate-400 dark:border-slate-700/50 dark:bg-slate-900/40 sm:col-span-2 md:col-span-1">
+            <div className="flex items-center justify-between text-xs font-semibold text-[var(--muted)]">
               <span className="flex items-center gap-1.5">
                 <Wallet className="h-4 w-4" />
                 {copy.netBalance}
@@ -541,7 +541,7 @@ export default function DebtsPage() {
             </div>
             <div
               className={`mt-2 text-2xl font-black tracking-tight ${
-                totalGiven - totalOwed >= 0 ? "text-emerald-400" : "text-rose-400"
+                totalGiven - totalOwed >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
               }`}
             >
               {formatMoney(totalGiven - totalOwed)}
@@ -565,8 +565,8 @@ export default function DebtsPage() {
             onClick={() => setFilterType(f.key)}
             className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
               filterType === f.key
-                ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-sm"
-                : "border border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 shadow-sm"
+                : "border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--ink)]/30 hover:text-[var(--ink)] dark:bg-slate-900/60 dark:text-slate-400"
             }`}
           >
             {f.label}
@@ -576,7 +576,7 @@ export default function DebtsPage() {
 
       {/* 📋 3. Debts Grid List */}
       {loading ? (
-        <div className="py-20 text-center text-sm text-slate-400">Chargement...</div>
+        <div className="py-20 text-center text-sm text-[var(--muted)]">Chargement...</div>
       ) : filteredDebts.length === 0 ? (
         <EmptyState
           title={copy.noDebtsTitle}
@@ -606,7 +606,7 @@ export default function DebtsPage() {
             return (
               <div
                 key={debt.id}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 transition-all hover:border-slate-700 hover:shadow-lg hover:shadow-black/40"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-soft)] transition-all hover:border-slate-400 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900/60 dark:hover:border-slate-700"
               >
                 <div>
                   {/* Top Bar */}
@@ -615,8 +615,8 @@ export default function DebtsPage() {
                       <div
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                           debt.is_loan_given
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-rose-500/15 text-rose-400"
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
                         }`}
                       >
                         {debt.is_loan_given ? (
@@ -626,10 +626,10 @@ export default function DebtsPage() {
                         )}
                       </div>
                       <div>
-                        <h3 className="font-bold text-white text-base leading-snug">
+                        <h3 className="font-bold text-[var(--ink)] text-base leading-snug">
                           {debt.contact_name}
                         </h3>
-                        <p className="text-xs text-slate-400 line-clamp-1">
+                        <p className="text-xs text-[var(--muted)] line-clamp-1">
                           {debt.note ||
                             (debt.is_loan_given ? copy.typeGiven : copy.typeOwed)}
                         </p>
@@ -638,16 +638,16 @@ export default function DebtsPage() {
 
                     <div className="text-right">
                       {isSettled ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           {copy.settled}
                         </span>
                       ) : (
                         <div>
-                          <div className="text-xs text-slate-400">{copy.remaining}</div>
+                          <div className="text-xs text-[var(--muted)]">{copy.remaining}</div>
                           <div
                             className={`text-base font-black ${
-                              debt.is_loan_given ? "text-emerald-400" : "text-rose-400"
+                              debt.is_loan_given ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                             }`}
                           >
                             {formatMoney(remaining)}
@@ -658,16 +658,16 @@ export default function DebtsPage() {
                   </div>
 
                   {/* Due Date & Phone */}
-                  <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                  <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
                     {debt.due_date && (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800/60 px-2.5 py-1">
-                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--surface-2)] px-2.5 py-1 border border-[var(--border)] dark:border-transparent dark:bg-slate-800/60 text-[var(--ink)]">
+                        <Calendar className="h-3.5 w-3.5 text-[var(--muted)]" />
                         {copy.dueDate} : {debt.due_date}
                       </span>
                     )}
                     {debt.contact_phone && (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800/60 px-2.5 py-1 text-slate-300">
-                        <Phone className="h-3.5 w-3.5 text-emerald-400" />
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--surface-2)] px-2.5 py-1 border border-[var(--border)] dark:border-transparent dark:bg-slate-800/60 text-[var(--ink)]">
+                        <Phone className="h-3.5 w-3.5 text-emerald-500" />
                         {debt.contact_phone}
                       </span>
                     )}
@@ -675,13 +675,13 @@ export default function DebtsPage() {
 
                   {/* Progress Bar */}
                   <div className="mt-4 space-y-1.5">
-                    <div className="flex justify-between text-[11px] font-medium text-slate-400">
+                    <div className="flex justify-between text-[11px] font-medium text-[var(--muted)]">
                       <span>
                         {copy.paid} : {formatMoney(paid)} / {formatMoney(total)}
                       </span>
                       <span>{progress}%</span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border)] dark:bg-slate-800">
                       <div
                         className={`h-full transition-all duration-500 rounded-full ${
                           isSettled
@@ -697,7 +697,7 @@ export default function DebtsPage() {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="mt-5 flex items-center justify-between border-t border-slate-800/60 pt-3">
+                <div className="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-3 dark:border-slate-800/60">
                   <div className="flex items-center gap-2">
                     {!isSettled && (
                       <Button
@@ -706,7 +706,7 @@ export default function DebtsPage() {
                           setRepayingDebt(debt);
                           setRepayAmount("");
                         }}
-                        className="h-8 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-semibold px-3"
+                        className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3"
                       >
                         {copy.repay}
                       </Button>
@@ -718,7 +718,7 @@ export default function DebtsPage() {
                         size="sm"
                         variant="secondary"
                         onClick={() => openWhatsAppModal(debt)}
-                        className="h-8 gap-1.5 rounded-lg border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 text-xs font-semibold px-3"
+                        className="h-8 gap-1.5 rounded-lg border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold px-3"
                       >
                         <MessageCircle className="h-3.5 w-3.5" />
                         <span>WhatsApp</span>
@@ -729,14 +729,14 @@ export default function DebtsPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEditModal(debt)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+                      className="rounded-lg p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] dark:hover:bg-slate-800"
                       title={copy.edit}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setDeletingDebt(debt)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-950/30 hover:text-rose-400"
+                      className="rounded-lg p-1.5 text-[var(--muted)] transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
                       title={copy.delete}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -759,10 +759,10 @@ export default function DebtsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white rounded-2xl">
+        <DialogContent className="max-w-md bg-[var(--surface)] border border-[var(--border)] text-[var(--ink)] rounded-2xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle>{editingDebt ? copy.editTitle : copy.addDebt}</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-[var(--ink)]">{editingDebt ? copy.editTitle : copy.addDebt}</DialogTitle>
+            <DialogDescription className="text-[var(--muted)]">
               {copy.heroDescription}
             </DialogDescription>
           </DialogHeader>
@@ -770,15 +770,15 @@ export default function DebtsPage() {
           <form onSubmit={editingDebt ? handleUpdateDebt : handleCreateDebt} className="space-y-4">
             {/* Type selector */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">{copy.type}</Label>
+              <Label className="text-xs text-[var(--ink)] font-semibold">{copy.type}</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setFormIsLoanGiven(true)}
                   className={`rounded-xl border p-2.5 text-xs font-bold transition-all text-center ${
                     formIsLoanGiven
-                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-400"
-                      : "border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700"
+                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                      : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--ink)]/30 hover:text-[var(--ink)]"
                   }`}
                 >
                   {copy.typeGiven}
@@ -788,8 +788,8 @@ export default function DebtsPage() {
                   onClick={() => setFormIsLoanGiven(false)}
                   className={`rounded-xl border p-2.5 text-xs font-bold transition-all text-center ${
                     !formIsLoanGiven
-                      ? "border-rose-500 bg-rose-500/15 text-rose-400"
-                      : "border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700"
+                      ? "border-rose-500 bg-rose-500/15 text-rose-700 dark:text-rose-400"
+                      : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--ink)]/30 hover:text-[var(--ink)]"
                   }`}
                 >
                   {copy.typeOwed}
@@ -798,7 +798,7 @@ export default function DebtsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="contact_name" className="text-xs text-slate-300">
+              <Label htmlFor="contact_name" className="text-xs text-[var(--ink)] font-semibold">
                 {copy.contactName} *
               </Label>
               <Input
@@ -807,13 +807,13 @@ export default function DebtsPage() {
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="Ex: Omar, Youssef, Épicerie..."
-                className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="total_amount" className="text-xs text-slate-300">
+                <Label htmlFor="total_amount" className="text-xs text-[var(--ink)] font-semibold">
                   {copy.totalAmount} *
                 </Label>
                 <Input
@@ -825,12 +825,12 @@ export default function DebtsPage() {
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
                   placeholder="500"
-                  className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                  className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="due_date" className="text-xs text-slate-300">
+                <Label htmlFor="due_date" className="text-xs text-[var(--ink)] font-semibold">
                   {copy.dueDate}
                 </Label>
                 <Input
@@ -838,13 +838,13 @@ export default function DebtsPage() {
                   type="date"
                   value={formDueDate}
                   onChange={(e) => setFormDueDate(e.target.value)}
-                  className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                  className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="contact_phone" className="text-xs text-slate-300">
+              <Label htmlFor="contact_phone" className="text-xs text-[var(--ink)] font-semibold">
                 {copy.contactPhone}
               </Label>
               <Input
@@ -853,12 +853,12 @@ export default function DebtsPage() {
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
                 placeholder="+212 6..."
-                className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="note" className="text-xs text-slate-300">
+              <Label htmlFor="note" className="text-xs text-[var(--ink)] font-semibold">
                 {copy.notes}
               </Label>
               <Input
@@ -866,7 +866,7 @@ export default function DebtsPage() {
                 value={formNote}
                 onChange={(e) => setFormNote(e.target.value)}
                 placeholder="Motif, détails..."
-                className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
               />
             </div>
 
@@ -878,7 +878,7 @@ export default function DebtsPage() {
                   setIsAddOpen(false);
                   setEditingDebt(null);
                 }}
-                className="rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="rounded-xl border-[var(--border)] text-[var(--ink)] hover:bg-[var(--surface-2)]"
               >
                 {copy.cancel}
               </Button>
@@ -896,10 +896,10 @@ export default function DebtsPage() {
 
       {/* 💵 Repayment Dialog */}
       <Dialog open={!!repayingDebt} onOpenChange={(open) => !open && setRepayingDebt(null)}>
-        <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white rounded-2xl">
+        <DialogContent className="max-w-md bg-[var(--surface)] border border-[var(--border)] text-[var(--ink)] rounded-2xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle>{copy.repayTitle}</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-[var(--ink)]">{copy.repayTitle}</DialogTitle>
+            <DialogDescription className="text-[var(--muted)]">
               {repayingDebt && (
                 <span>
                   {copy.contactName} : <strong>{repayingDebt.contact_name}</strong> — Solde restant :{" "}
@@ -918,7 +918,7 @@ export default function DebtsPage() {
 
           <form onSubmit={handleRepayDebt} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="repay_amount" className="text-xs text-slate-300">
+              <Label htmlFor="repay_amount" className="text-xs text-[var(--ink)] font-semibold">
                 {copy.amount} (DH) *
               </Label>
               <Input
@@ -930,7 +930,7 @@ export default function DebtsPage() {
                 value={repayAmount}
                 onChange={(e) => setRepayAmount(e.target.value)}
                 placeholder="Ex: 200"
-                className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
               />
             </div>
 
@@ -939,7 +939,7 @@ export default function DebtsPage() {
                 type="button"
                 variant="secondary"
                 onClick={() => setRepayingDebt(null)}
-                className="rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="rounded-xl border-[var(--border)] text-[var(--ink)] hover:bg-[var(--surface-2)]"
               >
                 {copy.cancel}
               </Button>
@@ -957,13 +957,13 @@ export default function DebtsPage() {
 
       {/* 💬 WhatsApp Message Templates Dialog */}
       <Dialog open={!!whatsAppDebt} onOpenChange={(open) => !open && setWhatsAppDebt(null)}>
-        <DialogContent className="max-w-lg bg-slate-900 border-slate-800 text-white rounded-2xl">
+        <DialogContent className="max-w-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--ink)] rounded-2xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-emerald-400" />
+            <DialogTitle className="flex items-center gap-2 text-[var(--ink)]">
+              <MessageCircle className="h-5 w-5 text-emerald-500" />
               <span>{copy.whatsAppTitle}</span>
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-[var(--muted)]">
               {whatsAppDebt && (
                 <span>
                   Pour <strong>{whatsAppDebt.contact_name}</strong>
@@ -975,7 +975,7 @@ export default function DebtsPage() {
           {whatsAppDebt && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="wa_phone" className="text-xs text-slate-300">
+                <Label htmlFor="wa_phone" className="text-xs text-[var(--ink)] font-semibold">
                   {copy.contactPhone}
                 </Label>
                 <Input
@@ -983,13 +983,13 @@ export default function DebtsPage() {
                   value={waPhone}
                   onChange={(e) => setWaPhone(e.target.value)}
                   placeholder="+212 6..."
-                  className="bg-slate-800/60 border-slate-700 text-white rounded-xl"
+                  className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--ink)] rounded-xl"
                 />
               </div>
 
               {/* Template Choices */}
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">{copy.chooseTemplate}</Label>
+                <Label className="text-xs text-[var(--ink)] font-semibold">{copy.chooseTemplate}</Label>
                 <div className="grid grid-cols-1 gap-2">
                   {getWhatsAppTemplates(whatsAppDebt).map((tmpl, idx) => (
                     <button
@@ -1001,8 +1001,8 @@ export default function DebtsPage() {
                       }}
                       className={`rounded-xl border p-2.5 text-left text-xs font-medium transition-all ${
                         waTemplateIdx === idx
-                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-sm"
-                          : "border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-sm"
+                          : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--ink)]/30 hover:text-[var(--ink)]"
                       }`}
                     >
                       {tmpl.label}
@@ -1013,7 +1013,7 @@ export default function DebtsPage() {
 
               {/* Editable Message Preview */}
               <div className="space-y-1.5">
-                <Label htmlFor="wa_message" className="text-xs text-slate-300">
+                <Label htmlFor="wa_message" className="text-xs text-[var(--ink)] font-semibold">
                   {copy.messagePreview}
                 </Label>
                 <textarea
@@ -1021,7 +1021,7 @@ export default function DebtsPage() {
                   rows={4}
                   value={waCustomMessage}
                   onChange={(e) => setWaCustomMessage(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 p-3 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -1030,7 +1030,7 @@ export default function DebtsPage() {
                   type="button"
                   variant="secondary"
                   onClick={() => setWhatsAppDebt(null)}
-                  className="rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800"
+                  className="rounded-xl border-[var(--border)] text-[var(--ink)] hover:bg-[var(--surface-2)]"
                 >
                   {copy.cancel}
                 </Button>
@@ -1064,10 +1064,10 @@ export default function DebtsPage() {
 
       {/* 🗑️ Delete Confirmation Dialog */}
       <Dialog open={!!deletingDebt} onOpenChange={(open) => !open && setDeletingDebt(null)}>
-        <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white rounded-2xl">
+        <DialogContent className="max-w-md bg-[var(--surface)] border border-[var(--border)] text-[var(--ink)] rounded-2xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle>{copy.deleteTitle}</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-[var(--ink)]">{copy.deleteTitle}</DialogTitle>
+            <DialogDescription className="text-[var(--muted)]">
               {copy.deleteDescription} (<strong>{deletingDebt?.contact_name}</strong>)
             </DialogDescription>
           </DialogHeader>
@@ -1075,7 +1075,7 @@ export default function DebtsPage() {
             <Button
               variant="secondary"
               onClick={() => setDeletingDebt(null)}
-              className="rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800"
+              className="rounded-xl border-[var(--border)] text-[var(--ink)] hover:bg-[var(--surface-2)]"
             >
               {copy.cancel}
             </Button>
