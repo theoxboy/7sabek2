@@ -263,7 +263,12 @@ export async function apiFetch<T>(
       response = await fetch(url, {
         method,
         headers,
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body:
+          options.body === undefined
+            ? undefined
+            : typeof options.body === "string"
+            ? options.body
+            : JSON.stringify(options.body),
         credentials: "include",
         cache: "no-store",
         signal: controller.signal,

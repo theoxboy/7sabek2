@@ -367,7 +367,7 @@ export default function DebtsPage() {
       };
       const created = await apiFetch<DebtOut>("/debts", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       });
       setDebts((prev) => [created, ...prev]);
       setIsAddOpen(false);
@@ -398,7 +398,7 @@ export default function DebtsPage() {
       };
       const updated = await apiFetch<DebtOut>(`/debts/${editingDebt.id}`, {
         method: "PATCH",
-        body: JSON.stringify(payload),
+        body: payload,
       });
       setDebts((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       setEditingDebt(null);
@@ -437,7 +437,7 @@ export default function DebtsPage() {
       const payload: DebtRepayIn = { amount };
       const updated = await apiFetch<DebtOut>(`/debts/${repayingDebt.id}/repay`, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       });
       setDebts((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       setRepayingDebt(null);
