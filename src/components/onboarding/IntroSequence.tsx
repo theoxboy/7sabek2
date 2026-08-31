@@ -82,7 +82,7 @@ export function IntroSequence({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-[#111111]">
+    <div className="min-h-screen bg-[var(--surface)] text-[var(--ink)]">
       <div className="relative mx-auto flex min-h-screen w-full max-w-[920px] flex-col px-6 pb-10 pt-8 sm:px-10">
         {showSkip && !showStartButton ? (
           <button
@@ -91,7 +91,7 @@ export function IntroSequence({
               clearTimers();
               setCurrentStepIndex(startStepIndex);
             }}
-            className="absolute right-6 top-8 text-[14px] font-medium text-[#8e8e93] transition hover:text-[#111111] sm:right-10"
+            className="absolute right-6 top-8 text-[14px] font-medium text-[var(--muted)] transition hover:text-[var(--ink)] sm:right-10"
           >
             ديرها من بعد
           </button>
@@ -109,7 +109,7 @@ export function IntroSequence({
                   animate={ONBOARDING_ANIMATE}
                   exit={getOnboardingExit(reduceMotion, transitionDirection)}
                   transition={onboardingTransition}
-                  className="inline-flex h-14 items-center justify-center rounded-2xl bg-[#111111] px-8 text-[18px] font-semibold text-white shadow-[0_16px_30px_-18px_rgba(0,0,0,0.5)] transition hover:bg-black"
+                  className="inline-flex h-14 items-center justify-center rounded-2xl bg-[var(--ink)] px-8 text-[18px] font-semibold text-[var(--bg)] shadow-[0_16px_30px_-18px_rgba(0,0,0,0.5)] transition hover:opacity-90"
                 >
                   {startLabel}
                 </motion.button>
@@ -135,7 +135,7 @@ export function IntroSequence({
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduceMotion ? 0.05 : 0.25 }}
-            className="mx-auto max-w-2xl text-center text-[13px] leading-6 text-[#8e8e93]"
+            className="mx-auto max-w-2xl text-center text-[13px] leading-6 text-[var(--muted)]"
             dir="rtl"
           >
             {PRIVACY_NOTE}

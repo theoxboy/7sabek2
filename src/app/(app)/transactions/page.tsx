@@ -18,10 +18,9 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import {
-  GlobalTourOverlay,
-  useGlobalTour,
-  type TourStep,
+  PageTour,
 } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { TRANSACTIONS_COPY } from "@/lib/translations/translations";
@@ -305,48 +304,12 @@ function TransactionsContent() {
     )}`;
   }, [dashboard?.current_period, locale, periodArrow]);
 
-  const tourSteps = useMemo<TourStep[]>(() => {
-    return [
-      {
-        title: copy.tourView,
-        description: copy.tourViewDesc,
-        ref: headerRef,
-      },
-      {
-        title: copy.tourBulk,
-        description: copy.tourBulkDesc,
-        ref: bulkRef,
-      },
-      {
-        title: copy.tourCreate,
-        description: copy.tourCreateDesc,
-        ref: formRef,
-      },
-      {
-        title: copy.tourActions,
-        description: copy.tourActionsDesc,
-        ref: { current: null },
-        selector: '[data-tour="transaction-actions"]',
-      },
-      {
-        title: copy.tourPreview,
-        description: copy.tourPreviewDesc,
-        ref: { current: null },
-        selector: '[data-tour="transaction-preview"]',
-      },
-    ];
-  }, [copy]);
-
-  const {
-    isActive: tourActive,
-    step: tourStep,
-    stepIndex: tourStepIndex,
-    total: tourTotal,
-    goNext,
-    goPrevious,
-    canGoPrevious,
-    skipTour,
-  } = useGlobalTour("transactions", tourSteps);
+  const { tour } = usePageTour("transactions", {
+    header: { ref: headerRef },
+    quickAdd: { ref: formRef },
+    rowActions: { selector: '[data-tour="transaction-actions"]' },
+    history: { ref: bulkRef },
+  });
 
   const handleCategoryMapped = (categoryId: string, envelopeId: string) => {
     setMappings((prev) => ({
@@ -370,17 +333,7 @@ function TransactionsContent() {
 
   return (
     <div dir={pageDir} className="relative flex flex-col gap-8">
-      {tourActive && tourStep && !loading ? (
-        <GlobalTourOverlay
-          step={tourStep}
-          stepIndex={tourStepIndex}
-          total={tourTotal}
-          canGoPrevious={canGoPrevious}
-          onPrevious={goPrevious}
-          onNext={goNext}
-          onSkip={skipTour}
-        />
-      ) : null}
+      {!loading ? <PageTour tour={tour} /> : null}
 
       {/* Cockpit Header Card */}
       <div

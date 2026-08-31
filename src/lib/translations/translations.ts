@@ -151,17 +151,6 @@ export const TRANSACTIONS_COPY = {
       "Catégorie non mappée. Associe-la à une enveloppe avant de créer la dépense.",
     pleaseSelectCategory: "Please select a category.",
     amountRequired: "Amount is required.",
-    tourView: "Vue transactions",
-    tourViewDesc:
-      "Retrouve toutes les actions clés pour saisir et suivre tes transactions.",
-    tourBulk: "Saisie collective",
-    tourBulkDesc: "Importer plusieurs transactions d’un coup depuis un tableau.",
-    tourCreate: "Créer une transaction",
-    tourCreateDesc: "Saisis une dépense ou un revenu avec la date et la catégorie.",
-    tourActions: "Actions rapides",
-    tourActionsDesc: "Sauvegarde, annule ou ouvre l’historique des transactions.",
-    tourPreview: "Aperçu de répartition",
-    tourPreviewDesc: "Visualise comment le revenu sera réparti sur tes enveloppes.",
   },
   en: {
     title: "Transactions",
@@ -312,16 +301,6 @@ export const TRANSACTIONS_COPY = {
       "Category not mapped. Link it to an envelope before creating the expense.",
     pleaseSelectCategory: "Please select a category.",
     amountRequired: "Amount is required.",
-    tourView: "Transactions view",
-    tourViewDesc: "Find the key actions to add and track your transactions.",
-    tourBulk: "Bulk entry",
-    tourBulkDesc: "Import many transactions at once from a table.",
-    tourCreate: "Create a transaction",
-    tourCreateDesc: "Add an expense or income with date and category.",
-    tourActions: "Quick actions",
-    tourActionsDesc: "Save, cancel, or open transaction history quickly.",
-    tourPreview: "Distribution preview",
-    tourPreviewDesc: "See how this income will be distributed across envelopes.",
   },
   ar: {
     title: "العمليات",
@@ -472,16 +451,6 @@ export const TRANSACTIONS_COPY = {
       "هاد الفئة ما مربوطة حتى بظرف. ربطها بظرف باش يتحدث الميزان تلقائياً.",
     pleaseSelectCategory: "اختار فئة.",
     amountRequired: "المبلغ ضروري.",
-    tourView: "واجهة العمليات",
-    tourViewDesc: "هنا كتلقى الحوايج الرئيسية باش تزيد وتراقب العمليات ديالك.",
-    tourBulk: "إضافة جماعية",
-    tourBulkDesc: "دخل بزاف ديال العمليات دفعة وحدة من واحد الجدول.",
-    tourCreate: "زيد عملية",
-    tourCreateDesc: "زيد دخل ولا مصروف مع التاريخ والفئة.",
-    tourActions: "أزرار سriعة",
-    tourActionsDesc: "سجّل، لغّي، ولا حل تاريخ العمليات بسرعة.",
-    tourPreview: "معاينة التوزيع",
-    tourPreviewDesc: "شوف كيفاش غادي يتوزع هاد الدخل على الأظرفة.",
   },
 } as const;
 
@@ -498,46 +467,6 @@ export type DashboardCopy = {
   sweepDoneTitle: string;
   sweepDoneDescription: string;
   sweepErrorTitle: string;
-  tourOverviewTitle: string;
-  tourOverviewDescription: string;
-  tourTodoTitle: string;
-  tourTodoDescription: string;
-  tourAvailableTitle: string;
-  tourAvailableDescription: string;
-  tourExpenseTitle: string;
-  tourExpenseDescription: string;
-  tourIncomeTitle: string;
-  tourIncomeDescription: string;
-  tourNetTitle: string;
-  tourNetDescription: string;
-  tourTopTitle: string;
-  tourTopDescription: string;
-  tourRecentTitle: string;
-  tourRecentDescription: string;
-  tourSpendingTitle: string;
-  tourSpendingDescription: string;
-  tourTrendTitle: string;
-  tourTrendDescription: string;
-  tourQuickTitle: string;
-  tourQuickDescription: string;
-  tourFabTitle: string;
-  tourFabDescription: string;
-  navDashboard: string;
-  navDashboardDesc: string;
-  navTransactions: string;
-  navTransactionsDesc: string;
-  navEnvelopes: string;
-  navEnvelopesDesc: string;
-  navDistribution: string;
-  navDistributionDesc: string;
-  navGoals: string;
-  navGoalsDesc: string;
-  navAide: string;
-  navAideDesc: string;
-  navReports: string;
-  navReportsDesc: string;
-  navSettings: string;
-  navSettingsDesc: string;
   incomeDialogTitle: string;
   incomeDialogDescription: (count: number) => string;
   incomeDialogBody: string;
@@ -559,18 +488,7 @@ export type DashboardCopy = {
   selectedPeriod: string;
   cancel: string;
   apply: string;
-  guideTag: string;
-  welcomeTitle: string;
-  welcomeDescription: string;
-  guideLine1: string;
-  guideLine2: string;
-  guideLine3: string;
-  guideChip1: string;
-  guideChip2: string;
-  guideChip3: string;
-  guideFooter: string;
   skip: string;
-  startTour: string;
   eyebrow: string;
   title: string;
   subtitle: string;
@@ -726,54 +644,6 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     sweepDoneTitle: "Sweep exécuté",
     sweepDoneDescription: "Les soldes ont été mis à jour.",
     sweepErrorTitle: "Sweep impossible",
-    tourOverviewTitle: "Vue d’ensemble",
-    tourOverviewDescription:
-      "Ici tu vois ta période active et les actions rapides pour ajouter des transactions.",
-    tourTodoTitle: "À faire maintenant",
-    tourTodoDescription:
-      "Les alertes importantes pour sécuriser ton budget en priorité.",
-    tourAvailableTitle: "Cash disponible",
-    tourAvailableDescription:
-      "Le montant que tu peux encore allouer à tes enveloppes.",
-    tourExpenseTitle: "Dépenses période",
-    tourExpenseDescription:
-      "Le total dépensé sur la période sélectionnée (mappé).",
-    tourIncomeTitle: "Revenus période",
-    tourIncomeDescription: "Le total des revenus déclarés sur la période.",
-    tourNetTitle: "Net période",
-    tourNetDescription: "Le solde net revenus - dépenses sur la période.",
-    tourTopTitle: "Top enveloppes",
-    tourTopDescription: "Les enveloppes principales et leurs budgets restants.",
-    tourRecentTitle: "Dépenses récentes",
-    tourRecentDescription:
-      "Vérifie tes dernières dépenses pour corriger rapidement si besoin.",
-    tourSpendingTitle: "Répartition par enveloppe",
-    tourSpendingDescription:
-      "Graphique et détails par enveloppe pour mieux analyser.",
-    tourTrendTitle: "Tendance du net",
-    tourTrendDescription:
-      "Visualise l’évolution de ton net sur la période sélectionnée.",
-    tourQuickTitle: "Actions rapides",
-    tourQuickDescription:
-      "Accède en un clic aux actions essentielles pour gérer ton budget.",
-    tourFabTitle: "Raccourcis flottants",
-    tourFabDescription: "Ajoute un revenu ou une dépense en un seul geste.",
-    navDashboard: "Menu latéral — Dashboard",
-    navDashboardDesc: "Reviens à ton tableau de bord à tout moment.",
-    navTransactions: "Menu latéral — Transactions",
-    navTransactionsDesc: "Saisis ou consulte toutes tes transactions.",
-    navEnvelopes: "Menu latéral — Envelopes",
-    navEnvelopesDesc: "Gère tes enveloppes et leurs budgets.",
-    navDistribution: "Menu latéral — Répartition",
-    navDistributionDesc: "Alloue ton cash disponible aux enveloppes.",
-    navGoals: "Menu latéral — Goals",
-    navGoalsDesc: "Planifie tes objectifs et suis ta progression.",
-    navAide: "Menu latéral — Aide",
-    navAideDesc: "Accède aux guides et explications rapides.",
-    navReports: "Menu latéral — Reports",
-    navReportsDesc: "Analyse tes tendances et tes rapports.",
-    navSettings: "Menu latéral — Settings",
-    navSettingsDesc: "Gère ton compte et tes préférences.",
     incomeDialogTitle: "Revenus à déclarer",
     incomeDialogDescription: (count: number) => `${count} revenu(s) à déclarer.`,
     incomeDialogBody:
@@ -796,20 +666,7 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     selectedPeriod: "Période sélectionnée (fin exclue)",
     cancel: "Annuler",
     apply: "Appliquer",
-    guideTag: "Guide 7sabek",
-    welcomeTitle: "Bienvenue sur ton dashboard",
-    welcomeDescription:
-      "Ce guide t’aide à repérer les zones clés. Chaque page lance son guide une seule fois quand tu la visites.",
-    guideLine1: "Dashboard → Transactions → Envelopes.",
-    guideLine2: "Répartition → Aide → Reports.",
-    guideLine3: "Settings pour finaliser ta configuration.",
-    guideChip1: "Couleurs & visuels",
-    guideChip2: "Explications courtes",
-    guideChip3: "Navigation guidée",
-    guideFooter:
-      "Des explications rapides et visuelles pour t’accompagner sans t’encombrer.",
     skip: "Passer",
-    startTour: "Commencer",
     eyebrow: "Cockpit budget",
     title: "Dashboard",
     subtitle: "Vue globale de tes flux, enveloppes et actions urgentes.",
@@ -973,47 +830,6 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     sweepDoneTitle: "Sweep completed",
     sweepDoneDescription: "Balances have been updated.",
     sweepErrorTitle: "Sweep failed",
-    tourOverviewTitle: "Overview",
-    tourOverviewDescription:
-      "Here you can see the active period and the quick actions to add transactions.",
-    tourTodoTitle: "Do now",
-    tourTodoDescription: "The key alerts to secure your budget first.",
-    tourAvailableTitle: "Available cash",
-    tourAvailableDescription: "The amount you can still allocate to envelopes.",
-    tourExpenseTitle: "Period spending",
-    tourExpenseDescription: "Total mapped spending for the selected period.",
-    tourIncomeTitle: "Period income",
-    tourIncomeDescription: "Total declared income for the period.",
-    tourNetTitle: "Period net",
-    tourNetDescription: "Net income minus spending for the period.",
-    tourTopTitle: "Top envelopes",
-    tourTopDescription: "Your main envelopes and remaining balances.",
-    tourRecentTitle: "Recent expenses",
-    tourRecentDescription: "Check recent expenses to fix issues quickly.",
-    tourSpendingTitle: "Envelope breakdown",
-    tourSpendingDescription: "Chart and details by envelope for analysis.",
-    tourTrendTitle: "Net trend",
-    tourTrendDescription: "See how your net changes over the selected period.",
-    tourQuickTitle: "Quick actions",
-    tourQuickDescription: "One-click access to the essential budget actions.",
-    tourFabTitle: "Floating shortcuts",
-    tourFabDescription: "Add income or expense in one tap.",
-    navDashboard: "Sidebar — Dashboard",
-    navDashboardDesc: "Return to your dashboard anytime.",
-    navTransactions: "Sidebar — Transactions",
-    navTransactionsDesc: "Enter or review all your transactions.",
-    navEnvelopes: "Sidebar — Envelopes",
-    navEnvelopesDesc: "Manage your envelopes and budgets.",
-    navDistribution: "Sidebar — Distribution",
-    navDistributionDesc: "Allocate your available cash to envelopes.",
-    navGoals: "Sidebar — Goals",
-    navGoalsDesc: "Plan your goals and track progress.",
-    navAide: "Sidebar — Help",
-    navAideDesc: "Access guides and quick explanations.",
-    navReports: "Sidebar — Reports",
-    navReportsDesc: "Analyze trends and reports.",
-    navSettings: "Sidebar — Settings",
-    navSettingsDesc: "Manage your account and preferences.",
     incomeDialogTitle: "Income to declare",
     incomeDialogDescription: (count: number) => `${count} income reminder(s) due.`,
     incomeDialogBody:
@@ -1036,19 +852,7 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     selectedPeriod: "Selected period (end excluded)",
     cancel: "Cancel",
     apply: "Apply",
-    guideTag: "7sabek guide",
-    welcomeTitle: "Welcome to your dashboard",
-    welcomeDescription:
-      "This guide helps you spot the key areas. Each page launches its guide once when you visit it.",
-    guideLine1: "Dashboard → Transactions → Envelopes.",
-    guideLine2: "Distribution → Help → Reports.",
-    guideLine3: "Settings to finish your setup.",
-    guideChip1: "Colors & visuals",
-    guideChip2: "Short explanations",
-    guideChip3: "Guided navigation",
-    guideFooter: "Quick visual explanations to help without clutter.",
     skip: "Skip",
-    startTour: "Start",
     eyebrow: "Budget cockpit",
     title: "Dashboard",
     subtitle: "Global view of your flows, envelopes, and urgent actions.",
@@ -1212,47 +1016,6 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     sweepDoneTitle: "تم تحويل الفائض.",
     sweepDoneDescription: "تحدّثات الأرصدة.",
     sweepErrorTitle: "ما قدرناش نحولو الفائض.",
-    tourOverviewTitle: "نظرة عامة",
-    tourOverviewDescription:
-      "هنا كتشوف الفترة الحالية والأزرار السريعة باش تزيد العمليات.",
-    tourTodoTitle: "شنو خاصك دير دابا",
-    tourTodoDescription: "هادشي المستعجل اللي خاصك تعالجو باش يبقى البوجي مضبوط.",
-    tourAvailableTitle: "الكاش المتوفر",
-    tourAvailableDescription: "هادشي اللي مازال تقدر توزّعو على الأظرفة.",
-    tourExpenseTitle: "المصاريف ديال الفترة",
-    tourExpenseDescription: "مجموع المصاريف المربوطة فالفترة اللي مختار.",
-    tourIncomeTitle: "الدخل ديال الفترة",
-    tourIncomeDescription: "مجموع الدخول اللي تسجلات فهاد الفترة.",
-    tourNetTitle: "الصافي ديال الفترة",
-    tourNetDescription: "الفرق بين الدخل والمصاريف فهاد الفترة.",
-    tourTopTitle: "الأظرفة المهمة",
-    tourTopDescription: "الأظرفة اللي باينين دابا والباقي فيهم.",
-    tourRecentTitle: "آخر العمليات",
-    tourRecentDescription: "راجع آخر العمليات باش تصلّح أي حاجة بسرعة.",
-    tourSpendingTitle: "تفصيل الصرف حسب الأظرفة",
-    tourSpendingDescription: "غرافيك وتفاصيل حسب كل ظرف باش الفهم يكون أوضح.",
-    tourTrendTitle: "تطور الصافي",
-    tourTrendDescription: "شوف كيفاش كيتبدل الصافي مع الوقت فالفترة المختارة.",
-    tourQuickTitle: "إجراءات سريعة",
-    tourQuickDescription: "أهم العمليات اللي تقدر ديرها بسرعة.",
-    tourFabTitle: "اختصارات سريعة",
-    tourFabDescription: "زيد دخل ولا مصروف بضغطة وحدة.",
-    navDashboard: "اللائحة الجانبية — لوحة الميزانية",
-    navDashboardDesc: "ترجع للوحة الميزانية فاي وقت.",
-    navTransactions: "اللائحة الجانبية — العمليات",
-    navTransactionsDesc: "زيد ولا راجع جميع العمليات ديالك.",
-    navEnvelopes: "اللائحة الجانبية — الأظرفة",
-    navEnvelopesDesc: "سيّر الأظرفة والميزانيات ديالهم.",
-    navDistribution: "اللائحة الجانبية — التوزيع",
-    navDistributionDesc: "وزّع الكاش المتوفر على الأظرفة.",
-    navGoals: "اللائحة الجانبية — الأهداف",
-    navGoalsDesc: "خطط لأهدافك وتبع التقدم ديالك.",
-    navAide: "اللائحة الجanبية — المساعدة",
-    navAideDesc: "لقى الشروحات والدلائل بسرعة.",
-    navReports: "اللائحة الجانبية — التقارير",
-    navReportsDesc: "حلل الترندات والتقارير ديالك.",
-    navSettings: "اللائحة الجانبية — الإعدادات",
-    navSettingsDesc: "سيّر الحساب والتفضيلات ديالك.",
     incomeDialogTitle: "مداخيل خاصك تصرح بيهم",
     incomeDialogDescription: (count: number) => `عندك ${count} دخل خاصك تصرح به.`,
     incomeDialogBody:
@@ -1275,19 +1038,7 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     selectedPeriod: "الفترة المختارة (النهاية ما داخلاش)",
     cancel: "إلغاء",
     apply: "تطبيق",
-    guideTag: "دليل فلوسي",
-    welcomeTitle: "مرحبا بيك فلوحة الميزانية ديالك",
-    welcomeDescription:
-      "هاد الدليل كيعونك تعرف البلايص المهمة. كل صفحة كتشغل الدليل ديالها غير أول مرة كتدخل ليها.",
-    guideLine1: "لوحة الميزانية ← العمليات ← الأظرفة.",
-    guideLine2: "التوزيع ← المساعدة ← التقارير.",
-    guideLine3: "الإعدادات باش تكمل الضبط ديالك.",
-    guideChip1: "ألوان وواجهة واضحة",
-    guideChip2: "شروحات قصيرة",
-    guideChip3: "تنقل موجه",
-    guideFooter: "شروحات سريعة وواضحة باش تعاونك بلا ما تعمر عليك الصفحة.",
     skip: "تخطي",
-    startTour: "بدا",
     eyebrow: "قيادة الميزانية",
     title: "لوحة الميزانية",
     subtitle: "نظرة عامة على التدفقات، الأظرفة، والحاجات المستعجلة.",

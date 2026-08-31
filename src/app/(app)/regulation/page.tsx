@@ -20,14 +20,6 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/Dialog";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import {
@@ -38,11 +30,9 @@ import {
 } from "@/lib/categoryCatalog";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { useForceArabicDocumentFont } from "@/lib/appLocale";
-import {
-  GlobalTourOverlay,
-  useGlobalTour,
-  type TourStep,
-} from "@/components/tour/GlobalTour";
+import { PageTour } from "@/components/tour/GlobalTour";
+import { TourIntroDialog } from "@/components/tour/TourIntroDialog";
+import { usePageTour } from "@/components/tour/usePageTour";
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const REGULATION_ARABIC_BODY_CLASS = "regulation-page-ar-body";
@@ -74,23 +64,10 @@ const cairo = Cairo({
 const REGULATION_COPY: Record<
   FloussyLocale,
   {
-    tourStep: string;
-    tourSkip: string;
-    tourNext: string;
-    tourTitles: [string, string, string];
-    tourDescriptions: [string, string, string];
     remainingToLink: (count: number) => string;
     toastLinkedTitle: string;
     toastLinkedDescription: string;
     unknownError: string;
-    introTitle: string;
-    introDescription: string;
-    introAltMapping: string;
-    introAltActions: string;
-    introChecklistTitle: string;
-    introChecklist: [string, string, string];
-    skip: string;
-    start: string;
     allGoodTitle: string;
     allGoodDescription: string;
     backToDashboard: string;
@@ -117,32 +94,10 @@ const REGULATION_COPY: Record<
   }
 > = {
   fr: {
-    tourStep: "Étape",
-    tourSkip: "Passer",
-    tourNext: "Suivant",
-    tourTitles: ["Relier les catégories", "Actions rapides", "Valider la correction"],
-    tourDescriptions: [
-      "Chaque catégorie doit être liée à une enveloppe pour classer tes dépenses.",
-      "Utilise ces actions pour proposer un mapping automatique puis ajuste si besoin.",
-      "Quand tout est prêt, clique ici pour débloquer le dashboard.",
-    ],
     remainingToLink: (count) => `Il reste ${count} catégorie(s) à relier.`,
     toastLinkedTitle: "Catégories reliées",
     toastLinkedDescription: "Tout est prêt. Tu peux continuer.",
     unknownError: "Unknown error",
-    introTitle: "Pourquoi tu vois cette page ?",
-    introDescription:
-      "Nous avons détecté des catégories non reliées à une enveloppe. Sans liaison, tes dépenses ne seront pas bien rangées.",
-    introAltMapping: "Exemple de mapping catégories vers enveloppes",
-    introAltActions: "Exemple d’actions rapides",
-    introChecklistTitle: "Ce que tu dois faire :",
-    introChecklist: [
-      "Choisis une enveloppe pour chaque catégorie.",
-      "Utilise “Mapper automatiquement” si possible.",
-      "Valide la correction pour débloquer le dashboard.",
-    ],
-    skip: "Passer",
-    start: "Commencer",
     allGoodTitle: "Tout est en ordre",
     allGoodDescription: "Aucune anomalie détectée pour ton compte.",
     backToDashboard: "Retour au dashboard",
@@ -170,32 +125,10 @@ const REGULATION_COPY: Record<
     manageEnvelopes: "Gérer les enveloppes",
   },
   en: {
-    tourStep: "Step",
-    tourSkip: "Skip",
-    tourNext: "Next",
-    tourTitles: ["Link categories", "Quick actions", "Confirm the fix"],
-    tourDescriptions: [
-      "Each category must be linked to an envelope so expenses are classified correctly.",
-      "Use these actions to suggest automatic mapping, then fine-tune it.",
-      "When everything is ready, click here to unlock the dashboard.",
-    ],
     remainingToLink: (count) => `${count} category(ies) still need to be linked.`,
     toastLinkedTitle: "Categories linked",
     toastLinkedDescription: "Everything is ready. You can continue.",
     unknownError: "Unknown error",
-    introTitle: "Why are you seeing this page?",
-    introDescription:
-      "We detected categories that are not linked to an envelope. Without a link, your expenses will not be organized correctly.",
-    introAltMapping: "Example of category to envelope mapping",
-    introAltActions: "Example of quick actions",
-    introChecklistTitle: "What you need to do:",
-    introChecklist: [
-      "Choose an envelope for each category.",
-      "Use “Auto-map” when possible.",
-      "Confirm the fix to unlock the dashboard.",
-    ],
-    skip: "Skip",
-    start: "Start",
     allGoodTitle: "Everything is in order",
     allGoodDescription: "No anomaly was detected for your account.",
     backToDashboard: "Back to dashboard",
@@ -223,32 +156,10 @@ const REGULATION_COPY: Record<
     manageEnvelopes: "Manage envelopes",
   },
   ar: {
-    tourStep: "المرحلة",
-    tourSkip: "تخطى",
-    tourNext: "التالي",
-    tourTitles: ["ربط الأصناف", "إجراءات سريعة", "أكد التصحيح"],
-    tourDescriptions: [
-      "كل صنف خاصو يتربط بظرف باش المصاريف يتصنفو مزيان.",
-      "استعمل هاد الإجراءات باش تقترح الربط التلقائي ومن بعد صحح يدوياً إذا لزم.",
-      "منين يوجدو كاملين، ضغط هنا باش يتحل لك dashboard.",
-    ],
     remainingToLink: (count) => `باقي ${count} صنف خاصو يتربط.`,
     toastLinkedTitle: "تربطو الأصناف",
     toastLinkedDescription: "كلشي واجد. تقدر تكمل.",
     unknownError: "وقع مشكل غير معروف",
-    introTitle: "علاش كتطلع ليك هاد الصفحة؟",
-    introDescription:
-      "لقينا أصناف مازال ما مربوطاش مع حتى ظرف. بلا هاد الربط، المصاريف ديالك ما غاديش يتنظمو مزيان.",
-    introAltMapping: "مثال ديال ربط الأصناف مع الأظرفة",
-    introAltActions: "مثال ديال الإجراءات السريعة",
-    introChecklistTitle: "شنو خاصك دير:",
-    introChecklist: [
-      "اختار ظرف لكل صنف.",
-      "استعمل “ربط تلقائي” إلا كان مناسب.",
-      "أكد التصحيح باش يتحل لك dashboard.",
-    ],
-    skip: "تخطى",
-    start: "بدا",
     allGoodTitle: "كلشي منظم",
     allGoodDescription: "ما لقينا حتى مشكل فالحساب ديالك.",
     backToDashboard: "رجع للوحة القيادة",
@@ -343,57 +254,6 @@ const suggestEnvelope = (category: string, envelopes: EnvelopeOut[]) => {
   }
   return best?.env ?? null;
 };
-
-function IntroDialog({
-  open,
-  onOpenChange,
-  onStart,
-  copy,
-}: {
-  open: boolean;
-  onOpenChange: (next: boolean) => void;
-  onStart: () => void;
-  copy: (typeof REGULATION_COPY)[FloussyLocale];
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl border border-white/70 bg-[var(--surface)]/95">
-        <DialogHeader>
-          <DialogTitle>{copy.introTitle}</DialogTitle>
-          <DialogDescription>{copy.introDescription}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-emerald-50 p-3">
-            <p className="text-sm font-semibold text-emerald-800">{copy.introAltMapping}</p>
-            <p className="mt-1 text-xs text-emerald-700">
-              Chaque catégorie doit être reliée à une enveloppe pour que les rapports restent cohérents.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-indigo-50 p-3">
-            <p className="text-sm font-semibold text-indigo-800">{copy.introAltActions}</p>
-            <p className="mt-1 text-xs text-indigo-700">
-              Utilise les actions rapides puis valide pour débloquer le dashboard.
-            </p>
-          </div>
-        </div>
-        <div className="space-y-3 text-sm text-slate-700">
-          <p className="font-medium text-slate-900">{copy.introChecklistTitle}</p>
-          <ol className="list-decimal pl-5 text-sm text-slate-700">
-            <li>{copy.introChecklist[0]}</li>
-            <li>{copy.introChecklist[1]}</li>
-            <li>{copy.introChecklist[2]}</li>
-          </ol>
-        </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            {copy.skip}
-          </Button>
-          <Button onClick={onStart}>{copy.start}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default function RegulationPage() {
   const router = useRouter();
@@ -522,38 +382,16 @@ export default function RegulationPage() {
     );
   }, [unmappedCategories.length, remaining]);
 
-  const tourSteps = useMemo<TourStep[]>(
-    () => [
-      {
-        title: copy.tourTitles[0],
-        description: copy.tourDescriptions[0],
-        ref: listCardRef,
-      },
-      {
-        title: copy.tourTitles[1],
-        description: copy.tourDescriptions[1],
-        ref: actionsCardRef,
-      },
-      {
-        title: copy.tourTitles[2],
-        description: copy.tourDescriptions[2],
-        ref: footerRef,
-      },
-    ],
-    [copy]
+  const { tour, intro: tourIntro } = usePageTour(
+    "regulation",
+    {
+      list: { ref: listCardRef },
+      actions: { ref: actionsCardRef },
+      validate: { ref: footerRef },
+    },
+    { autoStart: false }
   );
-
-  const {
-    isActive: tourActive,
-    step: tourStep,
-    stepIndex: tourStepIndex,
-    total: tourTotal,
-    goNext,
-    goPrevious,
-    canGoPrevious,
-    skipTour,
-    startTour,
-  } = useGlobalTour("regulation", tourSteps, { autoStart: false });
+  const { startTour } = tour;
 
   const handleAutoMap = () => {
     setSelection((prev) => {
@@ -606,11 +444,11 @@ export default function RegulationPage() {
         dir={pageDir}
         style={{ fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }}
       >
-        <IntroDialog
+        <TourIntroDialog
           open={introOpen}
           onOpenChange={handleIntroChange}
           onStart={handleStartTour}
-          copy={copy}
+          content={tourIntro}
         />
         <div className="rounded-[32px] border border-white/70 bg-[var(--surface)]/80 px-6 py-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur">
           <div className="flex items-center gap-3">
@@ -636,11 +474,11 @@ export default function RegulationPage() {
         dir={pageDir}
         style={{ fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }}
       >
-        <IntroDialog
+        <TourIntroDialog
           open={introOpen}
           onOpenChange={handleIntroChange}
           onStart={handleStartTour}
-          copy={copy}
+          content={tourIntro}
         />
         <div className="rounded-[32px] border border-emerald-100 bg-[var(--surface)]/80 px-6 py-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -672,23 +510,13 @@ export default function RegulationPage() {
       dir={pageDir}
       style={{ fontFamily: 'var(--font-cairo), "Cairo", sans-serif' }}
     >
-      <IntroDialog
+      <TourIntroDialog
         open={introOpen}
         onOpenChange={handleIntroChange}
         onStart={handleStartTour}
-        copy={copy}
+        content={tourIntro}
       />
-      {tourActive && tourStep ? (
-        <GlobalTourOverlay
-          step={tourStep}
-          stepIndex={tourStepIndex}
-          total={tourTotal}
-          canGoPrevious={canGoPrevious}
-          onPrevious={goPrevious}
-          onNext={goNext}
-          onSkip={skipTour}
-        />
-      ) : null}
+      <PageTour tour={tour} />
       <div className="pointer-events-none absolute -right-20 -top-12 h-48 w-48 rounded-full bg-emerald-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 top-32 h-56 w-56 rounded-full bg-orange-200/40 blur-3xl" />
 

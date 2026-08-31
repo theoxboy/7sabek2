@@ -36,10 +36,9 @@ import {
 } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
 import {
-  GlobalTourOverlay,
-  useGlobalTour,
-  type TourStep,
+  PageTour,
 } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import {
   FL_LOCALE_LABELS,
@@ -272,7 +271,6 @@ const SETTINGS_COPY: Record<
     days: string;
     hour: string;
     hours: string;
-    tour: Array<{ title: string; description: string }>;
     pageTitle: string;
     pageSubtitle: string;
     completeOnboarding: string;
@@ -396,16 +394,6 @@ const SETTINGS_COPY: Record<
     days: "jours",
     hour: "heure",
     hours: "heures",
-    tour: [
-      { title: "Paramètres", description: "Gère ton compte et tes préférences." },
-      { title: "Profil", description: "Mets à jour tes infos personnelles." },
-      { title: "Préférences", description: "Devise, sweep et réglages de base." },
-      { title: "Thème", description: "Choisis ton apparence préférée." },
-      { title: "Messages ignorés", description: "Réactive les alertes masquées." },
-      { title: "Export", description: "Télécharge tes données en JSON ou CSV." },
-      { title: "Logs", description: "Accède au journal complet des actions." },
-      { title: "Zone sensible", description: "Réinitialise ou supprime le compte." },
-    ],
     pageTitle: "Paramètres",
     pageSubtitle: "Contrôle tes préférences, exports et accès au compte.",
     completeOnboarding: "Terminer l’onboarding",
@@ -534,16 +522,6 @@ const SETTINGS_COPY: Record<
     days: "days",
     hour: "hour",
     hours: "hours",
-    tour: [
-      { title: "Settings", description: "Manage your account and preferences." },
-      { title: "Profile", description: "Update your personal information." },
-      { title: "Preferences", description: "Currency, sweep, and core settings." },
-      { title: "Theme", description: "Choose your preferred appearance." },
-      { title: "Dismissed messages", description: "Re-enable hidden alerts." },
-      { title: "Export", description: "Download your data as JSON or CSV." },
-      { title: "Logs", description: "Open the complete action log." },
-      { title: "Danger zone", description: "Reset or delete the account." },
-    ],
     pageTitle: "Settings",
     pageSubtitle: "Control your preferences, exports, and account access.",
     completeOnboarding: "Complete onboarding",
@@ -672,16 +650,6 @@ const SETTINGS_COPY: Record<
     days: "أيام",
     hour: "ساعة",
     hours: "ساعات",
-    tour: [
-      { title: "الإعدادات", description: "سير الحساب والتفضيلات ديالك." },
-      { title: "البروفايل", description: "بدل المعلومات الشخصية ديالك." },
-      { title: "التفضيلات", description: "العملة، sweep، والإعدادات الأساسية." },
-      { title: "الثيم", description: "اختار الشكل اللي كيوافقك." },
-      { title: "الرسائل المخبية", description: "رجع التنبيهات اللي خبيتي." },
-      { title: "التصدير", description: "هبط البيانات ديالك JSON ولا CSV." },
-      { title: "اللوغات", description: "شوف التاريخ الكامل ديال الأكشنات." },
-      { title: "المنطقة الحساسة", description: "صفّر الحساب ولا مسحو كامل." },
-    ],
     pageTitle: "الإعدادات",
     pageSubtitle: "سير التفضيلات، التصدير، والوصول للحساب ديالك.",
     completeOnboarding: "كمّل onboarding",
@@ -1324,76 +1292,17 @@ export default function SettingsPage() {
     }
   };
 
-  const tourSteps = useMemo<TourStep[]>(
-    () => [
-      {
-        title: copy.tour[0].title,
-        description: copy.tour[0].description,
-        ref: headerRef,
-      },
-      {
-        title: copy.tour[1].title,
-        description: copy.tour[1].description,
-        ref: profileRef,
-      },
-      {
-        title: copy.tour[2].title,
-        description: copy.tour[2].description,
-        ref: preferencesRef,
-      },
-      {
-        title: copy.tour[3].title,
-        description: copy.tour[3].description,
-        ref: themeRef,
-      },
-      {
-        title: copy.tour[4].title,
-        description: copy.tour[4].description,
-        ref: dismissedRef,
-      },
-      {
-        title: copy.tour[5].title,
-        description: copy.tour[5].description,
-        ref: exportRef,
-      },
-      {
-        title: copy.tour[6].title,
-        description: copy.tour[6].description,
-        ref: logsRef,
-      },
-      {
-        title: copy.tour[7].title,
-        description: copy.tour[7].description,
-        ref: dangerRef,
-      },
-    ],
-    [copy]
-  );
-
-  const {
-    isActive: tourActive,
-    step: tourStep,
-    stepIndex: tourStepIndex,
-    total: tourTotal,
-    canGoPrevious: canGoPrevious,
-    goPrevious: goPrevious,
-    goNext,
-    skipTour,
-  } = useGlobalTour("settings", tourSteps);
+  const { tour } = usePageTour("settings", {
+    profile: { ref: profileRef },
+    preferences: { ref: preferencesRef },
+    theme: { ref: themeRef },
+    export: { ref: exportRef },
+    danger: { ref: dangerRef },
+  });
 
   return (
     <div className="flex flex-col gap-6" dir={pageDir}>
-      {tourActive && tourStep ? (
-        <GlobalTourOverlay
-          step={tourStep}
-          stepIndex={tourStepIndex}
-          total={tourTotal}
-          canGoPrevious={canGoPrevious}
-          onPrevious={goPrevious}
-          onNext={goNext}
-          onSkip={skipTour}
-        />
-      ) : null}
+      <PageTour tour={tour} />
       <div ref={headerRef}>
         <PageHeader
           title={copy.pageTitle}

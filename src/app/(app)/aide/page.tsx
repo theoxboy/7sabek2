@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+
+import { PageTour } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 import {
   BookOpen,
   HelpCircle,
@@ -499,6 +502,13 @@ export default function AidePage() {
     outro: false,
   });
 
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const { tour } = usePageTour("aide", {
+    banner: { ref: bannerRef },
+    nav: { ref: navRef },
+  });
+
   const toggleSection = useCallback((id: HelpSectionId) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
@@ -521,6 +531,7 @@ export default function AidePage() {
       id="help-page-container"
       dir="rtl"
     >
+      <PageTour tour={tour} />
       <div className="w-full min-h-screen flex flex-col relative bg-white/40 backdrop-blur-3xl">
         {/* Header / Title bar (no back, no chat button) */}
         <div className="p-3.5 xs:p-5 border-b border-slate-200/40 bg-white/50 flex items-center justify-center gap-2 sticky top-0 z-30 backdrop-blur-md">
@@ -538,7 +549,7 @@ export default function AidePage() {
         {/* Main content body */}
         <div className="max-w-4xl mx-auto w-full p-4 xs:p-5 sm:p-6 space-y-6">
           {/* Hero introduction banner */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/40 rounded-3xl p-5 sm:p-6 text-emerald-950 shadow-xs relative overflow-hidden">
+          <div ref={bannerRef} className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/40 rounded-3xl p-5 sm:p-6 text-emerald-950 shadow-xs relative overflow-hidden">
             <div className="absolute -left-10 -bottom-10 opacity-5 sm:opacity-10 transform -rotate-12 select-none pointer-events-none">
               <BookOpen className="w-48 h-48 text-emerald-700" />
             </div>
@@ -562,7 +573,7 @@ export default function AidePage() {
           </div>
 
           {/* Table of Content (Quick links) Section */}
-          <div className="bg-white border border-slate-200/50 rounded-3xl p-4 sm:p-5 shadow-xs">
+          <div ref={navRef} className="bg-white border border-slate-200/50 rounded-3xl p-4 sm:p-5 shadow-xs">
             <div className="flex items-center gap-2.5 mb-3.5">
               <Activity className="w-4 h-4 text-indigo-500 stroke-[2.5]" />
               <h3 className="text-sm font-black text-slate-900">🚀 تنقل سريع — سير مباشرة للقسم اللي محتاجو</h3>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowDownLeft,
@@ -40,6 +40,8 @@ import {
 } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { getIssueDisplay } from "@/lib/issueMessages";
+import { PageTour } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const LOCALE_TO_BCP47: Record<FloussyLocale, string> = {
@@ -218,6 +220,21 @@ export default function DebtsPage() {
   const { toast } = useToast();
   const dir = getLocaleDirection(locale);
   const copy = DEBTS_COPY[locale] || DEBTS_COPY.fr;
+
+  const cockpitRef = useRef<HTMLDivElement | null>(null);
+  const filtersRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const hasActiveDebt = debts.some(
+    (d) => parseFloat(d.paid_amount) < parseFloat(d.total_amount)
+  );
+  const { tour } = usePageTour("debts", {
+    cockpit: { ref: cockpitRef },
+    filters: { ref: filtersRef },
+    card: { ref: cardRef },
+    ...(hasActiveDebt
+      ? { whatsapp: { selector: '[data-tour="debt-whatsapp"]' } }
+      : {}),
+  });
 
   useEffect(() => {
     const active = getBrowserLocalePreference();
@@ -471,6 +488,7 @@ export default function DebtsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-20 pt-4" dir={dir}>
+      <PageTour tour={tour} />
       {/* 🌟 1. Header / Cockpit Hero */}
       <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 md:p-8 shadow-[var(--shadow-soft)] backdrop-blur-xl dark:border-emerald-500/20 dark:bg-gradient-to-br dark:from-emerald-950/40 dark:via-slate-900/60 dark:to-slate-950">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -498,7 +516,7 @@ export default function DebtsPage() {
         </div>
 
         {/* Totals Cockpit Grid */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div ref={cockpitRef} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {/* Total À Récupérer */}
           <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4 transition-all hover:border-emerald-300 dark:border-emerald-500/20 dark:bg-emerald-950/20">
             <div className="flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -551,7 +569,7 @@ export default function DebtsPage() {
       </div>
 
       {/* 🗂️ 2. Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div ref={filtersRef} className="flex flex-wrap items-center gap-2">
         {(
           [
             { key: "ALL", label: copy.all },
@@ -595,8 +613,8 @@ export default function DebtsPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {filteredDebts.map((debt) => {
+        <div ref={cardRef} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {filteredDebts.map((debt, debtIndex) => {
             const total = parseFloat(debt.total_amount) || 0;
             const paid = parseFloat(debt.paid_amount) || 0;
             const remaining = Math.max(0, total - paid);
@@ -717,6 +735,7 @@ export default function DebtsPage() {
                       <Button
                         size="sm"
                         variant="secondary"
+                        data-tour={debtIndex === 0 ? "debt-whatsapp" : undefined}
                         onClick={() => openWhatsAppModal(debt)}
                         className="h-8 gap-1.5 rounded-lg border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold px-3"
                       >

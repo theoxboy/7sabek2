@@ -43,11 +43,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDeleteTransactionDialog } from "@/components/transactions/ConfirmDeleteTransactionDialog";
 import { DatePicker } from "@/components/ui/DatePicker";
-import {
-  GlobalTourOverlay,
-  useGlobalTour,
-  type TourStep,
-} from "@/components/tour/GlobalTour";
+import { PageTour } from "@/components/tour/GlobalTour";
+import { TourIntroDialog } from "@/components/tour/TourIntroDialog";
+import { usePageTour } from "@/components/tour/usePageTour";
 import { Wallet, TrendingDown, TrendingUp, Scale, Calendar, ChevronDown, Plus, Sparkles, Layers, Bell, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { addDays, startOfYear } from "@/lib/reports/compute";
 import {
@@ -232,14 +230,6 @@ function DashboardContent() {
   const summaryRef = useRef<HTMLDivElement | null>(null);
   const quickRef = useRef<HTMLDivElement | null>(null);
   const fabRef = useRef<HTMLDivElement | null>(null);
-  const navDashboardRef = useRef<HTMLElement | null>(null);
-  const navTransactionsRef = useRef<HTMLElement | null>(null);
-  const navEnvelopesRef = useRef<HTMLElement | null>(null);
-  const navDistributionRef = useRef<HTMLElement | null>(null);
-  const navGoalsRef = useRef<HTMLElement | null>(null);
-  const navAideRef = useRef<HTMLElement | null>(null);
-  const navReportsRef = useRef<HTMLElement | null>(null);
-  const navSettingsRef = useRef<HTMLElement | null>(null);
   const loadSequenceRef = useRef(0);
   const deferredLoadTimerRef = useRef<number | null>(null);
   const copy = DASHBOARD_COPY[locale];
@@ -745,137 +735,19 @@ function DashboardContent() {
     }
   }, [mounted, searchParams, openQuickTx]);
 
-  const tourSteps = useMemo<TourStep[]>(() => {
-    const steps: TourStep[] = [
-      {
-        title: copy.tourOverviewTitle,
-        description: copy.tourOverviewDescription,
-        ref: headerRef,
-      },
-    ];
-    if (showTodoSection) {
-      steps.push({
-        title: copy.tourTodoTitle,
-        description: copy.tourTodoDescription,
-        ref: todoRef,
-      });
-    }
-    if (data) {
-      steps.push(
-        {
-          title: copy.tourAvailableTitle,
-          description: copy.tourAvailableDescription,
-          ref: kpiAvailableRef,
-        },
-        {
-          title: copy.tourExpenseTitle,
-          description: copy.tourExpenseDescription,
-          ref: kpiExpenseRef,
-        },
-        {
-          title: copy.tourIncomeTitle,
-          description: copy.tourIncomeDescription,
-          ref: kpiIncomeRef,
-        },
-        {
-          title: copy.tourNetTitle,
-          description: copy.tourNetDescription,
-          ref: kpiNetRef,
-        }
-      );
-    }
-    steps.push({
-      title: copy.tourTopTitle,
-      description: copy.tourTopDescription,
-      ref: envelopesRef,
-    });
-    steps.push({
-      title: copy.tourRecentTitle,
-      description: copy.tourRecentDescription,
-      ref: recentRef,
-    });
-    steps.push({
-      title: copy.budgetSummaryTitle,
-      description: copy.tourSpendingDescription,
-      ref: summaryRef,
-    });
-    steps.push({
-      title: copy.tourQuickTitle,
-      description: copy.tourQuickDescription,
-      ref: quickRef,
-    });
-    if (mounted) {
-      steps.push({
-        title: copy.tourFabTitle,
-        description: copy.tourFabDescription,
-        ref: fabRef,
-      });
-    }
-    steps.push(
-      {
-        title: copy.navDashboard,
-        description: copy.navDashboardDesc,
-        ref: navDashboardRef,
-        selector: "[data-tour=\"nav-dashboard\"]",
-      },
-      {
-        title: copy.navTransactions,
-        description: copy.navTransactionsDesc,
-        ref: navTransactionsRef,
-        selector: "[data-tour=\"nav-transactions\"]",
-      },
-      {
-        title: copy.navEnvelopes,
-        description: copy.navEnvelopesDesc,
-        ref: navEnvelopesRef,
-        selector: "[data-tour=\"nav-envelopes\"]",
-      },
-      {
-        title: copy.navDistribution,
-        description: copy.navDistributionDesc,
-        ref: navDistributionRef,
-        selector: "[data-tour=\"nav-distribution\"]",
-      },
-      {
-        title: copy.navGoals,
-        description: copy.navGoalsDesc,
-        ref: navGoalsRef,
-        selector: "[data-tour=\"nav-goals\"]",
-      },
-      {
-        title: copy.navAide,
-        description: copy.navAideDesc,
-        ref: navAideRef,
-        selector: "[data-tour=\"nav-aide\"]",
-      },
-      {
-        title: copy.navReports,
-        description: copy.navReportsDesc,
-        ref: navReportsRef,
-        selector: "[data-tour=\"nav-reports\"]",
-      },
-      {
-        title: copy.navSettings,
-        description: copy.navSettingsDesc,
-        ref: navSettingsRef,
-        selector: "[data-tour=\"nav-settings\"]",
-      }
-    );
-    return steps;
-  }, [copy, data, showTodoSection, mounted]);
-
-  const {
-    isActive: tourActive,
-    step: tourStep,
-    stepIndex: tourStepIndex,
-    total: tourTotal,
-    startTour,
-    goNext,
-    goPrevious,
-    canGoPrevious,
-    skipTour,
-    isDone: tourDone,
-  } = useGlobalTour("dashboard", tourSteps, { autoStart: false });
+  const { tour, intro: tourIntro } = usePageTour(
+    "dashboard",
+    {
+      header: { ref: headerRef },
+      ...(showTodoSection ? { todo: { ref: todoRef } } : {}),
+      ...(data ? { kpis: { ref: kpiAvailableRef } } : {}),
+      envelopes: { ref: envelopesRef },
+      quick: { ref: quickRef },
+      sidebar: { selector: '[data-tour="sidebar"]' },
+    },
+    { autoStart: false }
+  );
+  const { startTour, isActive: tourActive, isDone: tourDone } = tour;
 
   const handleStartTour = () => {
     if (toursDisabledGlobally) return;
@@ -927,15 +799,6 @@ function DashboardContent() {
     setIntroOpen(!tourDone && !introSeen);
   }, [tourActive, tourDone, introSeen, toursDisabledGlobally]);
 
-  useEffect(() => {
-    navDashboardRef.current = null;
-    navTransactionsRef.current = null;
-    navEnvelopesRef.current = null;
-    navDistributionRef.current = null;
-    navAideRef.current = null;
-    navReportsRef.current = null;
-    navSettingsRef.current = null;
-  }, []);
 
   const envelopeRows = useMemo(() => {
     if (!data) return [];
@@ -1558,109 +1421,17 @@ function DashboardContent() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <TourIntroDialog
         open={introOpen}
         onOpenChange={(next) => {
-          if (!next) {
-            handleSkipIntro();
-          } else {
-            setIntroOpen(true);
-          }
+          if (!next) handleSkipIntro();
+          else setIntroOpen(true);
         }}
-      >
-        <DialogContent className="max-w-4xl overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)]/95 p-0">
-          <div className="grid gap-0 lg:grid-cols-[1.1fr_1fr]">
-            <div className="space-y-5 px-6 py-7 sm:px-8">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-emerald-700">
-                {copy.guideTag}
-              </div>
-              <div className="space-y-3">
-                <DialogTitle className="text-2xl font-semibold text-[var(--ink)]">
-                  {copy.welcomeTitle}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-[var(--muted)]">
-                  {copy.welcomeDescription}
-                </DialogDescription>
-              </div>
-              <div className="grid gap-3 text-sm text-[var(--ink)]">
-                <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-slate-50 px-3 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-purple-100 text-sm font-semibold text-purple-600">
-                    1
-                  </span>
-                  {copy.guideLine1}
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-slate-50 px-3 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-100 text-sm font-semibold text-blue-600">
-                    2
-                  </span>
-                  {copy.guideLine2}
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-slate-50 px-3 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-100 text-sm font-semibold text-emerald-600">
-                    3
-                  </span>
-                  {copy.guideLine3}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                <span className="rounded-full bg-slate-100 px-2 py-1">
-                  {copy.guideChip1}
-                </span>
-                <span className="rounded-full bg-slate-100 px-2 py-1">
-                  {copy.guideChip2}
-                </span>
-                <span className="rounded-full bg-slate-100 px-2 py-1">
-                  {copy.guideChip3}
-                </span>
-              </div>
-            </div>
-            <div className="relative flex flex-col justify-between gap-4 bg-gradient-to-br from-[var(--surface-2)] via-[var(--surface)] to-[var(--surface-2)] px-6 py-7">
-              {/* Decorative panel, drawn in CSS. It used to be three stock
-                  photos fetched from images.unsplash.com on the critical path
-                  of the welcome dialog: a third-party request on every first
-                  visit, for pictures that carry no information. */}
-              <div className="grid gap-3" aria-hidden="true">
-                <div className="h-36 w-full rounded-3xl bg-gradient-to-br from-emerald-500/25 via-indigo-500/20 to-emerald-400/10 shadow-[0_18px_40px_rgba(88,80,236,0.18)] flex items-center justify-center">
-                  <Wallet className="h-12 w-12 text-emerald-600/70 dark:text-emerald-400/70" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="h-20 w-full rounded-2xl bg-gradient-to-br from-indigo-500/20 to-indigo-400/5 flex items-center justify-center">
-                    <Layers className="h-7 w-7 text-indigo-600/70 dark:text-indigo-400/70" />
-                  </div>
-                  <div className="h-20 w-full rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-400/5 flex items-center justify-center">
-                    <TrendingUp className="h-7 w-7 text-amber-600/70 dark:text-amber-500/70" />
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 px-4 py-3 text-xs text-[var(--muted)]">
-                {copy.guideFooter}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)]/90 px-6 py-4">
-            <button
-              type="button"
-              onClick={handleSkipIntro}
-              className="text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
-            >
-              {copy.skip}
-            </button>
-            <Button onClick={handleStartTour}>{copy.startTour}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onStart={handleStartTour}
+        content={tourIntro}
+      />
 
-      {tourActive && tourStep ? (
-        <GlobalTourOverlay
-          step={tourStep}
-          stepIndex={tourStepIndex}
-          total={tourTotal}
-          canGoPrevious={canGoPrevious}
-          onPrevious={goPrevious}
-          onNext={goNext}
-          onSkip={skipTour}
-        />
-      ) : null}
+      <PageTour tour={tour} />
 
       {!loading && !data && error ? (
         // A failed load used to leave the skeleton pulsing for ever: the error

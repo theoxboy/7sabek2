@@ -115,7 +115,7 @@ export const SIDEBAR_SECTIONS: NavSection[] = [
       {
         href: "/chat",
         labelKey: "/chat",
-        defaultLabel: "Assistant Floussy",
+        defaultLabel: "Assistant 7sabek",
         icon: MessageSquare,
         badge: { text: "AI", variant: "emerald" },
       },

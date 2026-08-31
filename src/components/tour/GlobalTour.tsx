@@ -6,12 +6,19 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
+import { useAppLocale } from "@/lib/appLocale";
+import { getLocaleDirection } from "@/lib/localePreference";
+import { getTourChrome } from "@/lib/tour/i18n";
+import type { TourPageId } from "@/lib/tour/registry";
 import { areToursGloballyDisabled } from "@/lib/tourFlags";
 
 export type TourStep = {
   title: string;
   description: string;
-  ref: React.RefObject<HTMLElement | null>;
+  /** Optional "why it matters" line, rendered under a divider. */
+  hint?: string;
+  /** Preferred target. Falls back to `selector` when absent or unmounted. */
+  ref?: React.RefObject<HTMLElement | null>;
   selector?: string;
 };
 
@@ -30,7 +37,7 @@ const isNavSelector = (selector?: string) =>
 
 const resolveStepTarget = (step: TourStep | null) => {
   if (!step) return null;
-  if (step.ref.current) return step.ref.current;
+  if (step.ref?.current) return step.ref.current;
   if (
     !step.selector ||
     typeof document === "undefined" ||
@@ -136,7 +143,7 @@ const writeSeen = (pageId: string) => {
 };
 
 export function useGlobalTour(
-  pageId: string,
+  pageId: TourPageId,
   steps: TourStep[],
   options?: { autoStart?: boolean }
 ) {
@@ -150,9 +157,10 @@ export function useGlobalTour(
   const router = useRouter();
   const [state, setState] = useState<GlobalTourState>(() => {
     if (typeof window === "undefined") return defaultState;
-    const done = readDone(pageId);
-    const seen = readSeen(pageId);
-    if (done || seen) return defaultState;
+    // Only a finished tour is wiped on load. An interrupted tour keeps its
+    // persisted { active, stepIndex } so a reload resumes where the user left
+    // off — `seen` gates the auto-start below, not the resume.
+    if (readDone(pageId)) return defaultState;
     return readState(pageId);
   });
   const [isDone, setIsDone] = useState(() => {
@@ -196,18 +204,13 @@ export function useGlobalTour(
 
   useEffect(() => {
     const done = readDone(pageId);
-    const seen = readSeen(pageId);
     setIsDone(done);
-    setIsSeen(seen);
-    if (toursDisabledGlobally) {
+    setIsSeen(readSeen(pageId));
+    if (toursDisabledGlobally || done) {
       setState(defaultState);
       return;
     }
-    if (!done && !seen) {
-      setState(readState(pageId));
-      return;
-    }
-    setState(defaultState);
+    setState(readState(pageId));
   }, [pageId, toursDisabledGlobally]);
 
   // Conditional steps (e.g. dashboard's todo/FAB cards, envelopes' advanced card) can
@@ -306,6 +309,28 @@ export function useGlobalTour(
   };
 }
 
+export type GlobalTourApi = ReturnType<typeof useGlobalTour>;
+
+/**
+ * Drop-in overlay: pass the whole `useGlobalTour(...)` result and it renders the
+ * guided-tour chrome when the tour is active, nothing otherwise. Replaces the
+ * per-page `{tourActive ? <GlobalTourOverlay .../> : null}` boilerplate.
+ */
+export function PageTour({ tour }: { tour: GlobalTourApi }) {
+  if (!tour.isActive) return null;
+  return (
+    <GlobalTourOverlay
+      step={tour.step}
+      stepIndex={tour.stepIndex}
+      total={tour.total}
+      canGoPrevious={tour.canGoPrevious}
+      onPrevious={tour.goPrevious}
+      onNext={tour.goNext}
+      onSkip={tour.skipTour}
+    />
+  );
+}
+
 export function GlobalTourOverlay({
   step,
   stepIndex,
@@ -364,6 +389,10 @@ function GlobalTourOverlayInner({
     typeof window === "undefined" ? false : window.innerWidth < 768
   );
   const resolveTarget = useCallback(() => resolveStepTarget(step), [step]);
+  const { locale } = useAppLocale("fr");
+  const chrome = getTourChrome(locale);
+  const dir = getLocaleDirection(locale);
+  const isLastStep = stepIndex + 1 >= total;
 
   useLayoutEffect(() => {
     const target = resolveTarget();
@@ -454,7 +483,6 @@ function GlobalTourOverlayInner({
     rect.right > 0 &&
     rect.left < viewportWidth;
   const isAbove = rect ? rect.bottom <= 0 : false;
-  const scrollDirection = isAbove ? "haut" : "bas";
   const tooltipWidth = Math.min(360, viewportWidth - safePadding * 2);
   const tooltipHeight = tooltipSize?.height ?? 160;
   const placeBelow =
@@ -477,11 +505,10 @@ function GlobalTourOverlayInner({
         tooltipWidth - 20 - arrowSize
       )
     : 24;
-  const progressPct = total > 0 ? ((stepIndex + 1) / total) * 100 : 0;
-
   const overlay = (
     <div
       ref={overlayRef}
+      dir={dir}
       className="fixed inset-0 z-[60] pointer-events-auto"
       tabIndex={-1}
       role="dialog"
@@ -491,59 +518,73 @@ function GlobalTourOverlayInner({
       {rect && isVisible ? (
         <>
           <div
-            className="absolute rounded-3xl border-2 border-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.15)] transition-all duration-200 ease-out"
+            className="absolute rounded-[var(--radius-card)] border-2 border-[var(--accent)] transition-all duration-200 ease-out"
             style={{
               top: Math.max(rect.top - 6, 8),
               left: Math.max(rect.left - 6, 8),
               width: rect.width + 12,
               height: rect.height + 12,
-              boxShadow: "0 0 0 9999px rgba(8, 10, 20, 0.6)",
+              boxShadow:
+                "0 0 0 4px var(--accent-soft), 0 0 0 9999px rgb(0 0 0 / 0.55)",
             }}
           />
           <div
             ref={tooltipRef}
-            className="absolute pointer-events-auto w-[360px] max-w-[calc(100vw-32px)] rounded-3xl border border-[var(--border)] bg-[var(--surface)]/95 p-4 text-sm text-[var(--muted)] shadow-2xl transition-all duration-200 ease-out"
+            className="absolute pointer-events-auto w-[360px] max-w-[calc(100vw-32px)] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--muted)] shadow-[var(--shadow)] transition-all duration-200 ease-out"
             style={{ top, left, width: tooltipWidth }}
           >
             <div
-              className={`absolute h-3 w-3 rotate-45 border border-[var(--border)] bg-[var(--surface)]/95 ${
-                placeBelow ? "-top-1" : "bottom-[-6px]"
+              className={`absolute h-3 w-3 rotate-45 border border-[var(--border)] bg-[var(--surface)] ${
+                placeBelow ? "-top-1 border-b-0 border-r-0" : "bottom-[-6px] border-l-0 border-t-0"
               }`}
               style={{ left: arrowLeft }}
             />
-            <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-all duration-200 ease-out"
-                style={{ width: `${progressPct}%` }}
-              />
+            <div className="flex items-center gap-1" aria-hidden>
+              {Array.from({ length: Math.max(total, 1) }).map((_, index) => (
+                <span
+                  key={index}
+                  className="h-1 flex-1 rounded-full transition-colors duration-200"
+                  style={{
+                    background:
+                      index <= stepIndex ? "var(--accent)" : "var(--border)",
+                  }}
+                />
+              ))}
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-                Étape {stepIndex + 1}/{total}
-              </p>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
-                Guide
+              <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-strong)]">
+                {chrome.guideBadge}
               </span>
+              <p className="text-xs font-medium text-[var(--muted)]">
+                {chrome.stepOf(stepIndex + 1, total)}
+              </p>
             </div>
             <p className="mt-2 text-base font-semibold text-[var(--ink)]">
               {step.title}
             </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">{step.description}</p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+              {step.description}
+            </p>
+            {step.hint ? (
+              <p className="mt-3 border-t border-[var(--border)] pt-2 text-xs leading-relaxed text-[var(--muted)]">
+                <span aria-hidden>💡 </span>
+                {step.hint}
+              </p>
+            ) : null}
           </div>
         </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="w-full max-w-sm rounded-3xl border border-[var(--border)] bg-[var(--surface)]/95 p-4 text-center text-sm text-[var(--muted)] shadow-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-              Étape {stepIndex + 1}/{Math.max(total, 1)}
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 text-center text-sm text-[var(--muted)] shadow-[var(--shadow)]">
+            <p className="text-xs font-medium text-[var(--muted)]">
+              {chrome.stepOf(stepIndex + 1, Math.max(total, 1))}
             </p>
             <p className="mt-2 text-base font-semibold text-[var(--ink)]">
-              Étape hors écran
+              {chrome.offscreenTitle}
             </p>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Fais défiler vers le {scrollDirection} pour retrouver l’élément de
-              cette étape.
+              {chrome.offscreenBody(isAbove ? "up" : "down")}
             </p>
             {resolveTarget() ? (
               <Button
@@ -555,20 +596,23 @@ function GlobalTourOverlayInner({
                 }
                 className="mt-4 h-8 px-4 text-xs"
               >
-                Recentrer l’étape
+                {chrome.recenter}
               </Button>
             ) : null}
           </div>
         </div>
       )}
 
-      <div className="fixed bottom-6 left-1/2 pointer-events-auto flex -translate-x-1/2 items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--surface)]/90 px-4 py-2 text-sm text-[var(--muted)] shadow-xl">
+      <div
+        dir={dir}
+        className="fixed bottom-6 left-1/2 pointer-events-auto flex -translate-x-1/2 items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--muted)] shadow-[var(--shadow)]"
+      >
         <button
           type="button"
           onClick={() => onSkip()}
-          className="text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+          className="text-xs font-medium text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
         >
-          Passer pour le moment
+          {chrome.skip}
         </button>
         <div className="h-5 w-px bg-[var(--border)]" />
         <Button
@@ -577,10 +621,10 @@ function GlobalTourOverlayInner({
           className="h-8 px-4 text-xs"
           disabled={!canGoPrevious}
         >
-          Avant
+          {chrome.back}
         </Button>
         <Button onClick={() => onNext()} className="h-8 px-4 text-xs">
-          Suivant
+          {isLastStep ? chrome.finish : chrome.next}
         </Button>
       </div>
     </div>

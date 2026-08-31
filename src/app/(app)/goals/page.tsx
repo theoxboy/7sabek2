@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -40,6 +40,8 @@ import {
 } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { getIssueDisplay } from "@/lib/issueMessages";
+import { PageTour } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const LOCALE_TO_BCP47: Record<FloussyLocale, string> = {
@@ -256,6 +258,15 @@ export default function GoalsPage() {
   const pageDir = getLocaleDirection(locale);
   const issue = getIssueDisplay(error, locale);
 
+  const overviewRef = useRef<HTMLDivElement | null>(null);
+  const goalRef = useRef<HTMLDivElement | null>(null);
+  const distributeRef = useRef<HTMLDivElement | null>(null);
+  const { tour } = usePageTour("goals", {
+    overview: { ref: overviewRef },
+    goal: { ref: goalRef },
+    distribute: { ref: distributeRef },
+  });
+
   useEffect(() => {
     const syncLocale = () => setLocale(getBrowserLocalePreference() ?? "fr");
     window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
@@ -396,6 +407,7 @@ export default function GoalsPage() {
       className="relative min-h-screen overflow-hidden bg-[var(--bg)] px-6 pb-12 pt-8 text-[var(--ink)] dark:text-white"
       dir={pageDir}
     >
+      <PageTour tour={tour} />
       <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-[radial-gradient(circle,#22d3ee,transparent_70%)] opacity-20 dark:opacity-40 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-20 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,#a855f7,transparent_70%)] opacity-15 dark:opacity-30 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,#34d399,transparent_70%)] opacity-15 dark:opacity-25 blur-3xl" />
@@ -414,7 +426,7 @@ export default function GoalsPage() {
             <Target className="h-4 w-4 text-emerald-500 dark:text-emerald-300" />
             <span className="sr-only">{copy.activeGoals}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div ref={distributeRef} className="flex flex-wrap items-center gap-2">
             <Button
               asChild
               size="sm"
@@ -439,7 +451,7 @@ export default function GoalsPage() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className={glassCard}>
+          <div ref={overviewRef} className={glassCard}>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface)]/10">
                 <Flag className="h-6 w-6 text-amber-300" />
@@ -503,7 +515,7 @@ export default function GoalsPage() {
           />
         ) : null}
 
-        <div className={glassCard}>
+        <div ref={goalRef} className={glassCard}>
           <div className="mb-4 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--surface)]/10">
               <Coins className="h-5 w-5 text-amber-300" />

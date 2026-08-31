@@ -45,10 +45,9 @@ import {
 } from "@/components/ui/Drawer";
 import { useToast } from "@/components/ui/Toast";
 import {
-  GlobalTourOverlay,
-  useGlobalTour,
-  type TourStep,
+  PageTour,
 } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 import {
   Dialog,
   DialogClose,
@@ -156,14 +155,6 @@ const ENVELOPES_COPY = {
     deleteAllActivityConfirm:
       "Supprimer toutes les activités de cette enveloppe ?",
     allActivitiesDeleted: "Toutes les activités ont été supprimées.",
-    tourOverviewTitle: "Vue enveloppes",
-    tourOverviewDesc: "Gère tes enveloppes et leurs soldes en un seul endroit.",
-    tourBalancesTitle: "Soldes actuels",
-    tourBalancesDesc: "Consulte les enveloppes, leurs soldes et active le rollover.",
-    tourCreateTitle: "Créer une enveloppe",
-    tourCreateDesc: "Ajoute une enveloppe pour organiser ton budget.",
-    tourAdvancedTitle: "Paramètres avancés",
-    tourAdvancedDesc: "Ajoute des packs ou une liste rapide d’enveloppes.",
     currentBalances: "Soldes actuels",
     collectiveRollover: "Rollover collectif",
     selectEnvelopesToEdit: "Sélectionne les enveloppes à modifier.",
@@ -336,14 +327,6 @@ const ENVELOPES_COPY = {
     activityDeleted: "Activity deleted.",
     deleteAllActivityConfirm: "Delete all activity for this envelope?",
     allActivitiesDeleted: "All activity has been deleted.",
-    tourOverviewTitle: "Envelope view",
-    tourOverviewDesc: "Manage your envelopes and balances in one place.",
-    tourBalancesTitle: "Current balances",
-    tourBalancesDesc: "Review balances and enable rollover.",
-    tourCreateTitle: "Create envelope",
-    tourCreateDesc: "Add an envelope to organize your budget.",
-    tourAdvancedTitle: "Advanced settings",
-    tourAdvancedDesc: "Add packs or a quick list of envelopes.",
     currentBalances: "Current balances",
     collectiveRollover: "Bulk rollover",
     selectEnvelopesToEdit: "Select envelopes to edit.",
@@ -516,14 +499,6 @@ const ENVELOPES_COPY = {
     activityDeleted: "النشاط تحيّد.",
     deleteAllActivityConfirm: "بغيتي تمسح جميع الأنشطة ديال هاد الظرف؟",
     allActivitiesDeleted: "تتحيدو جميع الأنشطة.",
-    tourOverviewTitle: "نظرة على الأظرفة",
-    tourOverviewDesc: "من هنا كتسير الأظرفة والأرصدة ديالهم كاملين.",
-    tourBalancesTitle: "الأرصدة الحالية",
-    tourBalancesDesc: "شوف الأظرفة، الأرصدة، وفعل الترحيل إلا بغيتي.",
-    tourCreateTitle: "زيد ظرف",
-    tourCreateDesc: "زيد ظرف جديد باش تنظم الميزانية ديالك.",
-    tourAdvancedTitle: "الإعدادات المتقدمة",
-    tourAdvancedDesc: "زيد packs ولا لائحة سريعة ديال الأظرفة.",
     currentBalances: "الأرصدة الحالية",
     collectiveRollover: "الترحيل الجماعي",
     selectEnvelopesToEdit: "اختار الأظرفة اللي بغيتي تبدل ليهم.",
@@ -1830,44 +1805,12 @@ export default function EnvelopesPage() {
     loadAdjustmentLogs();
   }, [selectedEnvelopeId]);
 
-  const tourSteps = useMemo<TourStep[]>(() => {
-    const steps: TourStep[] = [
-      {
-        title: copy.tourOverviewTitle,
-        description: copy.tourOverviewDesc,
-        ref: headerRef,
-      },
-      {
-        title: copy.tourBalancesTitle,
-        description: copy.tourBalancesDesc,
-        ref: currentRef,
-      },
-      {
-        title: copy.tourCreateTitle,
-        description: copy.tourCreateDesc,
-        ref: createRef,
-      },
-    ];
-    if (mounted) {
-      steps.push({
-        title: copy.tourAdvancedTitle,
-        description: copy.tourAdvancedDesc,
-        ref: advancedRef,
-      });
-    }
-    return steps;
-  }, [mounted, copy]);
-
-  const {
-    isActive: tourActive,
-    step: tourStep,
-    stepIndex: tourStepIndex,
-    total: tourTotal,
-    goNext,
-    goPrevious,
-    canGoPrevious,
-    skipTour,
-  } = useGlobalTour("envelopes", tourSteps);
+  const { tour } = usePageTour("envelopes", {
+    overview: { ref: headerRef },
+    balances: { ref: currentRef },
+    create: { ref: createRef },
+    ...(mounted ? { advanced: { ref: advancedRef } } : {}),
+  });
 
   const renderEnvelopeCard = (env: EnvelopeOut, index: number, isFixedActive = false) => {
     const balance =
@@ -2286,17 +2229,7 @@ export default function EnvelopesPage() {
   };
   return (
     <div className="flex flex-col gap-8" dir={pageDir}>
-      {tourActive && tourStep ? (
-        <GlobalTourOverlay
-          step={tourStep}
-          stepIndex={tourStepIndex}
-          total={tourTotal}
-          canGoPrevious={canGoPrevious}
-          onPrevious={goPrevious}
-          onNext={goNext}
-          onSkip={skipTour}
-        />
-      ) : null}
+      <PageTour tour={tour} />
       <div ref={headerRef}>
         <PageHeader
           title={copy.pageTitle}

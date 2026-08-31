@@ -74,11 +74,8 @@ import { useToast } from "@/components/ui/Toast";
 import { ReportCard } from "@/components/reports/ReportCard";
 import { ReportEmptyState } from "@/components/reports/ReportEmptyState";
 import { ChartReveal } from "@/components/reports/ChartReveal";
-import {
-  GlobalTourOverlay,
-  useGlobalTour,
-  type TourStep,
-} from "@/components/tour/GlobalTour";
+import { PageTour } from "@/components/tour/GlobalTour";
+import { usePageTour } from "@/components/tour/usePageTour";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { localizeCategoryName } from "@/lib/categoryCatalog";
@@ -173,7 +170,6 @@ const REPORTS_COPY: Record<
     unknownError: string;
     overviewCards: Record<string, { title: string; description: string }>;
     empty: Record<string, { title: string; description: string; cta?: string }>;
-    tour: Array<{ title: string; description: string }>;
     rangePresets: Array<{ value: string; label: string }>;
     qualityLabels: {
       mappedCategories: string;
@@ -309,13 +305,6 @@ const REPORTS_COPY: Record<
       noTrendData: { title: "Pas de données de tendance", description: "Sélectionne des enveloppes pour charger l’historique.", cta: "Voir les enveloppes" },
       noSweeps: { title: "Pas encore de sweep", description: "Lance un sweep pour voir l’impact des transferts.", cta: "Lancer un sweep" },
     },
-    tour: [
-      { title: "Reports", description: "Toutes les analyses clés sur ta période." },
-      { title: "Filtres", description: "Ajuste la période, l’enveloppe et la vue." },
-      { title: "Indicateurs clés", description: "Résumé rapide de la performance." },
-      { title: "Analyses visuelles", description: "Explore les graphiques et tendances détaillées." },
-      { title: "Actions rapides", description: "Accès direct aux pages d’action." },
-    ],
     rangePresets: [
       { value: "7d", label: "7 derniers jours" },
       { value: "30d", label: "30 derniers jours" },
@@ -456,13 +445,6 @@ const REPORTS_COPY: Record<
       noTrendData: { title: "No trend data", description: "Select envelopes to load balance history.", cta: "View envelopes" },
       noSweeps: { title: "No sweeps yet", description: "Run a sweep to see transfer impact.", cta: "Run sweep" },
     },
-    tour: [
-      { title: "Reports", description: "All the key analyses on your period." },
-      { title: "Filters", description: "Adjust range, envelope, and view." },
-      { title: "Key metrics", description: "Quick performance snapshot." },
-      { title: "Visual analysis", description: "Explore detailed charts and trends." },
-      { title: "Quick actions", description: "Direct access to action pages." },
-    ],
     rangePresets: [
       { value: "7d", label: "Last 7 days" },
       { value: "30d", label: "Last 30 days" },
@@ -603,13 +585,6 @@ const REPORTS_COPY: Record<
       noTrendData: { title: "ما كايناش بيانات ديال التريند", description: "اختار أظرفة باش يتحمل التاريخ ديال الرصيد.", cta: "شوف الأظرفة" },
       noSweeps: { title: "ما كاين حتى sweep", description: "شغّل sweep باش يبان الأثر ديال التحويلات.", cta: "شغّل sweep" },
     },
-    tour: [
-      { title: "التقارير", description: "جميع التحليلات المهمة ديال هاد الفترة." },
-      { title: "الفلاتر", description: "بدل الفترة، الظرف، والواجهة." },
-      { title: "المؤشرات الرئيسية", description: "تلخيص سريع للأداء." },
-      { title: "التحليلات البصرية", description: "شوف الكرافيات والتطورات بالتفصيل." },
-      { title: "أكشنات سريعة", description: "دخول مباشر لصفحات الأكشن." },
-    ],
     rangePresets: [
       { value: "7d", label: "آخر 7 أيام" },
       { value: "30d", label: "آخر 30 يوم" },
@@ -1279,63 +1254,18 @@ function ReportsContent() {
   const showingEmptyRange =
     !filteredTransactions.length && transactions.length > 0;
 
-  const tourSteps = useMemo<TourStep[]>(
-    () => [
-      {
-        title: copy.tour[0].title,
-        description: copy.tour[0].description,
-        ref: headerRef,
-      },
-      {
-        title: copy.tour[1].title,
-        description: copy.tour[1].description,
-        ref: filtersRef,
-      },
-      {
-        title: copy.tour[2].title,
-        description: copy.tour[2].description,
-        ref: kpiRef,
-      },
-      {
-        title: copy.tour[3].title,
-        description: copy.tour[3].description,
-        ref: chartsRef,
-      },
-      {
-        title: copy.tour[4].title,
-        description: copy.tour[4].description,
-        ref: actionsRef,
-      },
-    ],
-    [copy]
-  );
-
-  const {
-    isActive: tourActive,
-    step: tourStep,
-    stepIndex: tourStepIndex,
-    total: tourTotal,
-    goNext,
-    goPrevious,
-    canGoPrevious,
-    skipTour,
-  } = useGlobalTour("reports", tourSteps);
+  const { tour } = usePageTour("reports", {
+    filters: { ref: filtersRef },
+    kpis: { ref: kpiRef },
+    charts: { ref: chartsRef },
+    export: { ref: headerRef },
+  });
 
   return (
     <div className="flex flex-col gap-8 print-area" dir={pageDir}>
       <style jsx global>{printStyles}</style>
 
-      {tourActive && tourStep ? (
-        <GlobalTourOverlay
-          step={tourStep}
-          stepIndex={tourStepIndex}
-          total={tourTotal}
-          canGoPrevious={canGoPrevious}
-          onPrevious={goPrevious}
-          onNext={goNext}
-          onSkip={skipTour}
-        />
-      ) : null}
+      <PageTour tour={tour} />
 
       <div ref={headerRef}>
         <PageHeader
