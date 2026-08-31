@@ -1228,41 +1228,34 @@ export default function EnvelopesPage() {
     goals.forEach((goal) => map.set(goal.envelope_id, goal));
     return map;
   }, [goals]);
-  const debtInitialRemaining = useMemo(() => {
-    const payload = onboardingRecord?.payload;
-    if (!payload || typeof payload !== "object") return null;
-    const anyPayload = payload as Record<string, unknown>;
-    const summary = anyPayload.debt_summary_v2 as Record<string, unknown> | undefined;
-    const totalFromSummary = Number(summary?.total_remaining ?? NaN);
-    if (Number.isFinite(totalFromSummary) && totalFromSummary > 0) return totalFromSummary;
-    const debts = Array.isArray(anyPayload.debts) ? anyPayload.debts : [];
-    const totalFromDebts = debts.reduce((sum, item) => {
-      if (!item || typeof item !== "object") return sum;
-      const amount = Number((item as Record<string, unknown>).remaining_amount ?? 0);
-      return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
-    }, 0);
-    return totalFromDebts > 0 ? totalFromDebts : null;
-  }, [onboardingRecord]);
-
-  // Outstanding amount per individual debt, keyed by the debt's own name.
-  // debtInitialRemaining above is the total across every debt, which is the
-  // right figure for a summary but wrong for a single envelope's card.
+  // The onboarding record response exposes only { answers, draft_objects,
+  // materialized_state } - there is no top-level `debts` array - so per-debt
+  // figures are read straight from the D1/D2/D3 answer fields.
   const debtRemainingByName = useMemo(() => {
     const map = new Map<string, number>();
-    const payload = onboardingRecord?.payload;
-    if (!payload || typeof payload !== "object") return map;
-    const debts = (payload as Record<string, unknown>).debts;
-    if (!Array.isArray(debts)) return map;
-    debts.forEach((item) => {
-      if (!item || typeof item !== "object") return;
-      const entry = item as Record<string, unknown>;
-      const name = typeof entry.name === "string" ? entry.name.trim().toLowerCase() : "";
-      const amount = Number(entry.remaining_amount ?? 0);
-      if (!name || !Number.isFinite(amount) || amount <= 0) return;
+    const payload = onboardingRecord?.payload as Record<string, unknown> | undefined;
+    const answers = (payload?.answers ?? {}) as Record<string, unknown>;
+    const rawCount = Number(answers.D1_debt_count ?? 0);
+    const count = Number.isFinite(rawCount) ? Math.max(0, Math.min(20, Math.trunc(rawCount))) : 0;
+    for (let index = 1; index <= count; index += 1) {
+      const name =
+        typeof answers[`D2_debt_name_${index}`] === "string"
+          ? String(answers[`D2_debt_name_${index}`]).trim().toLowerCase()
+          : "";
+      const amount = Number(answers[`D3_debt_remaining_amount_${index}`] ?? 0);
+      if (!name || !Number.isFinite(amount) || amount <= 0) continue;
       map.set(name, amount);
-    });
+    }
     return map;
   }, [onboardingRecord]);
+
+  const debtInitialRemaining = useMemo(() => {
+    let total = 0;
+    debtRemainingByName.forEach((amount) => {
+      total += amount;
+    });
+    return total > 0 ? total : null;
+  }, [debtRemainingByName]);
 
   // Debt envelopes are named "الديون — x" / "Dettes — x" after the debt itself.
   const lookupDebtRemaining = useCallback(
@@ -2132,7 +2125,11 @@ export default function EnvelopesPage() {
       debtOutstanding > 0 ? Math.max(0, Math.min(1, currentBalance / debtOutstanding)) : 0;
     const progressRatio = isGoalKind ? goalProgress : debtProgress;
     const progressPct = `${(progressRatio * 100).toFixed(1)}%`;
-    const monthlyContribution = Number(fixedAmount ?? 0);
+    // Goal contributions live on the goal record (target_type "goal"), not in
+    // fixedEnvelopeAmounts which is built from "envelope" distribution rules.
+    const monthlyContribution = isGoalKind
+      ? Number(goal?.contribution_amount ?? 0) || Number(fixedAmount ?? 0)
+      : Number(fixedAmount ?? 0);
     const remainingToHit = isGoalKind
       ? Math.max(0, goalTarget - currentBalance)
       : Math.max(0, debtOutstanding - currentBalance);
