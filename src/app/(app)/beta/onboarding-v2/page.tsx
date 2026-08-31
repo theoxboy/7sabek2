@@ -49,6 +49,7 @@ import {
 } from "@/components/onboarding/onboardingMotion";
 import { fetchMe, refreshAuthSession, type AuthUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { looksLikeDebt } from "@/lib/envelopeDebt";
 import { buildMoneyPlanModeAllocations, type SafetyState } from "@/lib/moneyPlanEngine";
 import {
   buildOnboardingProgressSnapshot as buildCompatOnboardingProgressSnapshot,
@@ -3909,7 +3910,6 @@ function getSmartRolloverRecommendationForProposal(
   const cadence = getIncomeCadenceForRecurringCosts(answers);
   const normalizedName = slugify(candidate.name);
   const pressure = salaryAmountEffects?.pressure_level ?? null;
-  const debtExtraEnabled = getString(answers, "D8_debt_extra_monthly") === "yes";
   const ownerMaintenanceSaving = getString(answers, "HSN4_maintenance_saving") === "yes";
   const lifestyle = getString(answers, "E7_lifestyle");
   const kidsCount = getResolvedKidsCount(answers);
@@ -3991,10 +3991,10 @@ function getSmartRolloverRecommendationForProposal(
   }
 
   if (candidate.group_key === "debts") {
-    if (debtExtraEnabled || cadence !== "monthly") {
-      return recommendOn("إلا بغيتي تجمع للأداء أو تزيد دفعة إضافية، الأفضل تخليه مفعّل.");
-    }
-    return recommendOff("إلى كان غير القسط الشهري العادي، غالباً ماشي ضروري يحتافظ بالباقي.");
+    return recommendOn(
+      "ظرف الدين خاصو يحتافظ بالباقي باش الفلوس ديال الأداء ما تمشيش للادخار.",
+      "إجباري للديون"
+    );
   }
 
   if (candidate.group_key === "family") {
@@ -4881,6 +4881,22 @@ function dedupeProposalEnvelopesByEquivalentKey(
   });
 }
 
+// A debt/credit repayment fund never sweeps its leftover to savings - it must
+// keep it to pay the debt down. Goals are locked the same way. The backend
+// (apply_onboarding_v2_payload) forces rollover on for these regardless of what
+// the wizard sends, so the wizard must display them as locked instead of
+// offering a toggle it will silently override.
+function isRolloverLockedProposal(item: {
+  group_key?: string;
+  kind?: string;
+  final_name?: string;
+  name?: string;
+}): boolean {
+  if (item.group_key === "goals" || item.kind === "goal") return true;
+  if (item.group_key === "debts") return true;
+  return looksLikeDebt(item.final_name ?? item.name ?? null);
+}
+
 function resolveEnvelopeProposalPreview(
   candidates: EnvelopeProposalCandidate[],
   previewState: EnvelopeProposalPreviewState
@@ -4898,8 +4914,12 @@ function resolveEnvelopeProposalPreview(
 
   const resolved: EnvelopeProposalResolved[] = allCandidates.map((candidate) => {
     const finalName = editedNames[candidate.id] || candidate.name;
-    const finalRolloverEnabled =
-      previewState.edited_rollover[candidate.id] ?? candidate.rollover_enabled;
+    const finalRolloverEnabled = isRolloverLockedProposal({
+      ...candidate,
+      final_name: finalName,
+    })
+      ? true
+      : previewState.edited_rollover[candidate.id] ?? candidate.rollover_enabled;
     return {
       ...candidate,
       included: !excludedIds.has(candidate.id),
@@ -12390,7 +12410,7 @@ export function BetaOnboardingV2PageContent({
     sweepCurrentIncomeAmount < Math.max(100, sweepSuggestedIncomeAmount * 0.25);
   const toggleProposalRollover = useCallback(
     (item: EnvelopeProposalResolved) => {
-      if (item.group_key === "goals") return;
+      if (isRolloverLockedProposal(item)) return;
       setProposalRolloverTouched(true);
       setProposalEditedRollover((prev) => {
         const nextValue = !item.final_rollover_enabled;
@@ -12412,7 +12432,7 @@ export function BetaOnboardingV2PageContent({
       setProposalEditedRollover(() => {
         const next: Record<string, boolean> = {};
         for (const item of items) {
-          if (item.group_key === "goals") continue;
+          if (isRolloverLockedProposal(item)) continue;
           const targetValue =
             mode === "recommended" ? item.rollover_enabled : mode === "all_on";
           if (targetValue !== item.rollover_enabled) {
@@ -18958,6 +18978,9 @@ export function BetaOnboardingV2PageContent({
                           const knownAmount = item.custom_amount ?? getKnownProposalAmount(item.name, answers);
                           const displayName = localizeProposalEnvelopeNameForUi(item.final_name);
                           const isGoalEnvelope = item.group_key === "goals";
+                          const isDebtEnvelope =
+                            !isGoalEnvelope && isRolloverLockedProposal(item);
+                          const isLockedEnvelope = isGoalEnvelope || isDebtEnvelope;
                           const recommendationLabel = item.rollover_recommendation_label;
                           const recommendationClass = item.rollover_enabled
                             ? "bg-[#16a34a] text-white"
@@ -18966,6 +18989,8 @@ export function BetaOnboardingV2PageContent({
                             : "bg-[#f2f2f7] text-[#6e6e73]";
                           const consequenceLabel = isGoalEnvelope
                             ? "يبقى حتى الدفعة الجاية (إجباري للأهداف)"
+                            : isDebtEnvelope
+                            ? "يبقى حتى الدفعة الجاية (إجباري للديون)"
                             : item.final_rollover_enabled
                             ? "يبقى حتى الدفعة الجاية"
                             : "يمشي لظرف الادخار";
@@ -18975,18 +19000,18 @@ export function BetaOnboardingV2PageContent({
                               role="button"
                               tabIndex={0}
                               onClick={() => {
-                                if (isGoalEnvelope) return;
+                                if (isLockedEnvelope) return;
                                 toggleProposalRollover(item);
                               }}
                               onKeyDown={(event) => {
                                 if (event.key === "Enter" || event.key === " ") {
                                   event.preventDefault();
-                                  if (isGoalEnvelope) return;
+                                  if (isLockedEnvelope) return;
                                   toggleProposalRollover(item);
                                 }
                               }}
                               className={`flex min-h-[72px] w-full items-center gap-3 px-4 py-4 text-right transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74] focus-visible:ring-inset sm:px-5 ${
-                                isGoalEnvelope ? "cursor-default" :
+                                isLockedEnvelope ? "cursor-default" :
                                 item.final_rollover_enabled
                                   ? "bg-[#ecfdf5] hover:bg-[#dcfce7]"
                                   : "bg-[var(--surface)] hover:bg-[#f8fafc]"
@@ -19035,10 +19060,10 @@ export function BetaOnboardingV2PageContent({
                                       <Switch
                                         checked={item.final_rollover_enabled}
                                         onCheckedChange={() => {
-                                          if (isGoalEnvelope) return;
+                                          if (isLockedEnvelope) return;
                                           toggleProposalRollover(item);
                                         }}
-                                        disabled={isGoalEnvelope}
+                                        disabled={isLockedEnvelope}
                                         className={item.final_rollover_enabled ? "border-[#16a34a] bg-[#16a34a]" : ""}
                                       />
                                     </div>
@@ -22901,6 +22926,9 @@ export function BetaOnboardingV2PageContent({
                                 {group.items.map((item) => {
                                   const displayName = localizeProposalEnvelopeNameForUi(item.final_name);
                                   const isGoalEnvelope = item.group_key === "goals";
+                                  const isDebtEnvelope =
+                                    !isGoalEnvelope && isRolloverLockedProposal(item);
+                                  const isLockedEnvelope = isGoalEnvelope || isDebtEnvelope;
                                   return (
                                     <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                                       <div className="min-w-0 flex-1 text-right">
@@ -22908,6 +22936,8 @@ export function BetaOnboardingV2PageContent({
                                         <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
                                           {isGoalEnvelope
                                             ? "يبقى حتى الدفعة الجاية (إجباري للأهداف)"
+                                            : isDebtEnvelope
+                                            ? "يبقى حتى الدفعة الجاية (إجباري للديون)"
                                             : item.final_rollover_enabled
                                             ? "يبقى حتى الدفعة الجاية"
                                             : "يمشي لظرف الادخار"}
@@ -22916,10 +22946,10 @@ export function BetaOnboardingV2PageContent({
                                       <Switch
                                         checked={item.final_rollover_enabled}
                                         onCheckedChange={() => {
-                                          if (isGoalEnvelope) return;
+                                          if (isLockedEnvelope) return;
                                           toggleProposalRollover(item);
                                         }}
-                                        disabled={isGoalEnvelope}
+                                        disabled={isLockedEnvelope}
                                         className={item.final_rollover_enabled ? "border-[#16a34a] bg-[#16a34a]" : ""}
                                       />
                                     </div>
