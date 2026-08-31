@@ -22,7 +22,6 @@ import type {
   CategoryEnvelopeMapOut,
   CategoryOut,
   DashboardOut,
-  DistributionConfigOut,
   EnvelopeOut,
   EnvelopeAdjustmentLogOut,
   EnvelopePeriodOut,
@@ -67,6 +66,7 @@ import {
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { getIssueDisplay } from "@/lib/issueMessages";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
+import { looksLikeDebt } from "@/lib/envelopeDebt";
 import { cn } from "@/lib/cn";
 
 const RESERVED_NAMES = ["cash", "epargnes"];
@@ -200,6 +200,8 @@ const ENVELOPES_COPY = {
     newEnvelope: "Nouvelle enveloppe",
     addEnvelopeDesc: "Ajoute une enveloppe pour organiser ton budget.",
     envelopeNamePlaceholder: "Nom de l'enveloppe",
+    isDebtLabel: "C'est une dette / un crédit",
+    isDebtHint: "Le solde reste d'un mois à l'autre et n'est jamais balayé vers l'épargne.",
     add: "Ajouter",
     advancedSettings: "Paramètres avancés",
     advancedSettingsTitle: "Paramètres avancés",
@@ -378,6 +380,8 @@ const ENVELOPES_COPY = {
     newEnvelope: "New envelope",
     addEnvelopeDesc: "Add an envelope to organize your budget.",
     envelopeNamePlaceholder: "Envelope name",
+    isDebtLabel: "This is a debt / credit",
+    isDebtHint: "The balance carries over month to month and is never swept into savings.",
     add: "Add",
     advancedSettings: "Advanced settings",
     advancedSettingsTitle: "Advanced settings",
@@ -556,6 +560,8 @@ const ENVELOPES_COPY = {
     newEnvelope: "ظرف جديد",
     addEnvelopeDesc: "زيد ظرف باش تنظم الميزانية ديالك.",
     envelopeNamePlaceholder: "اسم الظرف",
+    isDebtLabel: "هادي دَّين / كريدي",
+    isDebtHint: "الرصيد كيبقى من شهر لشهر وما كيتبالاش نحو التوفير.",
     add: "زيد",
     advancedSettings: "إعدادات متقدمة",
     advancedSettingsTitle: "الإعدادات المتقدمة",
@@ -779,9 +785,6 @@ export default function EnvelopesPage() {
   const { data: transactionsData, error: transactionsError, mutate: mutateTransactions } = useSWR<TransactionOut[]>("/transactions", fetcher);
   const transactions = transactionsData ?? [];
 
-  const { data: distributionConfigData } = useSWR<DistributionConfigOut>("/distribution/config", fetcher);
-  const distributionConfig = distributionConfigData ?? null;
-
   const { data: savedConfigsData, mutate: mutateSavedConfigs } = useSWR<DistributionSavedConfig[]>("/distribution/configs", fetcher);
   const savedConfigs = savedConfigsData ?? [];
 
@@ -821,8 +824,12 @@ export default function EnvelopesPage() {
   };
 
   const [newName, setNewName] = useState("");
+  const [newIsDebt, setNewIsDebt] = useState(false);
+  const [newIsDebtManual, setNewIsDebtManual] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingIsDebt, setEditingIsDebt] = useState(false);
+  const [editingCanDebt, setEditingCanDebt] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [rolloverUpdatingId, setRolloverUpdatingId] = useState<string | null>(null);
   const [rolloverDialogOpen, setRolloverDialogOpen] = useState(false);
@@ -1147,10 +1154,17 @@ export default function EnvelopesPage() {
     });
   }, [activeSavedConfig]);
 
+  // /distribution/apply and /simulate resolve income against the effective
+  // distribution_rules table (rewritten on every config save = onboarding
+  // baseline + the active config's rows), which is exactly what GET
+  // /distribution/rules returns. The singular GET /distribution/config reads a
+  // separate distribution_items table that apply/simulate never touch, so it
+  // must not drive these badges. Live rules are authoritative; the active saved
+  // config's fixed rows are folded in as a safety net for accounts whose rules
+  // table predates materialization.
   const fixedEnvelopeIds = useMemo(() => {
     const ids = new Set<string>();
 
-    // 1. Live distribution rules (distributionRules)
     (distributionRules ?? []).forEach((rule) => {
       if (rule.target_type === "envelope" && rule.enabled && isFixedMode(rule.mode)) {
         const amount = Number(rule.amount ?? "0");
@@ -1160,42 +1174,14 @@ export default function EnvelopesPage() {
       }
     });
 
-    // 2. Draft configuration (distributionConfig)
-    (distributionConfig?.envelopes ?? []).forEach((item) => {
-      if (item.enabled && isFixedMode(item.mode)) {
-        const amount = Number(item.fixed_amount ?? "0");
-        if (Number.isFinite(amount) && amount > 0) {
-          ids.add(item.target_id);
-        }
-      }
-    });
+    activeSavedEnvelopeFixedRows.forEach((row) => ids.add(row.target_id));
 
-    // 3. Active saved configuration
-    if (activeSavedEnvelopeFixedRows.length > 0) {
-      activeSavedEnvelopeFixedRows.forEach((row) => {
-        ids.add(row.target_id);
-      });
-    }
-
-    const result = Array.from(ids);
-    console.log("Fixed IDs:", result);
-    return result;
-  }, [activeSavedEnvelopeFixedRows, distributionConfig, distributionRules]);
+    return Array.from(ids);
+  }, [activeSavedEnvelopeFixedRows, distributionRules]);
 
   const fixedEnvelopeAmounts = useMemo(() => {
     const amounts: Record<string, number> = {};
 
-    // 1. Draft configuration (lowest priority)
-    (distributionConfig?.envelopes ?? []).forEach((item) => {
-      if (item.enabled && isFixedMode(item.mode)) {
-        const amount = Number(item.fixed_amount ?? "0");
-        if (Number.isFinite(amount) && amount > 0) {
-          amounts[item.target_id] = amount;
-        }
-      }
-    });
-
-    // 2. Live rules (medium priority)
     (distributionRules ?? []).forEach((rule) => {
       if (rule.target_type === "envelope" && rule.enabled && isFixedMode(rule.mode)) {
         const amount = Number(rule.amount ?? "0");
@@ -1205,18 +1191,16 @@ export default function EnvelopesPage() {
       }
     });
 
-    // 3. Active saved configuration (highest priority)
-    if (activeSavedEnvelopeFixedRows.length > 0) {
-      activeSavedEnvelopeFixedRows.forEach((row) => {
-        const amount = Number(row.fixed_amount ?? "0");
-        if (Number.isFinite(amount) && amount > 0) {
-          amounts[row.target_id] = amount;
-        }
-      });
-    }
+    // The saved config carries the user's intended figure; let it win.
+    activeSavedEnvelopeFixedRows.forEach((row) => {
+      const amount = Number(row.fixed_amount ?? "0");
+      if (Number.isFinite(amount) && amount > 0) {
+        amounts[row.target_id] = amount;
+      }
+    });
 
     return amounts;
-  }, [activeSavedEnvelopeFixedRows, distributionConfig, distributionRules]);
+  }, [activeSavedEnvelopeFixedRows, distributionRules]);
 
   const fixedEnvelopeIdSet = useMemo(() => new Set(fixedEnvelopeIds), [fixedEnvelopeIds]);
   const rolloverOffSortedEnvelopes = useMemo(
@@ -1362,9 +1346,17 @@ export default function EnvelopesPage() {
       setUpdating(true);
       await apiFetch<EnvelopeOut>("/envelopes", {
         method: "POST",
-        body: { name: trimmed, rollover_enabled: false },
+        body: {
+          name: trimmed,
+          // A debt / credit envelope must roll over so its repayment fund is
+          // never swept into savings.
+          rollover_enabled: newIsDebt,
+          is_debt: newIsDebt,
+        },
       });
       setNewName("");
+      setNewIsDebt(false);
+      setNewIsDebtManual(false);
       await loadData();
       setCreateOpen(false);
     } catch (err) {
@@ -1378,6 +1370,8 @@ export default function EnvelopesPage() {
   const handleEdit = (env: EnvelopeOut) => {
     setEditingId(env.id);
     setEditingName(env.name);
+    setEditingIsDebt(Boolean(env.is_debt));
+    setEditingCanDebt(!env.is_goal && !env.is_cash && !env.is_default_savings);
     setRenameOpen(true);
   };
 
@@ -1408,11 +1402,21 @@ export default function EnvelopesPage() {
       );
       return;
     }
+    const editingEnvelope = envelopes.find((env) => env.id === editingId);
+    const body: Record<string, unknown> = { name: trimmed };
+    if (editingCanDebt && editingIsDebt !== Boolean(editingEnvelope?.is_debt)) {
+      body.is_debt = editingIsDebt;
+      // A debt envelope must roll over — flip it on in the same call so the
+      // guard doesn't reject the change.
+      if (editingIsDebt && !editingEnvelope?.rollover_enabled) {
+        body.rollover_enabled = true;
+      }
+    }
     try {
       setUpdating(true);
       await apiFetch(`/envelopes/${editingId}`, {
         method: "PATCH",
-        body: { name: trimmed },
+        body,
       });
       setEditingId(null);
       setEditingName("");
@@ -2666,7 +2670,18 @@ export default function EnvelopesPage() {
         <Section title={copy.createEnvelope}>
         <div className="flex flex-wrap items-center gap-2">
           {mounted ? (
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <Dialog
+              open={createOpen}
+              onOpenChange={(next) => {
+                setCreateOpen(next);
+                if (!next) {
+                  setNewName("");
+                  setNewIsDebt(false);
+                  setNewIsDebtManual(false);
+                  setError(null);
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button type="button">{copy.addEnvelope}</Button>
               </DialogTrigger>
@@ -2678,10 +2693,31 @@ export default function EnvelopesPage() {
                 <div className="mt-2 grid gap-3">
                   <input
                     value={newName}
-                    onChange={(event) => setNewName(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setNewName(value);
+                      if (!newIsDebtManual) setNewIsDebt(looksLikeDebt(value));
+                    }}
                     className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
                     placeholder={copy.envelopeNamePlaceholder}
                   />
+                  <label className="flex items-start gap-2.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={newIsDebt}
+                      onChange={(event) => {
+                        setNewIsDebt(event.target.checked);
+                        setNewIsDebtManual(true);
+                      }}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent,#0f766e)]"
+                    />
+                    <span>
+                      {copy.isDebtLabel}
+                      <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                        {copy.isDebtHint}
+                      </span>
+                    </span>
+                  </label>
                   {error ? (
                     <p className="text-sm text-[var(--error)]">{error}</p>
                   ) : null}
@@ -2990,6 +3026,22 @@ export default function EnvelopesPage() {
                     className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
                     placeholder={copy.newNamePlaceholder}
                   />
+                  {editingCanDebt ? (
+                    <label className="flex items-start gap-2.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={editingIsDebt}
+                        onChange={(event) => setEditingIsDebt(event.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent,#0f766e)]"
+                      />
+                      <span>
+                        {copy.isDebtLabel}
+                        <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                          {copy.isDebtHint}
+                        </span>
+                      </span>
+                    </label>
+                  ) : null}
                   {error ? (
                     <p className="text-sm text-[var(--error)]">{error}</p>
                   ) : null}

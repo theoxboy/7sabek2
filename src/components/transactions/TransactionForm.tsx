@@ -13,7 +13,8 @@ import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import type { FloussyLocale } from "@/lib/localePreference";
 import type { CategoryOut, DashboardOut, EnvelopeOut, TransactionOut, DistributionSimulateOut } from "@/lib/types";
 import { TRANSACTIONS_COPY } from "@/lib/translations/translations";
-import { isFixedMode, isPercentMode } from "@/lib/distribution";
+import { applyDistribution, isFixedMode, isPercentMode } from "@/lib/distribution";
+import { normalizeDigits, parseAmountInput } from "@/lib/parseAmount";
 
 type TransactionDraft = {
   id?: string;
@@ -39,32 +40,6 @@ interface TransactionFormProps {
   setHistoryOpen: (open: boolean) => void;
   transactions: TransactionOut[];
 }
-
-const EASTERN_ARABIC_DIGITS: Record<string, string> = {
-  "٠": "0",
-  "١": "1",
-  "٢": "2",
-  "٣": "3",
-  "٤": "4",
-  "٥": "5",
-  "٦": "6",
-  "٧": "7",
-  "٨": "8",
-  "٩": "9",
-  "۰": "0",
-  "۱": "1",
-  "۲": "2",
-  "۳": "3",
-  "۴": "4",
-  "۵": "5",
-  "۶": "6",
-  "۷": "7",
-  "۸": "8",
-  "۹": "9",
-};
-
-const normalizeDigits = (value: string) =>
-  value.replace(/[٠-٩۰-۹]/g, (char) => EASTERN_ARABIC_DIGITS[char] ?? char);
 
 const getNextMonthDatePreview = (dateStr: string): string => {
   try {
@@ -120,52 +95,6 @@ const computeCalendarMonthBounds = (anchorStr: string, occurredStr: string): [st
   } catch {
     return ["", ""];
   }
-};
-
-const parseAmountInput = (value: string): number | null => {
-  const digitsNormalized = normalizeDigits(value);
-  const cleaned = digitsNormalized
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/[^\d,.-]/g, "");
-  if (!cleaned) return null;
-
-  const commaCount = (cleaned.match(/,/g) ?? []).length;
-  const dotCount = (cleaned.match(/\./g) ?? []).length;
-  const lastComma = cleaned.lastIndexOf(",");
-  const lastDot = cleaned.lastIndexOf(".");
-
-  let normalized = cleaned;
-  if (commaCount > 0 && dotCount > 0) {
-    const decimalSep = lastComma > lastDot ? "," : ".";
-    const thousandSep = decimalSep === "," ? "." : ",";
-    normalized = normalized.split(thousandSep).join("");
-    normalized = normalized.replace(decimalSep, ".");
-  } else if (commaCount > 0) {
-    if (commaCount > 1) {
-      normalized = normalized.split(",").join("");
-    } else {
-      const decimals = cleaned.length - lastComma - 1;
-      const shouldTreatAsThousands = decimals === 3;
-      normalized = shouldTreatAsThousands
-        ? normalized.replace(",", "")
-        : normalized.replace(",", ".");
-    }
-  } else if (dotCount > 0) {
-    if (dotCount > 1) {
-      normalized = normalized.split(".").join("");
-    } else {
-      const decimals = cleaned.length - lastDot - 1;
-      const shouldTreatAsThousands = decimals === 3;
-      normalized = shouldTreatAsThousands
-        ? normalized.replace(".", "")
-        : normalized;
-    }
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return parsed;
 };
 
 const formatLocaleDate = (value: string, locale: FloussyLocale) => {
@@ -858,7 +787,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           variant: "success",
         });
       } else {
-        await apiFetch<TransactionOut>("/transactions", {
+        const createdTx = await apiFetch<TransactionOut>("/transactions", {
           method: "POST",
           body: {
             type: draft.type,
@@ -868,11 +797,54 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             description: draft.description || undefined,
           },
         });
-        toast({
-          title: copy.addSuccess,
-          description: copy.addSuccessDescription,
-          variant: "success",
-        });
+
+        // The income preview promises the user this split; apply it now that
+        // the income is recorded. Idempotent per transaction: if the server
+        // auto-distributed on create, this call matches the existing run and
+        // does nothing — no flag check.
+        let distributionWarnings: string[] = [];
+        let distributionError: string | null = null;
+        if (draft.type === "income" && createdTx?.id) {
+          try {
+            const applyResult = await applyDistribution({
+              transaction_id: createdTx.id,
+              use_cash_available: false,
+            });
+            distributionWarnings = applyResult.warnings ?? [];
+          } catch (err) {
+            distributionError = err instanceof Error ? err.message : String(err);
+          }
+        }
+
+        if (distributionError) {
+          toast({
+            title:
+              locale === "ar"
+                ? "تسجل الدخل، ولكن التوزيع ما تطبقش"
+                : locale === "en"
+                ? "Income saved, but the split was not applied"
+                : "Revenu enregistré, mais la répartition n'a pas été appliquée",
+            description: distributionError,
+            variant: "danger",
+          });
+        } else if (distributionWarnings.length > 0) {
+          toast({
+            title:
+              locale === "ar"
+                ? "تسجل الدخل والتوزيع، مع بعض الملاحظات"
+                : locale === "en"
+                ? "Income and split saved, with some notes"
+                : "Revenu et répartition enregistrés, avec des remarques",
+            description: distributionWarnings.join(" · "),
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: copy.addSuccess,
+            description: copy.addSuccessDescription,
+            variant: "success",
+          });
+        }
       }
 
       setDraft({

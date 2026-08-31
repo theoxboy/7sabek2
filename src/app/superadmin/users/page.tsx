@@ -748,15 +748,53 @@ export default function SuperAdminUsersPage() {
     }
   };
 
-  const handlePurge = async () => {
+  const handlePurge = async (force = false) => {
     if (!selectedUserId) return;
-    const confirmed = window.confirm(
-      "Supprimer définitivement ce compte ? Cette action est irréversible."
-    );
-    if (!confirmed) return;
+    const deletion = computeDeletion(selectedUser?.deleted_at ?? null);
+
+    if (!force) {
+      if (!deletion) {
+        setSaveState({
+          loading: false,
+          message: "",
+          error: "Le compte doit d'abord être supprimé (période de grâce) avant la suppression définitive.",
+        });
+        return;
+      }
+      if (!deletion.expired) {
+        setSaveState({
+          loading: false,
+          message: "",
+          error: `Suppression définitive impossible : la période de grâce court jusqu'au ${formatDateTime(
+            deletion.deadline
+          )}. Utilise « Ignorer la grâce » si tu insistes.`,
+        });
+        return;
+      }
+    }
+
+    if (force) {
+      const typed = window.prompt(
+        `SUPPRESSION FORCÉE — la période de grâce n'est pas respectée et le compte ne pourra pas être restauré.\n\nTape l'email du compte pour confirmer :\n${selectedUser?.email ?? ""}`
+      );
+      if (typed == null) return;
+      if (typed.trim().toLowerCase() !== (selectedUser?.email ?? "").toLowerCase()) {
+        setSaveState({ loading: false, message: "", error: "Email de confirmation incorrect. Suppression annulée." });
+        return;
+      }
+    } else {
+      const confirmed = window.confirm(
+        "Supprimer DÉFINITIVEMENT ce compte et toutes ses données ? La période de grâce est expirée. Cette action est irréversible."
+      );
+      if (!confirmed) return;
+    }
+
     setSaveState({ loading: true, message: "", error: "" });
     try {
-      await adminFetch(`/users/${selectedUserId}/purge`, { method: "POST" });
+      await adminFetch(
+        `/users/${selectedUserId}/purge${force ? "?force=true" : ""}`,
+        { method: "POST" }
+      );
       setUsers((prev) => prev.filter((user) => user.id !== selectedUserId));
       setSelectedUserId(null);
       setSelectedUser(null);
@@ -1283,10 +1321,10 @@ export default function SuperAdminUsersPage() {
                   </p>
                   <p className="mt-1 text-xs text-rose-600">
                     {selectedDeletion?.expired
-                      ? "Délai de restauration expiré."
+                      ? "Période de grâce expirée : restauration impossible, la suppression définitive est désormais autorisée."
                       : `Restauration possible jusqu'au ${formatDateTime(
                           selectedDeletion?.deadline ?? null
-                        )} (${selectedDeletion?.remainingDays ?? 0} jour(s)).`}
+                        )} (${selectedDeletion?.remainingDays ?? 0} jour(s)). La suppression définitive normale ne sera possible qu'après cette date — sauf suppression forcée.`}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -1300,11 +1338,28 @@ export default function SuperAdminUsersPage() {
                     <Button
                       type="button"
                       variant="danger"
-                      onClick={handlePurge}
-                      disabled={saveState.loading}
+                      onClick={() => handlePurge(false)}
+                      disabled={saveState.loading || !selectedDeletion?.expired}
+                      title={
+                        selectedDeletion?.expired
+                          ? undefined
+                          : "Disponible une fois la période de grâce de 30 jours expirée"
+                      }
                     >
                       Supprimer définitivement
                     </Button>
+                    {!selectedDeletion?.expired ? (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={() => handlePurge(true)}
+                        disabled={saveState.loading}
+                        className="border border-rose-700 bg-rose-700 text-white hover:bg-rose-800"
+                        title="Ignorer la période de grâce de 30 jours (confirmation par email requise)"
+                      >
+                        Ignorer la grâce et supprimer maintenant
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}

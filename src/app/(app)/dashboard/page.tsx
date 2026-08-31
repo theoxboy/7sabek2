@@ -14,7 +14,6 @@ import type {
   CategoryOut,
   DashboardOut,
   DashboardTrendPointOut,
-  DistributionConfigOut,
   DistributionSimulateOut,
   GoalOut,
   IncomeReminderOut,
@@ -61,7 +60,7 @@ import { localizeCategoryName } from "@/lib/categoryCatalog";
 import { areToursGloballyDisabled } from "@/lib/tourFlags";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { useQuickTx } from "@/state/QuickTxContext";
-import { isFixedMode, isPercentMode } from "@/lib/distribution";
+import { isFixedMode, isPercentMode, type DistributionRule } from "@/lib/distribution";
 
 const formatMoney = (value: string | number | undefined) => {
   if (value === undefined) return "0.00";
@@ -155,10 +154,11 @@ function DashboardContent() {
   const [transactions, setTransactions] = useState<TransactionOut[]>([]);
   const [cashSplitPreview, setCashSplitPreview] =
     useState<DistributionSimulateOut | null>(null);
-  // Distribution config is always available (unlike cashSplitPreview which
-  // requires available_to_allocate > 0). Used to identify fixed-expense envelopes.
-  const [distributionConfig, setDistributionConfig] =
-    useState<DistributionConfigOut | null>(null);
+  // Effective distribution rules (GET /distribution/rules) — the set /apply and
+  // /simulate actually resolve against. Always available, unlike cashSplitPreview
+  // which needs available_to_allocate > 0. Used to identify fixed-expense
+  // envelopes that must be excluded from the sweep projection.
+  const [distributionRules, setDistributionRules] = useState<DistributionRule[]>([]);
   const [latestOnboardingRecord, setLatestOnboardingRecord] =
     useState<OnboardingV2RecordOut | null>(null);
   const [autoSweepEnabled, setAutoSweepEnabled] = useState<boolean | null>(null);
@@ -376,7 +376,7 @@ function DashboardContent() {
           apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
           apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
           apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
-          apiFetch<DistributionConfigOut>("/distribution/config"),
+          apiFetch<DistributionRule[]>("/distribution/rules"),
         ]).then((results) => {
           if (loadSequenceRef.current !== loadSequence) return;
 
@@ -384,7 +384,7 @@ function DashboardContent() {
           const trendResult = results[1];
           const manualUnmappedResult = results[2];
           const onboardingResult = results[3];
-          const distributionConfigResult = results[4];
+          const distributionRulesResult = results[4];
 
           if (remindersResult.status === "fulfilled") {
             setIncomeReminders(remindersResult.value);
@@ -405,8 +405,8 @@ function DashboardContent() {
           } else {
             setLatestOnboardingRecord(null);
           }
-          if (distributionConfigResult.status === "fulfilled") {
-            setDistributionConfig(distributionConfigResult.value);
+          if (distributionRulesResult.status === "fulfilled") {
+            setDistributionRules(distributionRulesResult.value);
           }
         });
       }, 250);
@@ -626,6 +626,8 @@ function DashboardContent() {
     sweepBootstrap?.needs_first_income_declaration
   );
   const sweepDue = !needsFirstIncomeDeclaration && Boolean(sweepStatus?.due);
+  const sweepAutoError =
+    !needsFirstIncomeDeclaration && Boolean(sweepStatus?.auto_sweep_error);
 
   const dueIncomeReminders = useMemo(() => {
     const today = getLocalTodayISO();
@@ -717,6 +719,7 @@ function DashboardContent() {
     unmappedCount > 0 ||
     overspentEnvelopes.length > 0 ||
     sweepDue ||
+    sweepAutoError ||
     dueIncomeReminders.length > 0;
   const hideDashboardDetailsUntilFirstIncome = needsFirstIncomeDeclaration;
 
@@ -1314,15 +1317,25 @@ function DashboardContent() {
           </DialogHeader>
 
           {currentCycleData?.envelopes && (() => {
-            // Build a set of fixed-expense envelope IDs from the distribution config.
-            // We use distributionConfig (always loaded) rather than cashSplitPreview
-            // because cashSplitPreview is only available when available_to_allocate > 0.
-            // Fixed-mode envelopes are mandatory expenses (rent, bills, etc.) and must
-            // never appear as "potential savings" in the sweep projection.
+            // Build a set of fixed-expense envelope IDs from the effective
+            // distribution rules (always loaded, unlike cashSplitPreview which
+            // needs available_to_allocate > 0).
+            //
+            // This is a *motivational* "your flexible leftovers could grow your
+            // savings" forecast, NOT a sweep preview: fixed-expense envelopes
+            // (rent, bills) are excluded on purpose. The real sweep
+            // (run_sweep / GET /sweeps/preview) still moves any leftover from a
+            // rollover-off fixed envelope too — that surface is the source of
+            // truth for "exactly what will move".
             const fixedDistributionEnvelopeIds = new Set(
-              (distributionConfig?.envelopes ?? [])
-                .filter((item) => isFixedMode(item.mode) && item.enabled)
-                .map((item) => item.target_id)
+              distributionRules
+                .filter(
+                  (rule) =>
+                    rule.target_type === "envelope" &&
+                    rule.enabled &&
+                    isFixedMode(rule.mode)
+                )
+                .map((rule) => rule.target_id)
             );
 
             // Only include flexible (non-fixed) temporary envelopes in the sweep projection.
@@ -2068,16 +2081,34 @@ function DashboardContent() {
                         </div>
                       )}
 
-                      {/* Sweep Ready */}
-                      {sweepDue && (
-                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--success flex flex-col gap-1.5">
-                          <p className="text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
+                      {/* Sweep Ready / auto-sweep failed */}
+                      {(sweepDue || sweepAutoError) && (
+                        <div
+                          className={
+                            sweepAutoError
+                              ? "dashboard-cockpit__alert-item dashboard-cockpit__alert-item--warning flex flex-col gap-1.5"
+                              : "dashboard-cockpit__alert-item dashboard-cockpit__alert-item--success flex flex-col gap-1.5"
+                          }
+                        >
+                          <p
+                            className={
+                              sweepAutoError
+                                ? "text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5"
+                                : "text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5"
+                            }
+                          >
                             <CheckCircle2 className="h-4 w-4 shrink-0" />
-                            {copy.sweepReady}
+                            {sweepAutoError ? copy.sweepAutoErrorTitle : copy.sweepReady}
                           </p>
                           <div className="flex items-center justify-between gap-2.5">
-                            <span className="text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-500 leading-tight">
-                              {copy.sweepReadyDesc}
+                            <span
+                              className={
+                                sweepAutoError
+                                  ? "text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-500 leading-tight"
+                                  : "text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-500 leading-tight"
+                              }
+                            >
+                              {sweepAutoError ? copy.sweepAutoErrorDesc : copy.sweepReadyDesc}
                             </span>
                             <Button
                               variant="secondary"
@@ -2129,12 +2160,19 @@ function DashboardContent() {
             const diff = daysBetweenIso(today, currentCycleData.current_period.end);
             const daysRemaining = diff >= 0 ? diff : 0;
 
-            // Exclude envelopes with a fixed distribution rule (mandatory expenses).
-            // Use distributionConfig (always loaded) not cashSplitPreview (conditional).
+            // Motivational forecast of flexible leftovers only (see the sweep
+            // info dialog above) — fixed-expense envelopes are excluded on
+            // purpose. The real sweep still moves rollover-off fixed leftovers;
+            // GET /sweeps/preview is the source of truth for that.
             const fixedDistributionEnvelopeIds = new Set(
-              (distributionConfig?.envelopes ?? [])
-                .filter((item) => isFixedMode(item.mode) && item.enabled)
-                .map((item) => item.target_id)
+              distributionRules
+                .filter(
+                  (rule) =>
+                    rule.target_type === "envelope" &&
+                    rule.enabled &&
+                    isFixedMode(rule.mode)
+                )
+                .map((rule) => rule.target_id)
             );
 
             const affectedEnvelopes = currentCycleData.envelopes.filter(

@@ -33,6 +33,12 @@ import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { SortableTableRows } from "@/components/distribution/SortableTableRows";
 import { normalizePercentRows } from "@/components/distribution/PercentNormalizer";
+import { parseDecimalInput } from "@/lib/parseAmount";
+import {
+  simulateDistribution,
+  type SimulationItem,
+  type SimulationPreview,
+} from "@/lib/distributionSimulation";
 import { cn } from "@/lib/cn";
 import { GripVertical, Info } from "lucide-react";
 import {
@@ -71,21 +77,6 @@ type DistributionConfigDialogProps = {
     goalsAmount: number;
     flexAmount: number;
   }) => void;
-};
-
-type SimulationItem = {
-  name: string;
-  amount: number;
-};
-
-type SimulationPreview = {
-  income: number;
-  fixedItems: SimulationItem[];
-  percentItems: SimulationItem[];
-  totalFixedApplied: number;
-  remainderAfterFixed: number;
-  remainderAfterPercent: number;
-  totalPercent: number;
 };
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
@@ -488,30 +479,20 @@ const DISTRIBUTION_DIALOG_COPY = {
   },
 } as const;
 
-const parseNumber = (value?: string) => {
-  if (!value) return 0;
-  const parsed = Number(value.replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+const parseNumber = (value?: string) => parseDecimalInput(value);
 
 const formatMoney = (value: number) => value.toFixed(2);
 
 const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
 
 const normalizePercentInput = (value: string) => {
-  const cleaned = value.replace(",", ".");
-  if (cleaned.trim() === "") return "";
-  const parsed = Number(cleaned);
-  if (!Number.isFinite(parsed)) return "";
-  return clampPercent(parsed).toString();
+  if (value.trim() === "" || !/\d/.test(value)) return "";
+  return clampPercent(parseDecimalInput(value)).toString();
 };
 
 const normalizeFixedInput = (value: string) => {
-  const cleaned = value.replace(",", ".");
-  if (cleaned.trim() === "") return "";
-  const parsed = Number(cleaned);
-  if (!Number.isFinite(parsed)) return "";
-  return Math.max(0, parsed).toString();
+  if (value.trim() === "" || !/\d/.test(value)) return "";
+  return Math.max(0, parseDecimalInput(value)).toString();
 };
 
 const normalizeDistributionNameKey = (value: string) =>
@@ -712,96 +693,6 @@ const AR_NAME_MAP: Record<string, string> = {
   "Imprevus / طوارئ": "الطوارئ",
   "Imprévus": "الطوارئ",
   "Imprevus": "الطوارئ",
-};
-
-const simulateDistribution = (
-  rows: DistributionRow[],
-  income: number,
-  baselineFixedItemsInput: Array<{ name: string; amount: number }> = []
-): SimulationPreview => {
-  const activeRows = rows.filter((row) => row.enabled && row.mode !== "none");
-  const fixedRows = activeRows
-    .filter((row) => isFixedMode(row.mode))
-    .sort(
-      (left, right) =>
-        (left.rank ?? 9999) - (right.rank ?? 9999)
-    );
-  const percentRows = activeRows
-    .filter((row) => isPercentMode(row.mode))
-    .sort(
-      (left, right) =>
-        (left.rank ?? 9999) - (right.rank ?? 9999)
-    );
-
-  let remaining = income;
-  const fixedItems: SimulationItem[] = [];
-  const normalizeName = (value: string) => value.trim().toLowerCase();
-  const fixedNameSet = new Set(fixedRows.map((row) => normalizeName(row.name)));
-  const baselineFixedItems = baselineFixedItemsInput
-    .filter((item) => item.amount > 0 && !fixedNameSet.has(normalizeName(item.name)));
-
-  baselineFixedItems.forEach((item) => {
-    if (remaining <= 0) {
-      fixedItems.push({ name: item.name, amount: 0 });
-      return;
-    }
-    const applied = Math.min(Math.max(0, item.amount), remaining);
-    remaining -= applied;
-    fixedItems.push({ name: item.name, amount: applied });
-  });
-
-  fixedRows.forEach((row) => {
-    if (remaining <= 0) {
-      fixedItems.push({ name: row.name, amount: 0 });
-      return;
-    }
-    const amount = Math.max(0, parseNumber(row.fixedAmount));
-    const applied = Math.min(amount, remaining);
-    remaining -= applied;
-    fixedItems.push({ name: row.name, amount: applied });
-  });
-
-  const remainderAfterFixed = Math.max(0, remaining);
-  const totalPercent = percentRows.reduce(
-    (sum, row) => sum + Math.max(0, parseNumber(row.percent)),
-    0
-  );
-
-  const percentItems: SimulationItem[] = [];
-  let remainderAfterPercent = remainderAfterFixed;
-
-  if (remainderAfterFixed > 0 && totalPercent > 0 && percentRows.length > 0) {
-    const percentPool =
-      totalPercent > 100
-        ? remainderAfterFixed
-        : (remainderAfterFixed * totalPercent) / 100;
-    let allocated = 0;
-    percentRows.forEach((row, index) => {
-      if (index === percentRows.length - 1) {
-        const lastAmount = Math.max(0, percentPool - allocated);
-        const roundedLast = Number(lastAmount.toFixed(2));
-        percentItems.push({ name: row.name, amount: roundedLast });
-        allocated += roundedLast;
-        return;
-      }
-      const rawAmount =
-        percentPool * (Math.max(0, parseNumber(row.percent)) / totalPercent);
-      const rounded = Number(rawAmount.toFixed(2));
-      allocated += rounded;
-      percentItems.push({ name: row.name, amount: rounded });
-    });
-    remainderAfterPercent = Math.max(0, remainderAfterFixed - allocated);
-  }
-
-  return {
-    income,
-    fixedItems,
-    percentItems,
-    totalFixedApplied: income - remainderAfterFixed,
-    remainderAfterFixed,
-    remainderAfterPercent,
-    totalPercent: Number(totalPercent.toFixed(2)),
-  };
 };
 
 const areSimulationItemsEqual = (left: SimulationItem[], right: SimulationItem[]) => {
@@ -1037,9 +928,19 @@ export function DistributionConfigDialog({
       .reduce((sum, row) => sum + parseNumber(row.fixedAmount), 0);
   }, [rows]);
 
-  const percentLimit = 100.01;
-  const percentTone = percentTotal > percentLimit ? "error" : "success";
-  const percentWarning = percentTotal > percentLimit;
+  // Compare on the 2-decimal rounded total, exactly like the backend's
+  // Decimal("0.01")-quantized check (_validate_saved_rows rejects > 100.00).
+  // A raw float compare either drifts past 100 on rounding noise (false block)
+  // or needs a tolerance looser than the server's (save accepted here, 400
+  // there). Rounding first removes both.
+  const percentTotalRounded = Number(percentTotal.toFixed(2));
+  const percentTone = percentTotalRounded > 100 ? "error" : "success";
+  const percentWarning = percentTotalRounded > 100;
+  // A split under 100% is valid but leaves that slice of every future income
+  // sitting in cash (the backend does not sweep it anywhere). Surface it
+  // without blocking, with a cent of slack so a rounding gap does not nag.
+  const percentShortfall =
+    percentTotalRounded > 0 && percentTotalRounded < 99.99 && !percentWarning;
   const getInitials = (value: string) => {
     const parts = value
       .split(/\s+/)
@@ -2355,6 +2256,31 @@ export function DistributionConfigDialog({
                     size="sm"
                     variant="secondary"
                     className="shrink-0 border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+                    onClick={() => {
+                      setRows((prev) => normalizePercentRows(prev));
+                      setError(null);
+                    }}
+                  >
+                    {locale === "ar" ? "ضبط ل 100%" : locale === "fr" ? "Ajuster à 100%" : "Adjust to 100%"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {effectiveWizardStep === 3 && percentShortfall ? (
+              <Alert tone="warning" className="mt-2">
+                <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span>
+                    {locale === "ar"
+                      ? `كتوزع غير ${percentTotal.toFixed(2)}% من الدخل. الباقي غادي يبقى فلكاش. ضبطو ل 100% إلا بغيتي توزع كلشي.`
+                      : locale === "fr"
+                      ? `Seuls ${percentTotal.toFixed(2)}% du revenu sont répartis. Le reste restera en cash. Ajustez à 100% pour tout répartir.`
+                      : `Only ${percentTotal.toFixed(2)}% of income is allocated. The rest stays in cash. Adjust to 100% to allocate everything.`}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0"
                     onClick={() => {
                       setRows((prev) => normalizePercentRows(prev));
                       setError(null);

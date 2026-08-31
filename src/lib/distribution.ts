@@ -1,4 +1,8 @@
 import { apiFetch } from "@/lib/api";
+import type { DistributionApplyOut } from "@/lib/types";
+import { isFixedMode } from "@/lib/distributionMode";
+
+export { isFixedMode, isPercentMode } from "@/lib/distributionMode";
 
 export type RuleMode = "fixed" | "percent";
 
@@ -35,6 +39,9 @@ export type DistributionSettings = {
 export type ApplyDistributionPayload = {
   income_amount?: string;
   use_cash_available?: boolean;
+  /** Ties the run to an income transaction — makes it idempotent per transaction. */
+  transaction_id?: string;
+  occurred_on?: string;
 };
 
 export type DistributionSavedRow = {
@@ -62,17 +69,6 @@ export type DistributionSavedConfig = {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-};
-
-export type DistributionRebalancePreview = {
-  debt_amount: string;
-  goals_amount: string;
-  morona_amount: string;
-  delta_vs_active: {
-    debt: string;
-    goals: string;
-    morona: string;
-  };
 };
 
 export type DistributionOnboardingStatus = {
@@ -119,8 +115,8 @@ export async function patchSettings(
 
 export async function applyDistribution(
   payload: ApplyDistributionPayload
-): Promise<void> {
-  await apiFetch("/distribution/apply", {
+): Promise<DistributionApplyOut> {
+  return apiFetch<DistributionApplyOut>("/distribution/apply", {
     method: "POST",
     body: payload,
   });
@@ -177,45 +173,6 @@ export async function deleteDistributionConfig(configId: string): Promise<void> 
   });
 }
 
-export async function previewDistributionRebalance(
-  configId: string,
-  payload: { cut1_pct: number; cut2_pct: number }
-): Promise<DistributionRebalancePreview> {
-  return apiFetch<DistributionRebalancePreview>(
-    `/distribution/configs/${configId}/preview-rebalance`,
-    {
-      method: "POST",
-      body: payload,
-    }
-  );
-}
-
-export async function applyDistributionNextCycle(
-  configId: string,
-  payload: { cut1_pct: number; cut2_pct: number; effective_from_period_start: string }
-): Promise<DistributionSavedConfig> {
-  return apiFetch<DistributionSavedConfig>(
-    `/distribution/configs/${configId}/apply-next-cycle`,
-    {
-      method: "POST",
-      body: payload,
-    }
-  );
-}
-
-export async function revertDistributionOnboardingBaseline(
-  configId: string,
-  payload: { effective_from_period_start: string }
-): Promise<DistributionSavedConfig> {
-  return apiFetch<DistributionSavedConfig>(
-    `/distribution/configs/${configId}/revert-onboarding-baseline`,
-    {
-      method: "POST",
-      body: payload,
-    }
-  );
-}
-
 export async function getDistributionOnboardingStatus(payload: {
   eligible_envelope_names: string[];
   eligible_envelope_ids?: string[];
@@ -227,9 +184,6 @@ export async function getDistributionOnboardingStatus(payload: {
     body: payload,
   });
 }
-
-export const isFixedMode = (mode: string): boolean => mode === "fixed" || mode === "fixed_per_period";
-export const isPercentMode = (mode: string): boolean => mode === "percent" || mode === "percent_of_income";
 
 const normalizeRuleMode = (mode: DistributionRule["mode"]): RuleMode => {
   if (isFixedMode(mode)) return "fixed";

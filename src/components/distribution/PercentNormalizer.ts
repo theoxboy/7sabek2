@@ -1,38 +1,7 @@
-import { isPercentMode } from "@/lib/distribution";
-
-type Mode = "none" | "fixed" | "percent" | "fixed_per_period" | "percent_of_income";
-
-export type PercentRow = {
-  mode: Mode;
-  percent?: string;
-};
-
-const toNumber = (value?: string) => {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const round2 = (value: number) => Math.round(value * 100) / 100;
-
-export const normalizePercentRows = <T extends PercentRow>(rows: T[]): T[] => {
-  const percentRows = rows.filter((row) => isPercentMode(row.mode));
-  const total = percentRows.reduce((sum, row) => sum + toNumber(row.percent), 0);
-  if (total <= 0 || percentRows.length === 0) return rows;
-
-  const updated = [...rows];
-  const lastIndex = percentRows.length - 1;
-  let running = 0;
-
-  percentRows.forEach((row, index) => {
-    const original = toNumber(row.percent);
-    const next =
-      index === lastIndex
-        ? round2(100 - running)
-        : round2((original / total) * 100);
-    running = round2(running + next);
-    const rowIndex = updated.indexOf(row);
-    updated[rowIndex] = { ...row, percent: next.toFixed(2) };
-  });
-
-  return updated;
-};
+// Moved to @/lib/distributionSimulation so the logic sits next to the split
+// simulation it belongs with and can be unit tested without the API layer.
+// Kept here as a re-export for existing import sites.
+export {
+  normalizePercentRows,
+  type PercentRow,
+} from "@/lib/distributionSimulation";

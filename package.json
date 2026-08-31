@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test:money-plan-engine": "node --test src/lib/moneyPlanEngine.test.mts",
+    "test:parse-amount": "node --test src/lib/parseAmount.test.mts",
+    "test:distribution-simulation": "node --test src/lib/distributionSimulation.test.mts",
+    "test": "node --test 'src/**/*.test.mts'",
     "postinstall": "node scripts/patch-radix-focus-scope.mjs"
   },
   "dependencies": {

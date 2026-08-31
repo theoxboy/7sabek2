@@ -401,6 +401,8 @@ export type SweepStatusOut = {
   period_end: string;
   income_declared: boolean;
   already_swept: boolean;
+  /** Last opportunistic auto-sweep (login / transaction) failed and has not recovered. */
+  auto_sweep_error?: boolean;
 };
 
 export type SweepBootstrapOut = {
@@ -672,6 +674,8 @@ export type DistributionApplyOut = {
   cash_after: string;
   total_distributed: string;
   warnings: string[];
+  /** True when the transaction was already distributed and this call did nothing. */
+  already_applied?: boolean;
 };
 
 export type IncomeReminderOut = {

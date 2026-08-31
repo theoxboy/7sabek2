@@ -123,6 +123,8 @@ export type DashboardCopy = {
   seeAll: string;
   sweepReady: string;
   sweepReadyDesc: string;
+  sweepAutoErrorTitle: string;
+  sweepAutoErrorDesc: string;
   sweepExecute: string;
   executing: string;
   sweepNotDue: string;
@@ -368,6 +370,8 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     seeAll: "Voir tout",
     sweepReady: "✅ Sweep prêt",
     sweepReadyDesc: "La période peut être clôturée maintenant et les soldes concernés seront traités.",
+    sweepAutoErrorTitle: "⚠️ Le sweep automatique a échoué",
+    sweepAutoErrorDesc: "La période n'a pas pu être clôturée automatiquement. Lance-le manuellement pour débloquer la répartition.",
     sweepExecute: "Exécuter le sweep",
     executing: "Exécution...",
     sweepNotDue: "🟡 Sweep : pas encore dû",
@@ -609,6 +613,8 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     seeAll: "See all",
     sweepReady: "✅ Sweep ready",
     sweepReadyDesc: "The current period can now be closed and eligible balances will be processed.",
+    sweepAutoErrorTitle: "⚠️ Automatic sweep failed",
+    sweepAutoErrorDesc: "The period could not be closed automatically. Run it manually to unblock distribution.",
     sweepExecute: "Run sweep",
     executing: "Running...",
     sweepNotDue: "🟡 Sweep: not due yet",
@@ -850,6 +856,8 @@ export const DASHBOARD_COPY: Record<FloussyLocale, DashboardCopy> = {
     seeAll: "شوف كاملين",
     sweepReady: "✅ تحويل الفائض واجد",
     sweepReadyDesc: "دابا تقدر تسالي هاد الفترة ويتدار التعامل مع الأرصدة المعنية.",
+    sweepAutoErrorTitle: "⚠️ تحويل الفائض الأوتوماتيكي فشل",
+    sweepAutoErrorDesc: "الفترة ما تسالاتش أوتوماتيكياً. نفّذو بيدك باش تفكّ التوزيع.",
     sweepExecute: "نفّذ تحويل الفائض",
     executing: "كيتنفذ...",
     sweepNotDue: "🟡 تحويل الفائض: مازال ما وصلش الوقت ديالو",

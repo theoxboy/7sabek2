@@ -430,7 +430,9 @@ export default function BetaNotificationsPage() {
           (tx) =>
             tx.type === "income" &&
             tx.occurred_on >= currentPeriod.start &&
-            tx.occurred_on <= currentPeriod.end &&
+            // period end is the exclusive boundary (matches the backend's
+            // `occurred_on < period_end`); a tx on that date belongs to N+1.
+            tx.occurred_on < currentPeriod.end &&
             isSalaryLikeTransaction(
               tx,
               categoryNameById.get(tx.category_id),

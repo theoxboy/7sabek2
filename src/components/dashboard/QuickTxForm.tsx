@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/Label";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api";
-import { applyDistribution, getSettings } from "@/lib/distribution";
+import { applyDistribution } from "@/lib/distribution";
+import { normalizeDigits, parseAmountInput } from "@/lib/parseAmount";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/Dialog";
 import { isInternalIncomeCategory, localizeCategoryName, getCanonicalCategoryKey } from "@/lib/categoryCatalog";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
@@ -113,32 +114,6 @@ type QuickTransactionDraft = {
 
 type QuickTxFlowStep = "form" | "income_preview";
 
-const EASTERN_ARABIC_DIGITS: Record<string, string> = {
-  "٠": "0",
-  "١": "1",
-  "٢": "2",
-  "٣": "3",
-  "٤": "4",
-  "٥": "5",
-  "٦": "6",
-  "٧": "7",
-  "٨": "8",
-  "٩": "9",
-  "۰": "0",
-  "۱": "1",
-  "۲": "2",
-  "۳": "3",
-  "۴": "4",
-  "۵": "5",
-  "۶": "6",
-  "۷": "7",
-  "۸": "8",
-  "۹": "9",
-};
-
-const normalizeDigits = (value: string) =>
-  value.replace(/[٠-٩۰-۹]/g, (char) => EASTERN_ARABIC_DIGITS[char] ?? char);
-
 const getNextMonthDatePreview = (dateStr: string): string => {
   try {
     const d = new Date(dateStr);
@@ -193,52 +168,6 @@ const computeCalendarMonthBounds = (anchorStr: string, occurredStr: string): [st
   } catch {
     return ["", ""];
   }
-};
-
-const parseAmountInput = (value: string): number | null => {
-  const digitsNormalized = normalizeDigits(value);
-  const cleaned = digitsNormalized
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/[^\d,.-]/g, "");
-  if (!cleaned) return null;
-
-  const commaCount = (cleaned.match(/,/g) ?? []).length;
-  const dotCount = (cleaned.match(/\./g) ?? []).length;
-  const lastComma = cleaned.lastIndexOf(",");
-  const lastDot = cleaned.lastIndexOf(".");
-
-  let normalized = cleaned;
-  if (commaCount > 0 && dotCount > 0) {
-    const decimalSep = lastComma > lastDot ? "," : ".";
-    const thousandSep = decimalSep === "," ? "." : ",";
-    normalized = normalized.split(thousandSep).join("");
-    normalized = normalized.replace(decimalSep, ".");
-  } else if (commaCount > 0) {
-    if (commaCount > 1) {
-      normalized = normalized.split(",").join("");
-    } else {
-      const decimals = cleaned.length - lastComma - 1;
-      const shouldTreatAsThousands = decimals === 3;
-      normalized = shouldTreatAsThousands
-        ? normalized.replace(",", "")
-        : normalized.replace(",", ".");
-    }
-  } else if (dotCount > 0) {
-    if (dotCount > 1) {
-      normalized = normalized.split(".").join("");
-    } else {
-      const decimals = cleaned.length - lastDot - 1;
-      const shouldTreatAsThousands = decimals === 3;
-      normalized = shouldTreatAsThousands
-        ? normalized.replace(".", "")
-        : normalized;
-    }
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return parsed;
 };
 
 const getLocalTodayISO = () => {
@@ -1323,6 +1252,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
 
     try {
       const editingId = bootstrapOptions?.editingId;
+      let createdTxId: string | null = null;
       if (editingId) {
         await apiFetch<TransactionOut>(`/transactions/${editingId}`, {
           method: "PATCH",
@@ -1335,7 +1265,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
           },
         });
       } else {
-        await apiFetch<TransactionOut>("/transactions", {
+        const created = await apiFetch<TransactionOut>("/transactions", {
           method: "POST",
           body: {
             type: quickTxDraft.type,
@@ -1346,6 +1276,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
             permanent_shift: isEarlyPaydayTriggered ? permanentShift : undefined,
           },
         });
+        createdTxId = created?.id ?? null;
       }
       if (quickTxDraft.type === "income" && quickTxReminderIdsToMark.length > 0) {
         await Promise.all(
@@ -1358,20 +1289,23 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
         );
       }
       // The preview step promises the user the split it just showed them, so
-      // apply it now that the income itself is recorded. Skipped when the
-      // account has auto-distribution enabled, because the server applies it
-      // on its own there and running it here too would distribute the same
-      // income a second time.
+      // apply it now that the income is recorded. This is idempotent per
+      // transaction: if the account auto-distributes on the server, this call
+      // matches the existing run and does nothing — no flag check needed.
       let distributionError: string | null = null;
-      if (quickTxDraft.type === "income" && !editingId && quickTxDistributionPreview) {
+      let distributionWarnings: string[] = [];
+      if (
+        quickTxDraft.type === "income" &&
+        !editingId &&
+        createdTxId &&
+        quickTxDistributionPreview
+      ) {
         try {
-          const settings = await getSettings();
-          if (!settings.auto_distribution_enabled) {
-            await applyDistribution({
-              income_amount: amountVal.toFixed(2),
-              use_cash_available: false,
-            });
-          }
+          const applyResult = await applyDistribution({
+            transaction_id: createdTxId,
+            use_cash_available: false,
+          });
+          distributionWarnings = applyResult.warnings ?? [];
         } catch (err) {
           distributionError = err instanceof Error ? err.message : String(err);
         }
@@ -1395,6 +1329,20 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
               : "Applique la répartition depuis la page de répartition. Détail : ") +
             distributionError,
           variant: "danger",
+        });
+      } else if (distributionWarnings.length > 0) {
+        // Income + split both went through, but the server capped or adjusted
+        // something (cash below the declared income, % over 100…). Say so
+        // instead of a plain success that hides it.
+        toast({
+          title:
+            locale === "ar"
+              ? "تسجل الدخل والتوزيع، مع بعض الملاحظات"
+              : locale === "en"
+              ? "Income and split saved, with some notes"
+              : "Revenu et répartition enregistrés, avec des remarques",
+          description: distributionWarnings.join(" · "),
+          variant: "default",
         });
       } else {
         toast({

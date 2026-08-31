@@ -15695,6 +15695,10 @@ export function BetaOnboardingV2PageContent({
           rows: rowsPayload,
           scope_hash: computeDistributionScopeHash(),
         });
+        // POST /distribution/configs always activates the saved config server-side
+        // (marks it is_active, syncs user.auto_distribution_enabled, and rewrites
+        // the effective distribution_rules), so saved.is_active is authoritative
+        // here — no separate activate call needed.
         setActiveDistributionConfigId(saved.id);
         distributionConfigAliasRef.current[config.id] = saved.id;
         try {

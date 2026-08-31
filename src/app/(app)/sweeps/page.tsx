@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
-import type { IncomeReminderOut, SweepPreviewItem } from "@/lib/types";
+import type { IncomeReminderOut } from "@/lib/types";
+import { useQuickTx } from "@/state/QuickTxContext";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -214,9 +215,6 @@ const SWEEPS_COPY: Record<
   },
 };
 
-const formatMoney = (value: string | number) =>
-  typeof value === "number" ? value.toFixed(2) : value;
-
 const formatFrequency = (
   value: IncomeReminderOut["frequency"],
   locale: FloussyLocale
@@ -256,13 +254,7 @@ export default function SweepsPage() {
   const [reminders, setReminders] = useState<IncomeReminderOut[]>([]);
   const [reminderSaving, setReminderSaving] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
-  const [sweepResult, setSweepResult] = useState<{
-    asOf: string;
-    periodsSwept: number;
-    sweepsCreated: number;
-    items: SweepPreviewItem[];
-  } | null>(null);
+  const { openQuickTx } = useQuickTx();
   const [reminderForm, setReminderForm] = useState({
     name: "",
     frequency: "monthly",
@@ -369,6 +361,18 @@ export default function SweepsPage() {
     loadData();
   }, [copy.unknownError]);
 
+  // The quick income dialog (opened from "Déclaré") marks the reminder on
+  // submit; refresh the list when it does.
+  useEffect(() => {
+    const refresh = () => {
+      void loadData();
+    };
+    window.addEventListener("floussy:data-updated", refresh);
+    return () => window.removeEventListener("floussy:data-updated", refresh);
+    // loadData is a stable closure; the listener only needs to be attached once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleReminderChange = (
     field: keyof typeof reminderForm,
     value: string
@@ -448,56 +452,14 @@ export default function SweepsPage() {
     }
   };
 
-  const handleMarkDeclared = async (reminder: IncomeReminderOut) => {
+  // "Marking a reminder declared" must actually record the income, not just
+  // flip a flag: the real income entry is what runs distribution and lets the
+  // auto-sweep close the period. Open the same quick income dialog the
+  // dashboard uses, passing this reminder so it is marked on submit.
+  const handleMarkDeclared = (reminder: IncomeReminderOut) => {
     setError(null);
     setSuccess(null);
-    setReminderSaving(true);
-    const today = new Date().toISOString().slice(0, 10);
-    const isDue =
-      Boolean(reminder.next_due_on) && reminder.next_due_on! <= today;
-    const notDeclared =
-      !reminder.last_declared_on ||
-      (reminder.next_due_on && reminder.last_declared_on < reminder.next_due_on);
-    const shouldRunSweep = Boolean(reminder.next_due_on) && isDue && notDeclared;
-    try {
-      await apiFetch<IncomeReminderOut>(
-        `/income-reminders/${reminder.id}/mark-declared`,
-        { method: "POST" }
-      );
-      if (shouldRunSweep && reminder.next_due_on) {
-        let previewItems: SweepPreviewItem[] = [];
-        try {
-          previewItems = await apiFetch<SweepPreviewItem[]>("/sweeps/preview", {
-            method: "POST",
-            body: { as_of: reminder.next_due_on },
-          });
-        } catch {
-          previewItems = [];
-        }
-        const result = await apiFetch<{
-          periods_swept: number;
-          sweeps_created: number;
-        }>("/sweeps", {
-          method: "POST",
-          body: { as_of: reminder.next_due_on },
-        });
-        setSweepResult({
-          asOf: reminder.next_due_on,
-          periodsSwept: result.periods_swept,
-          sweepsCreated: result.sweeps_created,
-          items: previewItems,
-        });
-        setSweepDialogOpen(true);
-      } else {
-        setSuccess(copy.declaredSuccess);
-      }
-      await loadData();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.unknownError;
-      setError(message);
-    } finally {
-      setReminderSaving(false);
-    }
+    openQuickTx("income", { reminderIdsToMark: [reminder.id] });
   };
 
   const handleDeleteReminder = async (reminderId: string) => {
@@ -544,55 +506,6 @@ export default function SweepsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={sweepDialogOpen} onOpenChange={setSweepDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{copy.executedTitle}</DialogTitle>
-            <DialogDescription>{copy.executedDescription}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm text-[var(--ink)]">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs text-[var(--muted)]">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone="accent">{copy.date} : {sweepResult?.asOf ?? "—"}</Badge>
-                <Badge tone="muted">
-                  {copy.periods} : {sweepResult?.periodsSwept ?? 0}
-                </Badge>
-                <Badge tone="muted">
-                  {copy.transfers} : {sweepResult?.sweepsCreated ?? 0}
-                </Badge>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-              <p className="text-xs font-medium text-[var(--ink)]">
-                {copy.effects}
-              </p>
-              <div className="mt-2 max-h-48 space-y-2 overflow-y-auto text-xs text-[var(--muted)]">
-                {sweepResult?.items?.length ? (
-                  sweepResult.items.map((item) => (
-                    <div
-                      key={`${item.from_envelope_id}-${item.to_envelope_id}`}
-                      className="flex items-center justify-between"
-                    >
-                      <span>
-                        {item.from_envelope_name} → {item.to_envelope_name}
-                      </span>
-                      <span>{formatMoney(item.amount)}</span>
-                    </div>
-                  ))
-                ) : (
-                  <span>{copy.noTransfer}</span>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="mt-4">
-            <Button variant="secondary" onClick={() => setSweepDialogOpen(false)}>
-              {copy.close}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {loading ? <p className="text-sm text-[var(--muted)]">{copy.loading}</p> : null}
       {notificationIssueGuidance ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
