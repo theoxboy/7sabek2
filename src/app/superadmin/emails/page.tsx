@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { API_BASE, apiFetch } from "@/lib/api";
+import { SafeHtmlFrame } from "@/components/ui/SafeHtmlFrame";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type {
   EmailCampaignCreateRequest,
@@ -412,7 +413,7 @@ export default function SuperadminEmailsPage() {
 
   const previewHtml = useMemo(() => {
     const isRtl = payload.language === "darija";
-    const dir = isRtl ? "rtl" : "ltr";
+    const dir: "rtl" | "ltr" = isRtl ? "rtl" : "ltr";
     const align = isRtl ? "right" : "left";
     const escapedBrand = design.brand_name
       .replaceAll("&", "&amp;")
@@ -421,7 +422,8 @@ export default function SuperadminEmailsPage() {
     const brandRender = `<bdi dir=\"ltr\" style=\"unicode-bidi:isolate;\">${escapedBrand}</bdi>`;
     const escapedBody = payload.body.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\n", "<br/>");
     return {
-      __html: `<div dir="${dir}" style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;text-align:${align};"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${brandRender}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "معاينة الموضوع"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "معاينة النص"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "فتح"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
+      dir,
+      html: `<div dir="${dir}" style="font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff;max-width:620px;text-align:${align};"><div style="color:${design.primary_color};font-size:20px;font-weight:700;margin-bottom:8px;">${brandRender}</div><div style="margin-bottom:8px;font-size:18px;font-weight:600;">${payload.subject || "معاينة الموضوع"}</div><div style="line-height:1.6;color:#1e293b;">${escapedBody || "معاينة النص"}</div>${payload.cta_url ? `<a href="${payload.cta_url}" style="display:inline-block;margin-top:12px;padding:10px 14px;background:${design.button_color};color:#fff;text-decoration:none;border-radius:8px;">${payload.cta_label || "فتح"}</a>` : ""}<hr style="margin:14px 0;border:none;border-top:1px solid #e2e8f0;"/><div style="font-size:12px;color:#64748b;">${design.footer_text}</div><div style="font-size:12px;color:#64748b;">${design.support_email}</div></div>`,
     };
   }, [design, payload]);
 
@@ -1013,7 +1015,7 @@ export default function SuperadminEmailsPage() {
                   <div className="space-y-2 text-sm">
                     <p>المستافد: {userPreview.display_name} ({userPreview.email})</p>
                     <p>اللغة: {userPreview.detected_language}</p>
-                    <div dangerouslySetInnerHTML={{ __html: userPreview.body_html }} />
+                    <SafeHtmlFrame html={userPreview.body_html} title="معاينة الإيميل" />
                   </div>
                 ) : (
                   <p className="text-sm text-[var(--muted)]">اختار مستخدم، عاين الرسالة، ومن بعد صيفطها بطريقة آمنة.</p>
@@ -1236,7 +1238,7 @@ export default function SuperadminEmailsPage() {
                     <p>{previewEmail.email} · {previewEmail.detected_language}</p>
                     <p>{previewEmail.subject}</p>
                     <div className="mx-auto w-full max-w-[420px] overflow-hidden rounded border border-[var(--border)] bg-white p-2">
-                      <div dangerouslySetInnerHTML={{ __html: previewEmail.body_html }} />
+                      <SafeHtmlFrame html={previewEmail.body_html} title="معاينة الإيميل" />
                     </div>
                   </div>
                 ) : <p className="text-sm text-[var(--muted)]">اختار مستافد ومن بعد كليك على شوف الإيميل.</p>}
@@ -1523,7 +1525,7 @@ export default function SuperadminEmailsPage() {
               </Card>
               <Card className="p-4">
                 <p className="mb-2 text-sm font-medium">عاين النتيجة</p>
-                <div dangerouslySetInnerHTML={previewHtml} />
+                <SafeHtmlFrame html={previewHtml.html} dir={previewHtml.dir} title="معاينة التصميم" />
               </Card>
             </div>
           </TabsContent>

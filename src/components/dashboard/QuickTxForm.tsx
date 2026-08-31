@@ -559,8 +559,8 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
   useEffect(() => {
     if (quickTxMode !== "magic" || !nlpPrediction) return;
 
-    let amountVal = nlpPrediction.amount !== null ? String(nlpPrediction.amount) : "";
-    let dateVal = nlpPrediction.date || getLocalTodayISO();
+    const amountVal = nlpPrediction.amount !== null ? String(nlpPrediction.amount) : "";
+    const dateVal = nlpPrediction.date || getLocalTodayISO();
     
     setQuickTxDraft((prev) => ({
       ...prev,

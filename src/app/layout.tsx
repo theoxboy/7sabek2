@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Cairo, Geist, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/Toaster";
@@ -56,6 +56,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const serverLocale = readLocaleCookie(cookieStore.toString()) ?? "fr";
   const serverDir = serverLocale === "en" ? "ltr" : getLocaleDirection(serverLocale);
 
@@ -73,6 +74,7 @@ export default async function RootLayout({
           light-then-dark flash on every load.
         */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){try{if(window.localStorage.getItem("floussy_theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}}catch(e){}})();`,
           }}

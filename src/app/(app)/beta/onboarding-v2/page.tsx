@@ -15564,7 +15564,6 @@ export function BetaOnboardingV2PageContent({
             const activeConfigRows = Array.isArray(status.active_config?.rows)
               ? status.active_config.rows
               : [];
-            // eslint-disable-next-line no-console
             console.debug("[khatat-lflous][distribution-status]", {
               visibleTargetEnvelopeNames: distributionTargetItems.map((item) => item.name),
               distributionEffectiveEligibleEnvelopeNames: effectiveEligibleNames,
