@@ -1291,7 +1291,7 @@ function DashboardContent() {
           })()}
 
           <DialogFooter className="mt-4">
-            <Button onClick={() => setSweepInfoOpen(false)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-2 text-sm shadow">
+            <Button onClick={() => setSweepInfoOpen(false)} className="w-full bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold rounded-xl py-2 text-sm shadow">
               {locale === "ar" ? "فهمت" : locale === "fr" ? "Compris" : "Understood"}
             </Button>
           </DialogFooter>

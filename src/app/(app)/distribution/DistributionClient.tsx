@@ -126,7 +126,7 @@ export default function DistributionClient() {
           ref={incomeRef}
           type="button"
           onClick={() => openQuickTx("income")}
-          className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md font-semibold"
+          className="rounded-2xl bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white shadow-md font-semibold"
         >
           {buttonLabel}
         </Button>

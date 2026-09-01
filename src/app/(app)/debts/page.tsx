@@ -508,7 +508,7 @@ export default function DebtsPage() {
               resetForm();
               setIsAddOpen(true);
             }}
-            className="self-start md:self-auto gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-950/20 rounded-xl px-5 py-2.5"
+            className="self-start md:self-auto gap-2 bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold shadow-lg shadow-emerald-950/20 rounded-xl px-5 py-2.5"
           >
             <Plus className="h-4 w-4" />
             <span>{copy.addDebt}</span>
@@ -605,7 +605,7 @@ export default function DebtsPage() {
                 resetForm();
                 setIsAddOpen(true);
               }}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl"
+              className="gap-2 bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold rounded-xl"
             >
               <Plus className="h-4 w-4" />
               <span>{copy.addDebt}</span>
@@ -724,7 +724,7 @@ export default function DebtsPage() {
                           setRepayingDebt(debt);
                           setRepayAmount("");
                         }}
-                        className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3"
+                        className="h-8 rounded-lg bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white text-xs font-semibold px-3"
                       >
                         {copy.repay}
                       </Button>
@@ -904,7 +904,7 @@ export default function DebtsPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                className="rounded-xl bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold"
               >
                 {copy.save}
               </Button>
@@ -965,7 +965,7 @@ export default function DebtsPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                className="rounded-xl bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold"
               >
                 {copy.confirm}
               </Button>
@@ -1040,7 +1040,7 @@ export default function DebtsPage() {
                   rows={4}
                   value={waCustomMessage}
                   onChange={(e) => setWaCustomMessage(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none"
                 />
               </div>
 
@@ -1070,7 +1070,7 @@ export default function DebtsPage() {
                     window.open(url, "_blank");
                     setWhatsAppDebt(null);
                   }}
-                  className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  className="gap-2 rounded-xl bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold"
                 >
                   <Send className="h-4 w-4" />
                   <span>{copy.openWhatsApp}</span>

@@ -35,48 +35,6 @@ interface NotificationItem {
   important?: boolean;
 }
 
-// Initial Mock Notifications
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    type: "security",
-    title: "Nouvelle connexion détectée",
-    description:
-      "Connexion ShieldKey réussie depuis un appareil iPhone - Casablanca, Maroc.",
-    time: "Il y a 3 min",
-    read: false,
-    important: true,
-  },
-  {
-    id: "notif-2",
-    type: "budget",
-    title: "Routine budget en attente",
-    description:
-      'Il vous reste 2 minutes aujourd\'hui pour valider votre routine "7sabek Cash Split".',
-    time: "Il y a 15 min",
-    read: false,
-    important: true,
-  },
-  {
-    id: "notif-3",
-    type: "savings",
-    title: "Objectif Épargne presque atteint !",
-    description:
-      "Félicitations Youssef ! Votre cagnotte est financée à 85%. Plus que 150 DH.",
-    time: "Il y a 2 heures",
-    read: true,
-  },
-  {
-    id: "notif-4",
-    type: "system",
-    title: "Mise à jour de sécurité installée",
-    description:
-      "La version stable v2.4.0 de ShieldKey a été déployée avec succès (chiffrement de bout en bout).",
-    time: "Hier",
-    read: true,
-  },
-];
-
 // Audio Synthesizer for high-fidelity interactive feedback
 const playSound = (
   type: "click" | "success" | "error" | "bell",

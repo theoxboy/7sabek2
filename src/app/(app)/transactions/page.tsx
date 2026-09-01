@@ -480,7 +480,7 @@ function TransactionsContent() {
           <Button
             type="button"
             onClick={() => setHistoryOpen(true)}
-            className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white px-6 font-semibold"
+            className="rounded-2xl bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white px-6 font-semibold"
           >
             {copy.openHistory}
           </Button>
