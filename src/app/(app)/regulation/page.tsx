@@ -487,7 +487,7 @@ export default function RegulationPage() {
                 <CheckCircle2 className="h-6 w-6" />
               </span>
               <div>
-                <h1 className="text-2xl font-semibold text-[var(--ink)]">
+                <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
                   {copy.allGoodTitle}
                 </h1>
                 <p className="text-sm text-[var(--muted)]">
@@ -539,7 +539,7 @@ export default function RegulationPage() {
         </div>
         <div className="mt-5 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold text-[var(--ink)] dark:text-white">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)] dark:text-white">
               {copy.heroTitle}
             </h1>
             <p className="text-sm text-[var(--muted)] dark:text-[var(--ink)]">

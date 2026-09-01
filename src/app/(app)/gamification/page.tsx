@@ -375,7 +375,7 @@ export default function GamificationPage() {
               <Sparkles className="h-4 w-4 text-cyan-500" />
               <Flame className="h-4 w-4 text-orange-500" />
             </div>
-            <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)] leading-tight">
               {copy.title}
             </h1>
             <div className="flex flex-wrap items-center gap-2">

@@ -497,7 +497,7 @@ export default function DebtsPage() {
               <HandCoins className="h-3.5 w-3.5" />
               <span>{copy.heroTitle}</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--ink)]">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
               {copy.heroTitle}
             </h1>
             <p className="text-sm text-[var(--muted)] max-w-xl">{copy.heroDescription}</p>

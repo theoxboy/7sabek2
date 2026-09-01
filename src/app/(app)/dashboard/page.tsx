@@ -1461,7 +1461,7 @@ function DashboardContent() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[var(--border)] dark:border-slate-800">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h1 className={`${titleClass} text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--ink)]`}>
+                  <h1 className={`${titleClass} text-2xl font-semibold tracking-tight text-[var(--ink)]`}>
                     {copy.title}
                   </h1>
                   {isKpiStartState && (
