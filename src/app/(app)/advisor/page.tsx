@@ -54,7 +54,7 @@ export default function AdvisorPage() {
 
   const content = useMemo(() => {
     if (context.state === "loading_preview" || context.state === "idle_init") {
-      return <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] p-6">Chargement du preview Advisor...</div>;
+      return <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">Chargement du preview Advisor...</div>;
     }
 
     if (context.state === "server_error") {

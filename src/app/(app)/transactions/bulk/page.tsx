@@ -947,7 +947,7 @@ export default function BulkTransactionsPage() {
 
   return (
     <div dir={dir} className="relative flex flex-col gap-8">
-      <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-gradient-to-br from-[var(--surface)] via-[var(--surface)] to-emerald-50/70 p-6 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.35)]">
+      <div className="relative overflow-hidden rounded-[32px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface)] to-emerald-50/70 p-6 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.35)]">
         <div className="pointer-events-none absolute -left-10 top-0 h-32 w-32 rounded-full bg-emerald-200/40 blur-3xl" />
         <div className="pointer-events-none absolute -right-8 bottom-0 h-28 w-28 rounded-full bg-cyan-200/35 blur-3xl" />
         <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
@@ -958,7 +958,7 @@ export default function BulkTransactionsPage() {
             </div>
             <PageHeader title={copy.title} subtitle={copy.subtitle} />
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur">
+              <div className="rounded-3xl border border-[var(--border)]/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                   {copy.detectedLanguage}
                 </p>
@@ -966,7 +966,7 @@ export default function BulkTransactionsPage() {
                   {copy.currentLanguage}
                 </p>
               </div>
-              <div className="rounded-3xl border border-slate-200/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur">
+              <div className="rounded-3xl border border-[var(--border)]/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                   {copy.dateFormat}
                 </p>
@@ -974,7 +974,7 @@ export default function BulkTransactionsPage() {
                   {dateFormat === "DMY" ? copy.dateFormatDMY : copy.dateFormatMDY}
                 </p>
               </div>
-              <div className="rounded-3xl border border-slate-200/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur">
+              <div className="rounded-3xl border border-[var(--border)]/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                   {copy.smartTips}
                 </p>
@@ -985,7 +985,7 @@ export default function BulkTransactionsPage() {
             </div>
           </div>
           <div className="flex items-center justify-start xl:justify-end">
-            <Button asChild variant="secondary" className="rounded-2xl border-white/80 bg-[var(--surface)]/90 shadow-sm">
+            <Button asChild variant="secondary" className="rounded-2xl border-[var(--border)] bg-[var(--surface)]/90 shadow-sm">
               <Link href="/transactions">{copy.back}</Link>
             </Button>
           </div>
@@ -1008,7 +1008,7 @@ export default function BulkTransactionsPage() {
       <Section
         title={copy.smartImport}
         subtitle={copy.smartImportDesc}
-        className="border border-white/80 bg-[var(--surface)]/75 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.28)] backdrop-blur"
+        className="border border-[var(--border)] bg-[var(--surface)]/75 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.28)] backdrop-blur"
         actions={
           <Button
             type="button"
@@ -1087,7 +1087,7 @@ export default function BulkTransactionsPage() {
           </div>
 
           <div className="grid gap-4">
-            <Card className="rounded-[26px] border border-slate-200/80 bg-[var(--surface)] p-5 shadow-sm">
+            <Card className="rounded-[26px] border border-[var(--border)]/80 bg-[var(--surface)] p-5 shadow-sm">
               <div className="flex items-center gap-2 text-[var(--ink)]">
                 <Languages className="h-4 w-4 text-emerald-600" />
                 <p className="text-sm font-semibold">{copy.smartTips}</p>
@@ -1096,7 +1096,7 @@ export default function BulkTransactionsPage() {
                 {copy.smartTipsList.map((item, index) => (
                   <div
                     key={`${item}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-[var(--muted)]"
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/70 px-4 py-3 text-sm text-[var(--muted)]"
                   >
                     {item}
                   </div>
@@ -1110,7 +1110,7 @@ export default function BulkTransactionsPage() {
       <Section
         title={copy.tableTitle}
         subtitle={copy.tableSubtitle}
-        className="border border-white/80 bg-[var(--surface)]/75 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.28)] backdrop-blur"
+        className="border border-[var(--border)] bg-[var(--surface)]/75 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.28)] backdrop-blur"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="secondary" size="sm" onClick={() => handleAddRows(3)}>

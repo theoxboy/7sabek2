@@ -691,7 +691,7 @@ export default function BetaChatPage() {
                   void handleClearChat();
                 }
               }}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-[var(--surface)] hover:bg-rose-500 hover:text-white border border-[var(--border)]/50 text-rose-400 hover:border-rose-300 transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-black shadow-3xs"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-[var(--surface)] hover:bg-rose-500 hover:text-[var(--ink)] border border-[var(--border)]/50 text-rose-400 hover:border-rose-300 transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-black shadow-3xs"
               title={copy.deleteConversation}
             >
               <Trash2 className="w-3.5 h-3.5 shrink-0" />

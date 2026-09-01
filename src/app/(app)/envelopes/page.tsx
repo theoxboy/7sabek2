@@ -1883,8 +1883,8 @@ export default function EnvelopesPage() {
         >
           <span className="h-7 w-5 rounded-[2px] border border-[color:var(--envelope-accent)]/35 bg-[var(--envelope-panel-strong)]" />
         </div>
-        <div className="pointer-events-none absolute left-1/2 top-[104px] h-12 w-12 -translate-x-1/2 rounded-full border border-white/60 bg-[var(--envelope-accent)]/90 shadow-lg shadow-black/10">
-          <div className="absolute inset-2 rounded-full border border-white/45" />
+        <div className="pointer-events-none absolute left-1/2 top-[104px] h-12 w-12 -translate-x-1/2 rounded-full border border-[var(--border)] bg-[var(--envelope-accent)]/90 shadow-lg shadow-black/10">
+          <div className="absolute inset-2 rounded-full border border-[var(--border)]" />
         </div>
         <div className="relative z-10 flex min-h-[292px] flex-col justify-between p-5 pt-20">
           <div className="space-y-4">
@@ -2140,7 +2140,7 @@ export default function EnvelopesPage() {
               )}
             </Badge>
           </div>
-          <div className="mt-3 rounded-xl border border-white/60 bg-white/80 px-3 py-2 shadow-sm">
+          <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
             <p className="text-xs text-[var(--muted)]">
               {locale === "ar" ? "الرصيد الحالي" : locale === "en" ? "Current balance" : "Solde actuel"}
             </p>
@@ -2157,7 +2157,7 @@ export default function EnvelopesPage() {
               </p>
             ) : null}
           </div>
-          <div className="mt-3 rounded-xl border border-white/60 bg-white/80 px-3 py-2 shadow-sm">
+          <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className={cn("font-semibold", tone.title)}>
                 {isGoalKind

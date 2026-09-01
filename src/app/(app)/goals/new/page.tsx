@@ -227,11 +227,11 @@ export default function NewGoalPage() {
   };
 
   const glassCard =
-    "rounded-3xl border border-[var(--border)] bg-[var(--surface)] dark:border-white/10 dark:bg-[var(--surface)]/10 p-6 backdrop-blur-xl shadow-[var(--shadow-soft)] text-[var(--ink)] dark:text-white";
+    "rounded-3xl border border-[var(--border)] bg-[var(--surface)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 p-6 backdrop-blur-xl shadow-[var(--shadow-soft)] text-[var(--ink)] dark:text-white";
   const inputDark =
-    "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] placeholder:text-[var(--muted)] dark:border-white/10 dark:bg-[var(--surface)]/10 dark:text-white dark:placeholder:text-white/50 focus-visible:ring-cyan-400 focus-visible:ring-offset-0";
+    "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] placeholder:text-[var(--muted)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-white dark:placeholder:text-[var(--muted)] focus-visible:ring-cyan-400 focus-visible:ring-offset-0";
   const selectDark =
-    "rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] dark:border-white/10 dark:bg-[var(--surface)]/10 dark:text-white px-3 py-2 text-sm";
+    "rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-white px-3 py-2 text-sm";
 
   return (
     <div
@@ -246,13 +246,13 @@ export default function NewGoalPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/goals"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink)] shadow-sm backdrop-blur hover:bg-[var(--surface-2)] dark:border-white/15 dark:bg-[var(--surface)]/10 dark:text-white/90"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink)] shadow-sm backdrop-blur hover:bg-[var(--surface-2)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-[var(--ink)]"
             title={copy.back}
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">{copy.back}</span>
           </Link>
-          <div className="flex items-center gap-2 text-xs text-[var(--muted)] dark:text-white/60">
+          <div className="flex items-center gap-2 text-xs text-[var(--muted)] dark:text-[var(--muted)]">
             <Target className="h-4 w-4 text-emerald-500 dark:text-emerald-300" />
             <span className="sr-only">{copy.newGoal}</span>
           </div>
@@ -275,24 +275,24 @@ export default function NewGoalPage() {
             </div>
             <div>
               <p className="text-sm font-semibold">{copy.title}</p>
-              <p className="text-xs text-white/60">{copy.subtitle}</p>
+              <p className="text-xs text-[var(--muted)]">{copy.subtitle}</p>
             </div>
           </div>
 
           {loading ? (
-            <p className="text-sm text-white/60">{copy.loading}</p>
+            <p className="text-sm text-[var(--muted)]">{copy.loading}</p>
           ) : null}
           {issue ? (
             <IssueAlert
               issue={issue}
               tone="error"
-              className="mb-4 border border-rose-500/30 bg-rose-500/10 text-rose-100 [&_button]:border-white/20 [&_button]:bg-[var(--surface)]/10 [&_button]:text-rose-50"
+              className="mb-4 border border-rose-500/30 bg-rose-500/10 text-rose-100 [&_button]:border-[var(--border)] [&_button]:bg-[var(--surface)]/10 [&_button]:text-rose-50"
             />
           ) : null}
 
           <form id="goal-create" onSubmit={handleCreate} className="grid gap-3">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {copy.name}
               </span>
               <Input
@@ -303,7 +303,7 @@ export default function NewGoalPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {copy.type}
               </span>
               <select
@@ -318,7 +318,7 @@ export default function NewGoalPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {copy.amount}
               </span>
               <Input
@@ -329,7 +329,7 @@ export default function NewGoalPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {copy.date}
               </span>
               <Input
@@ -340,7 +340,7 @@ export default function NewGoalPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {copy.contribution}
               </span>
               <Input
@@ -350,14 +350,14 @@ export default function NewGoalPage() {
                 placeholder={suggestedContribution || copy.autoPlaceholder}
               />
               {suggestedContribution ? (
-                <span className="text-xs text-white/50">
+                <span className="text-xs text-[var(--muted)]">
                   {copy.suggestion}: {suggestedContribution}
                 </span>
               ) : null}
             </label>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+                <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                   {copy.auto}
                 </span>
                 <select
@@ -370,7 +370,7 @@ export default function NewGoalPage() {
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-xs uppercase tracking-[0.2em] text-white/60">
+                <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                   {copy.priority}
                 </span>
                 <select

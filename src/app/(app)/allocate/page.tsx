@@ -142,14 +142,14 @@ export default function AllocatePage() {
     <div className="flex flex-col gap-8" dir={dir}>
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">{copy.title}</h1>
-        <p className="text-sm text-zinc-600">{copy.subtitle}</p>
+        <p className="text-sm text-[var(--muted)]">{copy.subtitle}</p>
       </header>
 
-      {loading ? <p className="text-sm text-zinc-600">{copy.loading}</p> : null}
+      {loading ? <p className="text-sm text-[var(--muted)]">{copy.loading}</p> : null}
       {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 
       <section className="grid gap-6 md:grid-cols-2">
-        <form onSubmit={handleSubmit} className="rounded-lg border border-zinc-200 bg-[var(--surface)] p-4">
+        <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
           <h2 className="text-lg font-semibold">{copy.allocation}</h2>
           <div className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1">
@@ -157,7 +157,7 @@ export default function AllocatePage() {
               <select
                 value={targetEnvelopeId}
                 onChange={(event) => setTargetEnvelopeId(event.target.value)}
-                className="rounded-md border border-zinc-300 px-3 py-2"
+                className="rounded-md border border-[var(--border)] px-3 py-2"
                 required
               >
                 <option value="" disabled>{copy.selectEnvelope}</option>
@@ -173,7 +173,7 @@ export default function AllocatePage() {
                 required
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
-                className="rounded-md border border-zinc-300 px-3 py-2"
+                className="rounded-md border border-[var(--border)] px-3 py-2"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -183,7 +183,7 @@ export default function AllocatePage() {
                 required
                 value={occurredOn}
                 onChange={(event) => setOccurredOn(event.target.value)}
-                className="rounded-md border border-zinc-300 px-3 py-2"
+                className="rounded-md border border-[var(--border)] px-3 py-2"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -192,7 +192,7 @@ export default function AllocatePage() {
                 type="text"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="rounded-md border border-zinc-300 px-3 py-2"
+                className="rounded-md border border-[var(--border)] px-3 py-2"
               />
             </label>
             <button
@@ -205,17 +205,17 @@ export default function AllocatePage() {
           </div>
         </form>
 
-        <div className="rounded-lg border border-zinc-200 bg-[var(--surface)] p-4">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
           <h2 className="text-lg font-semibold">{copy.snapshot}</h2>
           {dashboard ? (
             <div className="mt-4 flex flex-col gap-4">
               <div>
-                <p className="text-xs uppercase text-zinc-500">{copy.cashBalance}</p>
+                <p className="text-xs uppercase text-[var(--muted)]">{copy.cashBalance}</p>
                 <p className="text-xl font-semibold">{dashboard.cash_balance}</p>
               </div>
               <div>
-                <p className="text-xs uppercase text-zinc-500">{copy.envelopes}</p>
-                <div className="mt-2 divide-y divide-zinc-100 text-sm">
+                <p className="text-xs uppercase text-[var(--muted)]">{copy.envelopes}</p>
+                <div className="mt-2 divide-y divide-[var(--border)] text-sm">
                   {dashboard.envelopes.map((item) => (
                     <div key={item.envelope.id} className="flex items-center justify-between py-2">
                       <span>{localizeEnvelopeLabel(item.envelope.name, locale)}</span>
@@ -226,7 +226,7 @@ export default function AllocatePage() {
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-zinc-500">{copy.noData}</p>
+            <p className="mt-4 text-sm text-[var(--muted)]">{copy.noData}</p>
           )}
         </div>
       </section>

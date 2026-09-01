@@ -1170,7 +1170,7 @@ function DashboardContent() {
               <span className="text-lg">ℹ️</span>
               {locale === "ar" ? "شنو هو التوفير التلقائي؟" : locale === "fr" ? "Qu'est-ce que l'épargne automatique ?" : "What is automatic savings?"}
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed mt-2">
+            <DialogDescription className="text-[var(--muted)] dark:text-[var(--muted)] text-xs leading-relaxed mt-2">
               {locale === "ar"
                 ? "فاش كيسالي الشهر، أي مبلغ بقا شايط فـ الأظرفة المؤقتة (الأظرفة اللي ماكيرجعش رصيدها تلقائياً للشهر الجاي) كيمشي نيشان لظرف التوفير الرئيسي (Tawfir) باش مايضيعش وباش تكبر الإدخار ديالك."
                 : locale === "fr"
@@ -1228,21 +1228,21 @@ function DashboardContent() {
               <div className="space-y-5 mt-4">
                 {/* List of Envelopes */}
                 <div className="space-y-2">
-                  <h5 className="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">
+                  <h5 className="text-xs font-bold text-[var(--ink)] dark:text-[var(--muted)] uppercase tracking-wider">
                     {locale === "ar" ? "الأظرفة المرنة المتأثرة" : locale === "fr" ? "Enveloppes flexibles concernées" : "Flexible envelopes affected"}
                   </h5>
                   {affectedEnvelopes.length === 0 ? (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 italic py-2">
+                    <p className="text-xs text-[var(--muted)] dark:text-[var(--muted)] italic py-2">
                       {locale === "ar" ? "لا توجد أظرفة مرنة حاليا." : locale === "fr" ? "Aucune enveloppe flexible active." : "No active flexible envelopes."}
                     </p>
                   ) : (
-                    <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800">
+                    <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1.5 divide-y divide-[var(--border)] dark:divide-slate-800">
                       {affectedEnvelopes.map((item) => (
                         <div key={item.envelope.id} className="flex items-center justify-between text-xs py-2">
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          <span className="font-semibold text-[var(--ink)] dark:text-[var(--muted)]">
                             {localizeSystemEnvelopeName(item.envelope.name, locale)}
                           </span>
-                          <span className="font-bold text-slate-900 dark:text-slate-200">
+                          <span className="font-bold text-[var(--ink)] dark:text-[var(--muted)]">
                             {Number(item.balance.closing_balance).toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
                           </span>
                         </div>
@@ -1259,8 +1259,8 @@ function DashboardContent() {
                   </h5>
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-center flex-1">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">{locale === "ar" ? "الرصيد الحالي" : locale === "fr" ? "Actuel" : "Current"}</p>
-                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-1">
+                      <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">{locale === "ar" ? "الرصيد الحالي" : locale === "fr" ? "Actuel" : "Current"}</p>
+                      <p className="text-sm font-bold text-[var(--ink)] dark:text-[var(--muted)] mt-1">
                         {currentSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
                       </p>
                     </div>

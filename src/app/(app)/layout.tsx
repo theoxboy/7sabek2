@@ -126,7 +126,7 @@ const NOTIFICATION_TONE_STYLES = {
   success: "bg-emerald-50 text-emerald-600",
   warning: "bg-amber-50 text-amber-600",
   danger: "bg-rose-50 text-rose-600",
-  neutral: "bg-slate-100 text-slate-600",
+  neutral: "bg-[var(--surface-2)] text-[var(--muted)]",
 } as const;
 
 const NAV_ITEMS = [
@@ -414,7 +414,7 @@ function UserSummaryCard({
 }) {
   return (
     <div
-      className={`rounded-3xl border border-white/10 bg-[var(--surface)]/5 px-4 py-4 text-slate-100 ${className}`.trim()}
+      className={`rounded-3xl border border-[var(--border)] bg-[var(--surface)]/5 px-4 py-4 text-slate-100 ${className}`.trim()}
     >
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)]/10 text-sm font-semibold">
@@ -422,18 +422,18 @@ function UserSummaryCard({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{displayName}</p>
-          <p className="truncate text-xs text-slate-300">{email || idleLabel}</p>
+          <p className="truncate text-xs text-[var(--muted)]">{email || idleLabel}</p>
         </div>
       </div>
       <Button
         variant="secondary"
         size="sm"
         onClick={onLogout}
-        className="mt-4 w-full justify-center border-white/15 bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/15"
+        className="mt-4 w-full justify-center border-[var(--border)] bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/15"
       >
         {logoutLabel}
       </Button>
-      <p className="mt-3 text-center text-[11px] text-slate-300">7sabek {versionLabel}</p>
+      <p className="mt-3 text-center text-[11px] text-[var(--muted)]">7sabek {versionLabel}</p>
     </div>
   );
 }
@@ -2040,18 +2040,18 @@ function AppLayoutContent({
               <div className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-[var(--ink)]">
                       {salaryPromptScenario.title}
                     </p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                    <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
                       {salaryPromptScenario.description}
                     </p>
                   </div>
-                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold text-slate-700">
+                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold text-[var(--ink)]">
                     {salaryPromptScenario.meta}
                   </span>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600">
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[var(--muted)]">
                   <span className="rounded-full bg-[var(--surface)] px-3 py-1">
                     {salaryPromptScenario.frequencyLabel}
                   </span>
@@ -2060,12 +2060,12 @@ function AppLayoutContent({
                   </span>
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--muted)]">
                 فهاد المرحلة beta كنجرّبو غير الواجهة والحالة ديال التذكير. التأكيد الحقيقي للدخل غادي نربطوه من بعد.
               </div>
               {salaryPromptConfirmMode ? (
-                <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] px-4 py-4">
-                  <p className="text-sm font-medium text-slate-900">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4">
+                  <p className="text-sm font-medium text-[var(--ink)]">
                     شحال توصّلتي به بالضبط؟
                   </p>
                   <Input
@@ -2086,7 +2086,7 @@ function AppLayoutContent({
                   {salaryPromptAmountError ? (
                     <p className="mt-2 text-xs text-rose-600">{salaryPromptAmountError}</p>
                   ) : (
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-[var(--muted)]">
                       هاد الرقم غير للتست فمرحلة beta دابا.
                     </p>
                   )}
@@ -2284,14 +2284,14 @@ function AppLayoutContent({
                         <PopoverContent
                           align="end"
                           sideOffset={12}
-                          className="w-[440px] rounded-3xl border border-slate-200 bg-slate-50 p-0 text-gray-900 shadow-2xl"
+                          className="w-[440px] rounded-3xl border border-[var(--border)] bg-[var(--surface-2)] p-0 text-[var(--ink)] shadow-2xl"
                         >
-                        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
                           <div>
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-sm font-semibold text-[var(--ink)]">
                               {shellCopy.notifications}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-[var(--muted)]">
                               {notifications.length === 0
                                 ? shellCopy.noNotifications
                                 : shellCopy.unread(unreadCount)}
@@ -2311,14 +2311,14 @@ function AppLayoutContent({
                         </div>
                         <div className="max-h-[65vh] overflow-auto">
                           {notifications.length === 0 ? (
-                            <div className="px-4 py-6 text-center text-sm text-slate-500">
+                            <div className="px-4 py-6 text-center text-sm text-[var(--muted)]">
                               {shellCopy.budgetUpToDate}
                             </div>
                           ) : (
                             notifications.map((item) => {
                               const isUnread = !readNotificationIds.includes(item.id);
                               const ToneIcon = item.icon;
-                              const rowClass = `group border-b border-slate-100 px-4 py-3 transition ${
+                              const rowClass = `group border-b border-[var(--border)] px-4 py-3 transition ${
                                 isUnread ? "bg-emerald-50/40" : "bg-[var(--surface)]"
                               } hover:bg-emerald-50/60`;
                               const content = (
@@ -2335,16 +2335,16 @@ function AppLayoutContent({
                                   </span>
                                   <div className="flex-1 text-left">
                                     <div className="flex items-center justify-between gap-2">
-                                      <p className="text-sm font-medium text-gray-900">
+                                      <p className="text-sm font-medium text-[var(--ink)]">
                                         {item.title}
                                       </p>
                                       {item.meta ? (
-                                        <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
                                           {item.meta}
                                         </span>
                                       ) : null}
                                     </div>
-                                    <p className="text-xs text-slate-500">
+                                    <p className="text-xs text-[var(--muted)]">
                                       {item.description}
                                     </p>
                                   </div>
@@ -2392,11 +2392,11 @@ function AppLayoutContent({
                           )}
                         </div>
                         {notifications.length > 0 ? (
-                          <div className="border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400 text-center">
+                          <div className="border-t border-[var(--border)] px-4 py-2 text-[10px] text-[var(--muted)] text-center">
                             {shellCopy.notificationsFooter}
                           </div>
                         ) : null}
-                        <div className="border-t border-slate-200/60 px-4 py-3 bg-slate-100/35 flex justify-center rounded-b-3xl">
+                        <div className="border-t border-[var(--border)]/60 px-4 py-3 bg-[var(--surface-2)]/35 flex justify-center rounded-b-3xl">
                           <Link
                             href="/notifications"
                             onClick={() => setNotificationsOpen(false)}

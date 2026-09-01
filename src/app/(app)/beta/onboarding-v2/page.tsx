@@ -18059,7 +18059,7 @@ export function BetaOnboardingV2PageContent({
                         {item.highlights.map((highlight) => (
                           <div
                             key={highlight}
-                            className="rounded-[18px] border border-white/70 bg-[var(--surface)]/70 px-3 py-2 text-[13px] text-[#374151]"
+                            className="rounded-[18px] border border-[var(--border)] bg-[var(--surface)]/70 px-3 py-2 text-[13px] text-[#374151]"
                           >
                             {highlight}
                           </div>
@@ -21074,7 +21074,7 @@ export function BetaOnboardingV2PageContent({
                                 الخطة.
                               </p>
                             </div>
-                            <div className="min-w-[220px] rounded-[24px] border border-white/80 bg-[var(--surface)]/90 px-4 py-4 shadow-[0_18px_34px_-24px_rgba(37,99,235,0.22)]">
+                            <div className="min-w-[220px] rounded-[24px] border border-[var(--border)] bg-[var(--surface)]/90 px-4 py-4 shadow-[0_18px_34px_-24px_rgba(37,99,235,0.22)]">
                               <p className="text-[12px] font-semibold tracking-[0.08em] text-[#64748b]">الباقي الحر</p>
                               <p className="mt-2 text-[28px] font-semibold text-[#111111]">
                                 {formatMad(moneyPlanRemainingValue)}
@@ -21530,7 +21530,7 @@ export function BetaOnboardingV2PageContent({
                               ["Sinking funds", arbitragePreview.sinking_funds],
                               ["المبلغ القابل للتحكيم", arbitragePreview.discretionary_after_core],
                             ].map(([label, value]) => (
-                              <div key={String(label)} className="rounded-[16px] border border-white/80 bg-[var(--surface)]/75 px-3 py-2">
+                              <div key={String(label)} className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)]/75 px-3 py-2">
                                 <p className="text-[11px] font-semibold tracking-[0.06em] text-[#6e6e73]">{label}</p>
                                 <p className="mt-1 text-[17px] font-semibold text-[#111111]">{formatMad(Number(value))}</p>
                               </div>
@@ -21669,7 +21669,7 @@ export function BetaOnboardingV2PageContent({
                                 </button>
 
                                 {expanded ? (
-                                  <div className="mt-3 space-y-3 rounded-[18px] border border-white/70 bg-[var(--surface)]/80 px-4 py-3">
+                                  <div className="mt-3 space-y-3 rounded-[18px] border border-[var(--border)] bg-[var(--surface)]/80 px-4 py-3">
                                     <p className="text-[13px] leading-7 text-[#3c3c43]">
                                       {insight.explanation}
                                     </p>
@@ -22109,7 +22109,7 @@ export function BetaOnboardingV2PageContent({
                               </div>
                               <p
                                 className={`mt-2 text-[13px] ${
-                                  selected ? "text-white/78" : recommended ? "text-[#3a3a3c]" : "text-[#6e6e73]"
+                                  selected ? "text-[var(--ink)]" : recommended ? "text-[#3a3a3c]" : "text-[#6e6e73]"
                                 }`}
                               >
                                 {hint}
@@ -22143,7 +22143,7 @@ export function BetaOnboardingV2PageContent({
                                 }`}
                               >
                                 <p className="text-[16px] font-semibold">{option.label}</p>
-                                <p className={`mt-2 text-[13px] ${selected ? "text-white/78" : "text-[#6e6e73]"}`}>
+                                <p className={`mt-2 text-[13px] ${selected ? "text-[var(--ink)]" : "text-[#6e6e73]"}`}>
                                   {option.hint}
                                 </p>
                               </button>
@@ -22179,7 +22179,7 @@ export function BetaOnboardingV2PageContent({
                                 }`}
                               >
                                 <p className="text-[16px] font-semibold">{option.label}</p>
-                                <p className={`mt-2 text-[13px] ${selected ? "text-white/78" : "text-[#6e6e73]"}`}>
+                                <p className={`mt-2 text-[13px] ${selected ? "text-[var(--ink)]" : "text-[#6e6e73]"}`}>
                                   {option.hint}
                                 </p>
                               </button>
@@ -22212,7 +22212,7 @@ export function BetaOnboardingV2PageContent({
                               }`}
                             >
                               <p className="text-[16px] font-semibold">{option.label}</p>
-                              <p className={`mt-2 text-[13px] ${selected ? "text-white/78" : "text-[#6e6e73]"}`}>
+                              <p className={`mt-2 text-[13px] ${selected ? "text-[var(--ink)]" : "text-[#6e6e73]"}`}>
                                 {option.hint}
                               </p>
                             </button>
@@ -23956,7 +23956,7 @@ export function BetaOnboardingV2PageContent({
                             step="any"
                             value={guidanceModalDraftValues[item.answer_key] ?? getString(answers, item.answer_key)}
                             onChange={(event) => setGuidanceModalDraftValue(item.answer_key, event.target.value)}
-                            className="h-10 rounded-xl border-white/80 bg-[var(--surface)] px-3 text-[13px] shadow-none focus-visible:ring-[#111111]"
+                            className="h-10 rounded-xl border-[var(--border)] bg-[var(--surface)] px-3 text-[13px] shadow-none focus-visible:ring-[#111111]"
                           />
                           <p className="text-[12px] leading-6 text-[#374151]">{item.comment}</p>
                         </div>
