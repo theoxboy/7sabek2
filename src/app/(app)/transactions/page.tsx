@@ -338,7 +338,7 @@ function TransactionsContent() {
       {/* Cockpit Header Card */}
       <div
         ref={headerRef}
-        className="relative overflow-hidden rounded-[32px] border border-white/70 bg-gradient-to-br from-[var(--surface)] via-[var(--surface)] to-emerald-50/70 p-6 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.35)] dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/20"
+        className="relative overflow-hidden rounded-[32px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface)] to-emerald-50/70 p-6 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.35)] dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/20"
       >
         <div className="pointer-events-none absolute -left-10 top-0 h-32 w-32 rounded-full bg-emerald-200/40 blur-3xl" />
         <div className="pointer-events-none absolute -right-8 bottom-0 h-28 w-28 rounded-full bg-amber-200/40 blur-3xl" />
@@ -353,7 +353,7 @@ function TransactionsContent() {
               className="gap-3"
             />
             <div className="grid gap-3 max-w-xl">
-              <div className="rounded-3xl border border-slate-200/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur dark:border-slate-800">
+              <div className="rounded-3xl border border-[var(--border)]/80 bg-[var(--surface)]/85 px-4 py-3 backdrop-blur dark:border-slate-800">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                   {copy.activePeriod}
                 </p>
@@ -364,7 +364,7 @@ function TransactionsContent() {
             </div>
           </div>
           <div ref={bulkRef} className="flex flex-wrap items-center justify-start xl:justify-end gap-3">
-            <Button asChild variant="secondary" className="rounded-2xl border-white/80 bg-[var(--surface)]/90 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <Button asChild variant="secondary" className="rounded-2xl border-[var(--border)] bg-[var(--surface)]/90 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <Link href="/transactions/bulk">{copy.bulkEntry}</Link>
             </Button>
           </div>
@@ -465,7 +465,7 @@ function TransactionsContent() {
       </div>
 
       {/* Consultation Card */}
-      <div className="rounded-[30px] border border-slate-200/80 bg-[var(--surface)] p-6 text-center shadow-[0_24px_60px_-40px_rgba(15,23,42,0.3)] dark:border-slate-800">
+      <div className="rounded-[30px] border border-[var(--border)]/80 bg-[var(--surface)] p-6 text-center shadow-[0_24px_60px_-40px_rgba(15,23,42,0.3)] dark:border-slate-800">
         <h3 className="text-xl font-bold text-[var(--ink)]">
           {locale === "ar" ? "سجل العمليات" : locale === "en" ? "Transaction Ledger" : "Registre des Transactions"}
         </h3>

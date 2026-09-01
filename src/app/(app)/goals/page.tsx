@@ -396,11 +396,11 @@ export default function GoalsPage() {
   };
 
   const glassCard =
-    "rounded-3xl border border-[var(--border)] bg-[var(--surface)] dark:border-white/10 dark:bg-[var(--surface)]/10 p-5 backdrop-blur-xl shadow-[var(--shadow-soft)] text-[var(--ink)] dark:text-white";
+    "rounded-3xl border border-[var(--border)] bg-[var(--surface)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 p-5 backdrop-blur-xl shadow-[var(--shadow-soft)] text-[var(--ink)] dark:text-white";
   const inputDark =
-    "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] placeholder:text-[var(--muted)] dark:border-white/10 dark:bg-[var(--surface)]/10 dark:text-white dark:placeholder:text-white/50 focus-visible:ring-cyan-400 focus-visible:ring-offset-0";
+    "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] placeholder:text-[var(--muted)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-white dark:placeholder:text-[var(--muted)] focus-visible:ring-cyan-400 focus-visible:ring-offset-0";
   const selectDark =
-    "rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] dark:border-white/10 dark:bg-[var(--surface)]/10 dark:text-white px-3 py-2 text-sm";
+    "rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-white px-3 py-2 text-sm";
 
   return (
     <div
@@ -416,13 +416,13 @@ export default function GoalsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink)] shadow-sm backdrop-blur hover:bg-[var(--surface-2)] dark:border-white/15 dark:bg-[var(--surface)]/10 dark:text-white/90"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink)] shadow-sm backdrop-blur hover:bg-[var(--surface-2)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-[var(--ink)]"
             title={copy.backToDashboard}
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">{copy.backToDashboard}</span>
           </Link>
-          <div className="flex items-center gap-2 text-xs text-[var(--muted)] dark:text-white/60">
+          <div className="flex items-center gap-2 text-xs text-[var(--muted)] dark:text-[var(--muted)]">
             <Target className="h-4 w-4 text-emerald-500 dark:text-emerald-300" />
             <span className="sr-only">{copy.activeGoals}</span>
           </div>
@@ -431,7 +431,7 @@ export default function GoalsPage() {
               asChild
               size="sm"
               variant="secondary"
-              className="border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:bg-[var(--surface-2)] dark:border-white/15 dark:bg-[var(--surface)]/10 dark:text-white"
+              className="border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:bg-[var(--surface-2)] dark:border-[var(--border)] dark:bg-[var(--surface)]/10 dark:text-white"
             >
               <Link href="/goals/new">
                 <Plus className="h-4 w-4" />
@@ -457,23 +457,23 @@ export default function GoalsPage() {
                 <Flag className="h-6 w-6 text-amber-300" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
                   {copy.heroEyebrow}
                 </p>
                 <p className="text-xl font-semibold">{copy.heroTitle}</p>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/70">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[var(--surface)]/5 px-3 py-1">
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--ink)]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-3 py-1">
                 <Rocket className="h-3.5 w-3.5 text-cyan-300" /> {copy.chipProgress}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[var(--surface)]/5 px-3 py-1">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-3 py-1">
                 <Coins className="h-3.5 w-3.5 text-emerald-300" /> {copy.chipAllocation}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[var(--surface)]/5 px-3 py-1">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-3 py-1">
                 <Flame className="h-3.5 w-3.5 text-amber-300" /> {copy.chipPriority}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[var(--surface)]/5 px-3 py-1">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-3 py-1">
                 <ShieldCheck className="h-3.5 w-3.5 text-sky-300" /> {copy.chipSinkingFunds}
               </span>
             </div>
@@ -486,15 +486,15 @@ export default function GoalsPage() {
                   <Target className="h-5 w-5 text-emerald-300" />
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                     {copy.overview}
                   </p>
                   <p className="text-lg font-semibold">{copy.goalsCount(goalSummary.count)}</p>
                 </div>
               </div>
-              <div className="text-right text-xs text-white/60">
+              <div className="text-right text-xs text-[var(--muted)]">
                 <p>{formatMoney(goalSummary.totalCurrent)}</p>
-                <p className="text-white/40">/ {formatMoney(goalSummary.totalTarget)}</p>
+                <p className="text-[var(--muted)]">/ {formatMoney(goalSummary.totalTarget)}</p>
               </div>
             </div>
             <div className="mt-4 h-2 w-full rounded-full bg-[var(--surface)]/10">
@@ -506,12 +506,12 @@ export default function GoalsPage() {
           </div>
         </div>
 
-        {loading ? <p className="text-sm text-white/60">{copy.loading}</p> : null}
+        {loading ? <p className="text-sm text-[var(--muted)]">{copy.loading}</p> : null}
         {issue ? (
           <IssueAlert
             issue={issue}
             tone="error"
-            className="border border-rose-500/30 bg-rose-500/10 text-rose-100 [&_button]:border-white/20 [&_button]:bg-[var(--surface)]/10 [&_button]:text-rose-50"
+            className="border border-rose-500/30 bg-rose-500/10 text-rose-100 [&_button]:border-[var(--border)] [&_button]:bg-[var(--surface)]/10 [&_button]:text-rose-50"
           />
         ) : null}
 
@@ -522,7 +522,7 @@ export default function GoalsPage() {
             </div>
             <div>
               <p className="text-sm font-semibold">{copy.myGoals}</p>
-              <p className="text-xs text-white/60">{copy.myGoalsDesc}</p>
+              <p className="text-xs text-[var(--muted)]">{copy.myGoalsDesc}</p>
             </div>
           </div>
 
@@ -530,7 +530,7 @@ export default function GoalsPage() {
             <EmptyState
               title={copy.noGoalsTitle}
               description={copy.noGoalsDescription}
-              className="border-white/10 bg-[var(--surface)]/5 text-white [&_p]:text-white/60"
+              className="border-[var(--border)] bg-[var(--surface)]/5 text-white [&_p]:text-[var(--muted)]"
             />
           ) : (
             <div className="grid gap-3">
@@ -543,29 +543,29 @@ export default function GoalsPage() {
                 return (
                   <div
                     key={goal.id}
-                    className="rounded-2xl border border-white/10 bg-[var(--surface)]/5 p-4"
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/5 p-4"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-sm text-white/70">{goal.name}</p>
+                        <p className="text-sm text-[var(--ink)]">{goal.name}</p>
                         <p className="mt-1 text-2xl font-semibold">
                           {formatMoney(goal.current_balance)}
                         </p>
-                        <p className="text-xs text-white/50">
+                        <p className="text-xs text-[var(--muted)]">
                           {copy.target}: {formatMoney(goal.target_amount)} · {" "}
                           {formatDate(goal.target_date, locale, copy.noDate)}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[var(--surface)]/5 px-2 py-1 text-white/70">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-2 py-1 text-[var(--ink)]">
                           <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
                           {goal.auto_contribute ? copy.auto : copy.manual}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[var(--surface)]/5 px-2 py-1 text-white/60">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-2 py-1 text-[var(--muted)]">
                           <Target className="h-3.5 w-3.5 text-sky-300" />
                           {goal.goal_type === "sinking_fund" ? copy.sinkingFundType : copy.goalType}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[var(--surface)]/5 px-2 py-1 text-white/60">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)]/5 px-2 py-1 text-[var(--muted)]">
                           <Flame className="h-3.5 w-3.5 text-amber-300" />
                           P{goal.priority}
                         </span>
@@ -577,7 +577,7 @@ export default function GoalsPage() {
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-white/60">
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted)]">
                       <span>{progress.toFixed(0)}%</span>
                       <span>{formatMoney(goal.contribution_amount)}</span>
                     </div>
@@ -593,24 +593,24 @@ export default function GoalsPage() {
                           <Button
                             size="sm"
                             variant="secondary"
-                            className="border-white/15 bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/20"
+                            className="border-[var(--border)] bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/20"
                           >
                             <Pencil className="h-4 w-4" />
                             <span className="sr-only">{copy.edit}</span>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] dark:border-white/10 dark:bg-[#0f1424] dark:text-white shadow-2xl">
+                        <DialogContent className="border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] dark:border-[var(--border)] dark:bg-[#0f1424] dark:text-white shadow-2xl">
                           <DialogHeader>
                             <DialogTitle className="text-[var(--ink)] dark:text-white">
                               {copy.editGoalTitle}
                             </DialogTitle>
-                            <DialogDescription className="text-[var(--muted)] dark:text-white/60">
+                            <DialogDescription className="text-[var(--muted)] dark:text-[var(--muted)]">
                               {copy.editGoalDescription}
                             </DialogDescription>
                           </DialogHeader>
                           {editGoal ? (
                             <div className="mt-4 grid gap-3">
-                              <Label className="text-[var(--ink)] dark:text-white/80">
+                              <Label className="text-[var(--ink)] dark:text-[var(--ink)]">
                                 {copy.name}
                                 <Input
                                   className={inputDark}
@@ -623,7 +623,7 @@ export default function GoalsPage() {
                                   }
                                 />
                               </Label>
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)]">
                                 {copy.type}
                                 <select
                                   value={editGoal.goal_type}
@@ -642,7 +642,7 @@ export default function GoalsPage() {
                                   <option value="sinking_fund">{copy.sinkingFundType}</option>
                                 </select>
                               </Label>
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)]">
                                 {copy.targetAmount}
                                 <Input
                                   className={inputDark}
@@ -655,7 +655,7 @@ export default function GoalsPage() {
                                   }
                                 />
                               </Label>
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)]">
                                 {copy.targetDate}
                                 <Input
                                   className={inputDark}
@@ -669,7 +669,7 @@ export default function GoalsPage() {
                                   }
                                 />
                               </Label>
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)]">
                                 {copy.contribution}
                                 <Input
                                   className={inputDark}
@@ -683,12 +683,12 @@ export default function GoalsPage() {
                                   placeholder={editSuggestedContribution || copy.auto}
                                 />
                                 {editSuggestedContribution ? (
-                                  <span className="text-xs text-white/50">
+                                  <span className="text-xs text-[var(--muted)]">
                                     {copy.suggestion(editSuggestedContribution)}
                                   </span>
                                 ) : null}
                               </Label>
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)]">
                                 {copy.autoDistribution}
                                 <select
                                   value={editGoal.auto_contribute ? "yes" : "no"}
@@ -704,7 +704,7 @@ export default function GoalsPage() {
                                   <option value="no">{copy.no}</option>
                                 </select>
                               </Label>
-                              <Label className="text-white/80">
+                              <Label className="text-[var(--ink)]">
                                 {copy.priority}
                                 <select
                                   value={String(editGoal.priority)}
@@ -727,7 +727,7 @@ export default function GoalsPage() {
                             <DialogClose asChild>
                               <Button
                                 variant="secondary"
-                                className="border-white/15 bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/20"
+                                className="border-[var(--border)] bg-[var(--surface)]/10 text-white hover:bg-[var(--surface)]/20"
                               >
                                 {copy.cancel}
                               </Button>

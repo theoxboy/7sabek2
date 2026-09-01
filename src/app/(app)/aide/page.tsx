@@ -403,11 +403,11 @@ function HelpToggleSection({
   return (
     <div
       id={`help-sec-${section.id}`}
-      className="bg-white border border-slate-200/50 rounded-3xl shadow-xs overflow-hidden transition-all duration-300"
+      className="bg-[var(--surface)] border border-[var(--border)]/50 rounded-3xl shadow-xs overflow-hidden transition-all duration-300"
     >
       <div
         onClick={onToggle}
-        className="p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 transition select-none"
+        className="p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-[var(--surface-2)]/50 transition select-none"
       >
         <div className="flex items-center gap-3">
           <div
@@ -415,18 +415,18 @@ function HelpToggleSection({
           >
             {section.number}
           </div>
-          <h3 className="text-sm xs:text-base font-black text-slate-900 leading-none">
+          <h3 className="text-sm xs:text-base font-black text-[var(--ink)] leading-none">
             {section.title}
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+          <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest leading-none">
             {isOpen ? "سد" : "حل"}
           </span>
           {isOpen ? (
-            <ChevronUp className="w-4 h-4 text-slate-500" />
+            <ChevronUp className="w-4 h-4 text-[var(--muted)]" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-slate-500" />
+            <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
           )}
         </div>
       </div>
@@ -439,14 +439,14 @@ function HelpToggleSection({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="border-t border-slate-100 p-4 sm:p-5 text-slate-700 space-y-4 text-xs xs:text-sm font-semibold font-sans leading-relaxed"
+            className="border-t border-[var(--border)] p-4 sm:p-5 text-[var(--ink)] space-y-4 text-xs xs:text-sm font-semibold font-sans leading-relaxed"
           >
             {section.blocks.map((block) => (
               <div key={block.title} className={`border-r-4 ${block.borderColor} pr-3`}>
-                <h4 className="font-black text-slate-900 text-xs sm:text-sm">
+                <h4 className="font-black text-[var(--ink)] text-xs sm:text-sm">
                   {block.icon} {block.title}
                 </h4>
-                <ul className="list-disc list-inside mr-2 mt-1 space-y-1 text-slate-600">
+                <ul className="list-disc list-inside mr-2 mt-1 space-y-1 text-[var(--muted)]">
                   {block.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -461,7 +461,7 @@ function HelpToggleSection({
                   e.stopPropagation();
                   onToggle();
                 }}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold font-sans cursor-pointer transition select-none"
+                className="px-3 py-1.5 bg-[var(--surface-2)] hover:bg-[var(--border)] text-[var(--ink)] rounded-xl text-xs font-bold font-sans cursor-pointer transition select-none"
               >
                 سد القسم
               </button>
@@ -527,20 +527,20 @@ export default function AidePage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 25 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className="w-full min-h-screen z-10 flex flex-col bg-slate-50 text-slate-900 overflow-y-auto"
+      className="w-full min-h-screen z-10 flex flex-col bg-[var(--surface-2)] text-[var(--ink)] overflow-y-auto"
       id="help-page-container"
       dir="rtl"
     >
       <PageTour tour={tour} />
-      <div className="w-full min-h-screen flex flex-col relative bg-white/40 backdrop-blur-3xl">
+      <div className="w-full min-h-screen flex flex-col relative bg-[var(--surface)] backdrop-blur-3xl">
         {/* Header / Title bar (no back, no chat button) */}
-        <div className="p-3.5 xs:p-5 border-b border-slate-200/40 bg-white/50 flex items-center justify-center gap-2 sticky top-0 z-30 backdrop-blur-md">
+        <div className="p-3.5 xs:p-5 border-b border-[var(--border)]/40 bg-[var(--surface)] flex items-center justify-center gap-2 sticky top-0 z-30 backdrop-blur-md">
           <div className="text-center min-w-0">
-            <h2 className="text-xs xs:text-sm sm:text-lg font-black tracking-tight text-slate-950 flex items-center justify-center gap-1.5 leading-none">
+            <h2 className="text-xs xs:text-sm sm:text-lg font-black tracking-tight text-[var(--ink)] flex items-center justify-center gap-1.5 leading-none">
               <BookOpen className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 text-emerald-600 shrink-0" />
               <span>المساعدة — دليل المنصة</span>
             </h2>
-            <p className="hidden xs:block text-[8px] sm:text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">
+            <p className="hidden xs:block text-[8px] sm:text-[10px] text-[var(--muted)] font-bold mt-1 uppercase tracking-wider">
               دليل مبسط خطوة بخطوة لكل سكرين بالمنصة
             </p>
           </div>
@@ -573,10 +573,10 @@ export default function AidePage() {
           </div>
 
           {/* Table of Content (Quick links) Section */}
-          <div ref={navRef} className="bg-white border border-slate-200/50 rounded-3xl p-4 sm:p-5 shadow-xs">
+          <div ref={navRef} className="bg-[var(--surface)] border border-[var(--border)]/50 rounded-3xl p-4 sm:p-5 shadow-xs">
             <div className="flex items-center gap-2.5 mb-3.5">
               <Activity className="w-4 h-4 text-indigo-500 stroke-[2.5]" />
-              <h3 className="text-sm font-black text-slate-900">🚀 تنقل سريع — سير مباشرة للقسم اللي محتاجو</h3>
+              <h3 className="text-sm font-black text-[var(--ink)]">🚀 تنقل سريع — سير مباشرة للقسم اللي محتاجو</h3>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -592,12 +592,12 @@ export default function AidePage() {
                       scrollToSection(item.key);
                     }
                   }}
-                  className="px-3 py-2 text-right bg-slate-50 hover:bg-slate-100 hover:text-indigo-600 border border-slate-200/35 rounded-2xl text-xs font-bold transition flex items-center justify-between cursor-pointer group active:scale-95 select-none leading-tight"
+                  className="px-3 py-2 text-right bg-[var(--surface-2)] hover:bg-[var(--surface-2)] hover:text-indigo-600 border border-[var(--border)]/35 rounded-2xl text-xs font-bold transition flex items-center justify-between cursor-pointer group active:scale-95 select-none leading-tight"
                 >
-                  <span className="font-sans text-slate-700 group-hover:text-indigo-700">
+                  <span className="font-sans text-[var(--ink)] group-hover:text-indigo-700">
                     {item.label}
                   </span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transform rotate-180" />
+                  <ChevronRight className="w-3.5 h-3.5 text-[var(--muted)] group-hover:text-indigo-500 transform rotate-180" />
                 </button>
               ))}
             </div>
@@ -622,8 +622,8 @@ export default function AidePage() {
               <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto">
                 <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
               </div>
-              <h3 className="text-base font-black text-slate-900">نهاية دليل 7sabek</h3>
-              <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed font-sans font-semibold">
+              <h3 className="text-base font-black text-[var(--ink)]">نهاية دليل 7sabek</h3>
+              <p className="text-xs sm:text-sm text-[var(--muted)] max-w-md mx-auto leading-relaxed font-sans font-semibold">
                 تقدر ترجع للوحة القيادة ولا تحل أي قسم من جديد فاش بغيت. ميزانيتك وبيانات
                 مصفية دابا مع 7sabek 🪙 !
               </p>
@@ -646,7 +646,7 @@ export default function AidePage() {
         </div>
 
         {/* Footer watermark */}
-        <div className="py-6 text-center border-t border-slate-200/20 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+        <div className="py-6 text-center border-t border-[var(--border)]/20 text-[9px] font-black text-[var(--muted)] uppercase tracking-widest leading-none">
           7sabek Guide — 7sabek lflous 🪙 2026
         </div>
       </div>

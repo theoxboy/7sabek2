@@ -550,7 +550,7 @@ export default function DebtsPage() {
           </div>
 
           {/* Solde Net */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-4 transition-all hover:border-slate-400 dark:border-slate-700/50 dark:bg-slate-900/40 sm:col-span-2 md:col-span-1">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-4 transition-all hover:border-[var(--border)] dark:border-slate-700/50 dark:bg-slate-900/40 sm:col-span-2 md:col-span-1">
             <div className="flex items-center justify-between text-xs font-semibold text-[var(--muted)]">
               <span className="flex items-center gap-1.5">
                 <Wallet className="h-4 w-4" />
@@ -584,7 +584,7 @@ export default function DebtsPage() {
             className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
               filterType === f.key
                 ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 shadow-sm"
-                : "border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--ink)]/30 hover:text-[var(--ink)] dark:bg-slate-900/60 dark:text-slate-400"
+                : "border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--ink)]/30 hover:text-[var(--ink)] dark:bg-slate-900/60 dark:text-[var(--muted)]"
             }`}
           >
             {f.label}
@@ -624,7 +624,7 @@ export default function DebtsPage() {
             return (
               <div
                 key={debt.id}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-soft)] transition-all hover:border-slate-400 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900/60 dark:hover:border-slate-700"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-soft)] transition-all hover:border-[var(--border)] hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900/60 dark:hover:border-slate-700"
               >
                 <div>
                   {/* Top Bar */}

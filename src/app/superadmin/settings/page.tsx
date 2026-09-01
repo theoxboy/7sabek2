@@ -2170,7 +2170,7 @@ export default function SuperAdminSettingsPage() {
           <div>
             <p className="spike-title">Instructions globales Advisor IA</p>
             <p className="spike-subtitle">
-              Ces instructions s&rsquo;appliquent &agrave; tous les utilisateurs du chat Floussy AI.
+              Ces instructions s&rsquo;appliquent &agrave; tous les utilisateurs du chat 7sabek AI.
               Le superadmin peut d&eacute;finir un comportement, un ton ou des r&egrave;gles suppl&eacute;mentaires.
             </p>
           </div>

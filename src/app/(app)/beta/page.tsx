@@ -63,7 +63,7 @@ const BETA_PAGES: Record<
     },
     {
       id: "beta-chat",
-      title: "Floussy AI Smart Conseiller",
+      title: "7sabek AI Smart Conseiller",
       description: "Chat d'assistance connecté à vos alertes avec suggestions proactives.",
       href: "/chat",
       status: "active",
@@ -93,7 +93,7 @@ const BETA_PAGES: Record<
     },
     {
       id: "beta-chat",
-      title: "Floussy AI Smart Conseiller",
+      title: "7sabek AI Smart Conseiller",
       description: "AI advisor chat connected to your alerts with proactive action buttons.",
       href: "/chat",
       status: "active",
@@ -123,7 +123,7 @@ const BETA_PAGES: Record<
     },
     {
       id: "beta-chat",
-      title: "مستشار الذكاء الاصطناعي Floussy AI",
+      title: "مستشار الذكاء الاصطناعي 7سابك",
       description: "محادثة ذكية متصلة بتنبيهاتك وتقترح إجراءات عملية.",
       href: "/chat",
       status: "active",
@@ -513,10 +513,10 @@ export default function BetaHubPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md border-slate-200 bg-[linear-gradient(160deg,_#ffffff_0%,_#f8fbff_65%,_#f4f7ff_100%)] p-5">
+        <DialogContent className="max-w-md border-[var(--border)] bg-[linear-gradient(160deg,_#ffffff_0%,_#f8fbff_65%,_#f4f7ff_100%)] p-5">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--ink)] text-[var(--bg)] shadow-sm">
                 <BellRing className="h-5 w-5" />
               </span>
               <div>
@@ -536,18 +536,18 @@ export default function BetaHubPage() {
                     ? "border-emerald-200 bg-emerald-50/80"
                     : getPopupCaseState(selectedPopupCase) === "delayed"
                     ? "border-amber-200 bg-amber-50/80"
-                    : "border-slate-200 bg-[var(--surface)]"
+                    : "border-[var(--border)] bg-[var(--surface)]"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
                       {selectedPopupCase.label}
                     </p>
-                    <p className="mt-1.5 text-lg font-semibold leading-6 text-slate-900">
+                    <p className="mt-1.5 text-lg font-semibold leading-6 text-[var(--ink)]">
                       {selectedPopupCase.model.title}
                     </p>
-                    <p className="mt-2 text-sm leading-5 text-slate-600">
+                    <p className="mt-2 text-sm leading-5 text-[var(--muted)]">
                       {selectedPopupCase.model.helperText}
                     </p>
                   </div>
@@ -558,7 +558,7 @@ export default function BetaHubPage() {
                         : getPopupCaseState(selectedPopupCase) === "delayed"
                         ? "bg-amber-100 text-amber-800"
                         : selectedPopupCase.model.amountClaimMode === "prefilled"
-                        ? "bg-slate-900 text-white"
+                        ? "bg-[var(--ink)] text-[var(--bg)]"
                         : "bg-indigo-100 text-indigo-800"
                     }`}
                   >
@@ -566,15 +566,15 @@ export default function BetaHubPage() {
                   </span>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[var(--muted)]">
+                  <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1">
                     {selectedPopupCase.model.confidence === "high"
                       ? copy.high
                       : selectedPopupCase.model.confidence === "medium"
                       ? copy.medium
                       : copy.low}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                  <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1">
                     {selectedPopupCase.model.incomeType}
                   </span>
                   {typeof salaryPreviewAmounts[selectedPopupCase.id] === "number" ? (
@@ -587,7 +587,7 @@ export default function BetaHubPage() {
                 <div className="mt-4 space-y-3">
                   {salaryPopupConfirmMode ? (
                     <div>
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-medium text-[var(--ink)]">
                         شحال توصّلتي به بالضبط؟
                       </p>
                       <Input
@@ -625,7 +625,7 @@ export default function BetaHubPage() {
                       {salaryConfirmError ? (
                         <p className="mt-2 text-[11px] text-rose-600">{salaryConfirmError}</p>
                       ) : (
-                        <p className="mt-2 text-[11px] text-slate-500">
+                        <p className="mt-2 text-[11px] text-[var(--muted)]">
                           دخل المبلغ اللي توصّلتي به باش نكملو الpreview.
                         </p>
                       )}
@@ -669,11 +669,11 @@ export default function BetaHubPage() {
                       setSalaryPopupConfirmMode(false);
                       setSalaryConfirmError(null);
                     }}
-                    className="inline-flex text-[11px] font-medium text-slate-500 transition hover:text-slate-900"
+                    className="inline-flex text-[11px] font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
                   >
                     {copy.resetPreview}
                   </button>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-[var(--muted)]">
                     {getPopupCaseState(selectedPopupCase) === "confirmed"
                       ? copy.confirmed
                       : getPopupCaseState(selectedPopupCase) === "delayed"
@@ -684,7 +684,7 @@ export default function BetaHubPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] px-4 py-3 text-sm text-slate-600">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
               ما كاين حتى سيناريو متاح دابا باش يتفتح فـ popup.
             </div>
           )}
@@ -727,8 +727,8 @@ export default function BetaHubPage() {
               <Badge tone="accent">{copy.beta}</Badge>
               <Badge tone="muted">{copy.officialTesters}</Badge>
             </div>
-            <h1 className="mt-3 text-2xl font-semibold text-slate-900">{copy.beta}</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <h1 className="mt-3 text-2xl font-semibold text-[var(--ink)]">{copy.beta}</h1>
+            <p className="mt-1 text-sm text-[var(--muted)]">
               {copy.pageSubtitle}
             </p>
           </div>
@@ -743,10 +743,10 @@ export default function BetaHubPage() {
               <Badge tone="accent">{copy.betaPreview}</Badge>
               <Badge tone="muted">{copy.salaryNotifications}</Badge>
             </div>
-            <h2 className="mt-3 text-xl font-semibold text-slate-900">
+            <h2 className="mt-3 text-xl font-semibold text-[var(--ink)]">
               {copy.salaryPreviewTitle}
             </h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--muted)]">
               {copy.salaryPreviewDesc}
             </p>
           </div>
@@ -765,42 +765,42 @@ export default function BetaHubPage() {
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
               {copy.source}
             </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
+            <p className="mt-2 text-sm font-semibold text-[var(--ink)]">
               {latestOnboardingRecord ? copy.lastOnboarding : copy.noRecord}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
               {copy.salaryProfile}
             </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
+            <p className="mt-2 text-sm font-semibold text-[var(--ink)]">
               {salaryProfile?.displayLabel ?? copy.profileMissing}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
               {copy.liveReminder}
             </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
+            <p className="mt-2 text-sm font-semibold text-[var(--ink)]">
               {liveSalaryPreview ? copy.visibleToday : copy.notTriggered}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-[var(--surface)] p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
               {copy.currentMode}
             </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
+            <p className="mt-2 text-sm font-semibold text-[var(--ink)]">
               {actualPopupModel?.amountClaimMode ?? copy.notAvailable}
             </p>
           </div>
         </div>
 
         {loadingSalaryPreview ? (
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-[var(--surface)] px-4 py-3 text-sm text-slate-600">
+          <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
             {copy.loadingPreview}
           </div>
         ) : null}
@@ -819,27 +819,27 @@ export default function BetaHubPage() {
 
         {salaryProfile ? (
           <>
-            <div className="mt-5 rounded-3xl border border-slate-200 bg-[var(--surface)] p-4">
+            <div className="mt-5 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
                     {copy.liveNotification}
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                  <p className="mt-2 text-lg font-semibold text-[var(--ink)]">
                     {liveSalaryPreview?.title ?? copy.noLiveWindow}
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                  <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
                     {liveSalaryPreview?.description ?? copy.noLiveDesc}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--ink)]">
                     {salaryProfile.frequency}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--ink)]">
                     {salaryProfile.certainty === "confident" ? copy.stable : copy.variable}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--ink)]">
                     {salaryProfile.displayLabel}
                   </span>
                   {actualPopupModel ? (
@@ -863,18 +863,18 @@ export default function BetaHubPage() {
                   ? "border-emerald-200 bg-emerald-50/70"
                   : getPopupCaseState(scenario) === "delayed"
                   ? "border-amber-200 bg-amber-50/70"
-                  : "border-slate-200 bg-[var(--surface)]"
+                  : "border-[var(--border)] bg-[var(--surface)]"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
                     {scenario.label}
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                  <p className="mt-2 text-lg font-semibold text-[var(--ink)]">
                     {scenario.model.title}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                     {scenario.model.helperText}
                   </p>
                 </div>
@@ -885,22 +885,22 @@ export default function BetaHubPage() {
                       : getPopupCaseState(scenario) === "delayed"
                       ? "bg-amber-100 text-amber-800"
                       : scenario.model.amountClaimMode === "prefilled"
-                      ? "bg-slate-900 text-white"
+                      ? "bg-[var(--ink)] text-[var(--bg)]"
                       : "bg-indigo-100 text-indigo-800"
                   }`}
                 >
                   {scenario.model.amountClaimMode}
                 </span>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-                <span className="rounded-full bg-slate-100 px-3 py-1">
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--muted)]">
+                <span className="rounded-full bg-[var(--surface-2)] px-3 py-1">
                   {scenario.model.confidence}
                 </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1">
+                <span className="rounded-full bg-[var(--surface-2)] px-3 py-1">
                   {scenario.model.amountBadge}
                 </span>
                 {typeof scenario.model.expectedAmount === "number" ? (
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
+                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1">
                     {scenario.model.expectedAmount} MAD
                   </span>
                 ) : null}
@@ -932,14 +932,14 @@ export default function BetaHubPage() {
                 <button
                   type="button"
                   onClick={() => handleSalaryPreviewAction(scenario.id, "delayed")}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-[var(--surface)] px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface-2)]"
                 >
                   {scenario.model.waitLabel}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSalaryPreviewAction(scenario.id, "pending")}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-transparent px-3 text-xs font-medium text-slate-500 transition hover:text-slate-900"
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-transparent px-3 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
                 >
                   رجّع preview
                 </button>
@@ -954,13 +954,13 @@ export default function BetaHubPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-base font-semibold text-slate-900">{item.title}</p>
+                <p className="text-base font-semibold text-[var(--ink)]">{item.title}</p>
                 <Badge tone={item.status === "active" ? "success" : "muted"}>
                   {item.status === "active" ? copy.active : copy.soon}
                 </Badge>
               </div>
-              <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-              <p className="mt-1 text-xs text-slate-500">{item.href}</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">{item.description}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">{item.href}</p>
             </div>
             <Button asChild>
               <Link href={item.href}>{copy.open}</Link>

@@ -71,7 +71,7 @@ const CHAT_COPY = {
     copied: "Copié !",
     copy: "Copier",
     errorConnect: "Oups ! Je rencontre une difficulté pour me connecter au serveur chiffré ShieldKey. Veuillez vérifier que la connexion est établie et réessayez.",
-    shortcutsTitle: "Raccourcis d'Assistance Floussy",
+    shortcutsTitle: "Raccourcis d'Assistance 7sabek",
     shortcutsDesc: "Sélectionnez un sujet prioritaire pour guider instantanément votre conseiller :",
     shortcutSecurityTitle: "🛡️ Sécurité & Connexions",
     shortcutSecurityPrompt: "Analyser mes alertes de la sécurité",
@@ -80,10 +80,10 @@ const CHAT_COPY = {
     shortcutBudgetPrompt: "Comment économiser et optimiser mon budget ?",
     shortcutBudgetDesc: "Maximiser la discipline \"Cash Split\" quotidienne pour stabiliser la trésorerie.",
     shortcutSavingsTitle: "💎 Bonus d'Épargne Proactifs",
-    shortcutSavingsPrompt: "Comment puis-je débloquer mon bonus d'épargne et augmenter mon score Floussy ?",
+    shortcutSavingsPrompt: "Comment puis-je débloquer mon bonus d'épargne et augmenter mon score 7sabek ?",
     shortcutSavingsDesc: "Analyse des règles automatiques de discipline d'épargne avec gains réels.",
     shortcutSystemTitle: "🔒 Intégrité Cryptographique",
-    shortcutSystemPrompt: "Comment fonctionne le chiffrement ShieldKey de l'application Floussy ?",
+    shortcutSystemPrompt: "Comment fonctionne le chiffrement ShieldKey de l'application 7sabek ?",
     shortcutSystemDesc: "Détails sur l'isolation cryptographique locale et l'authentification de session unique.",
     send: "Envoyer",
     disclaimer: "7sabek AI s'appuie sur Gemini pour formuler des conseils indicatifs",
@@ -121,7 +121,7 @@ const CHAT_COPY = {
     copied: "Copied!",
     copy: "Copy",
     errorConnect: "Oops! I am having trouble connecting to the ShieldKey encrypted server. Please check the connection and try again.",
-    shortcutsTitle: "Floussy Support Shortcuts",
+    shortcutsTitle: "7sabek Support Shortcuts",
     shortcutsDesc: "Select a high-priority topic to instantly guide your advisor:",
     shortcutSecurityTitle: "🛡️ Security & Access",
     shortcutSecurityPrompt: "Analyze my security alerts",
@@ -130,10 +130,10 @@ const CHAT_COPY = {
     shortcutBudgetPrompt: "How can I save and optimize my budget?",
     shortcutBudgetDesc: "Maximize daily \"Cash Split\" discipline to stabilize cash flow.",
     shortcutSavingsTitle: "💎 Proactive Savings Bonus",
-    shortcutSavingsPrompt: "How can I unlock my savings bonus and increase my Floussy score?",
+    shortcutSavingsPrompt: "How can I unlock my savings bonus and increase my 7sabek score?",
     shortcutSavingsDesc: "Analysis of automatic savings rules with real gains.",
     shortcutSystemTitle: "🔒 Cryptographic Integrity",
-    shortcutSystemPrompt: "How does Floussy's ShieldKey encryption work?",
+    shortcutSystemPrompt: "How does 7sabek's ShieldKey encryption work?",
     shortcutSystemDesc: "Details on local cryptographic isolation and single-session authentication.",
     send: "Send",
     disclaimer: "7sabek AI relies on Gemini to formulate indicative advice",
@@ -149,7 +149,7 @@ const CHAT_COPY = {
   },
   ar: {
     back: "رجوع",
-    title: "مستشار الذكاء الاصطناعي 7sabek AI",
+    title: "مستشار الذكاء الاصطناعي 7سابك",
     version: "v2.5",
     clear: "مسح",
     deleteConversation: "حذف المحادثة",
@@ -171,7 +171,7 @@ const CHAT_COPY = {
     copied: "تنسخ!",
     copy: "نسخ",
     errorConnect: "أوبس! لقيت صعوبة باش نتصل بسيرفر ShieldKey المشفر. عفاك تأكد من الاتصال وعاود المحاولة.",
-    shortcutsTitle: "اختصارات المساعدة Floussy",
+    shortcutsTitle: "اختصارات المساعدة 7سابك",
     shortcutsDesc: "اختر موضوع أولوي باش توجه المستشار ديالك مباشرة:",
     shortcutSecurityTitle: "🛡️ الأمان والاتصال",
     shortcutSecurityPrompt: "تحليل تنبيهات الأمان ديالي",
@@ -180,10 +180,10 @@ const CHAT_COPY = {
     shortcutBudgetPrompt: "كيفاش نوفر ونحسن الميزانية ديالي؟",
     shortcutBudgetDesc: "الاستفادة القصوى من نظام \"Cash Split\" اليومي لتثبيت السيولة.",
     shortcutSavingsTitle: "💎 بونص الادخار التفاعلي",
-    shortcutSavingsPrompt: "كيفاش نقدر نفعل بونص الادخار ونزيد سكور Floussy ديالي؟",
+    shortcutSavingsPrompt: "كيفاش نقدر نفعل بونص الادخار ونزيد سكور 7سابك ديالي؟",
     shortcutSavingsDesc: "تحليل قواعد الادخار التلقائية مع أرباح حقيقية.",
     shortcutSystemTitle: "🔒 السلامة التشفيرية",
-    shortcutSystemPrompt: "كيفاش كيخدم تشفير ShieldKey فـ تطبيق Floussy؟",
+    shortcutSystemPrompt: "كيفاش كيخدم تشفير ShieldKey فـ تطبيق 7سابك؟",
     shortcutSystemDesc: "تفاصيل على العزل التشفيري المحلي وتأمين الحصة الفريدة.",
     send: "إرسال",
     disclaimer: "7sabek AI كيعتمد على Gemini باش يقدم نصائح توجيهية",
@@ -319,7 +319,7 @@ function FormattedChatMessage({ text, isUser }: { text: string; isUser: boolean 
         parts.push(
           <strong
             key={`b-${matchStart}`}
-            className={`font-black ${isUser ? "text-white font-extrabold" : "text-slate-950 font-black tracking-tight"}`}
+            className={`font-black ${isUser ? "text-white font-extrabold" : "text-[var(--ink)] font-black tracking-tight"}`}
           >
             {cleanBold}
           </strong>
@@ -330,7 +330,7 @@ function FormattedChatMessage({ text, isUser }: { text: string; isUser: boolean 
           <code
             key={`c-${matchStart}`}
             className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold ${
-              isUser ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-800 border border-emerald-100/60"
+              isUser ? "bg-[var(--surface)] text-white" : "bg-emerald-50 text-emerald-800 border border-emerald-100/60"
             }`}
           >
             {cleanCode}
@@ -368,7 +368,7 @@ function FormattedChatMessage({ text, isUser }: { text: string; isUser: boolean 
           const content = trimmed.replace(/^[•\-\*]\s*/, "");
           return (
             <div key={lineIdx} className="flex items-start gap-2 py-0.5">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isUser ? "bg-white" : "bg-emerald-500"}`} />
+              <span className={`inline-block w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isUser ? "bg-[var(--surface)]" : "bg-emerald-500"}`} />
               <span className="flex-1">{formatInline(content)}</span>
             </div>
           );
@@ -379,7 +379,7 @@ function FormattedChatMessage({ text, isUser }: { text: string; isUser: boolean 
         if (numMatch) {
           return (
             <div key={lineIdx} className="flex items-start gap-2 py-0.5">
-              <span className={`font-black text-xs shrink-0 ${isUser ? "text-white/90" : "text-emerald-600"}`}>
+              <span className={`font-black text-xs shrink-0 ${isUser ? "text-[var(--ink)]" : "text-emerald-600"}`}>
                 {numMatch[1]}
               </span>
               <span className="flex-1">{formatInline(numMatch[2])}</span>
@@ -389,7 +389,7 @@ function FormattedChatMessage({ text, isUser }: { text: string; isUser: boolean 
 
         // Section divider ---
         if (trimmed === "---") {
-          return <hr key={lineIdx} className={`my-2 border-t ${isUser ? "border-white/20" : "border-slate-200/60"}`} />;
+          return <hr key={lineIdx} className={`my-2 border-t ${isUser ? "border-[var(--border)]" : "border-[var(--border)]/60"}`} />;
         }
 
         return <div key={lineIdx}>{formatInline(line)}</div>;
@@ -638,13 +638,13 @@ export default function BetaChatPage() {
   };
 
   return (
-    <div dir={dir} className="w-full h-screen overflow-hidden bg-slate-50 text-slate-900 animate-fade-in relative flex flex-col">
+    <div dir={dir} className="w-full h-screen overflow-hidden bg-[var(--surface-2)] text-[var(--ink)] animate-fade-in relative flex flex-col">
       {/* Ambient soft background blur blobs */}
       <div className="absolute top-10 left-1/3 w-80 h-80 bg-emerald-300/10 rounded-full blur-3xl pointer-events-none select-none" />
       <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-teal-300/10 rounded-full blur-3xl pointer-events-none select-none" />
 
       {/* Navigation Header */}
-      <header className="p-4 border-b border-slate-200/50 bg-white/75 backdrop-blur-md flex items-center shrink-0 z-20 shadow-2xs">
+      <header className="p-4 border-b border-[var(--border)]/50 bg-[var(--surface)] backdrop-blur-md flex items-center shrink-0 z-20 shadow-2xs">
         <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-3">
           <button
             type="button"
@@ -652,7 +652,7 @@ export default function BetaChatPage() {
               playSound("click", false);
               router.back();
             }}
-            className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200/50 transition flex items-center gap-2 active:scale-95 cursor-pointer text-xs font-black shadow-3xs whitespace-nowrap"
+            className="px-3 py-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-2)] text-[var(--ink)] hover:text-[var(--ink)] border border-[var(--border)]/50 transition flex items-center gap-2 active:scale-95 cursor-pointer text-xs font-black shadow-3xs whitespace-nowrap"
             title={copy.back}
           >
             <ArrowLeft className={`w-4 h-4 stroke-[2.5] ${locale === "ar" ? "rotate-180" : ""}`} />
@@ -664,11 +664,11 @@ export default function BetaChatPage() {
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-sm shadow-emerald-600/10">
                 <Bot className="w-5 h-5" />
               </div>
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse" />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[var(--border)] rounded-full animate-pulse" />
             </div>
             <div className="text-left min-w-0">
               <div className="flex items-center gap-1.5 leading-none">
-                <h2 className="text-xs xs:text-sm sm:text-base font-black tracking-tight text-slate-900 truncate">
+                <h2 className="text-xs xs:text-sm sm:text-base font-black tracking-tight text-[var(--ink)] truncate">
                   {copy.title}
                 </h2>
                 <span className="hidden sm:inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100/30">
@@ -691,7 +691,7 @@ export default function BetaChatPage() {
                   void handleClearChat();
                 }
               }}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-rose-500 hover:text-white border border-slate-200/50 text-rose-400 hover:border-rose-300 transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-black shadow-3xs"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-[var(--surface)] hover:bg-rose-500 hover:text-white border border-[var(--border)]/50 text-rose-400 hover:border-rose-300 transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-black shadow-3xs"
               title={copy.deleteConversation}
             >
               <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -704,7 +704,7 @@ export default function BetaChatPage() {
       {/* DUAL PANE WORKSPACE GRID */}
       <div className="flex-1 flex overflow-hidden relative max-w-7xl w-full mx-auto">
         {/* LEFT PANELS WORKSPACE: DISCUSSIONS ENGINE */}
-        <div className="flex-1 flex flex-col h-full bg-slate-50/10 overflow-hidden relative min-w-0">
+        <div className="flex-1 flex flex-col h-full bg-[var(--surface-2)]/10 overflow-hidden relative min-w-0">
           {/* SCROLLABLE VIEWPORT */}
           <div
             className="flex-1 overflow-y-auto px-4 py-6 sm:p-8 space-y-6 scroll-smooth"
@@ -726,7 +726,7 @@ export default function BetaChatPage() {
                       className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center shrink-0 border transition-all shadow-xs ${
                         msg.role === "user"
                           ? "bg-slate-900 border-slate-800 text-white shadow-slate-900/10"
-                          : "bg-white border-slate-200/60 text-emerald-600 shadow-emerald-100/20"
+                          : "bg-[var(--surface)] border-[var(--border)]/60 text-emerald-600 shadow-emerald-100/20"
                       }`}
                     >
                       {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -741,15 +741,15 @@ export default function BetaChatPage() {
                             className={`p-4 rounded-3xl text-xs sm:text-sm shadow-2xs leading-relaxed whitespace-pre-wrap transition-colors break-words ${
                               msg.role === "user"
                                 ? "bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-tr-none font-bold shadow-md shadow-emerald-600/10"
-                                : "bg-white text-slate-850 border border-slate-200/50 rounded-tl-none font-semibold"
+                                : "bg-[var(--surface)] text-slate-850 border border-[var(--border)]/50 rounded-tl-none font-semibold"
                             }`}
                           >
                             <FormattedChatMessage text={parsed.cleanText} isUser={msg.role === "user"} />
 
                             {/* Interactive Suggestion Buttons from Chat Response */}
                             {msg.role !== "user" && parsed.buttons.length > 0 && (
-                              <div className="mt-3.5 pt-2.5 border-t border-slate-100/60 flex flex-col gap-2 select-none">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                              <div className="mt-3.5 pt-2.5 border-t border-[var(--border)]/60 flex flex-col gap-2 select-none">
+                                <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-1">
                                   <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
                                   <span>{copy.suggestionsTitle}</span>
                                 </p>
@@ -771,7 +771,7 @@ export default function BetaChatPage() {
 
                             {/* Bottom micro actions inside AI bubbles */}
                             {msg.role !== "user" && (
-                              <div className="mt-3.5 pt-2.5 border-t border-slate-100/85 flex items-center gap-4 text-slate-400 select-none">
+                              <div className="mt-3.5 pt-2.5 border-t border-[var(--border)]/85 flex items-center gap-4 text-[var(--muted)] select-none">
                                 {/* Copy Button */}
                                 <button
                                   type="button"
@@ -800,10 +800,10 @@ export default function BetaChatPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleRateMessage(msg.id, "up")}
-                                    className={`p-1 rounded-md hover:bg-slate-50 transition cursor-pointer ${
+                                    className={`p-1 rounded-md hover:bg-[var(--surface-2)] transition cursor-pointer ${
                                       messageRatings[msg.id] === "up"
                                         ? "text-emerald-600 bg-emerald-50 border border-emerald-100/30"
-                                        : "hover:text-slate-600 border border-transparent"
+                                        : "hover:text-[var(--muted)] border border-transparent"
                                     }`}
                                     title={locale === "ar" ? "إجابة مفيدة" : locale === "en" ? "Helpful answer" : "Réponse utile"}
                                   >
@@ -812,10 +812,10 @@ export default function BetaChatPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleRateMessage(msg.id, "down")}
-                                    className={`p-1 rounded-md hover:bg-slate-50 transition cursor-pointer ${
+                                    className={`p-1 rounded-md hover:bg-[var(--surface-2)] transition cursor-pointer ${
                                       messageRatings[msg.id] === "down"
                                         ? "text-rose-600 bg-rose-50 border border-rose-100/25"
-                                        : "hover:text-slate-600 border border-transparent"
+                                        : "hover:text-[var(--muted)] border border-transparent"
                                     }`}
                                     title={locale === "ar" ? "إجابة غير صحيحة" : locale === "en" ? "Incorrect answer" : "Réponse incorrecte"}
                                   >
@@ -837,14 +837,14 @@ export default function BetaChatPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 space-y-6 pt-5 border-t border-slate-200/35"
+                  className="mt-8 space-y-6 pt-5 border-t border-[var(--border)]/35"
                 >
                   <div className="text-center sm:text-left">
-                    <h3 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1.5">
+                    <h3 className="text-xs sm:text-sm font-black text-[var(--ink)] uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1.5">
                       <Activity className="w-4 h-4 text-emerald-600" />
                       <span>{copy.shortcutsTitle}</span>
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-slate-500 font-bold mt-1">
+                    <p className="text-[11px] sm:text-xs text-[var(--muted)] font-bold mt-1">
                       {copy.shortcutsDesc}
                     </p>
                   </div>
@@ -893,17 +893,17 @@ export default function BetaChatPage() {
                             playSound("click", false);
                             handleSendMessage(bento.prompt);
                           }}
-                          className={`p-4 rounded-2xl bg-gradient-to-br ${bento.color} border border-slate-200/50 text-left cursor-pointer transition-all duration-300 shadow-2xs hover:shadow-md hover:-translate-y-0.5 flex flex-col gap-2.5 group relative overflow-hidden`}
+                          className={`p-4 rounded-2xl bg-gradient-to-br ${bento.color} border border-[var(--border)]/50 text-left cursor-pointer transition-all duration-300 shadow-2xs hover:shadow-md hover:-translate-y-0.5 flex flex-col gap-2.5 group relative overflow-hidden`}
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${bento.iconColor}`}>
                               <BentoIcon className="w-4 h-4" />
                             </div>
-                            <span className="text-xs sm:text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors tracking-tight uppercase">
+                            <span className="text-xs sm:text-sm font-black text-[var(--ink)] group-hover:text-emerald-700 transition-colors tracking-tight uppercase">
                               {bento.title}
                             </span>
                           </div>
-                          <p className="text-[10px] sm:text-xs text-slate-500 font-semibold leading-relaxed font-sans">
+                          <p className="text-[10px] sm:text-xs text-[var(--muted)] font-semibold leading-relaxed font-sans">
                             {bento.desc}
                           </p>
                           <span className="absolute bottom-3 right-3 text-slate-355 group-hover:text-emerald-600 group-hover:translate-x-1.2 transition-all duration-300 font-extrabold">
@@ -919,7 +919,7 @@ export default function BetaChatPage() {
           </div>
 
           {/* CHAT INPUT AREA */}
-          <div className="p-4 sm:p-5 bg-white/80 border-t border-slate-200/50 backdrop-blur-md shrink-0 z-10 shadow-lg">
+          <div className="p-4 sm:p-5 bg-[var(--surface)] border-t border-[var(--border)]/50 backdrop-blur-md shrink-0 z-10 shadow-lg">
             <div className="max-w-3xl mx-auto">
               <form
                 onSubmit={(e) => {
@@ -934,7 +934,7 @@ export default function BetaChatPage() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   disabled={chatLoading}
-                  className="flex-1 bg-white border border-slate-200/80 rounded-2xl px-5 py-3.5 sm:py-4 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-2xs"
+                  className="flex-1 bg-[var(--surface)] border border-[var(--border)]/80 rounded-2xl px-5 py-3.5 sm:py-4 text-xs sm:text-sm font-semibold text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-2xs"
                 />
 
                 <button
@@ -944,9 +944,9 @@ export default function BetaChatPage() {
                     relative flex items-center justify-center shrink-0 select-none transition-all duration-300 active:scale-90 group border
                     ${
                       chatLoading
-                        ? "w-11 h-11 rounded-full bg-slate-50 border-slate-200 text-slate-400 shadow-none cursor-not-allowed"
+                        ? "w-11 h-11 rounded-full bg-[var(--surface-2)] border-[var(--border)] text-[var(--muted)] shadow-none cursor-not-allowed"
                         : !chatInput.trim()
-                          ? "w-11 h-11 rounded-full bg-slate-100 border-slate-200 text-slate-350 shadow-none cursor-not-allowed"
+                          ? "w-11 h-11 rounded-full bg-[var(--surface-2)] border-[var(--border)] text-slate-350 shadow-none cursor-not-allowed"
                           : "w-11 h-11 rounded-full sm:w-auto sm:px-5 sm:py-3.5 sm:rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-650 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 border-emerald-700/10 text-white shadow-md hover:shadow-lg hover:shadow-emerald-600/15 cursor-pointer font-black"
                     }
                   `}
@@ -963,7 +963,7 @@ export default function BetaChatPage() {
                   )}
                 </button>
               </form>
-              <p className="text-[9px] text-slate-400 font-bold text-center mt-2 uppercase tracking-widest leading-none">
+              <p className="text-[9px] text-[var(--muted)] font-bold text-center mt-2 uppercase tracking-widest leading-none">
                 {copy.disclaimer}
               </p>
             </div>
@@ -971,25 +971,25 @@ export default function BetaChatPage() {
         </div>
 
         {/* RIGHT SIDEBAR: CONTEXTUAL INTEL PANEL (Desktop Only) */}
-        <div className="hidden lg:flex w-76 shrink-0 flex-col bg-white/45 border-l border-slate-200/35 backdrop-blur-md p-5 overflow-y-auto space-y-6 justify-between select-none">
+        <div className="hidden lg:flex w-76 shrink-0 flex-col bg-[var(--surface)] border-l border-[var(--border)]/35 backdrop-blur-md p-5 overflow-y-auto space-y-6 justify-between select-none">
           <div className="space-y-6">
             <div>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3.5">
+              <h3 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-3.5">
                 {copy.intelTitle}
               </h3>
 
               <div className="grid grid-cols-2 gap-2.5 mb-4">
-                <div className="bg-white p-3 rounded-2xl border border-slate-200/40 text-center shadow-3xs">
+                <div className="bg-[var(--surface)] p-3 rounded-2xl border border-[var(--border)]/40 text-center shadow-3xs">
                   <span className="text-lg sm:text-xl font-extrabold text-emerald-600">
                     {notifications.filter((n) => !n.read).length}
                   </span>
-                  <p className="text-[9px] text-slate-400 font-bold mt-0.5 uppercase tracking-tight">
+                  <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5 uppercase tracking-tight">
                     {copy.intelUnread}
                   </p>
                 </div>
-                <div className="bg-white p-3 rounded-2xl border border-slate-200/40 text-center shadow-3xs">
+                <div className="bg-[var(--surface)] p-3 rounded-2xl border border-[var(--border)]/40 text-center shadow-3xs">
                   <span className="text-lg sm:text-xl font-extrabold text-[#111827]">98%</span>
-                  <p className="text-[9px] text-slate-400 font-bold mt-0.5 uppercase tracking-tight">
+                  <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5 uppercase tracking-tight">
                     {copy.intelScore}
                   </p>
                 </div>
@@ -1013,7 +1013,7 @@ export default function BetaChatPage() {
                           : `Analyse l'alerte suivante : \n- Catégorie : ${notif.type.toUpperCase()}\n- Titre : ${notif.title}\n- Détail : ${notif.description}`,
                       );
                     }}
-                    className="w-full text-left p-2.5 sm:p-3 rounded-xl bg-white border border-slate-200/40 hover:border-emerald-400 shadow-3xs transition-all hover:bg-slate-50 cursor-pointer flex gap-1.5"
+                    className="w-full text-left p-2.5 sm:p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]/40 hover:border-emerald-400 shadow-3xs transition-all hover:bg-[var(--surface-2)] cursor-pointer flex gap-1.5"
                     title={locale === "ar" ? "اضغط للتحليل مع الذكاء الاصطناعي" : locale === "en" ? "Inject for AI consultation" : "Injecter pour consultation IA"}
                   >
                     <div
@@ -1026,10 +1026,10 @@ export default function BetaChatPage() {
                       }`}
                     />
                     <div className="min-w-0">
-                      <h4 className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 truncate leading-tight">
+                      <h4 className="text-[10px] sm:text-[11px] font-extrabold text-[var(--ink)] truncate leading-tight">
                         {notif.title}
                       </h4>
-                      <p className="text-[9px] text-slate-500 font-semibold truncate mt-0.5">
+                      <p className="text-[9px] text-[var(--muted)] font-semibold truncate mt-0.5">
                         {notif.description}
                       </p>
                     </div>
@@ -1039,7 +1039,7 @@ export default function BetaChatPage() {
             </div>
 
             {/* Pro Info Box */}
-            <div className="pt-4 border-t border-slate-200/35 font-sans">
+            <div className="pt-4 border-t border-[var(--border)]/35 font-sans">
               <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/30 relative overflow-hidden">
                 <Sparkles className="w-8 h-8 text-emerald-400/10 absolute -right-1 -bottom-1" />
                 <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">

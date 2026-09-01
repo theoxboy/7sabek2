@@ -52,7 +52,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     type: "budget",
     title: "Routine budget en attente",
     description:
-      'Il vous reste 2 minutes aujourd\'hui pour valider votre routine "Floussy Cash Split".',
+      'Il vous reste 2 minutes aujourd\'hui pour valider votre routine "7sabek Cash Split".',
     time: "Il y a 15 min",
     read: false,
     important: true,
@@ -227,7 +227,7 @@ const NOTIFICATIONS_COPY = {
     upToDate: "À jour",
     tabInbox: "Boîte de réception",
     tabDashboard: "Simulateur & Stats",
-    summaryTitle: "Résumé Floussy ShieldKey",
+    summaryTitle: "Résumé 7sabek ShieldKey",
     total: "Total",
     unread: "Non Lus",
     security: "Sécurité",
@@ -259,7 +259,7 @@ const NOTIFICATIONS_COPY = {
     upToDate: "Up to date",
     tabInbox: "Inbox",
     tabDashboard: "Simulator & Stats",
-    summaryTitle: "Floussy ShieldKey Summary",
+    summaryTitle: "7sabek ShieldKey Summary",
     total: "Total",
     unread: "Unread",
     security: "Security",
@@ -291,7 +291,7 @@ const NOTIFICATIONS_COPY = {
     upToDate: "محدّث",
     tabInbox: "صندوق الوارد",
     tabDashboard: "الإحصائيات",
-    summaryTitle: "خلاصة Floussy ShieldKey",
+    summaryTitle: "خلاصة 7سابك ShieldKey",
     total: "المجموع",
     unread: "غير مقروءة",
     security: "الأمان",
@@ -808,7 +808,7 @@ export default function BetaNotificationsPage() {
         type: "savings",
         title: "Bonus d'épargne débloqué",
         description:
-          "Félicitations ! Votre discipline financière Floussy vous rapporte un score bonus +45.",
+          "Félicitations ! Votre discipline financière 7sabek vous rapporte un score bonus +45.",
         time: "À l'instant",
         read: false,
       };
@@ -834,7 +834,7 @@ export default function BetaNotificationsPage() {
   });
 
   return (
-    <div dir={dir} className="w-full h-screen bg-slate-100 relative text-slate-800 font-sans p-0 overflow-hidden flex flex-col">
+    <div dir={dir} className="w-full h-screen bg-[var(--surface-2)] relative text-[var(--ink)] font-sans p-0 overflow-hidden flex flex-col">
       {/* Immersive ambient glowing background blur circles */}
       <div className="absolute top-[-15%] left-[-15%] w-[68vw] h-[68vw] rounded-full bg-gradient-to-tr from-emerald-400/20 to-teal-400/10 blur-[130px] pointer-events-none animate-pulse-slow" />
       <div
@@ -847,7 +847,7 @@ export default function BetaNotificationsPage() {
       />
 
       {/* Top minimal decorative brand line with dynamic light sweep anim */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-white/20 overflow-hidden z-10 w-full backdrop-blur-xs">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--surface)] overflow-hidden z-10 w-full backdrop-blur-xs">
         <motion.div
           initial={{ x: "-100%" }}
           animate={{ x: "100%" }}
@@ -865,17 +865,17 @@ export default function BetaNotificationsPage() {
         className="w-full h-screen z-10 flex flex-col overflow-hidden"
       >
         {/* Full width - Adaptive layout, no enclosing frame card */}
-        <div className="w-full h-screen flex flex-col relative bg-white/40 backdrop-blur-3xl overflow-hidden">
+        <div className="w-full h-screen flex flex-col relative bg-[var(--surface)] backdrop-blur-3xl overflow-hidden">
           
           {/* Header Navigation Bar */}
-          <div className="p-3.5 xs:p-5 border-b border-slate-200/40 bg-white/40 flex items-center justify-between gap-2">
+          <div className="p-3.5 xs:p-5 border-b border-[var(--border)]/40 bg-[var(--surface)] flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => {
                 playSound("click", false);
                 router.back();
               }}
-              className="p-2 xs:px-3 xs:py-1.5 rounded-xl bg-white/50 hover:bg-white/80 border border-slate-200/35 text-slate-700 hover:text-slate-900 transition flex items-center gap-1 active:scale-95 cursor-pointer text-xs font-bold shadow-xs whitespace-nowrap"
+              className="p-2 xs:px-3 xs:py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface)] border border-[var(--border)]/35 text-[var(--ink)] hover:text-[var(--ink)] transition flex items-center gap-1 active:scale-95 cursor-pointer text-xs font-bold shadow-xs whitespace-nowrap"
               title={copy.back}
             >
               <ArrowLeft className={`w-4 h-4 stroke-[2.5] ${locale === "ar" ? "rotate-180" : ""}`} />
@@ -887,7 +887,7 @@ export default function BetaNotificationsPage() {
                 <BellRing className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 text-emerald-600 animate-pulse shrink-0" />
                 <span>{copy.title}</span>
               </h2>
-              <p className="hidden xs:block text-[8px] sm:text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider truncate">
+              <p className="hidden xs:block text-[8px] sm:text-[10px] text-[var(--muted)] font-bold mt-1 uppercase tracking-wider truncate">
                 {copy.subtitle}
               </p>
             </div>
@@ -904,7 +904,7 @@ export default function BetaNotificationsPage() {
                   <span className="hidden xs:inline">{copy.readAll}</span>
                 </button>
               ) : (
-                <div className="px-2 xs:px-3 py-1.5 text-slate-400 bg-slate-100/40 border border-slate-200/10 text-[10px] xs:text-[11px] font-bold rounded-lg xs:rounded-xl flex items-center gap-1 align-middle justify-center whitespace-nowrap">
+                <div className="px-2 xs:px-3 py-1.5 text-[var(--muted)] bg-[var(--surface-2)]/40 border border-[var(--border)]/10 text-[10px] xs:text-[11px] font-bold rounded-lg xs:rounded-xl flex items-center gap-1 align-middle justify-center whitespace-nowrap">
                   <FileCheck2 className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
                   <span className="hidden xs:inline">{copy.upToDate}</span>
                 </div>
@@ -913,8 +913,8 @@ export default function BetaNotificationsPage() {
           </div>
 
           {/* Mobile Adaptive Tabs Selector */}
-          <div className="lg:hidden px-4 py-3 bg-white/40 border-b border-slate-200/20 flex justify-center sticky top-0 z-30 backdrop-blur-md">
-            <div className="inline-flex bg-slate-200/50 p-1 rounded-2xl w-full max-w-sm">
+          <div className="lg:hidden px-4 py-3 bg-[var(--surface)] border-b border-[var(--border)]/20 flex justify-center sticky top-0 z-30 backdrop-blur-md">
+            <div className="inline-flex bg-[var(--border)]/50 p-1 rounded-2xl w-full max-w-sm">
               <button
                 type="button"
                 onClick={() => {
@@ -923,8 +923,8 @@ export default function BetaNotificationsPage() {
                 }}
                 className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeMobileTab === "notifications"
-                    ? "bg-white text-emerald-600 shadow-xs"
-                    : "text-slate-500 hover:text-slate-850"
+                    ? "bg-[var(--surface)] text-emerald-600 shadow-xs"
+                    : "text-[var(--muted)] hover:text-slate-850"
                 }`}
               >
                 <BellRing className="w-3.5 h-3.5 text-emerald-500" />
@@ -943,11 +943,11 @@ export default function BetaNotificationsPage() {
                 }}
                 className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeMobileTab === "dashboard"
-                    ? "bg-white text-emerald-600 shadow-xs"
-                    : "text-slate-500 hover:text-slate-850"
+                    ? "bg-[var(--surface)] text-emerald-600 shadow-xs"
+                    : "text-[var(--muted)] hover:text-slate-850"
                 }`}
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-slate-500" />
+                <ShieldAlert className="w-3.5 h-3.5 text-[var(--muted)]" />
                 <span>{copy.tabDashboard}</span>
               </button>
             </div>
@@ -958,19 +958,19 @@ export default function BetaNotificationsPage() {
             
             {/* COLUMN A (SIDEBAR FOR DESKTOPS): Statistics & Interactive Simulator triggers */}
             <div
-              className={`lg:col-span-4 p-4 pb-8 xs:p-5 xs:pb-10 sm:p-6 sm:pb-8 lg:pb-6 border-b lg:border-b-0 lg:border-r border-slate-200/35 bg-white/20 flex flex-col justify-between ${
+              className={`lg:col-span-4 p-4 pb-8 xs:p-5 xs:pb-10 sm:p-6 sm:pb-8 lg:pb-6 border-b lg:border-b-0 lg:border-r border-[var(--border)]/35 bg-[var(--surface)] flex flex-col justify-between ${
                 activeMobileTab === "dashboard" ? "flex" : "hidden lg:flex"
               }`}
             >
               <div>
-                <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">
+                <h3 className="text-xs font-extrabold text-[var(--muted)] uppercase tracking-widest mb-4">
                   {copy.summaryTitle}
                 </h3>
 
                 <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-white/80 p-3 rounded-2xl border border-white shadow-xs">
-                    <span className="text-[10px] font-bold text-slate-400">{copy.total}</span>
-                    <div className="text-xl font-black text-slate-900 mt-0.5">
+                  <div className="bg-[var(--surface)] p-3 rounded-2xl border border-[var(--border)] shadow-xs">
+                    <span className="text-[10px] font-bold text-[var(--muted)]">{copy.total}</span>
+                    <div className="text-xl font-black text-[var(--ink)] mt-0.5">
                       {totalCount}
                     </div>
                   </div>
@@ -999,7 +999,7 @@ export default function BetaNotificationsPage() {
 
                 {/* Filter categories pills */}
                 <div className="mb-6">
-                  <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2.5">
+                  <h4 className="text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-2.5">
                     {copy.filterTitle}
                   </h4>
                   <div className="flex flex-wrap lg:flex-col gap-1.5">
@@ -1040,7 +1040,7 @@ export default function BetaNotificationsPage() {
                         className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer w-full text-left ${
                           selectedFilter === item.key
                             ? "bg-emerald-600 text-white shadow-xs"
-                            : "bg-white/45 hover:bg-white/80 border border-slate-200/20 text-slate-600"
+                            : "bg-[var(--surface)] hover:bg-[var(--surface)] border border-[var(--border)]/20 text-[var(--muted)]"
                         }`}
                       >
                         <span>{item.label}</span>
@@ -1048,7 +1048,7 @@ export default function BetaNotificationsPage() {
                           className={`text-[10px] px-2 py-0.5 rounded-full ${
                             selectedFilter === item.key
                               ? "bg-emerald-700 text-emerald-100"
-                              : "bg-slate-200/50 text-slate-500"
+                              : "bg-[var(--border)]/50 text-[var(--muted)]"
                           }`}
                         >
                           {item.count}
@@ -1089,7 +1089,7 @@ export default function BetaNotificationsPage() {
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-black snap-start shrink-0 border transition-all cursor-pointer ${
                           isSelected
                             ? "bg-emerald-600 border-emerald-600 text-white shadow-xs"
-                            : "bg-white/85 border-slate-200/50 text-slate-700"
+                            : "bg-[var(--surface)] border-[var(--border)]/50 text-[var(--ink)]"
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -1098,7 +1098,7 @@ export default function BetaNotificationsPage() {
                           className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                             isSelected
                               ? "bg-emerald-700 text-emerald-100"
-                              : "bg-slate-100 text-slate-500"
+                              : "bg-[var(--surface-2)] text-[var(--muted)]"
                           }`}
                         >
                           {item.count}
@@ -1108,7 +1108,7 @@ export default function BetaNotificationsPage() {
                   })}
                 </div>
 
-                <div className="flex items-center justify-between mb-3 text-xs text-slate-500 font-bold bg-white/10 p-1 rounded-lg">
+                <div className="flex items-center justify-between mb-3 text-xs text-[var(--muted)] font-bold bg-[var(--surface)] p-1 rounded-lg">
                   <span>{copy.liveActivity}</span>
                   <span>{copy.filteredSuffix(filteredNotifications.length)}</span>
                 </div>
@@ -1131,8 +1131,8 @@ export default function BetaNotificationsPage() {
                           }}
                           className={`p-3 xs:p-4 rounded-xl xs:rounded-2xl border transition-all relative overflow-hidden group ${
                             !notif.read
-                              ? "bg-white/90 shadow-[0_5px_15px_rgba(30,41,59,0.02)] border-emerald-200/40"
-                              : "bg-white/40 hover:bg-white/60 border-slate-200/20 shadow-xs"
+                              ? "bg-[var(--surface)] shadow-[0_5px_15px_rgba(30,41,59,0.02)] border-emerald-200/40"
+                              : "bg-[var(--surface)] hover:bg-[var(--surface)] border-[var(--border)]/20 shadow-xs"
                           }`}
                         >
                           {/* Glowing colored timeline decorator */}
@@ -1170,21 +1170,21 @@ export default function BetaNotificationsPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-1">
                                 <h4
-                                  className={`text-xs xs:text-sm sm:text-base font-extrabold leading-tight ${!notif.read ? "text-slate-955" : "text-slate-800"}`}
+                                  className={`text-xs xs:text-sm sm:text-base font-extrabold leading-tight ${!notif.read ? "text-slate-955" : "text-[var(--ink)]"}`}
                                 >
                                   {notif.title}
                                 </h4>
-                                <span className="text-[9px] sm:text-xs text-slate-400 font-bold whitespace-nowrap shrink-0">
+                                <span className="text-[9px] sm:text-xs text-[var(--muted)] font-bold whitespace-nowrap shrink-0">
                                   {notif.time}
                                 </span>
                               </div>
 
-                              <p className="text-[10px] xs:text-xs text-slate-500 font-semibold mt-1 leading-relaxed">
+                              <p className="text-[10px] xs:text-xs text-[var(--muted)] font-semibold mt-1 leading-relaxed">
                                 {notif.description}
                               </p>
 
                               {/* Custom Action Trigger Panel */}
-                              <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-100/60 font-sans">
+                              <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-[var(--border)]/60 font-sans">
                                 {!notif.read && (
                                   <button
                                     type="button"
@@ -1199,7 +1199,7 @@ export default function BetaNotificationsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteNotification(notif.id)}
-                                  className="text-[10px] xs:text-xs text-slate-400 hover:text-rose-600 font-bold ltr:ml-auto rtl:mr-auto focus:outline-none flex items-center gap-0.5 cursor-pointer"
+                                  className="text-[10px] xs:text-xs text-[var(--muted)] hover:text-rose-600 font-bold ltr:ml-auto rtl:mr-auto focus:outline-none flex items-center gap-0.5 cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                   <span>{copy.delete}</span>
@@ -1213,13 +1213,13 @@ export default function BetaNotificationsPage() {
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-center py-16 flex flex-col items-center justify-center text-slate-400"
+                        className="text-center py-16 flex flex-col items-center justify-center text-[var(--muted)]"
                       >
-                        <div className="w-14 h-14 rounded-full border border-slate-200/50 bg-white/40 flex items-center justify-center text-slate-300 mb-4 shadow-sm">
+                        <div className="w-14 h-14 rounded-full border border-[var(--border)]/50 bg-[var(--surface)] flex items-center justify-center text-[var(--muted)] mb-4 shadow-sm">
                           <Bell className="w-6 h-6 opacity-30 animate-pulse" />
                         </div>
-                        <p className="text-sm font-bold text-slate-700">{copy.emptyTitle}</p>
-                        <p className="text-xs text-slate-400 font-medium mt-1 leading-none">
+                        <p className="text-sm font-bold text-[var(--ink)]">{copy.emptyTitle}</p>
+                        <p className="text-xs text-[var(--muted)] font-medium mt-1 leading-none">
                           {copy.emptyDesc}
                         </p>
                       </motion.div>

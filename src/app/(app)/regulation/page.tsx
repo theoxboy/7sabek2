@@ -450,12 +450,12 @@ export default function RegulationPage() {
           onStart={handleStartTour}
           content={tourIntro}
         />
-        <div className="rounded-[32px] border border-white/70 bg-[var(--surface)]/80 px-6 py-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur">
+        <div className="rounded-[32px] border border-[var(--border)] bg-[var(--surface)]/80 px-6 py-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur">
           <div className="flex items-center gap-3">
             <span className="h-12 w-12 animate-pulse rounded-2xl bg-emerald-100" />
             <div className="space-y-2">
-              <div className="h-4 w-44 rounded-full bg-slate-200" />
-              <div className="h-3 w-64 rounded-full bg-slate-100" />
+              <div className="h-4 w-44 rounded-full bg-[var(--border)]" />
+              <div className="h-3 w-64 rounded-full bg-[var(--surface-2)]" />
             </div>
           </div>
         </div>
@@ -520,7 +520,7 @@ export default function RegulationPage() {
       <div className="pointer-events-none absolute -right-20 -top-12 h-48 w-48 rounded-full bg-emerald-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 top-32 h-56 w-56 rounded-full bg-orange-200/40 blur-3xl" />
 
-      <div className="rounded-[32px] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 text-[var(--ink)] shadow-[var(--shadow-soft)] dark:border-white/10 dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#111827] dark:to-[#0f172a] dark:text-white">
+      <div className="rounded-[32px] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 text-[var(--ink)] shadow-[var(--shadow-soft)] dark:border-[var(--border)] dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#111827] dark:to-[#0f172a] dark:text-white">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="warning" className="bg-amber-400/20 text-amber-800 dark:text-amber-100">
             {copy.anomalyDetected}
@@ -528,11 +528,11 @@ export default function RegulationPage() {
           <Badge tone="muted" className="bg-[var(--surface-2)] text-[var(--ink)] dark:bg-[var(--surface)]/10 dark:text-white">
             {copy.unmappedCategories}
           </Badge>
-          <div className="group relative ml-auto text-xs text-[var(--muted)] dark:text-white/70">
+          <div className="group relative ml-auto text-xs text-[var(--muted)] dark:text-[var(--ink)]">
             <span className="cursor-help underline decoration-dotted underline-offset-4">
               {copy.whyAsk}
             </span>
-            <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--ink)] shadow-xl opacity-0 transition group-hover:opacity-100 dark:border-white/10 dark:bg-slate-900">
+            <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--ink)] shadow-xl opacity-0 transition group-hover:opacity-100 dark:border-[var(--border)] dark:bg-slate-900">
               {copy.whyAskBody}
             </div>
           </div>
@@ -542,23 +542,23 @@ export default function RegulationPage() {
             <h1 className="text-2xl font-semibold text-[var(--ink)] dark:text-white">
               {copy.heroTitle}
             </h1>
-            <p className="text-sm text-[var(--muted)] dark:text-white/70">
+            <p className="text-sm text-[var(--muted)] dark:text-[var(--ink)]">
               {copy.heroDescription}
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-white/10 dark:bg-[var(--surface)]/10">
-              <p className="text-xs text-[var(--muted)] dark:text-white/60">{copy.statCategories}</p>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-[var(--border)] dark:bg-[var(--surface)]/10">
+              <p className="text-xs text-[var(--muted)] dark:text-[var(--muted)]">{copy.statCategories}</p>
               <p className="text-lg font-semibold text-[var(--ink)] dark:text-white">
                 {unmappedCategories.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-white/10 dark:bg-[var(--surface)]/10">
-              <p className="text-xs text-[var(--muted)] dark:text-white/60">{copy.statRemaining}</p>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-[var(--border)] dark:bg-[var(--surface)]/10">
+              <p className="text-xs text-[var(--muted)] dark:text-[var(--muted)]">{copy.statRemaining}</p>
               <p className="text-lg font-semibold text-[var(--ink)] dark:text-white">{remaining}</p>
             </div>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-white/10 dark:bg-[var(--surface)]/10">
-              <p className="text-xs text-[var(--muted)] dark:text-white/60">{copy.statProgress}</p>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 dark:border-[var(--border)] dark:bg-[var(--surface)]/10">
+              <p className="text-xs text-[var(--muted)] dark:text-[var(--muted)]">{copy.statProgress}</p>
               <p className="text-lg font-semibold text-[var(--ink)] dark:text-white">{progress}%</p>
             </div>
           </div>
@@ -567,7 +567,7 @@ export default function RegulationPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div ref={listCardRef}>
-          <Card className="space-y-4 rounded-[28px] border border-white/70 bg-[var(--surface)]/85 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] backdrop-blur">
+          <Card className="space-y-4 rounded-[28px] border border-[var(--border)] bg-[var(--surface)]/85 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] backdrop-blur">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
               <Sparkles className="h-4 w-4 text-emerald-500" />
               {copy.fixUnmappedTitle}
@@ -576,9 +576,9 @@ export default function RegulationPage() {
               {unmappedCategories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-[var(--surface)] px-4 py-3"
+                  className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
                 >
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
                     <div
                       className="h-full rounded-full bg-emerald-500 transition-all"
                       style={{
@@ -603,7 +603,7 @@ export default function RegulationPage() {
                           [cat.id]: event.target.value,
                         }))
                       }
-                      className="h-10 min-w-[220px] rounded-xl border border-slate-200 bg-[var(--surface)] px-3 text-sm text-[var(--ink)]"
+                      className="h-10 min-w-[220px] rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--ink)]"
                     >
                       <option value="">{copy.selectEnvelope}</option>
                       {mappableEnvelopes.map((env) => (
@@ -621,7 +621,7 @@ export default function RegulationPage() {
 
         <div className="space-y-6">
           <div ref={actionsCardRef}>
-            <Card className="space-y-4 rounded-[28px] border border-white/70 bg-[var(--surface)]/85 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] backdrop-blur">
+            <Card className="space-y-4 rounded-[28px] border border-[var(--border)] bg-[var(--surface)]/85 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] backdrop-blur">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-[var(--ink)]">
@@ -642,7 +642,7 @@ export default function RegulationPage() {
                   </Button>
                 </div>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                 <div
                   className="h-full rounded-full bg-emerald-500 transition-all"
                   style={{ width: `${progress}%` }}
@@ -671,10 +671,10 @@ export default function RegulationPage() {
 
       <div
         ref={footerRef}
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/70 bg-[var(--surface)]/80 backdrop-blur"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur"
       >
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-3">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
             <Button
               type="button"
               variant="secondary"

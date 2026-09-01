@@ -342,7 +342,7 @@ export default function BetaPortalPage() {
   return (
     <div
       dir={dir}
-      className="w-full flex flex-col select-none bg-slate-100 relative text-slate-800 font-sans min-h-screen justify-start md:justify-center items-center p-4 py-8 xs:py-10 sm:p-6 md:p-8 lg:p-12 overflow-y-auto"
+      className="w-full flex flex-col select-none bg-[var(--surface-2)] relative text-[var(--ink)] font-sans min-h-screen justify-start md:justify-center items-center p-4 py-8 xs:py-10 sm:p-6 md:p-8 lg:p-12 overflow-y-auto"
     >
       {/* Immersive ambient glowing background blur circles */}
       <div className="absolute top-[-15%] left-[-15%] w-[68vw] h-[68vw] rounded-full bg-gradient-to-tr from-emerald-400/20 to-teal-400/10 blur-[130px] pointer-events-none animate-pulse-slow" />
@@ -356,7 +356,7 @@ export default function BetaPortalPage() {
       />
 
       {/* Top minimal decorative brand line with dynamic light sweep anim */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-white/20 overflow-hidden z-10 w-full backdrop-blur-xs">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--surface)] overflow-hidden z-10 w-full backdrop-blur-xs">
         <motion.div
           initial={{ x: "-100%" }}
           animate={{ x: "100%" }}
@@ -372,7 +372,7 @@ export default function BetaPortalPage() {
             playSound("click", false);
             router.push("/beta");
           }}
-          className="p-2 xs:px-3 xs:py-1.5 rounded-xl bg-white/60 hover:bg-white/95 border border-white/80 text-slate-700 hover:text-slate-900 transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-bold shadow-xs"
+          className="p-2 xs:px-3 xs:py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface)] border border-[var(--border)] text-[var(--ink)] hover:text-[var(--ink)] transition flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-bold shadow-xs"
         >
           <ArrowLeft className={`w-4 h-4 stroke-[2.5] ${locale === "ar" ? "rotate-180" : ""}`} />
           <span>{copy.back}</span>
@@ -389,7 +389,7 @@ export default function BetaPortalPage() {
           className="w-full max-w-md mx-auto z-10"
         >
           {/* Core Frame with responsive glass container card */}
-          <div className="bg-white/55 backdrop-blur-3xl rounded-3xl border border-white/80 shadow-[0_25px_60px_rgba(15,23,42,0.08),inset_0_1px_2px_rgba(255,255,255,0.7)] overflow-hidden relative">
+          <div className="bg-[var(--surface)] backdrop-blur-3xl rounded-3xl border border-[var(--border)] shadow-[0_25px_60px_rgba(15,23,42,0.08),inset_0_1px_2px_rgba(255,255,255,0.7)] overflow-hidden relative">
             
             {/* Floating Action Bell Button */}
             <div className={`absolute top-4 ${locale === "ar" ? "left-4" : "right-4"} z-40`}>
@@ -399,7 +399,7 @@ export default function BetaPortalPage() {
                   playSound("bell", false);
                   router.push("/notifications");
                 }}
-                className="relative p-2.5 rounded-full bg-white/60 hover:bg-white/95 border border-white/80 shadow-xs text-slate-700 hover:text-emerald-600 active:scale-95 transition-all cursor-pointer group flex items-center justify-center"
+                className="relative p-2.5 rounded-full bg-[var(--surface)] hover:bg-[var(--surface)] border border-[var(--border)] shadow-xs text-[var(--ink)] hover:text-emerald-600 active:scale-95 transition-all cursor-pointer group flex items-center justify-center"
                 title={copy.title}
               >
                 <Bell className="w-5 h-5 stroke-[2]" />
@@ -435,10 +435,10 @@ export default function BetaPortalPage() {
                       damping: 14,
                       delay: 0.1,
                     }}
-                    className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-emerald-600 shadow-xl mb-4 relative"
+                    className="w-20 h-20 bg-[var(--surface)] rounded-full flex items-center justify-center text-emerald-600 shadow-xl mb-4 relative"
                   >
                     <Check className="w-11 h-11 stroke-[3.5]" />
-                    <span className="absolute inset-x-[-10px] inset-y-[-10px] rounded-full border-4 border-white/40 animate-ping" />
+                    <span className="absolute inset-x-[-10px] inset-y-[-10px] rounded-full border-4 border-[var(--border)] animate-ping" />
                   </motion.div>
 
                   <motion.h3
@@ -468,17 +468,17 @@ export default function BetaPortalPage() {
                 {/* Profile Avatar */}
                 <motion.div
                   whileHover={{ scale: 1.05 }}
-                  className="w-16 h-16 rounded-full bg-white/70 backdrop-blur-xl border border-white/90 flex items-center justify-center text-slate-700 font-extrabold text-xl mb-3 shadow-[0_4px_12px_rgba(15,23,42,0.03),inset_0_2px_4px_rgba(0,0,0,0.02)] relative group"
+                  className="w-16 h-16 rounded-full bg-[var(--surface)] backdrop-blur-xl border border-[var(--border)] flex items-center justify-center text-[var(--ink)] font-extrabold text-xl mb-3 shadow-[0_4px_12px_rgba(15,23,42,0.03),inset_0_2px_4px_rgba(0,0,0,0.02)] relative group"
                 >
                   <span className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/5 group-hover:scale-110 transition-transform duration-350" />
                   {userName.charAt(0).toUpperCase()}
                 </motion.div>
 
-                <h2 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+                <h2 className="text-xl font-bold tracking-tight text-[var(--ink)] leading-none">
                   {copy.greeting(userName)}
                 </h2>
 
-                <p className="text-xs text-slate-500 font-medium mt-2">
+                <p className="text-xs text-[var(--muted)] font-medium mt-2">
                   {copy.authSubtitle}
                 </p>
 
@@ -490,12 +490,12 @@ export default function BetaPortalPage() {
                     duration: 4,
                     ease: "easeInOut",
                   }}
-                  className="mt-3.5 bg-white/60 backdrop-blur-md border border-white/80 rounded-xl px-3 py-1 flex items-center gap-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
+                  className="mt-3.5 bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-xl px-3 py-1 flex items-center gap-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                   <span className="text-xs text-amber-900 font-semibold tracking-wide">
                     {copy.demoPin}{" "}
-                    <span className="font-mono text-slate-700 bg-amber-200/50 px-1.5 py-0.5 rounded text-xs">
+                    <span className="font-mono text-[var(--ink)] bg-amber-200/50 px-1.5 py-0.5 rounded text-xs">
                       {userPin}
                     </span>
                   </span>
@@ -503,7 +503,7 @@ export default function BetaPortalPage() {
               </div>
 
               {/* Selector tabs with elegant glass elements */}
-              <div className="grid grid-cols-2 gap-2 bg-slate-100/40 backdrop-blur-md p-1 rounded-xl mb-6 border border-white/60 relative">
+              <div className="grid grid-cols-2 gap-2 bg-[var(--surface-2)]/40 backdrop-blur-md p-1 rounded-xl mb-6 border border-[var(--border)] relative">
                 <button
                   type="button"
                   onClick={() => {
@@ -514,13 +514,13 @@ export default function BetaPortalPage() {
                   className={`relative flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold z-10 transition-colors ${
                     activeTab === "fingerprint"
                       ? "text-slate-955 font-bold"
-                      : "text-slate-500 hover:text-slate-900"
+                      : "text-[var(--muted)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {activeTab === "fingerprint" && (
                     <motion.span
                       layoutId="activeTabPill"
-                      className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-white/90"
+                      className="absolute inset-0 bg-[var(--surface)] backdrop-blur-md rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-[var(--border)]"
                       transition={{
                         type: "spring",
                         stiffness: 350,
@@ -542,13 +542,13 @@ export default function BetaPortalPage() {
                   className={`relative flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold z-10 transition-colors ${
                     activeTab === "pin"
                       ? "text-slate-955 font-bold"
-                      : "text-slate-500 hover:text-slate-900"
+                      : "text-[var(--muted)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {activeTab === "pin" && (
                     <motion.span
                       layoutId="activeTabPill"
-                      className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-white/90"
+                      className="absolute inset-0 bg-[var(--surface)] backdrop-blur-md rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-[var(--border)]"
                       transition={{
                         type: "spring",
                         stiffness: 350,
@@ -613,7 +613,7 @@ export default function BetaPortalPage() {
                               ? "border-emerald-500 from-white/70 to-emerald-50/80 text-emerald-600 shadow-emerald-glow"
                               : isScanning
                                 ? "border-teal-500 from-white/70 to-teal-50/80 text-teal-600 shadow-emerald-glow"
-                                : "border-white from-white/80 to-white/40 text-slate-400 hover:border-slate-300 shadow-[inset_0_1px_2px_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.02)]"
+                                : "border-[var(--border)] from-white/80 to-white/40 text-[var(--muted)] hover:border-[var(--border)] shadow-[inset_0_1px_2px_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.02)]"
                           }`}
                           style={{ touchAction: "none" }}
                         >
@@ -644,13 +644,13 @@ export default function BetaPortalPage() {
                       </div>
 
                       <div className="text-center w-full px-4 mb-3">
-                        <p className="text-xs font-bold text-slate-600 tracking-wide">
+                        <p className="text-xs font-bold text-[var(--muted)] tracking-wide">
                           {isScanning
                             ? copy.scanningMessage
                             : copy.holdFingerMessage}
                         </p>
 
-                        <div className="w-full bg-white/40 backdrop-blur-xs rounded-full h-1 mt-2.5 overflow-hidden border border-white/60 relative shadow-inner">
+                        <div className="w-full bg-[var(--surface)] backdrop-blur-xs rounded-full h-1 mt-2.5 overflow-hidden border border-[var(--border)] relative shadow-inner">
                           <motion.div
                             className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
                             style={{ width: `${scanProgress}%` }}
@@ -659,7 +659,7 @@ export default function BetaPortalPage() {
                       </div>
 
                       {/* Status bar */}
-                      <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-white/70 backdrop-blur-md px-3 py-1 rounded-full border border-white/95 shadow-[0_2px_5px_rgba(16,185,129,0.03)] animate-pulse">
+                      <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-[var(--surface)] backdrop-blur-md px-3 py-1 rounded-full border border-[var(--border)] shadow-[0_2px_5px_rgba(16,185,129,0.03)] animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         <span>{copy.biometricsEnabled}</span>
                       </div>
@@ -700,7 +700,7 @@ export default function BetaPortalPage() {
                                 stiffness: 300,
                                 damping: 15,
                               }}
-                              className="w-3.5 h-3.5 rounded-full border border-white/90 shadow-sm"
+                              className="w-3.5 h-3.5 rounded-full border border-[var(--border)] shadow-sm"
                             />
                           );
                         })}
@@ -721,7 +721,7 @@ export default function BetaPortalPage() {
                                 stiffness: 450,
                                 damping: 18,
                               }}
-                              className="h-11 xs:h-12 rounded-xl bg-white/45 hover:bg-white/85 border border-white/60 text-sm xs:text-base font-bold text-slate-800 flex items-center justify-center shadow-xs cursor-pointer backdrop-blur-xs transition-colors"
+                              className="h-11 xs:h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface)] border border-[var(--border)] text-sm xs:text-base font-bold text-[var(--ink)] flex items-center justify-center shadow-xs cursor-pointer backdrop-blur-xs transition-colors"
                             >
                               {num}
                             </motion.button>
@@ -736,7 +736,7 @@ export default function BetaPortalPage() {
                           }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className="h-11 xs:h-12 rounded-xl text-[10px] xs:text-[11px] font-black text-slate-400 hover:text-slate-850 flex items-center justify-center cursor-pointer transition-colors uppercase"
+                          className="h-11 xs:h-12 rounded-xl text-[10px] xs:text-[11px] font-black text-[var(--muted)] hover:text-slate-850 flex items-center justify-center cursor-pointer transition-colors uppercase"
                         >
                           {copy.clear}
                         </motion.button>
@@ -747,7 +747,7 @@ export default function BetaPortalPage() {
                           onClick={() => handleKeypadPress("0")}
                           whileHover={{ scale: 1.05, y: -0.5 }}
                           whileTap={{ scale: 0.94 }}
-                          className="h-11 xs:h-12 rounded-xl bg-white/45 hover:bg-white/85 border border-white/60 text-sm xs:text-base font-bold text-slate-800 flex items-center justify-center shadow-xs cursor-pointer backdrop-blur-xs transition-colors"
+                          className="h-11 xs:h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface)] border border-[var(--border)] text-sm xs:text-base font-bold text-[var(--ink)] flex items-center justify-center shadow-xs cursor-pointer backdrop-blur-xs transition-colors"
                         >
                           0
                         </motion.button>
@@ -760,7 +760,7 @@ export default function BetaPortalPage() {
                           }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className="h-11 xs:h-12 rounded-xl text-[10px] xs:text-[11px] font-black text-slate-400 hover:text-slate-850 flex items-center justify-center cursor-pointer transition-colors uppercase"
+                          className="h-11 xs:h-12 rounded-xl text-[10px] xs:text-[11px] font-black text-[var(--muted)] hover:text-slate-850 flex items-center justify-center cursor-pointer transition-colors uppercase"
                         >
                           {copy.backspace}
                         </motion.button>
@@ -790,9 +790,9 @@ export default function BetaPortalPage() {
             </div>
 
             {/* Simple wizard section */}
-            <div className="bg-white/35 backdrop-blur-md p-5 border-t border-white/60">
+            <div className="bg-[var(--surface)] backdrop-blur-md p-5 border-t border-[var(--border)]">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">
+                <span className="text-xs text-[var(--muted)] font-medium">
                   {copy.newRoutine}
                 </span>
                 <button
@@ -840,18 +840,18 @@ export default function BetaPortalPage() {
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.92, y: 15, opacity: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 28 }}
-              className="bg-white/65 backdrop-blur-3xl rounded-2xl w-full max-w-sm border border-white/85 p-6 shadow-2xl relative z-10 font-sans"
+              className="bg-[var(--surface)] backdrop-blur-3xl rounded-2xl w-full max-w-sm border border-[var(--border)] p-6 shadow-2xl relative z-10 font-sans"
             >
-              <h4 className="text-sm font-extrabold text-slate-950 mb-1">
+              <h4 className="text-sm font-extrabold text-[var(--ink)] mb-1">
                 {copy.newAccount}
               </h4>
-              <p className="text-xs text-slate-500 mb-4 font-normal">
+              <p className="text-xs text-[var(--muted)] mb-4 font-normal">
                 {copy.newAccountDesc}
               </p>
 
               <form onSubmit={handleCreateAccountSim} className="space-y-3.5">
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1.5 tracking-wider">
+                  <label className="block text-[10px] font-extrabold text-[var(--muted)] uppercase mb-1.5 tracking-wider">
                     {copy.inputName}
                   </label>
                   <input
@@ -861,11 +861,11 @@ export default function BetaPortalPage() {
                     placeholder={copy.inputNamePlaceholder}
                     value={modalName}
                     onChange={(e) => setModalName(e.target.value)}
-                    className="w-full bg-white/45 border border-white/60 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 focus:bg-white transition"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 focus:bg-[var(--surface)] transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1.5 tracking-wider">
+                  <label className="block text-[10px] font-extrabold text-[var(--muted)] uppercase mb-1.5 tracking-wider">
                     {copy.inputPin}
                   </label>
                   <input
@@ -880,7 +880,7 @@ export default function BetaPortalPage() {
                       const clean = e.target.value.replace(/\D/g, "");
                       setModalPin(clean);
                     }}
-                    className="w-full bg-white/45 border border-white/60 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 focus:bg-white transition"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 focus:bg-[var(--surface)] transition"
                   />
                 </div>
 
@@ -891,7 +891,7 @@ export default function BetaPortalPage() {
                       playSound("click", false);
                       setShowModal(false);
                     }}
-                    className="flex-1 bg-white/50 hover:bg-slate-200/55 text-slate-700 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer border border-white/40"
+                    className="flex-1 bg-[var(--surface)] hover:bg-[var(--border)]/55 text-[var(--ink)] text-xs font-bold py-2.5 rounded-xl transition cursor-pointer border border-[var(--border)]"
                   >
                     {copy.btnCancel}
                   </button>
