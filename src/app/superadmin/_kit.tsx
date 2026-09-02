@@ -251,6 +251,85 @@ export function ChartFrame({
 }
 
 /* -------------------------------------------------------------------------- */
+/*  ChartCard — AdminCard + head + ChartFrame in one, for dense grids          */
+/* -------------------------------------------------------------------------- */
+
+type MiniQuery = {
+  isLoading?: boolean;
+  error?: unknown;
+  mutate?: () => unknown;
+};
+
+export function ChartCard({
+  title,
+  subtitle,
+  query,
+  empty,
+  height = 220,
+  labels,
+  className,
+  right,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  query: MiniQuery;
+  empty: boolean;
+  height?: number;
+  labels: { loading: string; empty: string; error: string; retry: string };
+  className?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <AdminCard className={className}>
+      <CardHead title={title} subtitle={subtitle} action={right} />
+      <ChartFrame
+        height={height}
+        loading={query.isLoading}
+        error={Boolean(query.error)}
+        empty={empty}
+        labels={labels}
+        onRetry={query.mutate ? () => query.mutate?.() : undefined}
+      >
+        {children}
+      </ChartFrame>
+    </AdminCard>
+  );
+}
+
+/** Compact stat tile for the analytics page. */
+export function Metric({
+  label,
+  value,
+  sub,
+  tone = "default",
+}: {
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+  tone?: "default" | "positive" | "negative" | "warning";
+}) {
+  const toneClass =
+    tone === "positive"
+      ? "text-[var(--success)]"
+      : tone === "negative"
+      ? "text-[var(--error)]"
+      : tone === "warning"
+      ? "text-[var(--warning)]"
+      : "text-[var(--ink)]";
+  return (
+    <AdminCard className="p-4">
+      <p className="text-xs font-semibold text-[var(--muted)]">{label}</p>
+      <p className={cn("mt-1 text-xl font-extrabold tabular-nums", toneClass)}>
+        {value}
+      </p>
+      {sub ? <p className="mt-0.5 text-[11px] text-[var(--muted)]">{sub}</p> : null}
+    </AdminCard>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Chart palette from CSS tokens (keeps charts theme-aware)                    */
 /* -------------------------------------------------------------------------- */
 

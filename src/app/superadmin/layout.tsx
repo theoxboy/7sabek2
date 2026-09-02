@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Archive,
+  BarChart3,
   Bell,
   LayoutDashboard,
   Menu,
@@ -63,6 +64,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
   FloussyLocale,
   {
     navDashboard: string;
+    navAnalytics: string;
     navUsers: string;
     navOnboarding: string;
     navShiftPilot: string;
@@ -112,6 +114,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
 > = {
   fr: {
     navDashboard: "Dashboard",
+    navAnalytics: "Analytics complète",
     navUsers: "Utilisateurs",
     navOnboarding: "Onboarding clients",
     navShiftPilot: "ShiftPilot",
@@ -160,6 +163,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
   },
   en: {
     navDashboard: "Dashboard",
+    navAnalytics: "Full analytics",
     navUsers: "Users",
     navOnboarding: "Client onboarding",
     navShiftPilot: "ShiftPilot",
@@ -208,6 +212,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
   },
   ar: {
     navDashboard: "لوحة القيادة",
+    navAnalytics: "التحليلات الكاملة",
     navUsers: "المستخدمين",
     navOnboarding: "أونبوردينغ الزبناء",
     navShiftPilot: "شيفت بايلوت",
@@ -289,6 +294,7 @@ export default function SuperAdminLayout({
       title: copy.groupSupervision,
       items: [
         { href: "/superadmin", label: copy.navDashboard, icon: LayoutDashboard, enabled: true },
+        { href: "/superadmin/analytics", label: copy.navAnalytics, icon: BarChart3, enabled: true },
         { href: "/superadmin/audit", label: copy.navAudit, icon: ClipboardList, enabled: true },
         { href: "/superadmin/sessions", label: copy.navSessions, icon: Clock3, enabled: true },
       ],

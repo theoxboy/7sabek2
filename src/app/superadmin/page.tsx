@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Activity,
   ArrowUpRight,
+  BarChart3,
   DollarSign,
   ShieldCheck,
   TrendingUp,
@@ -29,6 +30,7 @@ import {
 
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 
+import { ANALYTICS_COPY } from "./_analyticsCopy";
 import { DASHBOARD_COPY } from "./_dashboardCopy";
 import {
   AdminCard,
@@ -59,6 +61,7 @@ export default function SuperAdminPage() {
   const { locale, dir } = useAppLocale("fr");
   useForceArabicDocumentFont(locale === "ar", "superadmin-dashboard-ar-body");
   const copy = DASHBOARD_COPY[locale];
+  const analyticsCopy = ANALYTICS_COPY[locale];
   const palette = useChartPalette();
 
   const [range, setRange] = useState<RangeDays>(30);
@@ -386,7 +389,7 @@ export default function SuperAdminPage() {
         title={copy.title}
         subtitle={copy.subtitle}
         right={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm text-white/90 backdrop-blur">
               <Users className="h-4 w-4" />
               {fmt(summary.data?.users)}
@@ -395,6 +398,13 @@ export default function SuperAdminPage() {
               <DollarSign className="h-4 w-4" />
               {fmt(summary.data?.transactions)}
             </span>
+            <Link
+              href="/superadmin/analytics"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-1.5 text-sm font-bold text-[#06301f] hover:brightness-95"
+            >
+              <BarChart3 className="h-4 w-4" />
+              {analyticsCopy.openFull}
+            </Link>
           </div>
         }
       />
@@ -1044,6 +1054,16 @@ export default function SuperAdminPage() {
           )}
         </div>
       </AdminCard>
+
+      <div className="flex justify-center pt-2">
+        <Link
+          href="/superadmin/analytics"
+          className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-bold text-[#06301f] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] hover:brightness-95"
+        >
+          <BarChart3 className="h-4 w-4" />
+          {analyticsCopy.openFull} — {analyticsCopy.openFullHint}
+        </Link>
+      </div>
     </div>
   );
 }

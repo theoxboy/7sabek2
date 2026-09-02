@@ -6,10 +6,15 @@ import { apiFetch } from "@/lib/api";
 import type {
   AdminActivityLogOut,
   AdminSummaryOut,
+  BackupRecordOut,
   BackupStatusOut,
   DeliveryQueueStatusOut,
+  EmailCenterSystemStatusOut,
   FinanceDailyOut,
+  OnboardingV2AdminRecordListOut,
   PlatformAnalyticsOut,
+  RegistrationLeadStatsOut,
+  SuperadminSessionStateOut,
   TrafficSummaryOut,
   UserOut,
 } from "@/lib/types";
@@ -70,6 +75,48 @@ export function useActivityLog(limit = 12) {
 
 export function useAllUsers() {
   return useAdmin<UserOut[]>("/users", { refreshInterval: 120_000 });
+}
+
+/* ----- deeper reads, used by the full analytics page ---------------------- */
+
+export function useBackupHistory(limit = 30) {
+  return useAdmin<BackupRecordOut[]>(`/admin/backups/history?limit=${limit}`, {
+    refreshInterval: 300_000,
+  });
+}
+
+export function useEmailSystemStatus() {
+  return useAdmin<EmailCenterSystemStatusOut>(
+    "/superadmin/email-center/system-status",
+    { refreshInterval: 120_000 }
+  );
+}
+
+export function useDeliveryQueue() {
+  return useAdmin<DeliveryQueueStatusOut>(
+    "/superadmin/email-center/delivery-queue/status",
+    { refreshInterval: 60_000 }
+  );
+}
+
+export function useRegistrationLeadStats() {
+  return useAdmin<RegistrationLeadStatsOut>(
+    "/superadmin/registration-leads/stats",
+    { refreshInterval: 120_000 }
+  );
+}
+
+export function useSuperadminSessions() {
+  return useAdmin<SuperadminSessionStateOut>("/auth/superadmin/sessions", {
+    refreshInterval: 30_000,
+  });
+}
+
+export function useOnboardingRecords(limit = 500) {
+  return useAdmin<OnboardingV2AdminRecordListOut>(
+    `/users/admin/onboarding-v2-records?limit=${limit}`,
+    { refreshInterval: 300_000 }
+  );
 }
 
 /**
