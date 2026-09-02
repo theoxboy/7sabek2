@@ -509,9 +509,12 @@ export function AppSidebar({
         </div>
 
         {(!collapsed || isMobile) && (
-          <div className="mt-2 text-center text-[10px] text-[var(--muted)] opacity-70">
+          <Link
+            href="/releases"
+            className="mt-2 block text-center text-[10px] text-[var(--muted)] opacity-70 transition hover:text-[var(--accent-strong)] hover:opacity-100 hover:underline"
+          >
             7sabek {appVersionLabel}
-          </div>
+          </Link>
         )}
       </div>
     </aside>

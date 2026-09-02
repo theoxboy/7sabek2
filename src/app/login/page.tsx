@@ -735,7 +735,12 @@ export default function LoginPage() {
             >
               <Home className="h-4 w-4" />
             </Link>
-            <span className="text-[0.7rem] font-semibold text-[#7C8D86]">7sabek {appVersionLabel}</span>
+            <Link
+              href="/releases"
+              className="text-[0.7rem] font-semibold text-[#7C8D86] underline-offset-2 transition hover:text-[#0B8F53] hover:underline"
+            >
+              7sabek {appVersionLabel}
+            </Link>
           </div>
 
           <div className="flex flex-1 items-center justify-center pt-8">

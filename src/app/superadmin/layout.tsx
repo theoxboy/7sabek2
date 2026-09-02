@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 
 import { fetchMe, logout, type AuthUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { getAppVersionLabel } from "@/lib/app-version";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
 import type {
@@ -833,6 +834,12 @@ export default function SuperAdminLayout({
               >
                 {copy.logout}
               </button>
+              <Link
+                href="/releases"
+                className="mt-3 block text-center text-[10px] font-semibold text-[var(--muted)] opacity-70 transition hover:text-[var(--accent-strong)] hover:opacity-100 hover:underline"
+              >
+                7sabek {getAppVersionLabel()}
+              </Link>
             </div>
           </div>
         </nav>
