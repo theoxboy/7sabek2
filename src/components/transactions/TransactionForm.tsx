@@ -199,6 +199,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set to the duplicate-key the user was last warned about; a second submit of
+  // the exact same draft is treated as "yes, this really is a distinct
+  // transaction" and allowed through. Two genuinely identical entries the same
+  // day (e.g. two coffees) are legitimate.
+  const acknowledgedDuplicateKeyRef = useRef<string | null>(null);
   const [inlineEnvelopeMapping, setInlineEnvelopeMapping] = useState<string>("");
 
   // Live preview states
@@ -716,9 +721,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         );
         return;
       }
-      // If income, ensure it's a primary category
+      // If income, make sure the picked category is actually an income
+      // category and not, say, "Groceries". We accept anything the form itself
+      // classifies as income (`categoryKindById`, which also covers custom /
+      // renamed income categories) — only a category that reads as an expense
+      // is rejected here, so a user with a non-catalog income name is not
+      // dead-ended. The backend stays the authoritative check.
       const selectedCategoryObj = categories.find(c => c.id === effectiveCategoryId);
-      if (selectedCategoryObj && !isInternalIncomeCategory(selectedCategoryObj.name)) {
+      const selectedIsIncomeCategory =
+        !selectedCategoryObj ||
+        categoryKindById.get(effectiveCategoryId) === "income" ||
+        isInternalIncomeCategory(selectedCategoryObj.name);
+      if (!selectedIsIncomeCategory) {
         setError(
           locale === "ar"
             ? "لتفعيل حسابك، يجب أن يكون دخلك الأول هو دخلك الرئيسي (الراتب، إلخ)."
@@ -759,15 +773,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     const isDuplicate = transactions.some(
       (tx) => buildDuplicateKey(tx) === draftKey && tx.id !== editingId
     );
-    if (isDuplicate) {
-      setError(copy.duplicateBeforeSave);
+    if (isDuplicate && acknowledgedDuplicateKeyRef.current !== draftKey) {
+      acknowledgedDuplicateKeyRef.current = draftKey;
+      setError(`${copy.duplicateBeforeSave} ${copy.duplicateBeforeSaveConfirm}`);
       toast({
         title: copy.duplicateBeforeSave,
-        description: copy.duplicateBeforeSaveDescription,
+        description: `${copy.duplicateBeforeSaveDescription} ${copy.duplicateBeforeSaveConfirm}`,
         variant: "default",
       });
       return;
     }
+    acknowledgedDuplicateKeyRef.current = null;
 
     setSubmitting(true);
     try {

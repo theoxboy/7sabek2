@@ -910,7 +910,12 @@ function AppLayoutContent({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!user || isOnboarding) return;
-    if (window.sessionStorage.getItem(REGISTER_FORCE_ONBOARDING_KEY) !== "1") return;
+    // The register flow and the onboarding-v2 page both write/clear this flag in
+    // localStorage (it must survive the full-page nav from /register). Reading
+    // sessionStorage here meant this fast-path redirect never fired and a
+    // freshly-registered "account without a plan" user briefly landed in the app
+    // shell before the async record gate below bounced them back.
+    if (window.localStorage.getItem(REGISTER_FORCE_ONBOARDING_KEY) !== "1") return;
     router.push("/onboarding?post_register=1");
   }, [isOnboarding, router, user]);
 

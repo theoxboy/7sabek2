@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Cairo } from "next/font/google";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
+import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import {
   Camera,
@@ -7407,7 +7408,12 @@ function getEnvelopeLabelForUi(name: string): string {
   if (name.startsWith("Dettes — ")) {
     return `الديون — ${name.replace("Dettes — ", "").trim()}`;
   }
-  return ENVELOPE_LABEL_DARIJA[name] ?? name;
+  const local = ENVELOPE_LABEL_DARIJA[name];
+  if (local) return local;
+  // Fall back to the app-wide canonical localizer so names not listed here
+  // (e.g. "Cash") still render in Darija instead of leaking their FR/EN
+  // canonical key into this Arabic-only flow.
+  return localizeEnvelopeLabel(name, "ar");
 }
 
 function getEnvelopeSetupShownAmount(params: {
@@ -7871,7 +7877,30 @@ function toSuggestedEnvelopeOptions(answers: Answers): QuestionOption[] {
   return toSuggestedEnvelopeGroups(answers).flatMap((group) => group.options);
 }
 
+// The envelope step (E11_envelope_setup) commits its final selection as a
+// canonical snapshot in `E11_selected_envelopes_v1`, written from the same
+// proposal-preview state that renders the checkboxes. When that snapshot exists
+// it is the single source of truth — deriving from the legacy
+// `E10_keep_suggestions` + catalog path here would let the persisted plan drift
+// from what the user actually saw and confirmed.
+function readSelectedEnvelopesSnapshot(answers: Answers): string[] {
+  const raw = answers["E11_selected_envelopes_v1"];
+  if (!Array.isArray(raw)) return [];
+  const names: string[] = [];
+  raw.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const item = entry as Record<string, unknown>;
+    const finalName = typeof item.final_name === "string" ? item.final_name.trim() : "";
+    const baseName = typeof item.name === "string" ? item.name.trim() : "";
+    const name = finalName || baseName;
+    if (name && !isSystemProposalName(name)) names.push(name);
+  });
+  return names;
+}
+
 function deriveValidatedSuggestedEnvelopes(answers: Answers): string[] {
+  const snapshot = readSelectedEnvelopesSnapshot(answers);
+  if (snapshot.length > 0) return uniqueBySlug(snapshot);
   const mode = getString(answers, "E9_generate_confirm") || "yes_generate";
   if (mode !== "yes_generate") return [];
   const options = toSuggestedEnvelopeOptions(answers);
@@ -7898,7 +7927,10 @@ function deriveEnvelopes(answers: Answers): string[] {
   }
 
   names.push("Cash", "Épargne");
-  return Array.from(new Set(names));
+  // Dedupe by canonical slug (not exact string) so a custom "cash" / "epargne"
+  // typed by the user collapses into the system envelopes instead of creating a
+  // near-duplicate on the backend.
+  return uniqueBySlug(names);
 }
 
 function deriveCategories(answers: Answers): string[] {
@@ -17659,6 +17691,15 @@ export function BetaOnboardingV2PageContent({
     try {
       await persistOnboardingRecord(true);
       const latestDistributionStatus = await refreshDistributionStatus(undefined, { force: true });
+      // `refreshDistributionStatus` swallows fetch failures and returns null. A
+      // null here means "we could not verify", NOT "the setup is incomplete" —
+      // surface that so the user retries instead of being told to redo a
+      // distribution config that is actually fine.
+      if (!latestDistributionStatus) {
+        throw new Error(
+          "ما قدرناش نتأكدو من إعداد التوزيع. تأكد من الاتصال بالإنترنت وعاود المحاولة."
+        );
+      }
       const latestVisibleUnresolved = (latestDistributionStatus?.unresolved_envelope_names ?? []).filter(
         (name) => !isExcludedMoronaTargetKey(getDistributionNameEquivalentKey(name))
       );

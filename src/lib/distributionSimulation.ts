@@ -4,7 +4,15 @@
  * Mirrors the backend engine (`distribution_engine.build_distribution_plan`,
  * standard path) so the wizard preview matches what `/distribution/apply` will
  * actually do:
- *   1. Fixed rules apply first, in rank order, each capped at the cash left.
+ *   0. Baseline fixed items (envelopes that already carry a fixed monthly
+ *      amount and are NOT among the configured rows) are debited first, in the
+ *      order supplied, each capped at the cash left. They are not user-ranked:
+ *      the backend treats them as pre-committed obligations that come off the
+ *      top before the new distribution rules are evaluated. A baseline item
+ *      whose name matches a configured fixed row (case/space-insensitive) is
+ *      dropped here so it is not counted twice.
+ *   1. Configured fixed rules apply next, in rank order, each capped at the
+ *      cash left.
  *   2. Percent rules then split the remainder:
  *        - total % > 100 → shares scaled down to fill the whole remainder;
  *        - total % ≤ 100 → shares split that fraction; the rest stays in cash

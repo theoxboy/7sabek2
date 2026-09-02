@@ -132,6 +132,8 @@ export const TRANSACTIONS_COPY = {
       "Une transaction identique existe déjà avec le même type, la même date, le même montant, la même catégorie et le même commentaire.",
     duplicateBeforeSaveFix: "Corriger cette saisie",
     duplicateBeforeSaveOpenExisting: "Ouvrir l’opération existante",
+    duplicateBeforeSaveConfirm:
+      "Si cette opération est réellement distincte, appuyez à nouveau sur Enregistrer pour confirmer.",
     addSuccess: "Ajout reussi.",
     addSuccessDescription: "La transaction a ete ajoutee.",
     distributionApplied: "Répartition appliquée.",
@@ -282,6 +284,8 @@ export const TRANSACTIONS_COPY = {
       "An identical transaction already exists with the same type, date, amount, category, and comment.",
     duplicateBeforeSaveFix: "Fix this entry",
     duplicateBeforeSaveOpenExisting: "Open existing transaction",
+    duplicateBeforeSaveConfirm:
+      "If this really is a separate transaction, press Save again to confirm.",
     addSuccess: "Added successfully.",
     addSuccessDescription: "The transaction has been added.",
     distributionApplied: "Distribution applied.",
@@ -432,6 +436,8 @@ export const TRANSACTIONS_COPY = {
       "كاينة عملية بحالها بنفس النوع، التاريخ، المبلغ، الفئة، والتعليق.",
     duplicateBeforeSaveFix: "نرجع نصلح هاد الإدخال",
     duplicateBeforeSaveOpenExisting: "نفتح العملية الموجودة",
+    duplicateBeforeSaveConfirm:
+      "إلا كانت هاد العملية بصح مختلفة، عاود كليك على \"حفظ\" باش تأكد.",
     addSuccess: "تزادت العملية بنجاح.",
     addSuccessDescription: "تسجلات العملية.",
     distributionApplied: "تطبق التوزيع.",

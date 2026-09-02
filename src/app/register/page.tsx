@@ -615,7 +615,11 @@ export default function RegisterPage() {
   const countryLabels = COUNTRY_LABELS[locale];
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
   const isDevEnvironment = process.env.NODE_ENV !== "production";
-  const allowRecaptchaBypass = !recaptchaSiteKey;
+  // Only skip the client-side reCAPTCHA gate in dev. A production build that
+  // ships without NEXT_PUBLIC_RECAPTCHA_SITE_KEY should fail closed (block the
+  // form) rather than silently disable bot protection. The backend still
+  // enforces the token regardless.
+  const allowRecaptchaBypass = isDevEnvironment && !recaptchaSiteKey;
 
   const formatDuration = (seconds: number) => {
     const total = Math.max(seconds, 0);
