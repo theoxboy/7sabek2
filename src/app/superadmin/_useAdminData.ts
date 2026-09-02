@@ -85,6 +85,12 @@ export function useBackupHistory(limit = 30) {
   });
 }
 
+export function useBackupStatus() {
+  return useAdmin<BackupStatusOut>("/admin/backups/status", {
+    refreshInterval: 300_000,
+  });
+}
+
 export function useEmailSystemStatus() {
   return useAdmin<EmailCenterSystemStatusOut>(
     "/superadmin/email-center/system-status",

@@ -39,6 +39,7 @@ import {
   useAdminSummary,
   useAllUsers,
   useBackupHistory,
+  useBackupStatus,
   useDeliveryQueue,
   useEmailSystemStatus,
   useFinanceSeries,
@@ -70,6 +71,13 @@ function bucket<T>(
     .slice(0, limit);
 }
 
+const OK_STATUS = /^(success|succeeded|completed?|done|ok|finished)$/i;
+const isRealBackup = (kind?: string | null) =>
+  !/import|export|restore|upload|download/i.test(kind ?? "");
+const backupOk = (b: { status: string; completed_at?: string | null }) =>
+  OK_STATUS.test(b.status.trim()) ||
+  (Boolean(b.completed_at) && !/error|fail|abort/i.test(b.status));
+
 function runningTotal<T extends { name: string }>(
   rows: T[],
   pick: (row: T) => number
@@ -97,6 +105,7 @@ export default function SuperAdminAnalyticsPage() {
   const users = useAllUsers();
   const activity = useActivityLog(200);
   const backups = useBackupHistory(30);
+  const backupStatusData = useBackupStatus();
   const emailStatus = useEmailSystemStatus();
   const queue = useDeliveryQueue();
   const leads = useRegistrationLeadStats();
@@ -441,28 +450,67 @@ export default function SuperAdminAnalyticsPage() {
     ].filter((r) => r.value > 0);
   }, [emailStatus.data, p, copy.v]);
 
-  const backupList = backups.data ?? [];
+  /**
+   * /admin/backups/history mixes real backup runs with manual data
+   * imports/exports and in-progress attempts, and the "success" token isn't
+   * guaranteed. Only count actual backup creations, normalise the status, and
+   * take the "last backup age" from /admin/backups/status (last_snapshot /
+   * last_scheduled) — the same canonical source the health bar and the Backups
+   * page use — so the two screens never disagree.
+   */
+  const backupRuns = useMemo(
+    () => (backups.data ?? []).filter((b) => isRealBackup(b.kind)),
+    [backups.data]
+  );
+
   const backupDuration = useMemo(
     () =>
-      [...backupList]
-        .reverse()
-        .map((b) => ({
-          name: dayLabel(b.created_at),
-          value: b.duration_ms ? Math.round(b.duration_ms / 1000) : 0,
-        })),
-    [backupList, copy.locale]
-  );
-  const backupStatus = useMemo(
-    () =>
-      bucket(backupList, (b) => b.status, 5).map((r) => ({
-        ...r,
-        color: r.name === "success" ? p.accent : p.negative,
+      [...backupRuns].reverse().map((b) => ({
+        name: dayLabel(b.created_at),
+        value: b.duration_ms ? Math.round(b.duration_ms / 1000) : 0,
       })),
-    [backupList, p]
+    [backupRuns, copy.locale]
   );
-  const lastBackup = backupList[0] ?? null;
-  const backupAgeHours = lastBackup
-    ? Math.round((now - new Date(lastBackup.created_at).getTime()) / 36e5)
+
+  const backupStatusChart = useMemo(() => {
+    let ok = 0;
+    let failed = 0;
+    let running = 0;
+    for (const b of backupRuns) {
+      if (!b.completed_at && !OK_STATUS.test(b.status.trim())) running += 1;
+      else if (backupOk(b)) ok += 1;
+      else failed += 1;
+    }
+    return [
+      { name: copy.v.success, value: ok, color: p.accent },
+      { name: copy.v.failed, value: failed, color: p.negative },
+      { name: "…", value: running, color: p.amber },
+    ].filter((r) => r.value > 0);
+  }, [backupRuns, p, copy.v]);
+
+  const lastGoodBackup = useMemo(() => {
+    const s = backupStatusData.data;
+    const candidates = [s?.last_snapshot, s?.last_scheduled].filter(
+      (b): b is NonNullable<typeof b> => Boolean(b)
+    );
+    const fromHistory = backupRuns.filter(backupOk);
+    const all = [...candidates, ...fromHistory];
+    all.sort(
+      (a, b) =>
+        new Date(b.completed_at ?? b.created_at).getTime() -
+        new Date(a.completed_at ?? a.created_at).getTime()
+    );
+    return all[0] ?? null;
+  }, [backupStatusData.data, backupRuns]);
+
+  const backupAgeHours = lastGoodBackup
+    ? Math.round(
+        (now -
+          new Date(
+            lastGoodBackup.completed_at ?? lastGoodBackup.created_at
+          ).getTime()) /
+          36e5
+      )
     : null;
 
   const activeSessions = sessions.data?.sessions ?? [];
@@ -891,14 +939,20 @@ export default function SuperAdminAnalyticsPage() {
           <ChartCard title={copy.c.backupDuration} query={backups} empty={backupDuration.length === 0} labels={labels}>
             <BarOne data={backupDuration} color={p.accent} />
           </ChartCard>
-          <ChartCard title={copy.c.backupStatus} query={backups} empty={backupStatus.length === 0} labels={labels}>
-            <Donut data={backupStatus} />
+          <ChartCard title={copy.c.backupStatus} query={backups} empty={backupStatusChart.length === 0} labels={labels}>
+            <Donut data={backupStatusChart} />
           </ChartCard>
           <Metric
             label={copy.c.backupAge}
             value={backupAgeHours === null ? "—" : `${fmt(backupAgeHours)} h`}
-            sub={lastBackup?.status}
-            tone={backupAgeHours !== null && backupAgeHours > 36 ? "negative" : "default"}
+            sub={
+              lastGoodBackup
+                ? `${lastGoodBackup.kind} · ${
+                    backupOk(lastGoodBackup) ? copy.v.success : lastGoodBackup.status
+                  }`
+                : undefined
+            }
+            tone={backupAgeHours !== null && backupAgeHours > 48 ? "negative" : "default"}
           />
           <AdminCard>
             <p className="text-[15px] font-bold">{copy.c.sessions}</p>
