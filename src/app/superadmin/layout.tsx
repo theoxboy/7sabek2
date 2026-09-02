@@ -98,6 +98,10 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navigation: string;
     navHint: string;
     superAdmin: string;
+    groupSupervision: string;
+    groupUsers: string;
+    groupSystem: string;
+    groupComms: string;
     uploadInProgress: string;
     uploadFinishing: string;
     uploadStabilizing: string;
@@ -143,6 +147,10 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navigation: "Navigation",
     navHint: "Accès rapide aux pages superadmin.",
     superAdmin: "Super Admin",
+    groupSupervision: "Supervision",
+    groupUsers: "Utilisateurs",
+    groupSystem: "Système",
+    groupComms: "Communication",
     uploadInProgress: "Upload en cours",
     uploadFinishing: "Finalisation de l’upload",
     uploadStabilizing: "Patiente encore un peu, tout est en train de se stabiliser.",
@@ -187,6 +195,10 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navigation: "Navigation",
     navHint: "Quick access to superadmin pages.",
     superAdmin: "Super Admin",
+    groupSupervision: "Supervision",
+    groupUsers: "Users",
+    groupSystem: "System",
+    groupComms: "Communication",
     uploadInProgress: "Upload in progress",
     uploadFinishing: "Finalizing upload",
     uploadStabilizing: "Please wait a little longer while everything stabilizes.",
@@ -231,6 +243,10 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navigation: "التنقل",
     navHint: "ولوج سريع لصفحات superadmin.",
     superAdmin: "Super Admin",
+    groupSupervision: "المراقبة",
+    groupUsers: "المستخدمين",
+    groupSystem: "النظام",
+    groupComms: "التواصل",
     uploadInProgress: "الرفع خدام",
     uploadFinishing: "كنكملو الرفع",
     uploadStabilizing: "تسنا شوية حتى يستقر كلشي.",
@@ -268,19 +284,40 @@ export default function SuperAdminLayout({
   const [superadminSessionResolving, setSuperadminSessionResolving] =
     useState(false);
 
-  const NAV_ITEMS = [
-    { href: "/superadmin", label: copy.navDashboard, icon: LayoutDashboard, enabled: true },
-    { href: "/superadmin/users", label: copy.navUsers, icon: Users, enabled: true },
-    { href: "/superadmin/onboarding-records", label: copy.navOnboarding, icon: Rows3, enabled: true },
-    { href: "/superadmin/shiftpilot", label: copy.navShiftPilot, icon: CarFront, enabled: true },
-    { href: "/superadmin/settings", label: copy.navSettings, icon: Settings, enabled: true },
-    { href: "/superadmin/backups", label: copy.navBackups, icon: Archive, enabled: true },
-    { href: "/superadmin/audit", label: copy.navAudit, icon: ClipboardList, enabled: true },
-    { href: "/superadmin/sessions", label: copy.navSessions, icon: Clock3, enabled: true },
-    { href: "/superadmin/emails", label: copy.navEmails, icon: Mail, enabled: true },
-    { href: "/superadmin/contact-messages", label: copy.navContactMessages, icon: MessageSquare, enabled: true },
-    { href: "/superadmin/notifications", label: copy.navNotifications, icon: Bell, enabled: true },
+  const NAV_GROUPS = [
+    {
+      title: copy.groupSupervision,
+      items: [
+        { href: "/superadmin", label: copy.navDashboard, icon: LayoutDashboard, enabled: true },
+        { href: "/superadmin/audit", label: copy.navAudit, icon: ClipboardList, enabled: true },
+        { href: "/superadmin/sessions", label: copy.navSessions, icon: Clock3, enabled: true },
+      ],
+    },
+    {
+      title: copy.groupUsers,
+      items: [
+        { href: "/superadmin/users", label: copy.navUsers, icon: Users, enabled: true },
+        { href: "/superadmin/onboarding-records", label: copy.navOnboarding, icon: Rows3, enabled: true },
+      ],
+    },
+    {
+      title: copy.groupSystem,
+      items: [
+        { href: "/superadmin/backups", label: copy.navBackups, icon: Archive, enabled: true },
+        { href: "/superadmin/shiftpilot", label: copy.navShiftPilot, icon: CarFront, enabled: true },
+        { href: "/superadmin/settings", label: copy.navSettings, icon: Settings, enabled: true },
+      ],
+    },
+    {
+      title: copy.groupComms,
+      items: [
+        { href: "/superadmin/emails", label: copy.navEmails, icon: Mail, enabled: true },
+        { href: "/superadmin/contact-messages", label: copy.navContactMessages, icon: MessageSquare, enabled: true },
+        { href: "/superadmin/notifications", label: copy.navNotifications, icon: Bell, enabled: true },
+      ],
+    },
   ];
+  const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
 
   const formatCountdown = (seconds: number) => {
     const total = Math.max(seconds, 0);
@@ -750,41 +787,34 @@ export default function SuperAdminLayout({
               </div>
             </div>
             <ul className="floussy-nav-list floussy-scroll">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                if (!item.enabled) {
-                  return (
-                    <li key={item.href}>
-                      <span className="floussy-nav-item opacity-50 cursor-not-allowed">
-                        <span className="navbox bg-hover-primary">
-                          <span className="icon-box bgicn-hover-primary">
-                            <Icon className="texthover-primary" aria-hidden />
-                          </span>
-                          <span className="floussy-nav-label">
-                            {item.label}
-                          </span>
-                        </span>
-                      </span>
-                    </li>
-                  );
-                }
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={`floussy-nav-item ${isActive ? "is-active" : ""}`}
-                    >
-                      <span className="navbox bg-hover-primary">
-                        <span className="icon-box bgicn-hover-primary">
-                          <Icon className="texthover-primary" aria-hidden />
-                        </span>
-                        <span className="floussy-nav-label">{item.label}</span>
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
+              {NAV_GROUPS.map((group) => (
+                <li key={group.title} className="mb-2">
+                  <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                    {group.title}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = pathname === item.href;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={`floussy-nav-item ${isActive ? "is-active" : ""}`}
+                          >
+                            <span className="navbox bg-hover-primary">
+                              <span className="icon-box bgicn-hover-primary">
+                                <Icon className="texthover-primary" aria-hidden />
+                              </span>
+                              <span className="floussy-nav-label">{item.label}</span>
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))}
             </ul>
             <div className="mt-6 border-t border-gray-100 pt-4">
               <button

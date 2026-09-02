@@ -1315,4 +1315,61 @@ body.onboarding-route-ar-body a svg {
   border-color: rgba(16, 185, 129, 0.15);
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Superadmin dashboard — visual language shared with landing + login        */
+/* -------------------------------------------------------------------------- */
+
+.admin-authority {
+  background: linear-gradient(155deg, #124636 0%, #0a241d 62%);
+}
+
+.admin-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.admin-blob-a {
+  width: 320px;
+  height: 320px;
+  background: rgba(23, 199, 119, 0.32);
+  top: -140px;
+  inset-inline-start: -100px;
+}
+
+.admin-blob-b {
+  width: 260px;
+  height: 260px;
+  background: rgba(76, 126, 255, 0.22);
+  bottom: -130px;
+  inset-inline-end: -80px;
+}
+
+.admin-shimmer {
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 30%,
+    color-mix(in srgb, var(--surface-2) 60%, var(--border)) 50%,
+    var(--surface-2) 70%
+  );
+  background-size: 200% 100%;
+  animation: adminShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes adminShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shimmer {
+    animation: none;
+  }
+}
+
 

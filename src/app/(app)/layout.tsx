@@ -2181,9 +2181,11 @@ function AppLayoutContent({
 
             <div className="flex-1">
               {user?.role === "superadmin" && actAsId ? (
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-                  <span>
-                    Mode superadmin actif · utilisateur ciblé: {actAsId}
+                <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
+                  <span className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-[var(--warning)]" aria-hidden />
+                    Mode superadmin — compte consulté&nbsp;:{" "}
+                    <code className="rounded bg-[var(--surface)] px-1.5 py-0.5">{actAsId}</code>
                   </span>
                   <Button
                     variant="secondary"
@@ -2191,9 +2193,13 @@ function AppLayoutContent({
                     onClick={() => {
                       if (typeof window !== "undefined") {
                         window.sessionStorage.removeItem("floussy.superadmin.act_as");
+                        void apiFetch("/admin/impersonation/stop", {
+                          method: "POST",
+                          body: { user_id: actAsId },
+                        }).catch(() => null);
                       }
                       setActAsId(null);
-                      router.refresh();
+                      router.push("/superadmin/users");
                     }}
                   >
                     Quitter le mode
