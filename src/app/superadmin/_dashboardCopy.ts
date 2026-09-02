@@ -9,14 +9,13 @@ export type DashboardCopy = {
   health: {
     title: string;
     api: string;
-    errors: string;
-    latency: string;
     lastBackup: string;
-    failedJobs: string;
     emailQueue: string;
+    emailFailed: string;
     unknown: string;
     operational: string;
     degraded: string;
+    ago: (value: string) => string;
   };
 
   kpi: {
@@ -27,6 +26,7 @@ export type DashboardCopy = {
     volume: string;
     last7d: string;
     last30d: string;
+    allTime: string;
     vsPrev: string;
   };
 
@@ -77,6 +77,8 @@ export type DashboardCopy = {
   segments: {
     title: string;
     subtitle: string;
+    total: string;
+    standard: string;
     user: string;
     beta: string;
     superadmin: string;
@@ -130,14 +132,13 @@ const fr: DashboardCopy = {
   health: {
     title: "Santé système",
     api: "API",
-    errors: "Erreurs 5xx",
-    latency: "Latence p95",
     lastBackup: "Dernier backup",
-    failedJobs: "Jobs en échec",
     emailQueue: "File emails",
+    emailFailed: "Emails en échec",
     unknown: "n/d",
     operational: "Opérationnel",
     degraded: "Dégradé",
+    ago: (value) => `il y a ${value}`,
   },
   kpi: {
     users: "Utilisateurs",
@@ -147,6 +148,7 @@ const fr: DashboardCopy = {
     volume: "Volume",
     last7d: "7 derniers jours",
     last30d: "30 derniers jours",
+    allTime: "cumul total",
     vsPrev: "vs période précédente",
   },
   finance: {
@@ -193,6 +195,8 @@ const fr: DashboardCopy = {
   segments: {
     title: "Segments de comptes",
     subtitle: "Répartition par statut",
+    total: "Total comptes",
+    standard: "Standard",
     user: "Standard",
     beta: "Bêta-testeurs",
     superadmin: "Superadmins",
@@ -242,14 +246,13 @@ const en: DashboardCopy = {
   health: {
     title: "System health",
     api: "API",
-    errors: "5xx errors",
-    latency: "p95 latency",
     lastBackup: "Last backup",
-    failedJobs: "Failed jobs",
     emailQueue: "Email queue",
+    emailFailed: "Failed emails",
     unknown: "n/a",
     operational: "Operational",
     degraded: "Degraded",
+    ago: (value) => `${value} ago`,
   },
   kpi: {
     users: "Users",
@@ -259,6 +262,7 @@ const en: DashboardCopy = {
     volume: "Volume",
     last7d: "Last 7 days",
     last30d: "Last 30 days",
+    allTime: "all-time total",
     vsPrev: "vs previous period",
   },
   finance: {
@@ -305,6 +309,8 @@ const en: DashboardCopy = {
   segments: {
     title: "Account segments",
     subtitle: "Breakdown by status",
+    total: "Total accounts",
+    standard: "Standard",
     user: "Standard",
     beta: "Beta testers",
     superadmin: "Superadmins",
@@ -354,14 +360,13 @@ const ar: DashboardCopy = {
   health: {
     title: "صحة النظام",
     api: "API",
-    errors: "أخطاء 5xx",
-    latency: "زمن الاستجابة p95",
     lastBackup: "آخر نسخة احتياطية",
-    failedJobs: "مهام فاشلة",
     emailQueue: "طابور الإيميلات",
+    emailFailed: "إيميلات فاشلة",
     unknown: "غير متاح",
     operational: "خدام مزيان",
     degraded: "فيه مشكل",
+    ago: (value) => `قبل ${value}`,
   },
   kpi: {
     users: "المستخدمين",
@@ -371,6 +376,7 @@ const ar: DashboardCopy = {
     volume: "الحجم",
     last7d: "آخر 7 أيام",
     last30d: "آخر 30 يوم",
+    allTime: "المجموع الكلي",
     vsPrev: "مقارنة بالفترة السابقة",
   },
   finance: {
@@ -417,6 +423,8 @@ const ar: DashboardCopy = {
   segments: {
     title: "شرائح الحسابات",
     subtitle: "التوزيع حسب الحالة",
+    total: "مجموع الحسابات",
+    standard: "عاديين",
     user: "عاديين",
     beta: "مختبري بيتا",
     superadmin: "سوبر أدمين",

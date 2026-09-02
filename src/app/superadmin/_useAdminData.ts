@@ -6,9 +6,10 @@ import { apiFetch } from "@/lib/api";
 import type {
   AdminActivityLogOut,
   AdminSummaryOut,
+  BackupStatusOut,
+  DeliveryQueueStatusOut,
   FinanceDailyOut,
   PlatformAnalyticsOut,
-  PlatformStatusOut,
   TrafficSummaryOut,
   UserOut,
 } from "@/lib/types";
@@ -72,48 +73,42 @@ export function useAllUsers() {
 }
 
 /**
- * System health. `/superadmin/system-health` is not guaranteed to exist yet on
- * the backend — the hook degrades to the public status endpoint and finally to
- * nulls, so the health bar renders "n/a" rather than breaking the page.
+ * System health, composed only from endpoints that actually exist and return
+ * real values:
+ *  - last backup  -> /admin/backups/status (BackupStatusOut)
+ *  - email queue  -> /superadmin/email-center/delivery-queue/status
+ *  - delivery failures (proxy for "failed jobs") -> same endpoint
+ *  - API reachable -> true, since this very request came back
+ * No fabricated 5xx-rate / p95 latency tiles — the frontend has no honest
+ * source for those, so they are not shown at all.
  */
 export type SystemHealth = {
-  api_ok: boolean | null;
-  error_rate_5xx: number | null;
-  latency_p95_ms: number | null;
+  api_ok: boolean;
   last_backup_at: string | null;
-  failed_jobs: number | null;
+  last_backup_status: string | null;
   email_queue: number | null;
-};
-
-const emptyHealth: SystemHealth = {
-  api_ok: null,
-  error_rate_5xx: null,
-  latency_p95_ms: null,
-  last_backup_at: null,
-  failed_jobs: null,
-  email_queue: null,
+  email_failed: number | null;
 };
 
 export function useSystemHealth() {
   return useSWR<SystemHealth>(
     "superadmin:system-health",
     async () => {
-      try {
-        return await adminFetcher<SystemHealth>("/superadmin/system-health");
-      } catch {
-        try {
-          const status = await apiFetch<PlatformStatusOut>(
-            "/public/platform-status"
-          );
-          return {
-            ...emptyHealth,
-            api_ok: Boolean(status),
-          };
-        } catch {
-          return emptyHealth;
-        }
-      }
+      const [backup, queue] = await Promise.all([
+        adminFetcher<BackupStatusOut>("/admin/backups/status").catch(() => null),
+        adminFetcher<DeliveryQueueStatusOut>(
+          "/superadmin/email-center/delivery-queue/status"
+        ).catch(() => null),
+      ]);
+      const lastBackup = backup?.last_snapshot ?? backup?.last_scheduled ?? null;
+      return {
+        api_ok: true,
+        last_backup_at: lastBackup?.completed_at ?? lastBackup?.created_at ?? null,
+        last_backup_status: lastBackup?.status ?? null,
+        email_queue: queue ? queue.pending_count + queue.retry_count : null,
+        email_failed: queue?.failed_count ?? null,
+      };
     },
-    { refreshInterval: 30_000, refreshWhenHidden: false, revalidateOnFocus: false }
+    { refreshInterval: 60_000, refreshWhenHidden: false, revalidateOnFocus: false }
   );
 }

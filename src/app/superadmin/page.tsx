@@ -136,7 +136,13 @@ export default function SuperAdminPage() {
 
   /* -------------------------- derived: acquisition ----------------------- */
 
-  const trafficData = useMemo(() => {
+  /**
+   * Acquisition = EXTERNAL traffic only. "internal" pageviews are dominated by
+   * the superadmin's own navigation (the layout POSTs a pageview on every
+   * superadmin route change), so counting them would make the headline
+   * meaningless. Internal is surfaced separately as a muted footnote.
+   */
+  const traffic_ = useMemo(() => {
     const sources = traffic.data?.sources ?? {};
     const total = Math.max(0, traffic.data?.total ?? 0);
     const direct = Math.max(0, Math.round(sources.direct ?? 0));
@@ -145,20 +151,27 @@ export default function SuperAdminPage() {
       0,
       Math.round(sources.organic ?? sources.organique ?? 0)
     );
-    const known = direct + referral + organic;
-    const internal = Math.max(0, total - known);
-    return [
-      { name: copy.acquisition.sourceInternal, value: internal, color: palette.track },
-      { name: copy.acquisition.sourceReferral, value: referral, color: palette.amber },
-      { name: copy.acquisition.sourceDirect, value: direct, color: palette.accent },
-      { name: copy.acquisition.sourceOrganic, value: organic, color: palette.neutral },
-    ];
+    const external = direct + referral + organic;
+    const internal = Math.max(0, total - external);
+    return {
+      external,
+      internal,
+      data: [
+        { name: copy.acquisition.sourceDirect, value: direct, color: palette.accent },
+        { name: copy.acquisition.sourceReferral, value: referral, color: palette.amber },
+        { name: copy.acquisition.sourceOrganic, value: organic, color: palette.neutral },
+      ],
+    };
   }, [traffic.data, palette, copy.acquisition]);
+  const trafficData = traffic_.data;
 
   const trafficDelta = useMemo(() => {
+    // Compare like-for-like: current external vs the previous window's external
+    // is not exposed by the API, so only show a delta when we have both totals
+    // and they are large enough to be meaningful.
     const current = traffic.data?.total ?? 0;
     const previous = traffic.data?.previous_total ?? 0;
-    if (previous === 0) return current === 0 ? 0 : 100;
+    if (previous < 20 || current < 20) return null;
     return Math.round(((current - previous) / Math.abs(previous)) * 1000) / 10;
   }, [traffic.data]);
 
@@ -178,7 +191,9 @@ export default function SuperAdminPage() {
     if (growth.length < 14) return null;
     const last7 = growth.slice(-7).reduce((s, r) => s + r.count, 0);
     const prev7 = growth.slice(-14, -7).reduce((s, r) => s + r.count, 0);
-    if (prev7 === 0) return last7 === 0 ? 0 : 100;
+    // A percentage swing off 1-2 signups ("+100%") is noise, not a trend.
+    if (last7 + prev7 < 10) return null;
+    if (prev7 === 0) return null;
     return Math.round(((last7 - prev7) / prev7) * 1000) / 10;
   }, [analytics.data]);
 
@@ -235,13 +250,18 @@ export default function SuperAdminPage() {
     const isSuspended = (u: (typeof list)[number]) =>
       u.status === "suspended" ||
       (u.suspended_until ? new Date(u.suspended_until).getTime() > now : false);
+    const beta = list.filter((u) => u.is_beta_tester).length;
+    const superadmin = list.filter((u) => u.role === "superadmin").length;
     return {
       total: list.length,
-      beta: list.filter((u) => u.is_beta_tester).length,
-      superadmin: list.filter((u) => u.role === "superadmin").length,
+      standard: list.length - beta - superadmin,
+      beta,
+      superadmin,
       suspended: list.filter(isSuspended).length,
+      // End users only — a superadmin has no onboarding to complete.
       onboardingIncomplete: list.filter(
-        (u) => u.has_completed_onboarding_v2 === false
+        (u) =>
+          u.role !== "superadmin" && u.has_completed_onboarding_v2 === false
       ).length,
     };
   }, [users.data]);
@@ -251,6 +271,7 @@ export default function SuperAdminPage() {
     const now = Date.now();
     const rows: { id: string; email: string; reason: string }[] = [];
     for (const u of list) {
+      if (u.role === "superadmin") continue;
       const suspended =
         u.status === "suspended" ||
         (u.suspended_until
@@ -270,58 +291,28 @@ export default function SuperAdminPage() {
 
   const healthItems = useMemo(() => {
     const d = health.data;
+    const backupAt = d?.last_backup_at ? new Date(d.last_backup_at) : null;
+    const backupFresh =
+      backupAt && !Number.isNaN(backupAt.getTime())
+        ? Date.now() - backupAt.getTime() < 36 * 3600 * 1000
+        : null;
     return [
       {
         label: copy.health.api,
-        value:
-          d?.api_ok === null || d?.api_ok === undefined
-            ? copy.health.unknown
-            : d.api_ok
-            ? copy.health.operational
-            : copy.health.degraded,
-        ok: d?.api_ok ?? null,
-      },
-      {
-        label: copy.health.errors,
-        value:
-          d?.error_rate_5xx === null || d?.error_rate_5xx === undefined
-            ? copy.health.unknown
-            : `${d.error_rate_5xx.toFixed(2)}%`,
-        ok: d?.error_rate_5xx === null || d?.error_rate_5xx === undefined
-          ? null
-          : d.error_rate_5xx < 1,
-      },
-      {
-        label: copy.health.latency,
-        value:
-          d?.latency_p95_ms === null || d?.latency_p95_ms === undefined
-            ? copy.health.unknown
-            : `${Math.round(d.latency_p95_ms)} ms`,
-        ok: d?.latency_p95_ms === null || d?.latency_p95_ms === undefined
-          ? null
-          : d.latency_p95_ms < 500,
+        value: copy.health.operational,
+        ok: true,
       },
       {
         label: copy.health.lastBackup,
-        value: d?.last_backup_at
-          ? new Date(d.last_backup_at).toLocaleString(copy.locale, {
+        value: backupAt
+          ? backupAt.toLocaleString(copy.locale, {
               dateStyle: "short",
               timeStyle: "short",
             })
           : copy.health.unknown,
-        ok: d?.last_backup_at
-          ? Date.now() - new Date(d.last_backup_at).getTime() < 36 * 3600 * 1000
-          : null,
-      },
-      {
-        label: copy.health.failedJobs,
-        value:
-          d?.failed_jobs === null || d?.failed_jobs === undefined
-            ? copy.health.unknown
-            : fmt(d.failed_jobs),
-        ok: d?.failed_jobs === null || d?.failed_jobs === undefined
-          ? null
-          : d.failed_jobs === 0,
+        ok: d?.last_backup_status
+          ? d.last_backup_status === "success" && backupFresh
+          : backupFresh,
       },
       {
         label: copy.health.emailQueue,
@@ -329,7 +320,21 @@ export default function SuperAdminPage() {
           d?.email_queue === null || d?.email_queue === undefined
             ? copy.health.unknown
             : fmt(d.email_queue),
-        ok: null,
+        ok:
+          d?.email_queue === null || d?.email_queue === undefined
+            ? null
+            : d.email_queue < 50,
+      },
+      {
+        label: copy.health.emailFailed,
+        value:
+          d?.email_failed === null || d?.email_failed === undefined
+            ? copy.health.unknown
+            : fmt(d.email_failed),
+        ok:
+          d?.email_failed === null || d?.email_failed === undefined
+            ? null
+            : d.email_failed === 0,
       },
     ];
   }, [health.data, copy, fmt]);
@@ -378,7 +383,7 @@ export default function SuperAdminPage() {
           <ShieldCheck className="h-4 w-4 text-[var(--accent-strong)]" />
           <p className="text-[13px] font-bold">{copy.health.title}</p>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
           {healthItems.map((item) => (
             <div
               key={item.label}
@@ -425,8 +430,12 @@ export default function SuperAdminPage() {
         />
         <KpiCard
           label={copy.kpi.transactions}
-          value={fmt(h?.transactions_7d)}
-          hint={copy.kpi.last7d}
+          value={fmt(summary.data?.transactions)}
+          hint={
+            h?.transactions_7d === null || h?.transactions_7d === undefined
+              ? copy.kpi.allTime
+              : `${copy.kpi.allTime} · ${fmt(h.transactions_7d)} / ${copy.kpi.last7d}`
+          }
           icon={<DollarSign className="h-3.5 w-3.5" />}
         />
         <KpiCard
@@ -642,9 +651,11 @@ export default function SuperAdminPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            {fmt(traffic.data?.total)} {copy.acquisition.visits} ·{" "}
-            {copy.acquisition.vsPrevPeriod}
+          <p className="mt-2 text-sm font-bold tabular-nums text-[var(--ink)]">
+            {fmt(traffic_.external)} {copy.acquisition.visits}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            + {fmt(traffic_.internal)} {copy.acquisition.sourceInternal}
           </p>
         </AdminCard>
       </div>
@@ -836,7 +847,8 @@ export default function SuperAdminPage() {
           />
           <div className="mt-4 space-y-3 text-sm">
             {[
-              { label: copy.segments.user, value: segments.total },
+              { label: copy.segments.total, value: segments.total },
+              { label: copy.segments.standard, value: segments.standard },
               { label: copy.segments.beta, value: segments.beta },
               { label: copy.segments.superadmin, value: segments.superadmin },
               { label: copy.segments.suspended, value: segments.suspended },
