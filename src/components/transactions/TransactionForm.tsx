@@ -252,29 +252,30 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     return categories[0] ?? null;
   }, [categories, defaultIncomeCategory, draft.category_id]);
 
-  // Fetch balances overrides on load or envelopes change
+  // Fresh closing balance for the envelope the current expense maps to. Only the
+  // "will this envelope go negative" preview reads an override, and it only ever
+  // reads the mapped envelope's — so fetch that one, not one request per
+  // envelope on every mount (a new user can easily have 15+ suggested envelopes).
+  const previewMappedEnvelopeId = draft.type === "expense" ? mappings[draft.category_id] : undefined;
   useEffect(() => {
-    if (envelopes.length === 0) return;
-    const fetchOverrides = async () => {
+    if (!previewMappedEnvelopeId) return;
+    if (envelopeBalanceOverrides[previewMappedEnvelopeId] !== undefined) return;
+    let cancelled = false;
+    (async () => {
       try {
-        const periodResults = await Promise.allSettled(
-          envelopes.map((env) => apiFetch<any[]>(`/envelopes/${env.id}/periods`))
-        );
-        const nextOverrides: Record<string, number> = {};
-        periodResults.forEach((result, index) => {
-          if (result.status !== "fulfilled" || result.value.length === 0) return;
-          const closing = Number(result.value[0].closing_balance);
-          if (Number.isFinite(closing)) {
-            nextOverrides[envelopes[index].id] = closing;
-          }
-        });
-        setEnvelopeBalanceOverrides(nextOverrides);
+        const periods = await apiFetch<any[]>(`/envelopes/${previewMappedEnvelopeId}/periods`);
+        const closing = Number(periods?.[0]?.closing_balance);
+        if (!cancelled && Number.isFinite(closing)) {
+          setEnvelopeBalanceOverrides((prev) => ({ ...prev, [previewMappedEnvelopeId]: closing }));
+        }
       } catch {
-        // ignore
+        // ignore — the preview falls back to the dashboard balance
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-    fetchOverrides();
-  }, [envelopes]);
+  }, [previewMappedEnvelopeId, envelopeBalanceOverrides]);
 
   // Live preview for income
   useEffect(() => {
