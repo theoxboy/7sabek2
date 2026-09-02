@@ -198,6 +198,28 @@ export default function SuperAdminPage() {
   }, [analytics.data]);
 
   const h = analytics.data?.health;
+
+  /**
+   * Active users. platform_analytics.health.active_users_7d comes back null from
+   * the backend in production, so derive it from data that IS populated:
+   *  1. the last weekly_active point (that series feeds the WAU chart);
+   *  2. the churn "0-7d" bucket (users who transacted in the last week);
+   *  3. the raw health field, if it ever arrives;
+   *  4. otherwise the users list vs. suspended.
+   */
+  const activeUsers = useMemo(() => {
+    const wa = analytics.data?.weekly_active ?? [];
+    if (wa.length > 0 && Number.isFinite(wa[wa.length - 1].count)) {
+      return wa[wa.length - 1].count;
+    }
+    const churn0 = (analytics.data?.churn ?? []).find((bucket) =>
+      /(^|[^0-9])0\s*[-–]\s*7/.test(bucket.label)
+    );
+    if (churn0) return churn0.count;
+    if (typeof h?.active_users_7d === "number") return h.active_users_7d;
+    return null;
+  }, [analytics.data, h]);
+
   const onboarding = analytics.data?.onboarding;
   const activationRate =
     onboarding && onboarding.total_users > 0
@@ -424,8 +446,10 @@ export default function SuperAdminPage() {
         />
         <KpiCard
           label={copy.kpi.activeUsers}
-          value={fmt(h?.active_users_7d)}
-          hint={`${copy.kpi.last7d} · ${fmt(h?.total_users)}`}
+          value={fmt(activeUsers)}
+          hint={`${copy.users.wauSub} · ${fmt(
+            summary.data?.users ?? segments.total
+          )}`}
           icon={<Activity className="h-3.5 w-3.5" />}
         />
         <KpiCard
