@@ -19,6 +19,8 @@ export type AuthUser = {
   claimed_at?: string | null;
   /** Guest has confirmed they saved their recovery code (drives protection 70). */
   recovery_code_ack?: boolean;
+  /** When the guest row was created — drives the "you've been tracking N days" copy. */
+  guest_created_at?: string | null;
   force_onboarding_v2_review: boolean;
   force_tour_replay_version: number;
   has_completed_onboarding_v2?: boolean;

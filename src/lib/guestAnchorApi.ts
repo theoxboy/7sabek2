@@ -70,3 +70,20 @@ export async function ackRecoveryCode(): Promise<AuthUser> {
     suppressAuthRedirect: true,
   });
 }
+
+/** `POST /auth/guest/claim-passkey` — finish a passkey-based claim (a passkey is already registered). */
+export async function claimGuestWithPasskey(): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/auth/guest/claim-passkey", {
+    method: "POST",
+    suppressAuthRedirect: true,
+  });
+}
+
+/** Fire one Mode Découverte funnel event. Never throws — analytics must not break a flow. */
+export function guestEvent(name: string, meta?: Record<string, unknown>): void {
+  void apiFetch("/analytics/guest-event", {
+    method: "POST",
+    body: { name, meta },
+    suppressAuthRedirect: true,
+  }).catch(() => {});
+}

@@ -35,6 +35,15 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
   const level = protectionLevelOf(user);
 
+  const daysTracking = user.guest_created_at
+    ? Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(user.guest_created_at).getTime()) / 86_400_000
+        )
+      )
+    : 0;
+
   const [claimOpen, setClaimOpen] = useState(false);
   const [eraseOpen, setEraseOpen] = useState(false);
   const [codeShown, setCodeShown] = useState(false);
@@ -96,7 +105,7 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         <div className="min-w-0">
           <h2 className="text-sm font-bold">{t.panelTitle}</h2>
           <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "var(--muted)" }}>
-            {t.panelIntro}
+            {daysTracking >= 3 ? t.trackingDays(daysTracking) : t.panelIntro}
           </p>
         </div>
       </header>
