@@ -153,7 +153,7 @@ const CLAIM_COPY: Record<
   },
 };
 
-function GuestClaimDialog({
+export function GuestClaimDialog({
   open,
   onOpenChange,
   locale,

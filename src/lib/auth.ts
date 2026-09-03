@@ -15,6 +15,10 @@ export type AuthUser = {
   is_guest?: boolean;
   /** Protection gauge figure (40 / 70 / 100). Only meaningful while `is_guest`. */
   protection_level?: number;
+  /** Set once a guest turns into a full account — used to stop forcing onboarding. */
+  claimed_at?: string | null;
+  /** Guest has confirmed they saved their recovery code (drives protection 70). */
+  recovery_code_ack?: boolean;
   force_onboarding_v2_review: boolean;
   force_tour_replay_version: number;
   has_completed_onboarding_v2?: boolean;

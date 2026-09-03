@@ -62,3 +62,11 @@ export async function claimGuestAccount(email: string, password: string): Promis
     suppressAuthRedirect: true,
   });
 }
+
+/** `POST /auth/guest/ack-recovery` — guest confirms they saved the recovery code (40 → 70). */
+export async function ackRecoveryCode(): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/auth/guest/ack-recovery", {
+    method: "POST",
+    suppressAuthRedirect: true,
+  });
+}
