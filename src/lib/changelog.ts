@@ -78,6 +78,11 @@ export const CHANGELOG: Release[] = [
             en: "If you already have a 7sabek account you can sign in to it from discovery mode and your tracked expenses are added to it.",
             ar: "إلا عندك ديجا حساب 7sabek، تقدر تدخل ليه من وضع الاكتشاف والمصاريف اللي تبّعتي كيتزادو ليه.",
           },
+          {
+            fr: "Sur Safari iPhone, le mode découverte t’avertit clairement que le navigateur efface les données au bout de 7 jours, et te montre ton code de reprise tout de suite pour ne rien perdre.",
+            en: "On Safari for iPhone, discovery mode clearly warns you that the browser clears data after 7 days, and shows your recovery code right away so nothing is lost.",
+            ar: "على Safari ديال iPhone، وضع الاكتشاف كينبّهك بوضوح بلي المتصفح كيمسح البيانات بعد 7 أيام، وكيوريك كود الاسترجاع دغيا باش ما تخسر والو.",
+          },
         ],
       },
     ],
