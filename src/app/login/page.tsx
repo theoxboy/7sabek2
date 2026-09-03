@@ -11,6 +11,7 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import { API_BASE, apiFetch, resetAuthClientState } from "@/lib/api";
 import { fetchMe, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
 import { startGuestSession } from "@/lib/guestSession";
+import { GuestRecoveryPrompt } from "@/components/guest/GuestRecoveryPrompt";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
@@ -825,6 +826,7 @@ export default function LoginPage() {
                 </div>
               ) : (
                 <>
+                  <GuestRecoveryPrompt locale={locale} dir={pageDir} />
                   <form
                     onSubmit={handleLogin}
                     onKeyDown={(event) => {

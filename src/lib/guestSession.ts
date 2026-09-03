@@ -21,8 +21,10 @@ import {
 import {
   createGuest,
   deleteGuestData,
+  l2Hint,
   resumeGuest,
 } from "@/lib/guestAnchorApi";
+import { collectDeviceSignals } from "@/lib/guestSignals";
 
 const RECOVERY_CODE_KEY = "7sabek.guest.recovery_code";
 
@@ -58,7 +60,10 @@ export async function startGuestSession(): Promise<AuthUser> {
     const existing = await resumeGuestFromVaults();
     if (existing) return existing;
 
-    const { user, guest_token, recovery_code } = await createGuest(newIdempotencyKey());
+    const { user, guest_token, recovery_code } = await createGuest(
+      newIdempotencyKey(),
+      collectDeviceSignals()
+    );
     await persistAnchorToken(guest_token);
     rememberRecoveryCode(recovery_code);
     return user;
@@ -92,6 +97,19 @@ export async function resumeGuestFromVaults(): Promise<AuthUser | null> {
   });
 
   return resumeInFlight;
+}
+
+/**
+ * L2: when there's no L1 token and nothing to resume, ask the server whether a
+ * guest budget *might* live on this device. Returns true only to route the
+ * person to the recovery-code screen — never restores anything.
+ */
+export async function checkL2Hint(): Promise<boolean> {
+  const token = await resolveAnchorToken();
+  if (token) return false;
+  const signals = collectDeviceSignals();
+  if (Object.keys(signals).length < 3) return false;
+  return l2Hint(signals);
 }
 
 /** Wipe this guest and its local anchor. Used by "Effacer mes données". */

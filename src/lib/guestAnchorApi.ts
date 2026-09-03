@@ -9,6 +9,7 @@
 
 import { apiFetch } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth";
+import type { DeviceSignals } from "@/lib/guestSignals";
 
 export type GuestCreateResponse = {
   user: AuthUser;
@@ -22,13 +23,33 @@ export type GuestCreateResponse = {
  * `POST /auth/guest` — create the guest row and set the `gt` cookie.
  * Idempotent: retrying with the same key returns the same user, never a second.
  */
-export async function createGuest(idempotencyKey: string): Promise<GuestCreateResponse> {
+export async function createGuest(
+  idempotencyKey: string,
+  signals?: DeviceSignals
+): Promise<GuestCreateResponse> {
   return apiFetch<GuestCreateResponse>("/auth/guest", {
     method: "POST",
-    body: {},
+    body: signals && Object.keys(signals).length ? { signals } : {},
     headers: { "Idempotency-Key": idempotencyKey },
     suppressAuthRedirect: true,
   });
+}
+
+/**
+ * `POST /auth/guest/l2-hint` — bare boolean: might a guest budget live on this
+ * device? A `true` routes to the recovery-code flow; it never restores anything.
+ */
+export async function l2Hint(signals: DeviceSignals): Promise<boolean> {
+  try {
+    const res = await apiFetch<{ maybe_exists: boolean }>("/auth/guest/l2-hint", {
+      method: "POST",
+      body: { signals },
+      suppressAuthRedirect: true,
+    });
+    return Boolean(res?.maybe_exists);
+  } catch {
+    return false;
+  }
 }
 
 /** `POST /auth/guest/resume` — exchange a mirror token for a fresh session cookie. */
