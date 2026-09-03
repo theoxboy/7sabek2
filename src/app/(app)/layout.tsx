@@ -40,6 +40,7 @@ import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
 import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -1946,6 +1947,14 @@ function AppLayoutContent({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <div className="mx-auto w-full max-w-5xl px-4 pt-4">
+          <GuestGateBanner
+            isGuest={Boolean(user?.is_guest)}
+            pathname={pathname}
+            locale={locale}
+            dir={pageDir}
+          />
+        </div>
         <PageTransition routeKey={pathname}>{children}</PageTransition>
       </div>
     );
@@ -2168,7 +2177,17 @@ function AppLayoutContent({
         </DialogContent>
       </Dialog>
       {isOnboarding ? (
-        <PageTransition routeKey={pathname}>{children}</PageTransition>
+        <>
+          <div className="mx-auto w-full max-w-3xl px-4 pt-4">
+            <GuestGateBanner
+              isGuest={Boolean(user?.is_guest)}
+              pathname={pathname}
+              locale={locale}
+              dir={pageDir}
+            />
+          </div>
+          <PageTransition routeKey={pathname}>{children}</PageTransition>
+        </>
       ) : (
         <>
           <div
@@ -2441,6 +2460,12 @@ function AppLayoutContent({
                   </div>
                 </div>
               </div>
+              <GuestGateBanner
+                isGuest={Boolean(user?.is_guest)}
+                pathname={pathname}
+                locale={locale}
+                dir={pageDir}
+              />
               <PageTransition routeKey={pathname}>{children}</PageTransition>
             </div>
           </div>

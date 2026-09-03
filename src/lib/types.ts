@@ -8,6 +8,8 @@ export type UserOut = {
   force_onboarding_v2_review?: boolean;
   force_tour_replay_version?: number;
   has_completed_onboarding_v2?: boolean;
+  is_guest?: boolean;
+  protection_level?: number | null;
   currency: string;
   sweep_interval_days: number;
   next_sweep_date?: string | null;

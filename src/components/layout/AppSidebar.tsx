@@ -21,7 +21,9 @@ import {
   Trophy,
   X,
   HandCoins,
+  Lock,
 } from "lucide-react";
+import { isGuestLockedHref } from "@/lib/guestGate";
 import BrandLogo from "@/components/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { useQuickTx } from "@/state/QuickTxContext";
@@ -46,13 +48,6 @@ export interface NavSection {
   items: NavSectionItem[];
 }
 
-/**
- * Routes removed from the sidebar for "Mode Découverte" guests — features that
- * need a full account and would only be dead ends. Conversion-argument routes
- * (goals, reports, advisor) stay visible and soft-wall instead. Keep in sync
- * with GUEST_FEATURE_ACCESS in src/lib/guestQuota.ts.
- */
-const GUEST_HIDDEN_HREFS = new Set(["/gamification"]);
 
 export const SIDEBAR_SECTIONS: NavSection[] = [
   {
@@ -361,9 +356,7 @@ export function AppSidebar({
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-4 floussy-scroll">
         {SIDEBAR_SECTIONS.map((section, secIdx) => {
           const visibleItems = section.items.filter(
-            (item) =>
-              (!item.betaOnly || betaAuthorized) &&
-              !(user?.is_guest && GUEST_HIDDEN_HREFS.has(item.href))
+            (item) => !item.betaOnly || betaAuthorized
           );
           if (visibleItems.length === 0) return null;
 
@@ -385,6 +378,8 @@ export function AppSidebar({
                   const isActive =
                     pathname === item.href ||
                     (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                  const guestLocked =
+                    Boolean(user?.is_guest) && isGuestLockedHref(item.href);
                   const Icon = item.icon;
                   const label =
                     i18n[item.labelKey as keyof typeof i18n] || item.defaultLabel;
@@ -416,7 +411,7 @@ export function AppSidebar({
                           isActive
                             ? "bg-emerald-500/15 text-emerald-300 font-semibold shadow-inner border border-emerald-500/30"
                             : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
-                        }`}
+                        } ${guestLocked ? "opacity-45 hover:opacity-75" : ""}`}
                       >
                         <div
                           className={`flex items-center gap-3 min-w-0 ${
@@ -438,8 +433,13 @@ export function AppSidebar({
                           )}
                         </div>
 
+                        {/* Guest: locked feature marker */}
+                        {(!collapsed || isMobile) && guestLocked && (
+                          <Lock className="ml-auto h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        )}
+
                         {/* Badges */}
-                        {(!collapsed || isMobile) && badgeContent && (
+                        {(!collapsed || isMobile) && !guestLocked && badgeContent && (
                           <span
                             className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                               item.badge?.variant === "amber"

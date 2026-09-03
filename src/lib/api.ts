@@ -165,6 +165,16 @@ function extractErrorMessage(payload: unknown, status?: number): string {
     ) {
       return typed.detail.message;
     }
+    // Structured errors that only carry a machine code (e.g. guest quotas):
+    // surface the code so callers can map it to their own copy.
+    if (
+      typed.detail &&
+      typeof typed.detail === "object" &&
+      !Array.isArray(typed.detail) &&
+      typeof (typed.detail as { code?: unknown }).code === "string"
+    ) {
+      return (typed.detail as { code: string }).code;
+    }
     if (Array.isArray(typed.detail)) {
       return typed.detail.map((item) => item.msg ?? "Invalid request").join(", ");
     }
