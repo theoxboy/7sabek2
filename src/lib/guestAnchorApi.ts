@@ -1,0 +1,54 @@
+/**
+ * Network wrappers for the guest (Mode Découverte) backend contract.
+ *
+ * Split out of `guestAnchor.ts` so that module stays dependency-free and
+ * unit-testable. These routes are specified in the Mode Découverte plan
+ * (annexe B.3) and are NOT live on the backend yet — wiring the UI to them
+ * waits on the `7sabek` backend repo.
+ */
+
+import { apiFetch } from "@/lib/api";
+import type { AuthUser } from "@/lib/auth";
+
+export type GuestCreateResponse = {
+  user: AuthUser;
+  /** The opaque L1 secret to mirror into every vault. */
+  guest_token: string;
+  /** One-time recovery code (phase 3 surfaces it; phase 1 just stores it server-side). */
+  recovery_code?: string;
+};
+
+/**
+ * `POST /auth/guest` — create the guest row and set the `gt` cookie.
+ * Idempotent: retrying with the same key returns the same user, never a second.
+ */
+export async function createGuest(idempotencyKey: string): Promise<GuestCreateResponse> {
+  return apiFetch<GuestCreateResponse>("/auth/guest", {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    suppressAuthRedirect: true,
+  });
+}
+
+/** `POST /auth/guest/resume` — exchange a mirror token for a fresh session cookie. */
+export async function resumeGuest(token: string): Promise<{ user: AuthUser }> {
+  return apiFetch<{ user: AuthUser }>("/auth/guest/resume", {
+    method: "POST",
+    body: { token },
+    suppressAuthRedirect: true,
+  });
+}
+
+/** `POST /auth/guest/recover` — exchange a recovery code for a session (phase 3). */
+export async function recoverGuest(recoveryCode: string): Promise<{ user: AuthUser }> {
+  return apiFetch<{ user: AuthUser }>("/auth/guest/recover", {
+    method: "POST",
+    body: { recovery_code: recoveryCode },
+    suppressAuthRedirect: true,
+  });
+}
+
+/** `DELETE /auth/guest` — erase the guest user and all their data, immediately. */
+export async function deleteGuestData(): Promise<void> {
+  await apiFetch("/auth/guest", { method: "DELETE", suppressAuthRedirect: true });
+}

@@ -7,6 +7,14 @@ export type AuthUser = {
   status: string;
   must_reset_password: boolean;
   is_beta_tester: boolean;
+  /**
+   * "Mode Découverte" session: a real user row with no email/password/onboarding.
+   * The whole guest UI is driven from this flag plus `protection_level` — there is
+   * no parallel route. Absent/false for members. See `src/lib/guestQuota.ts`.
+   */
+  is_guest?: boolean;
+  /** Protection gauge figure (40 / 70 / 100). Only meaningful while `is_guest`. */
+  protection_level?: number;
   force_onboarding_v2_review: boolean;
   force_tour_replay_version: number;
   has_completed_onboarding_v2?: boolean;
@@ -22,6 +30,11 @@ export type AuthUser = {
   city?: string | null;
   profile_photo_url?: string | null;
 };
+
+/** True when the session is a "Mode Découverte" guest rather than a full member. */
+export function isGuestUser(user: Pick<AuthUser, "is_guest"> | null | undefined): boolean {
+  return Boolean(user?.is_guest);
+}
 
 type FetchMeOptions = {
   suppressAuthRedirect?: boolean;
