@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, KeyRound, Trash2, Copy, Check } from "lucide-react";
 
 import type { FloussyLocale } from "@/lib/localePreference";
 import type { AuthUser } from "@/lib/auth";
 import { GUEST_PANEL_COPY, protectionLevelOf } from "@/lib/guestPanelCopy";
-import { ackRecoveryCode } from "@/lib/guestAnchorApi";
+import { ackRecoveryCode, guestSummary, type GuestSummary } from "@/lib/guestAnchorApi";
 import { eraseGuest, readStoredRecoveryCode } from "@/lib/guestSession";
 import { Button } from "@/components/ui/Button";
 import {
@@ -43,6 +43,28 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         )
       )
     : 0;
+
+  const [summary, setSummary] = useState<GuestSummary | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    guestSummary().then((s) => {
+      if (!cancelled) setSummary(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Palier 3: real numbers once the guest has genuinely used it.
+  const palier3 =
+    summary && (summary.transaction_count >= 5 || summary.days_tracking >= 7)
+      ? t.paliers(
+          summary.expense_total,
+          summary.days_tracking,
+          summary.envelope_count
+        )
+      : null;
+  const intro = palier3 ?? (daysTracking >= 3 ? t.trackingDays(daysTracking) : t.panelIntro);
 
   const [claimOpen, setClaimOpen] = useState(false);
   const [eraseOpen, setEraseOpen] = useState(false);
@@ -104,8 +126,11 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         </div>
         <div className="min-w-0">
           <h2 className="text-sm font-bold">{t.panelTitle}</h2>
-          <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "var(--muted)" }}>
-            {daysTracking >= 3 ? t.trackingDays(daysTracking) : t.panelIntro}
+          <p
+            className="mt-0.5 text-[13px] leading-snug"
+            style={{ color: palier3 ? "var(--ink)" : "var(--muted)", fontWeight: palier3 ? 600 : 400 }}
+          >
+            {intro}
           </p>
         </div>
       </header>

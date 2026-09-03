@@ -40,6 +40,8 @@ export type GuestPanelCopy = {
   chipLabel: string;
   /** Shown once the guest has been tracking for a few days — a real, personal nudge. */
   trackingDays: (days: number) => string;
+  /** Palier 3 — the guest's own numbers. */
+  paliers: (dh: number, days: number, envelopes: number) => string;
 };
 
 export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
@@ -83,6 +85,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     explainClose: "Compris",
     chipLabel: "Mode Découverte",
     trackingDays: (d) => `Tu suis ton budget depuis ${d} jour${d > 1 ? "s" : ""}. Garde tout, même si tu changes de téléphone — crée ton compte gratuit.`,
+    paliers: (dh, days, e) => `Tu as suivi ${dh.toLocaleString("fr-FR")} DH ${days > 0 ? `sur ${days} jour${days > 1 ? "s" : ""}` : "aujourd\u2019hui"}, dans ${e} enveloppe${e > 1 ? "s" : ""}. Garde tout — 10 secondes, c'est gratuit.`,
   },
   en: {
     panelTitle: "Discovery mode — your budget",
@@ -124,6 +127,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     explainClose: "Got it",
     chipLabel: "Discovery mode",
     trackingDays: (d) => `You\u2019ve been tracking your budget for ${d} day${d > 1 ? "s" : ""}. Keep all of it, even if you switch phones \u2014 create your free account.`,
+    paliers: (dh, days, e) => `You\u2019ve tracked ${dh.toLocaleString("en-US")} DH ${days > 0 ? `over ${days} day${days > 1 ? "s" : ""}` : "today"}, across ${e} envelope${e > 1 ? "s" : ""}. Keep all of it \u2014 10 seconds, it\u2019s free.`,
   },
   ar: {
     panelTitle: "وضع الاكتشاف — الميزانية ديالك",
@@ -165,6 +169,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     explainClose: "فهمت",
     chipLabel: "وضع الاكتشاف",
     trackingDays: (d) => `كتتبّع الميزانية ديالك من ${d} ${d > 1 ? "أيام" : "يوم"}. خلّي كولشي محفوظ حتى إلا بدّلتي التيليفون — صاوب حسابك المجاني.`,
+    paliers: (dh, days, e) => `تبّعتي ${dh.toLocaleString("ar-MA")} درهم ${days > 0 ? `ف ${days} ${days > 1 ? "أيام" : "يوم"}` : "اليوم"}، ف ${e} ${e > 1 ? "مغلفات" : "مغلف"}. خلّي كولشي — 10 ثواني، مجاني.`,
   },
 };
 

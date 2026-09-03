@@ -100,6 +100,24 @@ export async function claimGuestWithPasskey(): Promise<AuthUser> {
   });
 }
 
+export type GuestSummary = {
+  days_tracking: number;
+  transaction_count: number;
+  expense_total: number;
+  envelope_count: number;
+};
+
+/** `GET /auth/guest/summary` — the guest's own figures for the conversion card. */
+export async function guestSummary(): Promise<GuestSummary | null> {
+  try {
+    return await apiFetch<GuestSummary>("/auth/guest/summary", {
+      suppressAuthRedirect: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** Fire one Mode Découverte funnel event. Never throws — analytics must not break a flow. */
 export function guestEvent(name: string, meta?: Record<string, unknown>): void {
   void apiFetch("/analytics/guest-event", {
