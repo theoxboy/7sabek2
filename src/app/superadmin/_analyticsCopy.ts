@@ -3,6 +3,7 @@ import type { FloussyLocale } from "@/lib/localePreference";
 type Section =
   | "acquisition"
   | "growth"
+  | "guest"
   | "activation"
   | "engagement"
   | "finance"
@@ -69,6 +70,7 @@ const fr = build("fr-FR", {
   sections: {
     acquisition: "Acquisition & trafic",
     growth: "Croissance des comptes",
+    guest: "Mode Découverte (invités)",
     activation: "Activation & onboarding",
     engagement: "Engagement & rétention",
     finance: "Finance plateforme",
@@ -146,6 +148,14 @@ const fr = build("fr-FR", {
     accountFlags: "Comptes à statut particulier",
     resetRequests: "Demandes de réinitialisation",
     contactDaily: "Messages de contact par jour",
+    guestCreated: "Invités créés",
+    guestActivation: "Activation (1ʳᵉ dépense)",
+    guestClaim: "Conversion en compte",
+    guestActiveNow: "Invités actifs",
+    guestProtection70: "Codes de reprise notés",
+    guestClaimMethod: "Conversion : passkey vs e-mail",
+    guestSilentLoss: "Perte silencieuse d’identité (L2)",
+    guestDaily: "Invités créés / convertis par jour",
   },
 });
 
@@ -160,6 +170,7 @@ const en = build("en-CA", {
   sections: {
     acquisition: "Acquisition & traffic",
     growth: "Account growth",
+    guest: "Discovery mode (guests)",
     activation: "Activation & onboarding",
     engagement: "Engagement & retention",
     finance: "Platform finance",
@@ -237,6 +248,14 @@ const en = build("en-CA", {
     accountFlags: "Flagged accounts",
     resetRequests: "Password reset requests",
     contactDaily: "Contact messages per day",
+    guestCreated: "Guests created",
+    guestActivation: "Activation (first expense)",
+    guestClaim: "Converted to account",
+    guestActiveNow: "Active guests",
+    guestProtection70: "Recovery codes saved",
+    guestClaimMethod: "Conversion: passkey vs email",
+    guestSilentLoss: "Silent identity loss (L2)",
+    guestDaily: "Guests created / converted per day",
   },
 });
 
@@ -250,6 +269,7 @@ const ar = build("ar-MA", {
   sections: {
     acquisition: "الاكتساب والزيارات",
     growth: "نمو الحسابات",
+    guest: "وضع الاكتشاف (الضيوف)",
     activation: "التفعيل والأونبوردينغ",
     engagement: "التفاعل والاحتفاظ",
     finance: "مالية المنصة",
@@ -327,6 +347,14 @@ const ar = build("ar-MA", {
     accountFlags: "حسابات بحالة خاصة",
     resetRequests: "طلبات إعادة التعيين",
     contactDaily: "رسائل الاتصال كل نهار",
+    guestCreated: "الضيوف المُنشأون",
+    guestActivation: "التفعيل (أول مصروف)",
+    guestClaim: "التحويل لحساب",
+    guestActiveNow: "ضيوف نشطون",
+    guestProtection70: "أكواد الاسترجاع المسجّلة",
+    guestClaimMethod: "التحويل: passkey مقابل إيميل",
+    guestSilentLoss: "فقدان الهوية الصامت (L2)",
+    guestDaily: "الضيوف المُنشأون / المحوَّلون يومياً",
   },
 });
 
