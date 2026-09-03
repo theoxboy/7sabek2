@@ -27,6 +27,27 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.3.1",
+    date: "2026-09-03",
+    groups: [
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "En mode découverte, les fonctionnalités qui demandent un compte affichent maintenant un message clair qui rappelle que 7sabek est 100% gratuit, avec un bouton pour créer son compte sans rien perdre.",
+            en: "In discovery mode, features that need an account now show a clear message reminding you that 7sabek is 100% free, with a button to create your account without losing anything.",
+            ar: "فوضع الاكتشاف، الخصائص اللي كتطلب حساب ولّات كتبيّن رسالة واضحة كتفكّرك بلي 7sabek مجاني 100%، مع زر باش تصاوب حسابك بلا ما تخسر والو.",
+          },
+          {
+            fr: "L’assistant IA reste accessible en mode découverte avec quelques messages par jour, puis invite à créer un compte gratuit pour un accès sans limite.",
+            en: "The AI assistant stays available in discovery mode with a few messages a day, then invites you to create a free account for unlimited access.",
+            ar: "المساعد الذكي كيبقى متاح فوضع الاكتشاف بشي كم ديال الرسائل فاليوم، من بعد كيدعيك تصاوب حساب مجاني باش يكون عندك دخول بلا حدود.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.0",
     date: "2026-09-02",
     highlight: {
