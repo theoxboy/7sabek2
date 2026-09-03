@@ -11,6 +11,7 @@ import type {
   DeliveryQueueStatusOut,
   EmailCenterSystemStatusOut,
   FinanceDailyOut,
+  GuestFunnelOut,
   OnboardingV2AdminRecordListOut,
   PlatformAnalyticsOut,
   RegistrationLeadStatsOut,
@@ -57,6 +58,12 @@ export function usePlatformAnalytics(days = 30) {
 
 export function useTrafficSummary(days = 7) {
   return useAdmin<TrafficSummaryOut>(`/analytics/traffic?days=${days}`, {
+    refreshInterval: 120_000,
+  });
+}
+
+export function useGuestFunnel(days = 30) {
+  return useAdmin<GuestFunnelOut>(`/analytics/guest-funnel?days=${days}`, {
     refreshInterval: 120_000,
   });
 }

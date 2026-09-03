@@ -43,6 +43,7 @@ import {
   useDeliveryQueue,
   useEmailSystemStatus,
   useFinanceSeries,
+  useGuestFunnel,
   useOnboardingRecords,
   usePlatformAnalytics,
   useRegistrationLeadStats,
@@ -102,6 +103,7 @@ export default function SuperAdminAnalyticsPage() {
   const analytics = usePlatformAnalytics(range === 365 ? 90 : range);
   const finance = useFinanceSeries(range);
   const traffic = useTrafficSummary(range === 365 ? 90 : range);
+  const guestFunnel = useGuestFunnel(range === 365 ? 180 : range);
   const users = useAllUsers();
   const activity = useActivityLog(200);
   const backups = useBackupHistory(30);
@@ -724,6 +726,77 @@ export default function SuperAdminAnalyticsPage() {
           </ChartCard>
           <ChartCard title={copy.c.byCity} query={users} empty={byCity.length === 0} labels={labels}>
             <HBar data={byCity} color={p.neutral} />
+          </ChartCard>
+        </div>
+      </section>
+
+      {/* ===================== Mode Découverte ===================== */}
+      <section className="space-y-3">
+        <SectionEyebrow>{copy.sections.guest}</SectionEyebrow>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <Metric
+            label={copy.c.guestCreated}
+            value={fmt(guestFunnel.data?.guests_created ?? 0)}
+            sub={`${fmt(guestFunnel.data?.guests_active_now ?? 0)} ${copy.c.guestActiveNow.toLowerCase()}`}
+          />
+          <Metric
+            label={copy.c.guestActivation}
+            value={
+              guestFunnel.data
+                ? `${Math.round(guestFunnel.data.activation_rate * 100)}%`
+                : "—"
+            }
+            sub={guestFunnel.data ? `${fmt(guestFunnel.data.guests_first_tx)} / ${fmt(guestFunnel.data.guests_created)}` : undefined}
+            tone="positive"
+          />
+          <Metric
+            label={copy.c.guestClaim}
+            value={
+              guestFunnel.data
+                ? `${Math.round(guestFunnel.data.claim_rate * 100)}%`
+                : "—"
+            }
+            sub={guestFunnel.data ? `${fmt(guestFunnel.data.guests_claimed)} / ${fmt(guestFunnel.data.guests_created)}` : undefined}
+            tone="positive"
+          />
+          <Metric
+            label={copy.c.guestProtection70}
+            value={fmt(guestFunnel.data?.protection_70 ?? 0)}
+          />
+          <Metric
+            label={copy.c.guestClaimMethod}
+            value={
+              guestFunnel.data
+                ? `${fmt(guestFunnel.data.claim_by_passkey)} · ${fmt(guestFunnel.data.claim_by_email)}`
+                : "—"
+            }
+            sub={`passkey · ${copy.v.captured.toLowerCase()}`}
+          />
+          <Metric
+            label={copy.c.guestSilentLoss}
+            value={
+              guestFunnel.data
+                ? `${(guestFunnel.data.silent_loss_rate * 100).toFixed(1)}%`
+                : "—"
+            }
+            sub={guestFunnel.data ? `${fmt(guestFunnel.data.anchor_recovery_offered)} ${copy.v.total.toLowerCase()}` : undefined}
+            tone={
+              (guestFunnel.data?.silent_loss_rate ?? 0) > 0.03 ? "negative" : "default"
+            }
+          />
+          <ChartCard
+            title={copy.c.guestDaily}
+            query={guestFunnel}
+            empty={(guestFunnel.data?.daily.length ?? 0) === 0}
+            labels={labels}
+          >
+            <BarOne
+              data={(guestFunnel.data?.daily ?? []).map((d) => ({
+                name: d.day.slice(5),
+                value: d.created,
+              }))}
+              color={p.accent}
+            />
           </ChartCard>
         </div>
       </section>

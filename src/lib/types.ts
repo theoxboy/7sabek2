@@ -324,6 +324,22 @@ export type TrafficSummaryOut = {
   sources: Record<string, number>;
 };
 
+export type GuestFunnelOut = {
+  window_days: number;
+  guests_created: number;
+  guests_first_tx: number;
+  guests_claimed: number;
+  guests_active_now: number;
+  protection_70: number;
+  claim_by_passkey: number;
+  claim_by_email: number;
+  activation_rate: number;
+  claim_rate: number;
+  anchor_recovery_offered: number;
+  silent_loss_rate: number;
+  daily: { day: string; created: number; claimed: number }[];
+};
+
 export type FinanceDailyOut = {
   date: string;
   income: number;
