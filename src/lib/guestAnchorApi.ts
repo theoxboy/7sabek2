@@ -25,6 +25,7 @@ export type GuestCreateResponse = {
 export async function createGuest(idempotencyKey: string): Promise<GuestCreateResponse> {
   return apiFetch<GuestCreateResponse>("/auth/guest", {
     method: "POST",
+    body: {},
     headers: { "Idempotency-Key": idempotencyKey },
     suppressAuthRedirect: true,
   });
@@ -51,4 +52,13 @@ export async function recoverGuest(recoveryCode: string): Promise<{ user: AuthUs
 /** `DELETE /auth/guest` — erase the guest user and all their data, immediately. */
 export async function deleteGuestData(): Promise<void> {
   await apiFetch("/auth/guest", { method: "DELETE", suppressAuthRedirect: true });
+}
+
+/** `POST /auth/guest/claim` — turn the current guest into a full account (one UPDATE). */
+export async function claimGuestAccount(email: string, password: string): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/auth/guest/claim", {
+    method: "POST",
+    body: { email, password },
+    suppressAuthRedirect: true,
+  });
 }

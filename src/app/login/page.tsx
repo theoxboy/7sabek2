@@ -10,6 +10,7 @@ import { startAuthentication } from "@simplewebauthn/browser";
 
 import { API_BASE, apiFetch, resetAuthClientState } from "@/lib/api";
 import { fetchMe, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
+import { startGuestSession } from "@/lib/guestSession";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
@@ -89,6 +90,9 @@ const LOGIN_COPY = {
     update: "Mettre à jour",
     noAccountYet: "Pas encore de compte ?",
     createAccount: "Créer un compte",
+    tryWithoutAccount: "Essayer sans compte",
+    tryWithoutAccountHint: "Sans e-mail, sans mot de passe. Tes données restent, tu crées un compte quand tu veux.",
+    guestStartError: "Impossible de démarrer le mode découverte. Réessaie.",
     quickSignInTitle: "الدخول السريع",
     quickSignInMethod: "Face ID / empreinte",
     quickSignIn: "Connexion rapide",
@@ -154,6 +158,9 @@ const LOGIN_COPY = {
     update: "Update",
     noAccountYet: "No account yet?",
     createAccount: "Create an account",
+    tryWithoutAccount: "Try without an account",
+    tryWithoutAccountHint: "No email, no password. Your data stays; create an account whenever you want.",
+    guestStartError: "Could not start discovery mode. Try again.",
     quickSignInTitle: "Quick sign-in",
     quickSignInMethod: "Face ID / fingerprint",
     quickSignIn: "Quick sign-in",
@@ -217,6 +224,9 @@ const LOGIN_COPY = {
     update: "حدّث كلمة السر",
     noAccountYet: "مازال ما عندكش حساب؟",
     createAccount: "صاوب حساب جديد",
+    tryWithoutAccount: "جرّب بلا حساب",
+    tryWithoutAccountHint: "بلا إيميل، بلا كلمة السر. البيانات ديالك تبقى، وتصاوب حساب فاش بغيتي.",
+    guestStartError: "ما قدرناش نبداو وضع الاكتشاف. عاود المحاولة.",
     quickSignInTitle: "الدخول السريع",
     quickSignInMethod: "Face ID / بصمة",
     quickSignIn: "الدخول السريع",
@@ -255,6 +265,7 @@ export default function LoginPage() {
   const [forceReset, setForceReset] = useState(false);
   const [quickSignInLoading, setQuickSignInLoading] = useState(false);
   const [quickSignInError, setQuickSignInError] = useState<string | null>(null);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [passkeysSupported, setPasskeysSupported] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -593,6 +604,21 @@ export default function LoginPage() {
       setQuickSignInError(copy.quickSignInError);
     } finally {
       setQuickSignInLoading(false);
+    }
+  };
+
+  const handleGuestStart = async () => {
+    setError(null);
+    setGuestLoading(true);
+    try {
+      resetAuthClientState();
+      await startGuestSession();
+      markAuthSessionHint();
+      router.push("/dashboard");
+    } catch {
+      setError(copy.guestStartError);
+    } finally {
+      setGuestLoading(false);
     }
   };
 
@@ -973,7 +999,21 @@ export default function LoginPage() {
                     ) : null}
                   </form>
 
-                  <p className="mt-6 flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleGuestStart}
+                      isLoading={guestLoading}
+                      className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] hover:bg-[#0B8F53]/10"
+                    >
+                      {copy.tryWithoutAccount}
+                    </Button>
+                    <p className="text-center text-[0.78rem] font-medium text-[#4E625A]">
+                      {copy.tryWithoutAccountHint}
+                    </p>
+                  </div>
+
+                  <p className="mt-4 flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">
                     <span>{copy.noAccountYet}</span>
                     <Link href="/register" className="font-extrabold text-[#0B8F53] hover:underline">
                       {copy.createAccount}
