@@ -16,6 +16,8 @@ export type GuestPanelCopy = {
 
   recoveryTitle: string;
   recoveryIntro: string;
+  /** Palier 5 — shown when the browser actively purges local storage (Safari iOS, not installed). */
+  fragileWarning: string;
   reveal: string;
   copy: string;
   copied: string;
@@ -56,6 +58,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
       { level: 100, name: "Budget protégé", desc: "Sauvegardé, récupérable, sur tous tes appareils. Plus rien à faire." },
     ],
     recoveryTitle: "Mon code de reprise",
+    fragileWarning: "Ton navigateur (Safari) efface les données de l\u2019app après 7 jours sans visite. Note ton code de reprise maintenant, ou ajoute 7sabek à ton écran d\u2019accueil.",
     recoveryIntro:
       "Note ce code. Il ramène ton budget sur n’importe quel appareil, sans e-mail. Garde-le en lieu sûr.",
     reveal: "Afficher mon code",
@@ -98,6 +101,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
       { level: 100, name: "Budget protected", desc: "Backed up, recoverable, on every device. Nothing left to do." },
     ],
     recoveryTitle: "My recovery code",
+    fragileWarning: "Your browser (Safari) wipes the app\u2019s data after 7 days without a visit. Save your recovery code now, or add 7sabek to your home screen.",
     recoveryIntro:
       "Write this code down. It brings your budget back on any device, no email. Keep it somewhere safe.",
     reveal: "Show my code",
@@ -140,6 +144,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
       { level: 100, name: "الميزانية محمية", desc: "محفوظة، قابلة للاسترجاع، ف كل التيليفونات. ما بقا والو." },
     ],
     recoveryTitle: "الكود ديال الاسترجاع",
+    fragileWarning: "المتصفح ديالك (Safari) كيمسح بيانات التطبيق بعد 7 أيام بلا زيارة. سجّل كود الاسترجاع دابا، ولا زيد 7sabek لشاشة البداية ديالك.",
     recoveryIntro:
       "سجّل هاد الكود. كيرجّع ليك الميزانية ف أي تيليفون، بلا إيميل. خبّيه ف بلاصة مأمونة.",
     reveal: "وري ليا الكود",

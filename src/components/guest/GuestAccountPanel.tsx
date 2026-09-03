@@ -6,8 +6,10 @@ import { ShieldCheck, KeyRound, Trash2, Copy, Check } from "lucide-react";
 import type { FloussyLocale } from "@/lib/localePreference";
 import type { AuthUser } from "@/lib/auth";
 import { GUEST_PANEL_COPY, protectionLevelOf } from "@/lib/guestPanelCopy";
-import { ackRecoveryCode, guestSummary, type GuestSummary } from "@/lib/guestAnchorApi";
+import { ackRecoveryCode, guestSummary, guestEvent, type GuestSummary } from "@/lib/guestAnchorApi";
 import { eraseGuest, readStoredRecoveryCode } from "@/lib/guestSession";
+import { detectFragileContext } from "@/lib/guestFragileContext";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -72,6 +74,16 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
   const [copied, setCopied] = useState(false);
   const [acking, setAcking] = useState(false);
   const [erasing, setErasing] = useState(false);
+  const [fragile, setFragile] = useState(false);
+
+  useEffect(() => {
+    const ctx = detectFragileContext();
+    if (ctx.fragile && level < 70) {
+      setFragile(true);
+      setCodeShown(true);
+      guestEvent("fragile_context_detected", { reason: ctx.reason });
+    }
+  }, [level]);
 
   const storedCode = readStoredRecoveryCode();
   const acked = Boolean(user.recovery_code_ack) || level >= 70;
@@ -183,12 +195,24 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
       {storedCode ? (
         <div
           className="flex flex-col gap-2 rounded-xl p-3"
-          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+          style={{
+            background: fragile ? "var(--warning-soft)" : "var(--surface-2)",
+            border: `1px solid ${fragile ? "var(--warning)" : "var(--border)"}`,
+          }}
         >
           <div className="flex items-center gap-2">
             <KeyRound className="h-4 w-4" style={{ color: "var(--muted)" }} aria-hidden />
             <span className="text-[13px] font-semibold">{t.recoveryTitle}</span>
           </div>
+          {fragile && (
+            <p
+              className="flex items-start gap-1.5 text-[12.5px] font-semibold leading-snug"
+              style={{ color: "var(--warning)" }}
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {t.fragileWarning}
+            </p>
+          )}
           <p className="text-[12.5px] leading-snug" style={{ color: "var(--muted)" }}>
             {t.recoveryIntro}
           </p>
