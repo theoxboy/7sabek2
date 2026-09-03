@@ -73,6 +73,11 @@ export const CHANGELOG: Release[] = [
             en: "In discovery mode you can log an expense from the very first second (before, you had to set things up first). And once you’ve tracked a few, 7sabek shows you your real figures and invites you to keep your budget.",
             ar: "فوضع الاكتشاف، تقدر تسجّل مصروف من أول ثانية (قبل، كان خاصك دوز على الإعدادات). وملي تتبّع شي مصاريف، 7sabek كيوريك الأرقام الحقيقية ديالك وكيدعيك تحتافظ بالميزانية ديالك.",
           },
+          {
+            fr: "Si tu as déjà un compte 7sabek, tu peux t’y connecter depuis le mode découverte et tes dépenses suivies sont ajoutées à ton compte.",
+            en: "If you already have a 7sabek account you can sign in to it from discovery mode and your tracked expenses are added to it.",
+            ar: "إلا عندك ديجا حساب 7sabek، تقدر تدخل ليه من وضع الاكتشاف والمصاريف اللي تبّعتي كيتزادو ليه.",
+          },
         ],
       },
     ],

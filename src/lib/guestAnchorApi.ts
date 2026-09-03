@@ -100,6 +100,21 @@ export async function claimGuestWithPasskey(): Promise<AuthUser> {
   });
 }
 
+/**
+ * `POST /auth/guest/merge` — sign in to an existing account and bring the
+ * guest's tracked expenses along. Returns the target user + how many moved.
+ */
+export async function mergeGuestIntoAccount(
+  email: string,
+  password: string
+): Promise<{ user: AuthUser; transactions_merged: number }> {
+  return apiFetch<{ user: AuthUser; transactions_merged: number }>("/auth/guest/merge", {
+    method: "POST",
+    body: { email, password },
+    suppressAuthRedirect: true,
+  });
+}
+
 export type GuestSummary = {
   days_tracking: number;
   transaction_count: number;

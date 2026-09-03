@@ -6,7 +6,7 @@ import { startRegistration } from "@simplewebauthn/browser";
 
 import type { FloussyLocale } from "@/lib/localePreference";
 import { GUEST_GATE_COPY, guestRouteState } from "@/lib/guestGate";
-import { claimGuestAccount, claimGuestWithPasskey, guestEvent } from "@/lib/guestAnchorApi";
+import { claimGuestAccount, claimGuestWithPasskey, mergeGuestIntoAccount, guestEvent } from "@/lib/guestAnchorApi";
 import { finalizeGuestClaim } from "@/lib/guestSession";
 import { getPasskeyFeatureStatus, getRegisterOptions, verifyRegistration } from "@/lib/passkeys";
 import { Button } from "@/components/ui/Button";
@@ -127,6 +127,8 @@ const CLAIM_COPY: Record<
     passkeyWorking: string;
     passkeyFailed: string;
     orEmail: string;
+    mergeCta: string;
+    mergeBadPassword: string;
   }
 > = {
   fr: {
@@ -146,6 +148,8 @@ const CLAIM_COPY: Record<
     passkeyWorking: "Validation…",
     passkeyFailed: "La validation a échoué. Réessaie ou utilise un e-mail.",
     orEmail: "ou utiliser un e-mail",
+    mergeCta: "Me connecter et garder mes dépenses",
+    mergeBadPassword: "Mot de passe incorrect pour ce compte.",
   },
   en: {
     title: "Create your free account",
@@ -164,6 +168,8 @@ const CLAIM_COPY: Record<
     passkeyWorking: "Verifying…",
     passkeyFailed: "Verification failed. Try again or use an email.",
     orEmail: "or use an email",
+    mergeCta: "Sign in and keep my expenses",
+    mergeBadPassword: "Wrong password for this account.",
   },
   ar: {
     title: "صاوب حسابك المجاني",
@@ -182,6 +188,8 @@ const CLAIM_COPY: Record<
     passkeyWorking: "كنتحققو…",
     passkeyFailed: "التحقق ما نجحش. عاود ولا استعمل إيميل.",
     orEmail: "ولا استعمل إيميل",
+    mergeCta: "دخل وخلّي المصاريف ديالي",
+    mergeBadPassword: "كلمة السر ماشي صحيحة لهاد الحساب.",
   },
 };
 
@@ -204,6 +212,7 @@ export function GuestClaimDialog({
   const [error, setError] = useState<string | null>(null);
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -273,11 +282,32 @@ export function GuestClaimDialog({
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
       if (msg.includes("email_taken") || msg.includes("already")) {
         setError(t.errEmailTaken);
+        setMergeMode(true);
       } else if (msg.includes("password")) {
         setError(t.errWeakPassword);
       } else {
         setError(t.errGeneric);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitMerge = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await mergeGuestIntoAccount(email.trim().toLowerCase(), password);
+      await finalizeGuestClaim();
+      onOpenChange(false);
+      window.location.reload();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      setError(
+        msg.includes("bad_credentials") || msg.includes("401")
+          ? t.mergeBadPassword
+          : t.errGeneric
+      );
     } finally {
       setLoading(false);
     }
@@ -353,6 +383,18 @@ export function GuestClaimDialog({
             <p className="text-xs font-semibold" style={{ color: "var(--error)" }}>
               {error}
             </p>
+          )}
+
+          {mergeMode && (
+            <Button
+              type="button"
+              variant="secondary"
+              isLoading={loading}
+              onClick={() => void submitMerge()}
+              className="w-full"
+            >
+              {t.mergeCta}
+            </Button>
           )}
 
           <p className="text-center text-[11px]" style={{ color: "var(--muted)" }}>
