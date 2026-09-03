@@ -24,6 +24,7 @@ import {
   Lock,
 } from "lucide-react";
 import { isGuestLockedHref } from "@/lib/guestGate";
+import { protectionLevelOf } from "@/lib/guestPanelCopy";
 import BrandLogo from "@/components/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { useQuickTx } from "@/state/QuickTxContext";
@@ -256,6 +257,7 @@ export function AppSidebar({
   const { openQuickTx } = useQuickTx();
   const i18n = SIDEBAR_I18N[locale] || SIDEBAR_I18N.fr;
   const isRTL = locale === "ar";
+  const guestProtectionPct = user?.is_guest ? protectionLevelOf(user) : 100;
 
   const handleLinkClick = () => {
     if (isMobile && onCloseMobile) {
@@ -502,11 +504,23 @@ export function AppSidebar({
                 <p className="truncate text-xs font-semibold text-[var(--ink)]">
                   {displayName}
                 </p>
-                <p className="truncate text-[10px] text-[var(--muted)]">
-                  {user?.is_guest
-                    ? "Mode Découverte"
-                    : user?.email || i18n.activePlan}
-                </p>
+                {user?.is_guest ? (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                      <span
+                        className="block h-full rounded-full bg-[var(--accent)]"
+                        style={{ width: `${guestProtectionPct}%` }}
+                      />
+                    </span>
+                    <span className="text-[9px] font-bold text-[var(--accent-strong)]">
+                      {guestProtectionPct}%
+                    </span>
+                  </div>
+                ) : (
+                  <p className="truncate text-[10px] text-[var(--muted)]">
+                    {user?.email || i18n.activePlan}
+                  </p>
+                )}
               </div>
             )}
           </div>

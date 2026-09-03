@@ -41,6 +41,7 @@ import { SystemMessageCard } from "@/components/announcements/SystemMessageCard"
 import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
+import { GuestAccountPanel, GuestModeChip } from "@/components/guest/GuestAccountPanel";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -845,9 +846,20 @@ function AppLayoutContent({
           return;
         }
 
-        if (!onboardingCompleted) {
+        // A guest who just created an account (claimed_at set) is NOT pushed
+        // through onboarding — the plan makes it an opt-in, never a toll. They
+        // land in the app; a dismissible card can offer onboarding later.
+        const justClaimedFromGuest = Boolean(me.claimed_at);
+
+        if (!onboardingCompleted && !justClaimedFromGuest) {
           if (!isClassicOnboarding && !isBetaOnboarding) {
             router.push("/onboarding");
+          }
+          return;
+        }
+        if (!onboardingCompleted && justClaimedFromGuest) {
+          if (isClassicOnboarding || isBetaOnboarding || isMoneyPlanJourney) {
+            router.replace("/dashboard");
           }
           return;
         }
@@ -2279,6 +2291,9 @@ function AppLayoutContent({
                     >
                       <Menu className="h-5 w-5" aria-hidden />
                     </Button>
+                    {user?.is_guest ? (
+                      <GuestModeChip locale={locale} dir={pageDir} />
+                    ) : null}
                   </div>
                   <div className="floussy-topbar__right">
                     {!user?.is_guest && typeof streakDays === "number" ? (
@@ -2466,6 +2481,16 @@ function AppLayoutContent({
                 locale={locale}
                 dir={pageDir}
               />
+              {user?.is_guest && isDashboard ? (
+                <div className="mx-auto mb-4 w-full max-w-3xl px-1">
+                  <GuestAccountPanel user={user} locale={locale} dir={pageDir} variant="card" />
+                </div>
+              ) : null}
+              {user?.is_guest && pathname?.startsWith("/settings") ? (
+                <div className="mx-auto mb-4 w-full max-w-3xl px-1">
+                  <GuestAccountPanel user={user} locale={locale} dir={pageDir} variant="full" />
+                </div>
+              ) : null}
               <PageTransition routeKey={pathname}>{children}</PageTransition>
             </div>
           </div>

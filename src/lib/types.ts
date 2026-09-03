@@ -10,6 +10,8 @@ export type UserOut = {
   has_completed_onboarding_v2?: boolean;
   is_guest?: boolean;
   protection_level?: number | null;
+  claimed_at?: string | null;
+  recovery_code_ack?: boolean;
   currency: string;
   sweep_interval_days: number;
   next_sweep_date?: string | null;
