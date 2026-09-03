@@ -36,6 +36,16 @@ export const CHANGELOG: Release[] = [
     },
     groups: [
       {
+        kind: "added",
+        items: [
+          {
+            fr: "Nouveau mode découverte : essaie 7sabek sans créer de compte et sans rien remplir. Tu gardes tes données et tu crées ton compte quand tu veux, même en changeant de téléphone.",
+            en: "New discovery mode: try 7sabek without creating an account or filling anything in. Your data stays, and you create your account whenever you want — even if you switch phones.",
+            ar: "وضع اكتشاف جديد: جرّب 7sabek بلا ما تصاوب حساب وبلا ما تعمّر والو. البيانات ديالك كتبقى، وكتصاوب الحساب فاش بغيتي، حتى إلا بدّلتي التيليفون.",
+          },
+        ],
+      },
+      {
         kind: "improved",
         items: [
           {
