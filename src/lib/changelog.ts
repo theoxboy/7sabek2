@@ -63,6 +63,11 @@ export const CHANGELOG: Release[] = [
             en: "You can create your account in one tap with Face ID or fingerprint, no email or password (where your device supports it).",
             ar: "تقدر تصاوب حسابك بضغطة وحدة بـ Face ID ولا البصمة، بلا إيميل ولا كلمة السر (فاش التيليفون ديالك كيسمح).",
           },
+          {
+            fr: "Si tu avais déjà un budget de découverte sur cet appareil et que tu l’as perdu, l’écran de connexion te propose de le récupérer avec ton code de reprise.",
+            en: "If you had a discovery budget on this device and lost it, the sign-in screen offers to bring it back with your recovery code.",
+            ar: "إلا كان عندك ميزانية ديال الاكتشاف ف هاد التيليفون وضاعت ليك، شاشة الدخول كتقترح عليك ترجّعها بالكود ديال الاسترجاع.",
+          },
         ],
       },
     ],
