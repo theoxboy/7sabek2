@@ -43,6 +43,16 @@ export const CHANGELOG: Release[] = [
             en: "The AI assistant stays available in discovery mode with a few messages a day, then invites you to create a free account for unlimited access.",
             ar: "المساعد الذكي كيبقى متاح فوضع الاكتشاف بشي كم ديال الرسائل فاليوم، من بعد كيدعيك تصاوب حساب مجاني باش يكون عندك دخول بلا حدود.",
           },
+          {
+            fr: "En mode découverte : un indicateur de protection de ton budget, ton code de reprise consultable et copiable, un bouton pour tout effacer immédiatement, et une explication claire du mode — le tout rappelant que l’app est gratuite à vie.",
+            en: "In discovery mode: a gauge showing how protected your budget is, your recovery code you can view and copy, a button to erase everything right away, and a plain explanation of the mode — all reminding you the app is free for life.",
+            ar: "فوضع الاكتشاف: مؤشر كيوريك شحال الميزانية ديالك محمية، الكود ديال الاسترجاع تقدر تشوفو وتنسخو، زر باش تمسح كولشي دغيا، وشرح واضح للوضع — وكولشي كيفكّرك بلي التطبيق مجاني مدى الحياة.",
+          },
+          {
+            fr: "Après avoir créé ton compte depuis le mode découverte, tu arrives directement dans l’app — l’onboarding devient facultatif, plus jamais imposé.",
+            en: "After creating your account from discovery mode you land straight in the app — onboarding becomes optional, never forced.",
+            ar: "من بعد ما تصاوب حسابك من وضع الاكتشاف، كتدخل نيشان للتطبيق — الـ onboarding ولّا اختياري، ما بقاش إجباري.",
+          },
         ],
       },
     ],
