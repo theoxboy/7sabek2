@@ -53,6 +53,16 @@ export const CHANGELOG: Release[] = [
             en: "After creating your account from discovery mode you land straight in the app — onboarding becomes optional, never forced.",
             ar: "من بعد ما تصاوب حسابك من وضع الاكتشاف، كتدخل نيشان للتطبيق — الـ onboarding ولّا اختياري، ما بقاش إجباري.",
           },
+          {
+            fr: "En mode découverte, tu démarres avec un budget déjà en place (Loyer, Courses, Transport…) au lieu d’un écran vide — tu ajustes et tu commences à suivre tes dépenses tout de suite.",
+            en: "In discovery mode you start with a budget already set up (Rent, Groceries, Transport…) instead of an empty screen — tweak it and start tracking right away.",
+            ar: "فوضع الاكتشاف، كتبدا بميزانية واجدة (الكراء، الگضيان، الترانسبور…) عوض شاشة خاوية — تعدّلها وتبدا تتبّع مصاريفك دغيا.",
+          },
+          {
+            fr: "Tu peux créer ton compte en un geste avec Face ID ou l’empreinte, sans e-mail ni mot de passe (quand ton appareil le permet).",
+            en: "You can create your account in one tap with Face ID or fingerprint, no email or password (where your device supports it).",
+            ar: "تقدر تصاوب حسابك بضغطة وحدة بـ Face ID ولا البصمة، بلا إيميل ولا كلمة السر (فاش التيليفون ديالك كيسمح).",
+          },
         ],
       },
     ],

@@ -38,6 +38,8 @@ export type GuestPanelCopy = {
   explainBody: string[];
   explainClose: string;
   chipLabel: string;
+  /** Shown once the guest has been tracking for a few days — a real, personal nudge. */
+  trackingDays: (days: number) => string;
 };
 
 export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
@@ -80,6 +82,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     ],
     explainClose: "Compris",
     chipLabel: "Mode Découverte",
+    trackingDays: (d) => `Tu suis ton budget depuis ${d} jour${d > 1 ? "s" : ""}. Garde tout, même si tu changes de téléphone — crée ton compte gratuit.`,
   },
   en: {
     panelTitle: "Discovery mode — your budget",
@@ -120,6 +123,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     ],
     explainClose: "Got it",
     chipLabel: "Discovery mode",
+    trackingDays: (d) => `You\u2019ve been tracking your budget for ${d} day${d > 1 ? "s" : ""}. Keep all of it, even if you switch phones \u2014 create your free account.`,
   },
   ar: {
     panelTitle: "وضع الاكتشاف — الميزانية ديالك",
@@ -160,6 +164,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     ],
     explainClose: "فهمت",
     chipLabel: "وضع الاكتشاف",
+    trackingDays: (d) => `كتتبّع الميزانية ديالك من ${d} ${d > 1 ? "أيام" : "يوم"}. خلّي كولشي محفوظ حتى إلا بدّلتي التيليفون — صاوب حسابك المجاني.`,
   },
 };
 
