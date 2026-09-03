@@ -68,6 +68,11 @@ export const CHANGELOG: Release[] = [
             en: "If you had a discovery budget on this device and lost it, the sign-in screen offers to bring it back with your recovery code.",
             ar: "إلا كان عندك ميزانية ديال الاكتشاف ف هاد التيليفون وضاعت ليك، شاشة الدخول كتقترح عليك ترجّعها بالكود ديال الاسترجاع.",
           },
+          {
+            fr: "En mode découverte, tu peux enregistrer une dépense dès la première seconde (avant, il fallait passer par la configuration). Et une fois que tu as suivi quelques dépenses, 7sabek te montre tes vrais chiffres pour t’inviter à garder ton budget.",
+            en: "In discovery mode you can log an expense from the very first second (before, you had to set things up first). And once you’ve tracked a few, 7sabek shows you your real figures and invites you to keep your budget.",
+            ar: "فوضع الاكتشاف، تقدر تسجّل مصروف من أول ثانية (قبل، كان خاصك دوز على الإعدادات). وملي تتبّع شي مصاريف، 7sabek كيوريك الأرقام الحقيقية ديالك وكيدعيك تحتافظ بالميزانية ديالك.",
+          },
         ],
       },
     ],
