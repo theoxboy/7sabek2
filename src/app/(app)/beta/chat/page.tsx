@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import { apiFetch } from "@/lib/api";
+import { GUEST_GATE_COPY } from "@/lib/guestGate";
 
 /** One stored turn of the shared advisor conversation (GET /advisor/chat/history). */
 type AdvisorChatHistoryItem = {
@@ -437,7 +438,15 @@ export default function BetaChatPage() {
         if (!cancelled) {
           setUserProfile(profile);
           const parts = [profile.first_name, profile.last_name].filter(Boolean);
-          setUserName(parts.length > 0 ? parts.join(" ") : profile.email.split("@")[0] || "");
+          const guestName =
+            locale === "ar" ? "ضيف" : locale === "en" ? "Guest" : "Invité";
+          setUserName(
+            parts.length > 0
+              ? parts.join(" ")
+              : profile.is_guest
+                ? guestName
+                : profile.email?.split("@")[0] || ""
+          );
         }
       } catch {
         if (!cancelled) setUserName("");
@@ -447,7 +456,7 @@ export default function BetaChatPage() {
     }
     loadProfile();
     return () => { cancelled = true; };
-  }, []);
+  }, [locale]);
 
   // Sync notifications from local storage on load
   useEffect(() => {
@@ -581,6 +590,11 @@ export default function BetaChatPage() {
           : error?.message && typeof error.message === "string"
             ? error.message
             : copy.errorConnect) as string;
+
+      // Guest hit the daily advisor cap → show the "create your free account" line.
+      if (rawError.includes("guest_advisor_daily_limit")) {
+        rawError = GUEST_GATE_COPY[locale].advisorExhausted;
+      }
 
       // Ensure raw HTML tags or upstream error pages are never rendered in the chat bubble
       if (
