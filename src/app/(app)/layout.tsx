@@ -714,13 +714,15 @@ function AppLayoutContent({
   const isGamification = pathname === "/gamification";
   const isGoals = pathname?.startsWith("/goals") ?? false;
   const isDashboard = pathname?.startsWith("/dashboard") ?? false;
-  const rawDisplayName =
-    user
-      ? [user.first_name, user.last_name].filter(Boolean).join(" ") ||
-        user.email
-      : "7sabek";
+  const guestLabel =
+    locale === "ar" ? "ضيف" : locale === "en" ? "Guest" : "Invité";
+  const rawDisplayName = user?.is_guest
+    ? guestLabel
+    : user
+    ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email
+    : "7sabek";
   const displayName =
-    locale === "ar" && user
+    !user?.is_guest && locale === "ar" && user
       ? getArabicDisplayName(
           [user.first_name, user.last_name].filter(Boolean).join(" ").trim()
         ) || user.email
@@ -803,6 +805,16 @@ function AppLayoutContent({
             return;
           }
         }
+        // "Mode Découverte" guests skip every onboarding / money-plan gate — the
+        // whole point of the mode is trying the app without that funnel. The
+        // onboarding stays available as an opt-in, never forced.
+        if (me.is_guest) {
+          if (isClassicOnboarding || isBetaOnboarding || isMoneyPlanJourney) {
+            router.replace("/dashboard");
+          }
+          return;
+        }
+
         const records = await apiFetch<OnboardingV2RecordOut[]>(
           "/users/me/onboarding-v2-records?limit=1"
         ).catch(() => [] as OnboardingV2RecordOut[]);
@@ -922,6 +934,12 @@ function AppLayoutContent({
   useEffect(() => {
     if (!user || isOnboarding) return;
     if (user.role !== "user") return;
+    // Guests are never nagged for a leaderboard pseudo — the leaderboard needs
+    // a full account and is hidden for them.
+    if (user.is_guest) {
+      setLeaderboardPromptOpen(false);
+      return;
+    }
     if (!user.leaderboard_name) {
       setLeaderboardName("");
       setLeaderboardPromptOpen(true);
@@ -932,7 +950,7 @@ function AppLayoutContent({
 
   useEffect(() => {
     if (!user || isOnboarding) return;
-    if (user.role !== "user") return;
+    if (user.role !== "user" || user.is_guest) return;
     let cancelled = false;
     const loadStreak = async () => {
       try {
@@ -2244,7 +2262,7 @@ function AppLayoutContent({
                     </Button>
                   </div>
                   <div className="floussy-topbar__right">
-                    {typeof streakDays === "number" ? (
+                    {!user?.is_guest && typeof streakDays === "number" ? (
                       <Link
                         href="/gamification"
                         className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:border-amber-300 hover:bg-amber-100"

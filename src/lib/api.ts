@@ -330,6 +330,22 @@ export async function apiFetch<T>(
           }
         }
 
+        // JWT refresh failed. Before giving up, try to re-seed a guest session
+        // from a stored anchor token — this is what keeps a guest's data from
+        // being lost when the session cookie expires or is cleared.
+        if (retryAuth && !isAuthRefresh) {
+          try {
+            const { resumeGuestFromVaults } = await import("@/lib/guestSession");
+            const resumed = await resumeGuestFromVaults();
+            if (resumed) {
+              sessionUnauthorized = false;
+              return apiFetch<T>(path, { ...options, retryAuth: false });
+            }
+          } catch {
+            /* fall through to the normal unauthenticated path */
+          }
+        }
+
         // Only lock the session after refresh has failed or is not allowed.
         // This avoids false logouts when several protected requests race and one
         // of them briefly receives a 401 while the session is still recoverable.

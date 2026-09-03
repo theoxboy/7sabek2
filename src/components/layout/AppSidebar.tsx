@@ -46,6 +46,14 @@ export interface NavSection {
   items: NavSectionItem[];
 }
 
+/**
+ * Routes removed from the sidebar for "Mode Découverte" guests — features that
+ * need a full account and would only be dead ends. Conversion-argument routes
+ * (goals, reports, advisor) stay visible and soft-wall instead. Keep in sync
+ * with GUEST_FEATURE_ACCESS in src/lib/guestQuota.ts.
+ */
+const GUEST_HIDDEN_HREFS = new Set(["/gamification"]);
+
 export const SIDEBAR_SECTIONS: NavSection[] = [
   {
     titleKey: "section_main",
@@ -353,7 +361,9 @@ export function AppSidebar({
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-4 floussy-scroll">
         {SIDEBAR_SECTIONS.map((section, secIdx) => {
           const visibleItems = section.items.filter(
-            (item) => !item.betaOnly || betaAuthorized
+            (item) =>
+              (!item.betaOnly || betaAuthorized) &&
+              !(user?.is_guest && GUEST_HIDDEN_HREFS.has(item.href))
           );
           if (visibleItems.length === 0) return null;
 
@@ -476,7 +486,11 @@ export function AppSidebar({
             className={`flex items-center gap-2.5 min-w-0 ${
               collapsed && !isMobile ? "justify-center" : ""
             }`}
-            title={`${displayName} (${user?.email || ""})`}
+            title={
+              user?.is_guest
+                ? displayName
+                : `${displayName} (${user?.email || ""})`
+            }
           >
             <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs font-bold text-white shadow-sm ring-2 ring-emerald-500/20">
               {initials || "U"}
@@ -489,7 +503,9 @@ export function AppSidebar({
                   {displayName}
                 </p>
                 <p className="truncate text-[10px] text-[var(--muted)]">
-                  {user?.email || i18n.activePlan}
+                  {user?.is_guest
+                    ? "Mode Découverte"
+                    : user?.email || i18n.activePlan}
                 </p>
               </div>
             )}
