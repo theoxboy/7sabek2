@@ -44,6 +44,11 @@ export const CHANGELOG: Release[] = [
             ar: "وضع الاكتشاف: النص ديال كود الاسترجاع ولّا أوضح — سجّلو خارج المتصفح، وإلا ما يمكن نرجّعو والو.",
           },
           {
+            fr: "Mode découverte : une page d’accueil claire t’explique le mode et te montre ton code de reprise avant d’entrer dans l’app, au lieu d’un encart serré sur le tableau de bord.",
+            en: "Discovery mode: a clear welcome page explains the mode and shows your recovery code before you enter the app, instead of a cramped box on the dashboard.",
+            ar: "وضع الاكتشاف: صفحة ترحيب واضحة كتشرح ليك الوضع وكتوريك كود الاسترجاع ديالك قبل ما تدخل للتطبيق، عوض علبة مزحومة فالتابلو دو بور.",
+          },
+          {
             fr: "La page d’accueil est moins encombrée : la fenêtre de l’application mobile ne s’ouvre plus toute seule à chaque visite. Elle reste accessible depuis le bouton en haut de page.",
             en: "The home page is less cluttered: the mobile-app window no longer pops up on its own on every visit. It’s still available from the button at the top of the page.",
             ar: "الصفحة الرئيسية ولّات أقل ازدحام: نافذة التطبيق ديال الموبايل ما بقاتش كتحل وحدها فكل زيارة. باقاها موجودة من الزر اللي فوق فالصفحة.",
