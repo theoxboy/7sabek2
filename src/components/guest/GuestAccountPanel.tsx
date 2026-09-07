@@ -120,6 +120,12 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
   // "dismissed" (X / Esc / "Plus tard") vs "advancing" (tapped the CTA) vs still open.
   const postAckOutcomeRef = useRef<"dismissed" | "advancing" | null>(null);
 
+  // Funnel reading note: from `guest_post_ack_prompt_shown`, exactly one of
+  //   - `guest_post_ack_prompt_dismissed`  (X / Esc / overlay / "Plus tard")
+  //   - the CTA path → `guest_claim_dialog_opened {source:"post_ack"}` then
+  //     `guest_post_ack_prompt_converted` OR `claim_abandoned {source:"post_ack"}`
+  // A user on the CTA path never emits `_dismissed` — that is by design, not a
+  // dropped event.
   useEffect(() => {
     if (shouldOpenPostAckPrompt(consumePostAckFlag(), user)) {
       postAckOutcomeRef.current = null;
