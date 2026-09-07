@@ -42,6 +42,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip } from "@/components/guest/GuestAccountPanel";
+import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -696,6 +697,7 @@ function AppLayoutContent({
   const isBetaOnboarding = hasPathPrefix("/beta/onboarding-v2");
   const isMoneyPlanJourney = hasPathPrefix("/khatat-lflous");
   const isDistributionPage = hasPathPrefix("/distribution");
+  const isDiscoveryWelcome = hasPathPrefix("/decouverte");
   const isOnboardingRoute = Boolean(isClassicOnboarding || isBetaOnboarding);
   const shouldStayOnOnboardingFromQuery =
     isOnboardingRoute && searchParams?.get("stay_on_onboarding") === "1";
@@ -813,6 +815,13 @@ function AppLayoutContent({
         if (me.is_guest) {
           if (isClassicOnboarding || isBetaOnboarding || isMoneyPlanJourney) {
             router.replace("/dashboard");
+            return;
+          }
+          // First stop for a fresh guest: the full-page discovery welcome
+          // (what the mode is + save your recovery code), once per session and
+          // only until the budget is actually secured.
+          if (!isDiscoveryWelcome && shouldShowDiscoveryWelcome(me)) {
+            router.replace("/decouverte");
           }
           return;
         }
@@ -915,6 +924,7 @@ function AppLayoutContent({
   }, [
     isBetaOnboarding,
     isClassicOnboarding,
+    isDiscoveryWelcome,
     isDistributionPage,
     isGuestRegisterOnboarding,
     isMoneyPlanJourney,
@@ -1838,6 +1848,14 @@ function AppLayoutContent({
         router.push("/login");
       });
   };
+
+  if (isDiscoveryWelcome) {
+    return (
+      <div className="min-h-screen" style={{ background: "var(--bg)", color: "var(--ink)" }}>
+        <PageTransition routeKey={pathname}>{children}</PageTransition>
+      </div>
+    );
+  }
 
   if (isClassicOnboarding) {
     return (
