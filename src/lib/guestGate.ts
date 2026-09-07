@@ -8,7 +8,7 @@
  */
 
 import type { FloussyLocale } from "@/lib/localePreference";
-import { guestFeatureAccess, type GuestFeatureAccess } from "@/lib/guestQuota";
+import { GUEST_LIMITS, guestFeatureAccess, type GuestFeatureAccess } from "@/lib/guestQuota";
 
 /** Route prefix → feature key in GUEST_FEATURE_ACCESS. Longest prefix wins. */
 const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
@@ -83,8 +83,11 @@ export type GuestGateCopy = {
   advisorExhausted: string;
 };
 
-/** Messages a guest may send to the AI advisor per day. Backend is the authority. */
-export const GUEST_ADVISOR_MESSAGES_PER_DAY = 3;
+/**
+ * Messages a guest may send to the AI advisor per day. Backend is the authority;
+ * this re-exports the single client-side constant from `guestQuota`.
+ */
+export const GUEST_ADVISOR_MESSAGES_PER_DAY = GUEST_LIMITS.advisorExchanges;
 
 export const GUEST_GATE_COPY: Record<FloussyLocale, GuestGateCopy> = {
   fr: {

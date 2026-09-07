@@ -7,7 +7,7 @@ import { startRegistration } from "@simplewebauthn/browser";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { GUEST_GATE_COPY, guestRouteState } from "@/lib/guestGate";
 import { claimGuestAccount, claimGuestWithPasskey, mergeGuestIntoAccount, guestEvent } from "@/lib/guestAnchorApi";
-import { finalizeGuestClaim } from "@/lib/guestSession";
+import { clearGuestLocalState } from "@/lib/guestSession";
 import { getPasskeyFeatureStatus, getRegisterOptions, verifyRegistration } from "@/lib/passkeys";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -31,7 +31,7 @@ type Props = {
  * nothing for members or on fully-open routes. Carries its own "create your
  * free account" dialog.
  */
-let promptEventSent = false;
+const promptEventSentFor = new Set<string>();
 
 export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
   const [claimOpen, setClaimOpen] = useState(false);
@@ -40,9 +40,10 @@ export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
   const visible = isGuest && state !== "open";
 
   useEffect(() => {
-    if (visible && !promptEventSent) {
-      promptEventSent = true;
-      guestEvent("claim_prompt_shown", { where: pathname ?? "" });
+    const where = pathname ?? "";
+    if (visible && !promptEventSentFor.has(where)) {
+      promptEventSentFor.add(where);
+      guestEvent("claim_prompt_shown", { where });
     }
   }, [visible, pathname]);
 
@@ -129,6 +130,7 @@ const CLAIM_COPY: Record<
     orEmail: string;
     mergeCta: string;
     mergeBadPassword: string;
+    mergeAmbiguous: string;
   }
 > = {
   fr: {
@@ -150,6 +152,7 @@ const CLAIM_COPY: Record<
     orEmail: "ou utiliser un e-mail",
     mergeCta: "Me connecter et garder mes dépenses",
     mergeBadPassword: "Mot de passe incorrect pour ce compte.",
+    mergeAmbiguous: "La connexion n’a pas abouti clairement. Recharge la page et connecte-toi normalement — si tes dépenses sont déjà là, tout est bon.",
   },
   en: {
     title: "Create your free account",
@@ -170,6 +173,7 @@ const CLAIM_COPY: Record<
     orEmail: "or use an email",
     mergeCta: "Sign in and keep my expenses",
     mergeBadPassword: "Wrong password for this account.",
+    mergeAmbiguous: "Sign-in didn’t clearly complete. Reload the page and sign in normally — if your expenses are already there, you’re all set.",
   },
   ar: {
     title: "صاوب حسابك المجاني",
@@ -190,6 +194,7 @@ const CLAIM_COPY: Record<
     orEmail: "ولا استعمل إيميل",
     mergeCta: "دخل وخلّي المصاريف ديالي",
     mergeBadPassword: "كلمة السر ماشي صحيحة لهاد الحساب.",
+    mergeAmbiguous: "الدخول ما كملش بوضوح. عاود حمّل الصفحة ودخل بشكل عادي — إلا كانت المصاريف ديالك ديجا تما، كولشي مزيان.",
   },
 };
 
@@ -213,6 +218,10 @@ export function GuestClaimDialog({
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
+  // Once a merge has been fired and its outcome is unknown (network drop after
+  // the server may have replayed the expenses), block a second attempt so the
+  // guest can't double-post their transactions.
+  const [mergeAmbiguous, setMergeAmbiguous] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -253,7 +262,7 @@ export function GuestClaimDialog({
       });
       if (!verified) throw new Error("passkey_unverified");
       await claimGuestWithPasskey();
-      await finalizeGuestClaim();
+      await clearGuestLocalState();
       onOpenChange(false);
       window.location.reload();
     } catch {
@@ -273,7 +282,7 @@ export function GuestClaimDialog({
     setLoading(true);
     try {
       await claimGuestAccount(email.trim().toLowerCase(), password);
-      await finalizeGuestClaim();
+      await clearGuestLocalState();
       onOpenChange(false);
       // Full reload so the app shell re-bootstraps as a full member
       // (unlocks navigation, drops the guest banners).
@@ -294,20 +303,25 @@ export function GuestClaimDialog({
   };
 
   const submitMerge = async () => {
+    if (mergeAmbiguous) return;
     setError(null);
     setLoading(true);
     try {
       await mergeGuestIntoAccount(email.trim().toLowerCase(), password);
-      await finalizeGuestClaim();
+      await clearGuestLocalState();
       onOpenChange(false);
       window.location.reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      setError(
-        msg.includes("bad_credentials") || msg.includes("401")
-          ? t.mergeBadPassword
-          : t.errGeneric
-      );
+      const badCredentials = msg.includes("bad_credentials") || msg.includes("401");
+      if (badCredentials) {
+        // Server rejected the login before touching anything — safe to retry.
+        setError(t.mergeBadPassword);
+      } else {
+        // Any other failure is ambiguous: the replay may have partly run.
+        setMergeAmbiguous(true);
+        setError(t.mergeAmbiguous);
+      }
     } finally {
       setLoading(false);
     }
@@ -390,6 +404,7 @@ export function GuestClaimDialog({
               type="button"
               variant="secondary"
               isLoading={loading}
+              disabled={mergeAmbiguous}
               onClick={() => void submitMerge()}
               className="w-full"
             >

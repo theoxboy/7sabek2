@@ -13,22 +13,21 @@
  *
  *   1. `localStorage`  — fast, first checked
  *   2. IndexedDB       — survives some cleanups that only clear localStorage
- *   (native keychains — iOS Keychain, Android Block Store — are phase 4 and plug
- *    in through `NATIVE_VAULT` when running inside the shell)
+ *   (native keychains — iOS Keychain, Android Block Store — plug in through
+ *    `NATIVE_VAULT` when running inside a native shell)
  *
  * Resolution order is strict and first-match-wins. Mirrors are never merged.
  *
  * ## Creation
  *
- * A guest is created only at the first data-producing mutation, and exactly once
- * even with several tabs racing: `claimGuestCreationLock` serialises via the Web
- * Locks API (with a localStorage fallback for older engines) and the caller must
- * re-check for a session *inside* the lock before calling `POST /auth/guest`.
+ * A guest is created from the explicit "Essayer sans compte" action, and exactly
+ * once even with several tabs racing: `claimGuestCreationLock` serialises via the
+ * Web Locks API (with a localStorage fallback for older engines) and the caller
+ * must re-check for a session *inside* the lock before calling `POST /auth/guest`.
  *
- * NOTE: the `/auth/guest*` backend routes are specified in the Mode Découverte
- * plan (annexe B.3) and are not live yet. Their network wrappers live in
- * `guestAnchorApi.ts`; this module is dependency-free so the vault + lock logic
- * stays unit-testable.
+ * The `/auth/guest*` backend routes are live in production. Their network
+ * wrappers live in `guestAnchorApi.ts`; this module stays dependency-free so the
+ * vault + lock logic remains unit-testable.
  */
 
 const LS_KEY = "7sabek.guest.token";

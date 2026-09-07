@@ -16,6 +16,13 @@
  * Keep every guest limit here. UI reads these helpers; it never hard-codes a
  * number. Backend enforces its own copy of the quotas — this is the client
  * mirror so the UI can pre-empt a rejected write with a clear message.
+ *
+ * Wired in:
+ * - `checkEnvelopeQuota` — the envelopes page, before `POST /envelopes`.
+ * - `GUEST_LIMITS.advisorExchanges` / `GUEST_ADVISOR_MESSAGES_PER_DAY` — the
+ *   advisor chat (the backend 403 is also translated there).
+ * - `guestFeatureAccess` — `guestGate.ts`, which maps it onto routes.
+ * - `clampProtectionLevel` / `resolveProtectionLevel` — `guestPanelCopy.ts`.
  */
 
 /** Hard ceilings for what a guest may create. Backend enforces the same values. */
@@ -132,6 +139,17 @@ export type ProtectionInputs = {
 export function resolveProtectionLevel(inputs: ProtectionInputs): ProtectionLevel {
   if (inputs.hasAccount) return 100;
   if (inputs.hasRecoveryCode) return 70;
+  return 40;
+}
+
+/**
+ * Snap an arbitrary server-sent number onto the three gauge stops. The backend
+ * `protection_level` is authoritative when present; this only quantises it so
+ * the UI has exactly one place that decides "70 vs 100".
+ */
+export function clampProtectionLevel(value: number): ProtectionLevel {
+  if (value >= 100) return 100;
+  if (value >= 70) return 70;
   return 40;
 }
 

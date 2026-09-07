@@ -12,6 +12,7 @@ export type UserOut = {
   protection_level?: number | null;
   claimed_at?: string | null;
   recovery_code_ack?: boolean;
+  guest_created_at?: string | null;
   currency: string;
   sweep_interval_days: number;
   next_sweep_date?: string | null;

@@ -109,12 +109,18 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
     }
   };
 
+  const [eraseError, setEraseError] = useState<string | null>(null);
+
   const handleErase = async () => {
+    setEraseError(null);
     setErasing(true);
     try {
       await eraseGuest();
-    } finally {
+      // Only leave once the server confirms the row is gone.
       window.location.href = "/login";
+    } catch {
+      setEraseError(t.eraseFailed);
+      setErasing(false);
     }
   };
 
@@ -303,6 +309,11 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
               {t.eraseCancel}
             </Button>
           </div>
+          {eraseError && (
+            <p className="mt-2 text-xs font-semibold" style={{ color: "var(--error)" }}>
+              {eraseError}
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </section>

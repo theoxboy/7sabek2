@@ -6,6 +6,7 @@ import {
   GUEST_STARTER_ENVELOPE_COUNT,
   checkAdvisorQuota,
   checkEnvelopeQuota,
+  clampProtectionLevel,
   guestFeatureAccess,
   protectionLevelCopyKey,
   resolveProtectionLevel,
@@ -50,6 +51,16 @@ test("protection level is derived purely from durability state", () => {
   );
   // nullish is treated as absent
   assert.equal(resolveProtectionLevel({ hasRecoveryCode: null, hasAccount: null }), 40);
+});
+
+test("clampProtectionLevel snaps a server number onto the three gauge stops", () => {
+  assert.equal(clampProtectionLevel(0), 40);
+  assert.equal(clampProtectionLevel(40), 40);
+  assert.equal(clampProtectionLevel(69), 40);
+  assert.equal(clampProtectionLevel(70), 70);
+  assert.equal(clampProtectionLevel(99), 70);
+  assert.equal(clampProtectionLevel(100), 100);
+  assert.equal(clampProtectionLevel(250), 100);
 });
 
 test("every protection level has a distinct copy key", () => {
