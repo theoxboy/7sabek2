@@ -433,6 +433,16 @@ export default function BetaChatPage() {
     Record<string, "up" | "down">
   >({});
 
+  // Always keep the latest message in view — the reader never has to scroll down
+  // themselves to see a reply.
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const didInitialScrollRef = useRef(false);
+  useEffect(() => {
+    const behavior: ScrollBehavior = didInitialScrollRef.current ? "smooth" : "auto";
+    didInitialScrollRef.current = true;
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, [chatMessages, chatLoading]);
+
   // Fetch real user profile on mount
   useEffect(() => {
     let cancelled = false;
@@ -660,7 +670,7 @@ export default function BetaChatPage() {
   };
 
   return (
-    <div dir={dir} className="w-full h-screen overflow-hidden bg-[var(--surface-2)] text-[var(--ink)] animate-fade-in relative flex flex-col">
+    <div dir={dir} className="w-full h-[100dvh] overflow-hidden bg-[var(--surface-2)] text-[var(--ink)] animate-fade-in relative flex flex-col">
       {/* Ambient soft background blur blobs */}
       <div className="absolute top-10 left-1/3 w-80 h-80 bg-emerald-300/10 rounded-full blur-3xl pointer-events-none select-none" />
       <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-teal-300/10 rounded-full blur-3xl pointer-events-none select-none" />
@@ -937,6 +947,7 @@ export default function BetaChatPage() {
                   </div>
                 </motion.div>
               )}
+              <div ref={messagesEndRef} aria-hidden="true" />
             </div>
           </div>
 

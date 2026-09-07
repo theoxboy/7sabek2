@@ -1890,6 +1890,12 @@ function AppLayoutContent({
     );
   }
 
+  if (isBetaChatPage) {
+    // The advisor chat is a full-viewport app: it manages its own header and a
+    // pinned input bar. No layout chrome or padding around it.
+    return <PageTransition routeKey={pathname}>{children}</PageTransition>;
+  }
+
   if (isGamification || isGoals) {
     return (
       <div className="min-h-screen text-[var(--ink)]">
