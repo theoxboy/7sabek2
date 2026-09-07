@@ -615,7 +615,8 @@ export default function LoginPage() {
       resetAuthClientState();
       await startGuestSession();
       markAuthSessionHint();
-      router.push("/dashboard");
+      // A brand-new guest always goes through the discovery walk-through first.
+      router.push("/decouverte");
     } catch {
       setError(copy.guestStartError);
     } finally {

@@ -2499,11 +2499,6 @@ function AppLayoutContent({
                 locale={locale}
                 dir={pageDir}
               />
-              {user?.is_guest && isDashboard ? (
-                <div className="mx-auto mb-4 w-full max-w-3xl px-1">
-                  <GuestAccountPanel user={user} locale={locale} dir={pageDir} variant="card" />
-                </div>
-              ) : null}
               {user?.is_guest && pathname?.startsWith("/settings") ? (
                 <div className="mx-auto mb-4 w-full max-w-3xl px-1">
                   <GuestAccountPanel user={user} locale={locale} dir={pageDir} variant="full" />
