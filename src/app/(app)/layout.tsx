@@ -1850,11 +1850,8 @@ function AppLayoutContent({
   };
 
   if (isDiscoveryWelcome) {
-    return (
-      <div className="min-h-screen" style={{ background: "var(--bg)", color: "var(--ink)" }}>
-        <PageTransition routeKey={pathname}>{children}</PageTransition>
-      </div>
-    );
+    // The page paints its own full-screen landing-style background.
+    return <PageTransition routeKey={pathname}>{children}</PageTransition>;
   }
 
   if (isClassicOnboarding) {

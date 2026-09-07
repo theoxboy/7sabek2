@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, KeyRound, Copy, Check, ArrowRight } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Cairo } from "next/font/google";
+import {
+  ShieldCheck,
+  KeyRound,
+  Copy,
+  Check,
+  ArrowRight,
+  Sparkles,
+  Wallet,
+  RefreshCw,
+} from "lucide-react";
 
 import { useAppLocale } from "@/lib/appLocale";
 import { fetchMe, refreshAuthSession, type AuthUser } from "@/lib/auth";
@@ -11,18 +22,23 @@ import { ackRecoveryCode, guestEvent } from "@/lib/guestAnchorApi";
 import { readStoredRecoveryCode } from "@/lib/guestSession";
 import { markDiscoveryWelcomeSeen } from "@/lib/guestWelcome";
 import { detectFragileContext } from "@/lib/guestFragileContext";
-import { Button } from "@/components/ui/Button";
-import { GuestClaimDialog } from "@/components/guest/GuestGate";
+import BrandLogo from "@/components/BrandLogo";
+
+const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
 
 function formatCode(raw: string): string {
   const c = raw.replace(/[^A-Z0-9]/gi, "").toUpperCase();
   return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
 }
 
+const STEP_ICONS = [Sparkles, ShieldCheck, KeyRound];
+
 export default function DiscoveryWelcomePage() {
   const router = useRouter();
   const { locale, dir } = useAppLocale();
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
+  const reduce = useReducedMotion();
+  const isAr = locale === "ar";
 
   const [user, setUser] = useState<AuthUser | null>(null);
   useEffect(() => {
@@ -48,11 +64,12 @@ export default function DiscoveryWelcomePage() {
   const storedCode = readStoredRecoveryCode();
   const acked = Boolean(user?.recovery_code_ack) || level >= 70;
 
+  const [step, setStep] = useState(0);
+  const [dirn, setDirn] = useState(1); // slide direction
   const [codeShown, setCodeShown] = useState(false);
   const [copied, setCopied] = useState(false);
   const [acking, setAcking] = useState(false);
   const [continuing, setContinuing] = useState(false);
-  const [claimOpen, setClaimOpen] = useState(false);
   const [fragile, setFragile] = useState(false);
 
   useEffect(() => {
@@ -63,6 +80,35 @@ export default function DiscoveryWelcomePage() {
       guestEvent("fragile_context_detected", { reason: ctx.reason });
     }
   }, [level]);
+
+  const TOTAL = 3;
+  const last = step === TOTAL - 1;
+
+  const go = (next: number) => {
+    setDirn(next > step ? 1 : -1);
+    setStep(Math.max(0, Math.min(TOTAL - 1, next)));
+  };
+
+  const leave = (fn: () => void) => {
+    markDiscoveryWelcomeSeen();
+    fn();
+  };
+
+  const handleContinue = () => {
+    setContinuing(true);
+    leave(() => router.replace("/dashboard"));
+  };
+
+  const handleAck = async () => {
+    setAcking(true);
+    try {
+      await ackRecoveryCode(); // fires protection_level_changed 40→70 server-side
+      await refreshAuthSession();
+      leave(() => router.replace("/dashboard"));
+    } catch {
+      setAcking(false);
+    }
+  };
 
   const handleCopy = async () => {
     if (!storedCode) return;
@@ -75,189 +121,603 @@ export default function DiscoveryWelcomePage() {
     }
   };
 
-  const goToBudget = () => {
-    markDiscoveryWelcomeSeen();
-    router.replace("/dashboard");
-  };
+  const variants = useMemo(
+    () => ({
+      enter: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * 40 }),
+      center: { opacity: 1, x: 0 },
+      exit: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * -40 }),
+    }),
+    [reduce]
+  );
 
-  const handleAck = async () => {
-    setAcking(true);
-    try {
-      await ackRecoveryCode(); // fires protection_level_changed 40→70 server-side
-      await refreshAuthSession();
-      markDiscoveryWelcomeSeen();
-      router.replace("/dashboard");
-    } catch {
-      setAcking(false);
-    }
-  };
-
-  const handleContinue = () => {
-    setContinuing(true);
-    goToBudget();
-  };
+  const bullets = [
+    { icon: Sparkles, text: t.explainBody[0] },
+    { icon: Wallet, text: t.explainBody[1] },
+    { icon: KeyRound, text: t.explainBody[2] },
+    { icon: RefreshCw, text: t.explainBody[3] },
+  ].filter((b) => Boolean(b.text));
 
   return (
     <div
       dir={dir}
-      className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center gap-6 px-5 py-10"
-      style={{ color: "var(--ink)" }}
+      lang={isAr ? "ar" : undefined}
+      className={`dcw-root ${isAr ? arabicFont.className : ""}`.trim()}
     >
-      <header className="flex flex-col items-center gap-3 text-center">
-        <div
-          className="flex h-12 w-12 items-center justify-center rounded-2xl"
-          style={{ background: "var(--accent-soft)", color: "var(--accent-strong)" }}
-          aria-hidden
-        >
-          <ShieldCheck className="h-6 w-6" />
-        </div>
-        <h1 className="text-lg font-bold">{t.welcomeTitle}</h1>
-        <p className="text-[13.5px] leading-relaxed" style={{ color: "var(--muted)" }}>
-          {t.panelIntro}
-        </p>
-      </header>
-
-      {/* What discovery mode is */}
-      <div
-        className="flex flex-col gap-2.5 rounded-2xl border p-4 text-[13.5px] leading-relaxed"
-        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-      >
-        {t.explainBody.map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
+      <div className="dcw-bg" aria-hidden="true">
+        <span className="dcw-blob dcw-blob-a" />
+        <span className="dcw-blob dcw-blob-b" />
       </div>
 
-      {/* Protection gauge */}
-      <div
-        className="flex flex-col gap-3 rounded-2xl border p-4"
-        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-      >
-        <div className="flex items-baseline justify-between">
-          <span
-            className="text-[11px] font-bold uppercase tracking-wider"
-            style={{ color: "var(--muted)" }}
-          >
-            {t.gaugeLabel}
-          </span>
-          <span className="text-sm font-bold" style={{ color: "var(--accent-strong)" }}>
-            {level}%
-          </span>
+      <div className="dcw-progress" aria-hidden="true">
+        <span style={{ width: `${((step + 1) / TOTAL) * 100}%` }} />
+      </div>
+
+      <main className="dcw-shell">
+        <div className="dcw-logo">
+          <BrandLogo locale={locale} priority />
         </div>
-        <div
-          className="h-2 overflow-hidden rounded-full"
-          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-        >
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${level}%`, background: "var(--accent)" }}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          {t.steps.map((s) => {
-            const active = level >= s.level;
+
+        <div className="dcw-dots" role="tablist" aria-label="steps">
+          {Array.from({ length: TOTAL }).map((_, i) => {
+            const Ico = STEP_ICONS[i] ?? Sparkles;
+            const done = i < step;
+            const active = i === step;
             return (
-              <div
-                key={s.level}
-                className="flex items-start gap-2 text-[12.5px]"
-                style={{ color: active ? "var(--ink)" : "var(--muted)", opacity: active ? 1 : 0.6 }}
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => go(i)}
+                className={`dcw-dot ${active ? "is-active" : ""} ${done ? "is-done" : ""}`}
               >
-                <span
-                  className="mt-[3px] h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: active ? "var(--accent)" : "var(--border-strong)" }}
-                />
-                <span>
-                  <b className="font-semibold">{s.name}</b> — {s.desc}
-                </span>
-              </div>
+                {done ? <Check className="dcw-dot-ic" /> : <Ico className="dcw-dot-ic" />}
+              </button>
             );
           })}
         </div>
-      </div>
 
-      {/* Recovery code */}
-      {storedCode ? (
-        <div
-          className="flex flex-col gap-2 rounded-2xl p-4"
-          style={{
-            background: fragile ? "var(--warning-soft)" : "var(--surface-2)",
-            border: `1px solid ${fragile ? "var(--warning)" : "var(--border)"}`,
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4" style={{ color: "var(--muted)" }} aria-hidden />
-            <span className="text-[13px] font-semibold">{t.recoveryTitle}</span>
-          </div>
-          {fragile && (
-            <p className="text-[12.5px] font-semibold leading-snug" style={{ color: "var(--warning)" }}>
-              {t.fragileWarning}
-            </p>
-          )}
-          <p className="text-[12.5px] leading-snug" style={{ color: "var(--muted)" }}>
-            {t.recoveryIntro}
-          </p>
-          {codeShown ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <code
-                className="rounded-lg px-3 py-1.5 text-base font-bold tracking-widest"
-                style={{ background: "var(--bg)", border: "1px solid var(--border-strong)", direction: "ltr" }}
-              >
-                {formatCode(storedCode)}
-              </code>
-              <Button type="button" variant="secondary" size="sm" onClick={handleCopy}>
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                <span className="ms-1">{copied ? t.copied : t.copy}</span>
-              </Button>
-            </div>
+        <div className="dcw-stage">
+          <AnimatePresence mode="wait" custom={dirn} initial={false}>
+            <motion.section
+              key={step}
+              custom={dirn}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "spring", damping: 26, stiffness: 260 }}
+              className="dcw-card"
+            >
+              {step === 0 && (
+                <>
+                  <span className="dcw-eyebrow">
+                    <span className="dcw-sq" />
+                    {t.chipLabel}
+                  </span>
+                  <h1 className="dcw-h1">{t.welcomeTitle}</h1>
+                  <p className="dcw-sub">{t.panelIntro}</p>
+                  <ul className="dcw-list">
+                    {bullets.map((b, i) => {
+                      const Ico = b.icon;
+                      return (
+                        <li key={i} className="dcw-li">
+                          <span className="dcw-li-ic" aria-hidden="true">
+                            <Ico />
+                          </span>
+                          <span>{b.text}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+
+              {step === 1 && (
+                <>
+                  <span className="dcw-eyebrow">
+                    <span className="dcw-sq" />
+                    {t.gaugeLabel}
+                  </span>
+                  <h1 className="dcw-h1">{t.welcomeProtectionTitle}</h1>
+                  <div className="dcw-gauge">
+                    <div className="dcw-gauge-top">
+                      <span>{t.gaugeLabel}</span>
+                      <span className="dcw-gauge-pct">{level}%</span>
+                    </div>
+                    <div className="dcw-track">
+                      <motion.span
+                        className="dcw-fill"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${level}%` }}
+                        transition={{ duration: reduce ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </div>
+                  </div>
+                  <ul className="dcw-list dcw-steps">
+                    {t.steps.map((s) => {
+                      const on = level >= s.level;
+                      return (
+                        <li key={s.level} className={`dcw-li ${on ? "" : "is-off"}`}>
+                          <span className={`dcw-bullet ${on ? "is-on" : ""}`} aria-hidden="true" />
+                          <span>
+                            <b>{s.name}</b> — {s.desc}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+
+              {step === 2 && (
+                <>
+                  <span className="dcw-eyebrow">
+                    <span className="dcw-sq" />
+                    {t.recoveryTitle}
+                  </span>
+                  <h1 className="dcw-h1">{t.recoveryTitle}</h1>
+                  {fragile && <p className="dcw-warn">{t.fragileWarning}</p>}
+                  <p className="dcw-sub">{t.recoveryIntro}</p>
+
+                  {storedCode ? (
+                    <div className="dcw-codebox">
+                      {codeShown ? (
+                        <div className="dcw-codewrap">
+                          <code className="dcw-code">{formatCode(storedCode)}</code>
+                          <button type="button" className="dcw-btn dcw-btn-ghost dcw-btn-sm" onClick={handleCopy}>
+                            {copied ? <Check className="dcw-ic" /> : <Copy className="dcw-ic" />}
+                            <span>{copied ? t.copied : t.copy}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="dcw-btn dcw-btn-ghost"
+                          onClick={() => setCodeShown(true)}
+                        >
+                          {t.reveal}
+                        </button>
+                      )}
+                      {acked ? (
+                        <span className="dcw-acked">
+                          <Check className="dcw-ic" /> {t.acked}
+                        </span>
+                      ) : (
+                        codeShown && (
+                          <button
+                            type="button"
+                            className="dcw-btn dcw-btn-accent"
+                            onClick={() => void handleAck()}
+                            disabled={acking}
+                          >
+                            {t.ackButton}
+                            {acking ? null : <ArrowRight className="dcw-ic dcw-arrow" />}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <p className="dcw-sub">{t.welcomeNoCode}</p>
+                  )}
+                </>
+              )}
+            </motion.section>
+          </AnimatePresence>
+        </div>
+
+        <div className="dcw-nav">
+          {step > 0 ? (
+            <button type="button" className="dcw-btn dcw-btn-ghost" onClick={() => go(step - 1)}>
+              {t.welcomeBack}
+            </button>
           ) : (
-            <Button type="button" variant="secondary" size="sm" onClick={() => setCodeShown(true)} className="self-start">
-              {t.reveal}
-            </Button>
+            <span />
           )}
-          {codeShown && !acked && (
-            <Button type="button" size="sm" onClick={handleAck} isLoading={acking} className="self-start">
-              {t.ackButton}
-            </Button>
-          )}
-          {acked && (
-            <span className="text-[12px] font-semibold" style={{ color: "var(--success)" }}>
-              {t.acked}
-            </span>
+
+          {last ? (
+            <button
+              type="button"
+              className="dcw-btn dcw-btn-accent"
+              onClick={handleContinue}
+              disabled={continuing}
+            >
+              {t.welcomeContinue}
+              <ArrowRight className="dcw-ic dcw-arrow" />
+            </button>
+          ) : (
+            <button type="button" className="dcw-btn dcw-btn-accent" onClick={() => go(step + 1)}>
+              {t.welcomeNext}
+              <ArrowRight className="dcw-ic dcw-arrow" />
+            </button>
           )}
         </div>
-      ) : null}
 
-      {/* Actions */}
-      <div className="flex flex-col gap-2">
-        <Button type="button" onClick={handleContinue} isLoading={continuing} className="w-full">
-          <span>{t.welcomeContinue}</span>
-          <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" aria-hidden />
-        </Button>
-        <button
-          type="button"
-          onClick={() => {
-            guestEvent("guest_claim_dialog_opened", {
-              source: "decouverte_intro",
-              method_shown: "unknown",
-            });
-            setClaimOpen(true);
-          }}
-          className="text-center text-[12.5px] font-semibold underline"
-          style={{ color: "var(--accent-strong)" }}
-        >
-          {t.claimCta}
+        <button type="button" className="dcw-skip" onClick={handleContinue}>
+          {t.welcomeSkip}
         </button>
-        <span className="text-center text-[11px]" style={{ color: "var(--muted)" }}>
-          {t.claimNote}
-        </span>
-      </div>
+      </main>
 
-      <GuestClaimDialog
-        open={claimOpen}
-        onOpenChange={setClaimOpen}
-        locale={locale}
-        dir={dir}
-        source="decouverte_intro"
-      />
+      <style jsx global>{`
+        .dcw-root {
+          --ink: #0a241d;
+          --ink-soft: #4e625a;
+          --ink-mute: #7c8d86;
+          --paper: #f6f8f4;
+          --surface: #ffffff;
+          --accent: #17c777;
+          --accent-deep: #0b8f53;
+          --accent-soft: #e2f7ec;
+          --sky: #4c7eff;
+          --amber: #f2a93b;
+          --line: #e3e8df;
+          --shadow: 0 1px 2px rgba(10, 36, 29, 0.04), 0 24px 60px -28px rgba(10, 36, 29, 0.28);
+          position: relative;
+          min-height: 100dvh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: var(--paper);
+          color: var(--ink);
+          overflow-x: hidden;
+          overflow-y: auto;
+          padding: 32px 18px 40px;
+        }
+        .dcw-root h1 {
+          margin: 0;
+          letter-spacing: -0.01em;
+          text-wrap: balance;
+        }
+        .dcw-root[dir="rtl"] h1 {
+          letter-spacing: 0;
+        }
+        .dcw-root p {
+          margin: 0;
+        }
+
+        .dcw-bg {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+        .dcw-blob {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(64px);
+          opacity: 0.5;
+        }
+        .dcw-blob-a {
+          width: 460px;
+          height: 460px;
+          background: rgba(23, 199, 119, 0.34);
+          top: -180px;
+          inset-inline-start: -140px;
+          animation: dcwDrift1 18s ease-in-out infinite;
+        }
+        .dcw-blob-b {
+          width: 400px;
+          height: 400px;
+          background: rgba(76, 126, 255, 0.2);
+          bottom: -160px;
+          inset-inline-end: -120px;
+          animation: dcwDrift2 22s ease-in-out infinite;
+        }
+        @keyframes dcwDrift1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(60px, 50px) scale(1.12); }
+        }
+        @keyframes dcwDrift2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-50px, -40px) scale(1.08); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .dcw-blob { animation: none; }
+        }
+
+        .dcw-progress {
+          position: fixed;
+          top: 0;
+          inset-inline: 0;
+          height: 3px;
+          z-index: 20;
+          pointer-events: none;
+        }
+        .dcw-progress > span {
+          display: block;
+          height: 100%;
+          background: linear-gradient(90deg, var(--accent), var(--sky));
+          box-shadow: 0 0 12px rgba(23, 199, 119, 0.6);
+          transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .dcw-shell {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          max-width: 480px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 18px;
+        }
+        .dcw-logo :global(img) {
+          height: 56px;
+          width: auto;
+        }
+
+        .dcw-dots {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .dcw-dot {
+          width: 34px;
+          height: 34px;
+          border-radius: 12px;
+          border: 1px solid var(--line);
+          background: var(--surface);
+          color: var(--ink-mute);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: transform 0.16s, border-color 0.16s, background 0.16s, color 0.16s;
+        }
+        .dcw-dot:hover { transform: translateY(-1px); }
+        .dcw-dot-ic { width: 15px; height: 15px; }
+        .dcw-dot.is-active {
+          border-color: var(--accent);
+          color: var(--accent-deep);
+          background: var(--accent-soft);
+        }
+        .dcw-dot.is-done {
+          border-color: var(--accent);
+          background: var(--accent);
+          color: #06301f;
+        }
+
+        .dcw-stage {
+          width: 100%;
+          position: relative;
+          display: flex;
+          align-items: flex-start;
+          min-height: 440px;
+        }
+        @media (max-width: 420px) {
+          .dcw-stage { min-height: 500px; }
+        }
+        .dcw-card {
+          width: 100%;
+          background: var(--surface);
+          border: 1px solid var(--line);
+          border-radius: 26px;
+          padding: 26px 22px;
+          box-shadow: var(--shadow);
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .dcw-eyebrow {
+          align-self: flex-start;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--accent-soft);
+          color: var(--accent-deep);
+          font-size: 0.76rem;
+          font-weight: 700;
+          padding: 6px 13px;
+          border-radius: 999px;
+        }
+        .dcw-sq {
+          width: 6px;
+          height: 6px;
+          border-radius: 2px;
+          background: var(--accent);
+          flex: none;
+        }
+        .dcw-h1 {
+          font-size: clamp(1.5rem, 5.5vw, 1.9rem);
+          line-height: 1.15;
+          font-weight: 800;
+        }
+        .dcw-sub {
+          font-size: 0.95rem;
+          line-height: 1.6;
+          color: var(--ink-soft);
+        }
+        .dcw-warn {
+          font-size: 0.9rem;
+          font-weight: 600;
+          line-height: 1.5;
+          color: #9a5b00;
+          background: #fff6e6;
+          border: 1px solid #f4d79a;
+          border-radius: 14px;
+          padding: 10px 12px;
+        }
+
+        .dcw-list {
+          list-style: none;
+          margin: 4px 0 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .dcw-li {
+          display: flex;
+          align-items: flex-start;
+          gap: 11px;
+          font-size: 0.9rem;
+          line-height: 1.5;
+        }
+        .dcw-li.is-off { color: var(--ink-mute); opacity: 0.7; }
+        .dcw-li-ic {
+          flex: none;
+          width: 30px;
+          height: 30px;
+          border-radius: 10px;
+          background: var(--accent-soft);
+          color: var(--accent-deep);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .dcw-li-ic :global(svg) { width: 16px; height: 16px; }
+        .dcw-steps .dcw-li { align-items: center; }
+        .dcw-bullet {
+          flex: none;
+          margin-top: 2px;
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          background: var(--line);
+        }
+        .dcw-bullet.is-on { background: var(--accent); }
+
+        .dcw-gauge {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          background: var(--paper);
+          border: 1px solid var(--line);
+          border-radius: 16px;
+          padding: 14px;
+        }
+        .dcw-gauge-top {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          font-size: 0.72rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--ink-mute);
+        }
+        .dcw-root[dir="rtl"] .dcw-gauge-top { letter-spacing: 0; }
+        .dcw-gauge-pct {
+          font-size: 1rem;
+          color: var(--accent-deep);
+          letter-spacing: 0;
+        }
+        .dcw-track {
+          height: 9px;
+          border-radius: 6px;
+          background: #edf1ea;
+          overflow: hidden;
+        }
+        .dcw-fill {
+          display: block;
+          height: 100%;
+          border-radius: 6px;
+          background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+        }
+
+        .dcw-codebox {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          background: var(--paper);
+          border: 1px solid var(--line);
+          border-radius: 16px;
+          padding: 14px;
+        }
+        .dcw-codewrap {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px;
+        }
+        .dcw-code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 1.15rem;
+          font-weight: 800;
+          letter-spacing: 0.18em;
+          direction: ltr;
+          background: var(--surface);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 8px 14px;
+        }
+        .dcw-acked {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--accent-deep);
+        }
+
+        .dcw-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-family: inherit;
+          font-weight: 700;
+          font-size: 0.92rem;
+          border-radius: 13px;
+          padding: 11px 20px;
+          border: 1px solid transparent;
+          cursor: pointer;
+          transition: transform 0.16s, box-shadow 0.16s, background 0.16s, border-color 0.16s;
+          white-space: nowrap;
+        }
+        .dcw-btn:hover { transform: translateY(-1px); }
+        .dcw-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+        .dcw-btn-sm { padding: 8px 14px; font-size: 0.82rem; }
+        .dcw-btn-accent {
+          background: var(--accent);
+          color: #06301f;
+          box-shadow: 0 10px 22px -10px rgba(23, 199, 119, 0.6);
+          position: relative;
+          overflow: hidden;
+        }
+        .dcw-btn-accent:hover:not(:disabled) { background: var(--accent-deep); color: #fff; }
+        .dcw-btn-accent::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          inset-inline-start: -140%;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+          transform: skewX(-18deg);
+          transition: inset-inline-start 0.65s ease;
+        }
+        .dcw-btn-accent:hover:not(:disabled)::after { inset-inline-start: 150%; }
+        .dcw-btn-ghost {
+          background: var(--surface);
+          color: var(--ink);
+          border-color: var(--line);
+        }
+        .dcw-btn-ghost:hover { border-color: var(--ink); }
+        .dcw-ic { width: 15px; height: 15px; flex: none; }
+        .dcw-root[dir="rtl"] .dcw-arrow { transform: scaleX(-1); }
+
+        .dcw-nav {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .dcw-skip {
+          background: none;
+          border: none;
+          font: inherit;
+          font-size: 0.83rem;
+          font-weight: 600;
+          color: var(--ink-mute);
+          cursor: pointer;
+          padding: 4px 8px;
+        }
+        .dcw-skip:hover { color: var(--ink); }
+      `}</style>
     </div>
   );
 }

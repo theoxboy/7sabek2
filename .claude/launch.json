@@ -11,6 +11,16 @@
       "port": 3000
     },
     {
+      "name": "7sabek-frontend-dev-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
       "name": "7sabek-frontend-prod",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
