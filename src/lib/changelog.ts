@@ -49,6 +49,11 @@ export const CHANGELOG: Release[] = [
             ar: "وضع الاكتشاف: صفحة ترحيب واضحة كتشرح ليك الوضع وكتوريك كود الاسترجاع ديالك قبل ما تدخل للتطبيق، عوض علبة مزحومة فالتابلو دو بور.",
           },
           {
+            fr: "Mode découverte : plusieurs façons de ne jamais perdre ton code de reprise — l’enregistrer en image (avec QR), le partager, te l’envoyer par e-mail, ou tout simplement sécuriser ton budget avec Face ID / empreinte. Un rappel discret s’affiche tant que ce n’est pas fait.",
+            en: "Discovery mode: several ways to never lose your recovery code — save it as an image (with a QR), share it, email it to yourself, or just secure your budget with Face ID / fingerprint. A quiet reminder stays until it’s done.",
+            ar: "وضع الاكتشاف: بزّاف ديال الطرق باش عمرك ما تخسر كود الاسترجاع ديالك — حفظو كصورة (مع QR)، شارك، صيفطو ليك فالإيميل، ولا أمّن الميزانية ديالك بـ Face ID / البصمة. تذكير خفيف كيبقى حتى تدير الأمر.",
+          },
+          {
             fr: "La page d’accueil est moins encombrée : la fenêtre de l’application mobile ne s’ouvre plus toute seule à chaque visite. Elle reste accessible depuis le bouton en haut de page.",
             en: "The home page is less cluttered: the mobile-app window no longer pops up on its own on every visit. It’s still available from the button at the top of the page.",
             ar: "الصفحة الرئيسية ولّات أقل ازدحام: نافذة التطبيق ديال الموبايل ما بقاتش كتحل وحدها فكل زيارة. باقاها موجودة من الزر اللي فوق فالصفحة.",
