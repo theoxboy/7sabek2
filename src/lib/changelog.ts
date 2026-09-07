@@ -27,6 +27,42 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.3.2",
+    date: "2026-09-07",
+    groups: [
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "En mode découverte, quand tu atteins le nombre maximum d’enveloppes, un message clair te l’explique et te propose de créer ton compte gratuit — tes enveloppes actuelles sont gardées.",
+            en: "In discovery mode, when you reach the maximum number of envelopes, a clear message explains it and offers to create your free account — your current envelopes are kept.",
+            ar: "فوضع الاكتشاف، ملي توصل للعدد الأقصى ديال الأظرفة، كتبان ليك رسالة واضحة كتشرح ليك وكتقترح تصاوب حسابك المجاني — الأظرفة اللي عندك دابا كتبقى محفوظة.",
+          },
+          {
+            fr: "Mode découverte : le texte du code de reprise est plus clair — note-le en dehors du navigateur, sinon rien ne peut être récupéré.",
+            en: "Discovery mode: the recovery-code wording is clearer — save it outside the browser, otherwise nothing can be recovered.",
+            ar: "وضع الاكتشاف: النص ديال كود الاسترجاع ولّا أوضح — سجّلو خارج المتصفح، وإلا ما يمكن نرجّعو والو.",
+          },
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          {
+            fr: "Mode découverte : si « Effacer mes données » n’aboutit pas, tu es maintenant prévenu clairement et rien n’est supprimé, au lieu d’être déconnecté comme si c’était fait.",
+            en: "Discovery mode: if “Erase my data” doesn’t go through, you’re now told clearly and nothing is deleted, instead of being signed out as if it worked.",
+            ar: "وضع الاكتشاف: إلا « مسح البيانات ديالي » ما كملش، دابا كتُنبّه بوضوح وحتى حاجة ما كتتمسح، عوض ما تتخرّج بحال إلا تمّ.",
+          },
+          {
+            fr: "Mode découverte : en te connectant à un compte existant pour garder tes dépenses, une coupure de connexion ne peut plus ajouter tes dépenses en double.",
+            en: "Discovery mode: when signing in to an existing account to keep your expenses, a dropped connection can no longer add your expenses twice.",
+            ar: "وضع الاكتشاف: ملي كتدخل لحساب موجود باش تخلّي مصاريفك، انقطاع الاتصال ما بقاش يقدر يزيد مصاريفك مرتين.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.1",
     date: "2026-09-03",
     groups: [

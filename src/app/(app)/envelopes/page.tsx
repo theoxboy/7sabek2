@@ -67,8 +67,13 @@ import { getIssueDisplay } from "@/lib/issueMessages";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { looksLikeDebt } from "@/lib/envelopeDebt";
 import { cn } from "@/lib/cn";
+import type { AuthUser } from "@/lib/auth";
+import { GUEST_LIMITS, checkEnvelopeQuota } from "@/lib/guestQuota";
+import { guestEvent } from "@/lib/guestAnchorApi";
 
 const RESERVED_NAMES = ["cash", "epargnes"];
+// Fire the "hit the 20-envelope wall" analytics event at most once per page load.
+let guestEnvelopeCapHitSent = false;
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const LOCALE_TO_BCP47: Record<FloussyLocale, string> = {
   fr: "fr-FR",
@@ -125,6 +130,7 @@ const ENVELOPES_COPY = {
       "Les soldes reflètent la période en cours.",
     loading: "Chargement...",
     unknownError: "Erreur inconnue",
+    guestEnvelopeCap: `En mode découverte, tu peux créer jusqu’à ${GUEST_LIMITS.envelopes} enveloppes. Crée ton compte gratuit pour en avoir autant que tu veux — tes enveloppes actuelles sont gardées.`,
     spendingTrend: "Tendance des dépenses",
     noSelection: "Aucune enveloppe sélectionnée.",
     selectAtLeastOneEnvelope: "Sélectionne au moins une enveloppe.",
@@ -298,6 +304,7 @@ const ENVELOPES_COPY = {
     pageSubtitle: "Balances reflect the current period.",
     loading: "Loading...",
     unknownError: "Unknown error",
+    guestEnvelopeCap: `In discovery mode you can create up to ${GUEST_LIMITS.envelopes} envelopes. Create your free account for as many as you want — your current envelopes are kept.`,
     spendingTrend: "Spending trend",
     noSelection: "No envelope selected.",
     selectAtLeastOneEnvelope: "Select at least one envelope.",
@@ -470,6 +477,7 @@ const ENVELOPES_COPY = {
     pageSubtitle: "الأرصدة كتعكس الفترة الحالية.",
     loading: "كيتحمّل...",
     unknownError: "وقع مشكل غير معروف",
+    guestEnvelopeCap: `ف وضع الاكتشاف تقدر تصاوب حتى ${GUEST_LIMITS.envelopes} ظرف. صاوب حسابك المجاني باش يكونو عندك بلا حدود — الأظرفة اللي عندك دابا كتبقى محفوظة.`,
     spendingTrend: "منحنى الصرف",
     noSelection: "ما كاين حتى ظرف متختار.",
     selectAtLeastOneEnvelope: "اختار على الأقل ظرف واحد.",
@@ -751,6 +759,11 @@ export default function EnvelopesPage() {
 
   const { data: envelopesData, error: envelopesError, mutate: mutateEnvelopes } = useSWR<EnvelopeOut[]>("/envelopes", fetcher);
   const envelopes = envelopesData ?? [];
+
+  const { data: meData } = useSWR<AuthUser>("/auth/me", fetcher);
+  const isGuest = Boolean(meData?.is_guest);
+  // How many more envelopes a "Mode Découverte" guest may create before the cap.
+  const guestEnvelopeQuota = checkEnvelopeQuota(isGuest ? envelopes.length : 0);
 
   const { data: categoriesData, error: categoriesError } = useSWR<CategoryOut[]>("/categories", fetcher);
   const categories = categoriesData ?? [];
@@ -1309,6 +1322,14 @@ export default function EnvelopesPage() {
       setError("ENVELOPE_NAME_RESERVED");
       return;
     }
+    if (isGuest && !guestEnvelopeQuota.allowed) {
+      setError(copy.guestEnvelopeCap);
+      if (!guestEnvelopeCapHitSent) {
+        guestEnvelopeCapHitSent = true;
+        guestEvent("guest_wall_hit", { wall: "envelopes_cap", route: "/envelopes" });
+      }
+      return;
+    }
 
     try {
       setUpdating(true);
@@ -1628,6 +1649,20 @@ export default function EnvelopesPage() {
         description: copy.allEnvelopesExist,
       });
       setAdvancedOpen(false);
+      return;
+    }
+
+    if (isGuest && toCreate.length > guestEnvelopeQuota.remaining) {
+      setError(copy.guestEnvelopeCap);
+      toast({
+        title: copy.addFailed,
+        description: copy.guestEnvelopeCap,
+        variant: "danger",
+      });
+      if (!guestEnvelopeCapHitSent) {
+        guestEnvelopeCapHitSent = true;
+        guestEvent("guest_wall_hit", { wall: "envelopes_cap", route: "/envelopes" });
+      }
       return;
     }
 

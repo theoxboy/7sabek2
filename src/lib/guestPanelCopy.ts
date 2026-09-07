@@ -5,6 +5,7 @@
  */
 
 import type { FloussyLocale } from "@/lib/localePreference";
+import { clampProtectionLevel, resolveProtectionLevel } from "@/lib/guestQuota";
 
 export type ProtectionStep = { level: 40 | 70 | 100; name: string; desc: string };
 
@@ -35,6 +36,14 @@ export type GuestPanelCopy = {
   eraseConfirmBody: string;
   eraseConfirm: string;
   eraseCancel: string;
+  /** Shown when the server deletion fails — the local anchor is kept, nothing is lost. */
+  eraseFailed: string;
+
+  /** The prompt shown right after "I saved my code" (protection 40 → 70). */
+  postAckTitle: string;
+  postAckBody: string;
+  postAckCta: string;
+  postAckLater: string;
 
   explainTitle: string;
   explainBody: string[];
@@ -60,7 +69,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     recoveryTitle: "Mon code de reprise",
     fragileWarning: "Ton navigateur (Safari) efface les données de l\u2019app après 7 jours sans visite. Note ton code de reprise maintenant, ou ajoute 7sabek à ton écran d\u2019accueil.",
     recoveryIntro:
-      "Note ce code. Il ramène ton budget sur n’importe quel appareil, sans e-mail. Garde-le en lieu sûr.",
+      "Note ce code ailleurs que dans ce navigateur (papier, notes du téléphone). Il ramène ton budget sur n’importe quel appareil, sans e-mail. Sans lui, on ne peut rien récupérer.",
     reveal: "Afficher mon code",
     copy: "Copier",
     copied: "Copié !",
@@ -78,6 +87,11 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
       "Tes enveloppes, tes dépenses et ton code de reprise seront supprimés définitivement, tout de suite.",
     eraseConfirm: "Oui, tout effacer",
     eraseCancel: "Annuler",
+    eraseFailed: "L’effacement n’a pas pu se faire. Rien n’a été supprimé — réessaie dans un moment.",
+    postAckTitle: "Tes données sont à moitié sécurisées",
+    postAckBody: "Tu as noté ton code de reprise — bravo. Crée ton compte gratuit maintenant (10 s) pour les garder sur tous tes appareils, sans risque.",
+    postAckCta: "Créer mon compte gratuit",
+    postAckLater: "Plus tard",
     explainTitle: "C’est quoi le Mode Découverte ?",
     explainBody: [
       "Tu essaies 7sabek sans créer de compte : pas d’e-mail, pas de mot de passe, pas de questionnaire.",
@@ -103,7 +117,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     recoveryTitle: "My recovery code",
     fragileWarning: "Your browser (Safari) wipes the app\u2019s data after 7 days without a visit. Save your recovery code now, or add 7sabek to your home screen.",
     recoveryIntro:
-      "Write this code down. It brings your budget back on any device, no email. Keep it somewhere safe.",
+      "Write this code down somewhere other than this browser (paper, phone notes). It brings your budget back on any device, no email. Without it, nothing can be recovered.",
     reveal: "Show my code",
     copy: "Copy",
     copied: "Copied!",
@@ -121,6 +135,11 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
       "Your envelopes, expenses and recovery code will be permanently deleted, right now.",
     eraseConfirm: "Yes, erase everything",
     eraseCancel: "Cancel",
+    eraseFailed: "Couldn’t erase your data. Nothing was deleted — try again in a moment.",
+    postAckTitle: "Your data is half-secured",
+    postAckBody: "You saved your recovery code — nice. Create your free account now (10 s) to keep it on every device, safely.",
+    postAckCta: "Create my free account",
+    postAckLater: "Later",
     explainTitle: "What is discovery mode?",
     explainBody: [
       "You’re trying 7sabek without creating an account: no email, no password, no questionnaire.",
@@ -146,7 +165,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     recoveryTitle: "الكود ديال الاسترجاع",
     fragileWarning: "المتصفح ديالك (Safari) كيمسح بيانات التطبيق بعد 7 أيام بلا زيارة. سجّل كود الاسترجاع دابا، ولا زيد 7sabek لشاشة البداية ديالك.",
     recoveryIntro:
-      "سجّل هاد الكود. كيرجّع ليك الميزانية ف أي تيليفون، بلا إيميل. خبّيه ف بلاصة مأمونة.",
+      "سجّل هاد الكود ف بلاصة أخرى ماشي ف هاد المتصفح (ورقة، نوط ف التيليفون). كيرجّع ليك الميزانية ف أي تيليفون، بلا إيميل. بلاه ما يمكن نرجّعو والو.",
     reveal: "وري ليا الكود",
     copy: "نسخ",
     copied: "تنسخ!",
@@ -164,6 +183,11 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
       "المغلفات، المصاريف والكود ديال الاسترجاع غادي يتمسحو نهائياً، دابا.",
     eraseConfirm: "أيه، مسح كولشي",
     eraseCancel: "إلغاء",
+    eraseFailed: "ما تقدرش يتمسح. حتى حاجة ما تمسحات — عاود من بعد شوية.",
+    postAckTitle: "البيانات ديالك مأمّنة نص الطريق",
+    postAckBody: "سجّلتي الكود ديال الاسترجاع — مزيان. صاوب حسابك المجاني دابا (10 ثواني) باش تخبّيه ف كل التيليفونات، بلا مخاطر.",
+    postAckCta: "صاوب حسابي المجاني",
+    postAckLater: "من بعد",
     explainTitle: "شنو هو وضع الاكتشاف؟",
     explainBody: [
       "كتجرّب 7sabek بلا ما تصاوب حساب: بلا إيميل، بلا كلمة السر، بلا أسئلة.",
@@ -178,7 +202,13 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
   },
 };
 
-/** The protection figure from the raw fields (mirrors the backend). */
+/**
+ * The protection figure from the raw fields (mirrors the backend).
+ *
+ * The backend `protection_level` wins when present; otherwise we derive it from
+ * the durability state. Both paths funnel through `guestQuota` so there is a
+ * single definition of the 40 / 70 / 100 rule.
+ */
 export function protectionLevelOf(user: {
   is_guest?: boolean;
   claimed_at?: string | null;
@@ -186,11 +216,10 @@ export function protectionLevelOf(user: {
   protection_level?: number | null;
 }): 40 | 70 | 100 {
   if (typeof user.protection_level === "number") {
-    if (user.protection_level >= 100) return 100;
-    if (user.protection_level >= 70) return 70;
-    return 40;
+    return clampProtectionLevel(user.protection_level);
   }
-  if (!user.is_guest || user.claimed_at) return 100;
-  if (user.recovery_code_ack) return 70;
-  return 40;
+  return resolveProtectionLevel({
+    hasAccount: !user.is_guest || Boolean(user.claimed_at),
+    hasRecoveryCode: Boolean(user.recovery_code_ack),
+  });
 }

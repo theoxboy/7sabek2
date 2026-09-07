@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock, Sparkles, Fingerprint } from "lucide-react";
 import { startRegistration } from "@simplewebauthn/browser";
 
 import type { FloussyLocale } from "@/lib/localePreference";
-import { GUEST_GATE_COPY, guestRouteState } from "@/lib/guestGate";
+import { GUEST_GATE_COPY, guestRouteFeature, guestRouteState, guestWallForRoute } from "@/lib/guestGate";
 import { claimGuestAccount, claimGuestWithPasskey, mergeGuestIntoAccount, guestEvent } from "@/lib/guestAnchorApi";
-import { finalizeGuestClaim } from "@/lib/guestSession";
+import { clearGuestLocalState } from "@/lib/guestSession";
 import { getPasskeyFeatureStatus, getRegisterOptions, verifyRegistration } from "@/lib/passkeys";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { RecaptchaV2, isRecaptchaConfigured } from "@/components/ui/RecaptchaV2";
 import {
   Dialog,
   DialogContent,
@@ -31,18 +32,27 @@ type Props = {
  * nothing for members or on fully-open routes. Carries its own "create your
  * free account" dialog.
  */
-let promptEventSent = false;
+const promptEventSentFor = new Set<string>();
+const wallHitSentFor = new Set<string>();
 
 export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
   const [claimOpen, setClaimOpen] = useState(false);
   const copy = GUEST_GATE_COPY[locale] ?? GUEST_GATE_COPY.fr;
   const state = guestRouteState(pathname);
   const visible = isGuest && state !== "open";
+  const claimSource = `wall:${guestWallForRoute(pathname) ?? guestRouteFeature(pathname) ?? "gate"}`;
 
   useEffect(() => {
-    if (visible && !promptEventSent) {
-      promptEventSent = true;
-      guestEvent("claim_prompt_shown", { where: pathname ?? "" });
+    if (!visible) return;
+    const where = pathname ?? "";
+    if (!promptEventSentFor.has(where)) {
+      promptEventSentFor.add(where);
+      guestEvent("claim_prompt_shown", { where });
+    }
+    const wall = guestWallForRoute(pathname);
+    if (wall && !wallHitSentFor.has(wall)) {
+      wallHitSentFor.add(wall);
+      guestEvent("guest_wall_hit", { wall, route: where });
     }
   }, [visible, pathname]);
 
@@ -101,7 +111,7 @@ export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
         </div>
       </div>
 
-      <GuestClaimDialog open={claimOpen} onOpenChange={setClaimOpen} locale={locale} dir={dir} />
+      <GuestClaimDialog open={claimOpen} onOpenChange={setClaimOpen} locale={locale} dir={dir} source={claimSource} />
     </>
   );
 }
@@ -129,6 +139,9 @@ const CLAIM_COPY: Record<
     orEmail: string;
     mergeCta: string;
     mergeBadPassword: string;
+    mergeAmbiguous: string;
+    recaptchaRequired: string;
+    recaptchaFailed: string;
   }
 > = {
   fr: {
@@ -150,6 +163,9 @@ const CLAIM_COPY: Record<
     orEmail: "ou utiliser un e-mail",
     mergeCta: "Me connecter et garder mes dépenses",
     mergeBadPassword: "Mot de passe incorrect pour ce compte.",
+    mergeAmbiguous: "La connexion n’a pas abouti clairement. Recharge la page et connecte-toi normalement — si tes dépenses sont déjà là, tout est bon.",
+    recaptchaRequired: "Confirme que tu n’es pas un robot.",
+    recaptchaFailed: "La vérification anti-robot a échoué. Réessaie.",
   },
   en: {
     title: "Create your free account",
@@ -170,6 +186,9 @@ const CLAIM_COPY: Record<
     orEmail: "or use an email",
     mergeCta: "Sign in and keep my expenses",
     mergeBadPassword: "Wrong password for this account.",
+    mergeAmbiguous: "Sign-in didn’t clearly complete. Reload the page and sign in normally — if your expenses are already there, you’re all set.",
+    recaptchaRequired: "Confirm you’re not a robot.",
+    recaptchaFailed: "The anti-robot check failed. Try again.",
   },
   ar: {
     title: "صاوب حسابك المجاني",
@@ -190,6 +209,9 @@ const CLAIM_COPY: Record<
     orEmail: "ولا استعمل إيميل",
     mergeCta: "دخل وخلّي المصاريف ديالي",
     mergeBadPassword: "كلمة السر ماشي صحيحة لهاد الحساب.",
+    mergeAmbiguous: "الدخول ما كملش بوضوح. عاود حمّل الصفحة ودخل بشكل عادي — إلا كانت المصاريف ديالك ديجا تما، كولشي مزيان.",
+    recaptchaRequired: "أكّد أنك ماشي روبوت.",
+    recaptchaFailed: "التحقق ضد الروبوت ما نجحش. عاود.",
   },
 };
 
@@ -198,13 +220,18 @@ export function GuestClaimDialog({
   onOpenChange,
   locale,
   dir,
+  source = "unknown",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   locale: FloussyLocale;
   dir: "rtl" | "ltr";
+  /** Where the dialog was opened from — "wall:<name>" | "panel_dashboard" | "panel_settings" | "post_ack". */
+  source?: string;
 }) {
   const t = CLAIM_COPY[locale] ?? CLAIM_COPY.fr;
+  const succeededRef = useRef(false);
+  const openedEventSentRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -213,15 +240,31 @@ export function GuestClaimDialog({
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
+  // Once a merge has been fired and its outcome is unknown (network drop after
+  // the server may have replayed the expenses), block a second attempt so the
+  // guest can't double-post their transactions.
+  const [mergeAmbiguous, setMergeAmbiguous] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaOn = isRecaptchaConfigured();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      openedEventSentRef.current = false;
+      return;
+    }
+    succeededRef.current = false;
     let cancelled = false;
     const supported =
       typeof window !== "undefined" &&
       typeof window.PublicKeyCredential !== "undefined";
+    const announce = (methodShown: "passkey_first" | "email_only") => {
+      if (openedEventSentRef.current) return;
+      openedEventSentRef.current = true;
+      guestEvent("guest_claim_dialog_opened", { source, method_shown: methodShown });
+    };
     if (!supported) {
       setShowEmail(true);
+      announce("email_only");
       return;
     }
     getPasskeyFeatureStatus()
@@ -229,18 +272,37 @@ export function GuestClaimDialog({
         if (!cancelled) {
           setPasskeyAvailable(Boolean(s?.enabled));
           setShowEmail(!s?.enabled);
+          announce(s?.enabled ? "passkey_first" : "email_only");
         }
       })
       .catch(() => {
-        if (!cancelled) setShowEmail(true);
+        if (!cancelled) {
+          setShowEmail(true);
+          announce("email_only");
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, source]);
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v && !succeededRef.current && openedEventSentRef.current) {
+      guestEvent("claim_abandoned", { source });
+    }
+    onOpenChange(v);
+  };
+
+  const markClaimSuccess = (method: "passkey" | "email" | "merge") => {
+    succeededRef.current = true;
+    if (source === "post_ack") {
+      guestEvent("guest_post_ack_prompt_converted", { method });
+    }
+  };
 
   const submitPasskey = async () => {
     setError(null);
+    guestEvent("guest_claim_method_selected", { method: "passkey", source });
     setPasskeyLoading(true);
     try {
       const options = await getRegisterOptions();
@@ -253,7 +315,8 @@ export function GuestClaimDialog({
       });
       if (!verified) throw new Error("passkey_unverified");
       await claimGuestWithPasskey();
-      await finalizeGuestClaim();
+      await clearGuestLocalState();
+      markClaimSuccess("passkey");
       onOpenChange(false);
       window.location.reload();
     } catch {
@@ -270,17 +333,26 @@ export function GuestClaimDialog({
       setError(t.errWeakPassword);
       return;
     }
+    if (recaptchaOn && !recaptchaToken) {
+      setError(t.recaptchaRequired);
+      return;
+    }
+    guestEvent("guest_claim_method_selected", { method: "email", source });
     setLoading(true);
     try {
-      await claimGuestAccount(email.trim().toLowerCase(), password);
-      await finalizeGuestClaim();
+      await claimGuestAccount(email.trim().toLowerCase(), password, recaptchaToken);
+      await clearGuestLocalState();
+      markClaimSuccess("email");
       onOpenChange(false);
       // Full reload so the app shell re-bootstraps as a full member
       // (unlocks navigation, drops the guest banners).
       window.location.reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      if (msg.includes("email_taken") || msg.includes("already")) {
+      if (msg.includes("recaptcha")) {
+        setError(t.recaptchaFailed);
+        setRecaptchaToken(null);
+      } else if (msg.includes("email_taken") || msg.includes("already")) {
         setError(t.errEmailTaken);
         setMergeMode(true);
       } else if (msg.includes("password")) {
@@ -294,27 +366,34 @@ export function GuestClaimDialog({
   };
 
   const submitMerge = async () => {
+    if (mergeAmbiguous) return;
     setError(null);
+    guestEvent("guest_claim_method_selected", { method: "merge", source });
     setLoading(true);
     try {
       await mergeGuestIntoAccount(email.trim().toLowerCase(), password);
-      await finalizeGuestClaim();
+      await clearGuestLocalState();
+      markClaimSuccess("merge");
       onOpenChange(false);
       window.location.reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      setError(
-        msg.includes("bad_credentials") || msg.includes("401")
-          ? t.mergeBadPassword
-          : t.errGeneric
-      );
+      const badCredentials = msg.includes("bad_credentials") || msg.includes("401");
+      if (badCredentials) {
+        // Server rejected the login before touching anything — safe to retry.
+        setError(t.mergeBadPassword);
+      } else {
+        // Any other failure is ambiguous: the replay may have partly run.
+        setMergeAmbiguous(true);
+        setError(t.mergeAmbiguous);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent dir={dir}>
         <DialogHeader>
           <DialogTitle>{t.title}</DialogTitle>
@@ -373,6 +452,7 @@ export function GuestClaimDialog({
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </label>
+              {recaptchaOn && <RecaptchaV2 onToken={setRecaptchaToken} />}
               <Button type="submit" isLoading={loading} className="mt-1 w-full">
                 {loading ? t.submitting : t.submit}
               </Button>
@@ -390,6 +470,7 @@ export function GuestClaimDialog({
               type="button"
               variant="secondary"
               isLoading={loading}
+              disabled={mergeAmbiguous}
               onClick={() => void submitMerge()}
               className="w-full"
             >

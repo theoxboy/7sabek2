@@ -2,9 +2,7 @@
  * Network wrappers for the guest (Mode Découverte) backend contract.
  *
  * Split out of `guestAnchor.ts` so that module stays dependency-free and
- * unit-testable. These routes are specified in the Mode Découverte plan
- * (annexe B.3) and are NOT live on the backend yet — wiring the UI to them
- * waits on the `7sabek` backend repo.
+ * unit-testable. These routes are live in production on the `7sabek` backend.
  */
 
 import { apiFetch } from "@/lib/api";
@@ -76,10 +74,18 @@ export async function deleteGuestData(): Promise<void> {
 }
 
 /** `POST /auth/guest/claim` — turn the current guest into a full account (one UPDATE). */
-export async function claimGuestAccount(email: string, password: string): Promise<AuthUser> {
+export async function claimGuestAccount(
+  email: string,
+  password: string,
+  recaptchaToken?: string | null
+): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/guest/claim", {
     method: "POST",
-    body: { email, password },
+    body: {
+      email,
+      password,
+      ...(recaptchaToken ? { recaptcha_token: recaptchaToken } : {}),
+    },
     suppressAuthRedirect: true,
   });
 }

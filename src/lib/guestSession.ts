@@ -99,43 +99,77 @@ export async function resumeGuestFromVaults(): Promise<AuthUser | null> {
   return resumeInFlight;
 }
 
+const L2_HINT_CACHE_KEY = "7sabek.guest.l2hint";
+
 /**
  * L2: when there's no L1 token and nothing to resume, ask the server whether a
  * guest budget *might* live on this device. Returns true only to route the
  * person to the recovery-code screen — never restores anything.
+ *
+ * The answer is cached for the tab session: the backend rate-limits this route
+ * (10 / IP / h) and /login can mount many times, so re-asking on every mount
+ * would burn the budget and start returning silent falses.
  */
 export async function checkL2Hint(): Promise<boolean> {
   const token = await resolveAnchorToken();
   if (token) return false;
   const signals = collectDeviceSignals();
   if (Object.keys(signals).length < 3) return false;
-  return l2Hint(signals);
-}
 
-/** Wipe this guest and its local anchor. Used by "Effacer mes données". */
-export async function eraseGuest(): Promise<void> {
   try {
-    await deleteGuestData();
-  } finally {
-    await clearAnchorToken();
-    try {
-      window.localStorage.removeItem(RECOVERY_CODE_KEY);
-    } catch {
-      /* ignore */
-    }
+    const cached = window.sessionStorage.getItem(L2_HINT_CACHE_KEY);
+    if (cached === "1") return true;
+    if (cached === "0") return false;
+  } catch {
+    /* ignore */
   }
+
+  const hit = await l2Hint(signals);
+  try {
+    window.sessionStorage.setItem(L2_HINT_CACHE_KEY, hit ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+  return hit;
 }
 
 /**
- * After a successful `POST /auth/guest/claim`, the row is no longer a guest.
- * Drop the local anchor + recovery code and refresh the session snapshot.
+ * Wipe this guest and its local anchor. Used by "Effacer mes données".
+ *
+ * The server deletion must succeed *first*: if it fails we keep the local anchor
+ * and rethrow, so the guest is never left without access to data that still
+ * exists server-side. Only once the row is gone do we clear the local mirrors.
  */
-export async function finalizeGuestClaim(): Promise<AuthUser> {
+export async function eraseGuest(): Promise<void> {
+  await deleteGuestData();
   await clearAnchorToken();
   try {
     window.localStorage.removeItem(RECOVERY_CODE_KEY);
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Drop the local guest anchor + recovery code. Call this after the row has
+ * stopped being a guest (claim / merge). Does not touch the session — callers
+ * that follow with a full reload get a fresh snapshot for free.
+ */
+export async function clearGuestLocalState(): Promise<void> {
+  await clearAnchorToken();
+  try {
+    window.localStorage.removeItem(RECOVERY_CODE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * After a successful `POST /auth/guest/claim`, the row is no longer a guest.
+ * Drop the local anchor + recovery code and refresh the session snapshot. Use
+ * this only when the caller will *not* reload the page itself.
+ */
+export async function finalizeGuestClaim(): Promise<AuthUser> {
+  await clearGuestLocalState();
   return refreshAuthSession();
 }

@@ -1,6 +1,7 @@
 export type UserOut = {
   id: string;
-  email: string;
+  /** Null for "Mode Découverte" guests. */
+  email: string | null;
   role?: string;
   status?: string;
   must_reset_password?: boolean;
@@ -12,6 +13,7 @@ export type UserOut = {
   protection_level?: number | null;
   claimed_at?: string | null;
   recovery_code_ack?: boolean;
+  guest_created_at?: string | null;
   currency: string;
   sweep_interval_days: number;
   next_sweep_date?: string | null;
@@ -338,6 +340,12 @@ export type GuestFunnelOut = {
   anchor_recovery_offered: number;
   silent_loss_rate: number;
   daily: { day: string; created: number; claimed: number }[];
+  per_wall: {
+    wall: string;
+    hits: number;
+    dialog_opened: number;
+    claimed_after: number;
+  }[];
 };
 
 export type FinanceDailyOut = {

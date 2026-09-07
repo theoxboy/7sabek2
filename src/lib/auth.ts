@@ -2,7 +2,8 @@ import { apiFetch, resetAuthClientState } from "@/lib/api";
 
 export type AuthUser = {
   id: string;
-  email: string;
+  /** Null for "Mode Découverte" guests — they have no real address. */
+  email: string | null;
   role: string;
   status: string;
   must_reset_password: boolean;
@@ -14,7 +15,7 @@ export type AuthUser = {
    */
   is_guest?: boolean;
   /** Protection gauge figure (40 / 70 / 100). Only meaningful while `is_guest`. */
-  protection_level?: number;
+  protection_level?: number | null;
   /** Set once a guest turns into a full account — used to stop forcing onboarding. */
   claimed_at?: string | null;
   /** Guest has confirmed they saved their recovery code (drives protection 70). */

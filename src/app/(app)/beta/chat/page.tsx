@@ -26,6 +26,7 @@ import {
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import { apiFetch } from "@/lib/api";
 import { GUEST_GATE_COPY } from "@/lib/guestGate";
+import { guestEvent } from "@/lib/guestAnchorApi";
 
 /** One stored turn of the shared advisor conversation (GET /advisor/chat/history). */
 type AdvisorChatHistoryItem = {
@@ -46,6 +47,9 @@ interface NotificationItem {
   read: boolean;
   important?: boolean;
 }
+
+// Fire the advisor-daily-cap analytics event at most once per page load.
+let advisorWallHitSent = false;
 
 const CHAT_COPY = {
   fr: {
@@ -594,6 +598,10 @@ export default function BetaChatPage() {
       // Guest hit the daily advisor cap → show the "create your free account" line.
       if (rawError.includes("guest_advisor_daily_limit")) {
         rawError = GUEST_GATE_COPY[locale].advisorExhausted;
+        if (!advisorWallHitSent) {
+          advisorWallHitSent = true;
+          guestEvent("guest_wall_hit", { wall: "advisor_daily", route: "/chat" });
+        }
       }
 
       // Ensure raw HTML tags or upstream error pages are never rendered in the chat bubble

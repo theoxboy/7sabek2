@@ -100,7 +100,7 @@ export function GuestRecoveryPrompt({
       resetAuthClientState();
       await recoverGuest(code.trim());
       markAuthSessionHint();
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
       setError(msg.includes("not_found") || msg.includes("404") ? t.notFound : t.generic);
