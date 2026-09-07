@@ -307,7 +307,7 @@ export default function SuperAdminPage() {
       else if (u.password_reset_blocked) reason = copy.risk.reasonMustReset;
       else if (u.has_completed_onboarding_v2 === false)
         reason = copy.risk.reasonNoOnboarding;
-      if (reason) rows.push({ id: u.id, email: u.email, reason });
+      if (reason) rows.push({ id: u.id, email: u.email ?? "", reason });
     }
     return rows.slice(0, 8);
   }, [users.data, copy.risk]);

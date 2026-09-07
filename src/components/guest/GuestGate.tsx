@@ -11,6 +11,7 @@ import { clearGuestLocalState } from "@/lib/guestSession";
 import { getPasskeyFeatureStatus, getRegisterOptions, verifyRegistration } from "@/lib/passkeys";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { RecaptchaV2, isRecaptchaConfigured } from "@/components/ui/RecaptchaV2";
 import {
   Dialog,
   DialogContent,
@@ -131,6 +132,8 @@ const CLAIM_COPY: Record<
     mergeCta: string;
     mergeBadPassword: string;
     mergeAmbiguous: string;
+    recaptchaRequired: string;
+    recaptchaFailed: string;
   }
 > = {
   fr: {
@@ -153,6 +156,8 @@ const CLAIM_COPY: Record<
     mergeCta: "Me connecter et garder mes dépenses",
     mergeBadPassword: "Mot de passe incorrect pour ce compte.",
     mergeAmbiguous: "La connexion n’a pas abouti clairement. Recharge la page et connecte-toi normalement — si tes dépenses sont déjà là, tout est bon.",
+    recaptchaRequired: "Confirme que tu n’es pas un robot.",
+    recaptchaFailed: "La vérification anti-robot a échoué. Réessaie.",
   },
   en: {
     title: "Create your free account",
@@ -174,6 +179,8 @@ const CLAIM_COPY: Record<
     mergeCta: "Sign in and keep my expenses",
     mergeBadPassword: "Wrong password for this account.",
     mergeAmbiguous: "Sign-in didn’t clearly complete. Reload the page and sign in normally — if your expenses are already there, you’re all set.",
+    recaptchaRequired: "Confirm you’re not a robot.",
+    recaptchaFailed: "The anti-robot check failed. Try again.",
   },
   ar: {
     title: "صاوب حسابك المجاني",
@@ -195,6 +202,8 @@ const CLAIM_COPY: Record<
     mergeCta: "دخل وخلّي المصاريف ديالي",
     mergeBadPassword: "كلمة السر ماشي صحيحة لهاد الحساب.",
     mergeAmbiguous: "الدخول ما كملش بوضوح. عاود حمّل الصفحة ودخل بشكل عادي — إلا كانت المصاريف ديالك ديجا تما، كولشي مزيان.",
+    recaptchaRequired: "أكّد أنك ماشي روبوت.",
+    recaptchaFailed: "التحقق ضد الروبوت ما نجحش. عاود.",
   },
 };
 
@@ -222,6 +231,8 @@ export function GuestClaimDialog({
   // the server may have replayed the expenses), block a second attempt so the
   // guest can't double-post their transactions.
   const [mergeAmbiguous, setMergeAmbiguous] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaOn = isRecaptchaConfigured();
 
   useEffect(() => {
     if (!open) return;
@@ -279,9 +290,13 @@ export function GuestClaimDialog({
       setError(t.errWeakPassword);
       return;
     }
+    if (recaptchaOn && !recaptchaToken) {
+      setError(t.recaptchaRequired);
+      return;
+    }
     setLoading(true);
     try {
-      await claimGuestAccount(email.trim().toLowerCase(), password);
+      await claimGuestAccount(email.trim().toLowerCase(), password, recaptchaToken);
       await clearGuestLocalState();
       onOpenChange(false);
       // Full reload so the app shell re-bootstraps as a full member
@@ -289,7 +304,10 @@ export function GuestClaimDialog({
       window.location.reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      if (msg.includes("email_taken") || msg.includes("already")) {
+      if (msg.includes("recaptcha")) {
+        setError(t.recaptchaFailed);
+        setRecaptchaToken(null);
+      } else if (msg.includes("email_taken") || msg.includes("already")) {
         setError(t.errEmailTaken);
         setMergeMode(true);
       } else if (msg.includes("password")) {
@@ -387,6 +405,7 @@ export function GuestClaimDialog({
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </label>
+              {recaptchaOn && <RecaptchaV2 onToken={setRecaptchaToken} />}
               <Button type="submit" isLoading={loading} className="mt-1 w-full">
                 {loading ? t.submitting : t.submit}
               </Button>

@@ -74,10 +74,18 @@ export async function deleteGuestData(): Promise<void> {
 }
 
 /** `POST /auth/guest/claim` — turn the current guest into a full account (one UPDATE). */
-export async function claimGuestAccount(email: string, password: string): Promise<AuthUser> {
+export async function claimGuestAccount(
+  email: string,
+  password: string,
+  recaptchaToken?: string | null
+): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/guest/claim", {
     method: "POST",
-    body: { email, password },
+    body: {
+      email,
+      password,
+      ...(recaptchaToken ? { recaptcha_token: recaptchaToken } : {}),
+    },
     suppressAuthRedirect: true,
   });
 }

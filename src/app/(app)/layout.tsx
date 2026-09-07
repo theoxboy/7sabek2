@@ -721,13 +721,13 @@ function AppLayoutContent({
   const rawDisplayName = user?.is_guest
     ? guestLabel
     : user
-    ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email
+    ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email || "7sabek"
     : "7sabek";
-  const displayName =
+  const displayName: string =
     !user?.is_guest && locale === "ar" && user
       ? getArabicDisplayName(
           [user.first_name, user.last_name].filter(Boolean).join(" ").trim()
-        ) || user.email
+        ) || user.email || rawDisplayName
       : rawDisplayName;
   const betaAuthorized = isBetaAuthorized(user);
   const initials = displayName

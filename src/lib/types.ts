@@ -1,6 +1,7 @@
 export type UserOut = {
   id: string;
-  email: string;
+  /** Null for "Mode Découverte" guests. */
+  email: string | null;
   role?: string;
   status?: string;
   must_reset_password?: boolean;

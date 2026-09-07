@@ -2,7 +2,8 @@ import { apiFetch, resetAuthClientState } from "@/lib/api";
 
 export type AuthUser = {
   id: string;
-  email: string;
+  /** Null for "Mode Découverte" guests — they have no real address. */
+  email: string | null;
   role: string;
   status: string;
   must_reset_password: boolean;
