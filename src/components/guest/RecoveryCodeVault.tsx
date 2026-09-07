@@ -71,10 +71,8 @@ export function RecoveryCodeVault({
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [emailState, setEmailState] = useState<"" | "sending" | "sent" | "error">("");
-  // Hidden until the backend endpoint is live in prod. Also self-heals on a 404.
-  const [emailAvailable, setEmailAvailable] = useState(
-    process.env.NEXT_PUBLIC_GUEST_EMAIL_CODE === "1"
-  );
+  // Shown by default; self-retires if the endpoint isn't deployed yet (404).
+  const [emailAvailable, setEmailAvailable] = useState(true);
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
@@ -171,7 +169,8 @@ export function RecoveryCodeVault({
     try {
       await emailRecoveryCode(clean, code);
       setEmailState("sent");
-      guestEvent("guest_recovery_action", { action: "email", where });
+      // The server logs the guest_recovery_action{email} event itself — no
+      // client event here, or it double-counts.
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("404")) {

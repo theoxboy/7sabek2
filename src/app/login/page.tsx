@@ -11,6 +11,7 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import { API_BASE, apiFetch, resetAuthClientState } from "@/lib/api";
 import { fetchMe, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
 import { startGuestSession } from "@/lib/guestSession";
+import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { GuestRecoveryPrompt } from "@/components/guest/GuestRecoveryPrompt";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
@@ -613,10 +614,11 @@ export default function LoginPage() {
     setGuestLoading(true);
     try {
       resetAuthClientState();
-      await startGuestSession();
+      const guest = await startGuestSession();
       markAuthSessionHint();
-      // A brand-new guest always goes through the discovery walk-through first.
-      router.push("/decouverte");
+      // A brand-new guest walks through /decouverte first; a returning guest who
+      // already secured their budget goes straight to the app.
+      router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
     } catch {
       setError(copy.guestStartError);
     } finally {

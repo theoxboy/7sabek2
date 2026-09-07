@@ -22,6 +22,8 @@ import { readStoredRecoveryCode } from "@/lib/guestSession";
 import { markDiscoveryWelcomeSeen } from "@/lib/guestWelcome";
 import { detectFragileContext } from "@/lib/guestFragileContext";
 import { RecoveryCodeVault } from "@/components/guest/RecoveryCodeVault";
+import { GuestClaimDialog } from "@/components/guest/GuestGate";
+import { Button } from "@/components/ui/Button";
 import BrandLogo from "@/components/BrandLogo";
 
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -30,7 +32,7 @@ const STEP_ICONS = [Sparkles, ShieldCheck, KeyRound];
 
 export default function DiscoveryWelcomePage() {
   const router = useRouter();
-  const { locale, dir } = useAppLocale();
+  const { locale, dir } = useAppLocale("fr");
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
   const reduce = useReducedMotion();
   const isAr = locale === "ar";
@@ -64,6 +66,7 @@ export default function DiscoveryWelcomePage() {
   const [acking, setAcking] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [fragile, setFragile] = useState(false);
+  const [claimOpen, setClaimOpen] = useState(false);
 
   useEffect(() => {
     const ctx = detectFragileContext();
@@ -240,7 +243,12 @@ export default function DiscoveryWelcomePage() {
                       where="welcome"
                     />
                   ) : (
-                    <p className="dcw-sub">{t.welcomeNoCode}</p>
+                    <div className="flex flex-col gap-2.5">
+                      <p className="dcw-sub">{t.welcomeNoCode}</p>
+                      <Button type="button" onClick={() => setClaimOpen(true)} className="w-full">
+                        {t.claimCta}
+                      </Button>
+                    </div>
                   )}
                 </>
               )}
@@ -274,13 +282,24 @@ export default function DiscoveryWelcomePage() {
           )}
         </div>
 
-        <button type="button" className="dcw-skip" onClick={handleContinue}>
-          {t.welcomeSkip}
-        </button>
+        {!last && (
+          <button type="button" className="dcw-skip" onClick={handleContinue}>
+            {t.welcomeSkip}
+          </button>
+        )}
       </main>
+
+      <GuestClaimDialog
+        open={claimOpen}
+        onOpenChange={setClaimOpen}
+        locale={locale}
+        dir={dir}
+        source="decouverte_nocode"
+      />
 
       <style jsx global>{`
         .dcw-root {
+          color-scheme: light;
           --ink: #0a241d;
           --ink-soft: #4e625a;
           --ink-mute: #7c8d86;
@@ -293,6 +312,18 @@ export default function DiscoveryWelcomePage() {
           --amber: #f2a93b;
           --line: #e3e8df;
           --shadow: 0 1px 2px rgba(10, 36, 29, 0.04), 0 24px 60px -28px rgba(10, 36, 29, 0.28);
+          /* App-theme tokens the embedded <RecoveryCodeVault> consumes — pinned
+             to the light "paper" palette so it never inherits the dark theme. */
+          --bg: #ffffff;
+          --surface-2: #eef2ec;
+          --border: #e3e8df;
+          --border-strong: #cdd8c8;
+          --muted: #4e625a;
+          --accent-strong: #0b8f53;
+          --success: #0b8f53;
+          --warning: #9a5b00;
+          --warning-soft: #fff6e6;
+          --error: #c0392b;
           position: relative;
           min-height: 100dvh;
           display: flex;
@@ -470,16 +501,6 @@ export default function DiscoveryWelcomePage() {
           line-height: 1.6;
           color: var(--ink-soft);
         }
-        .dcw-warn {
-          font-size: 0.9rem;
-          font-weight: 600;
-          line-height: 1.5;
-          color: #9a5b00;
-          background: #fff6e6;
-          border: 1px solid #f4d79a;
-          border-radius: 14px;
-          padding: 10px 12px;
-        }
 
         .dcw-list {
           list-style: none;
@@ -558,41 +579,6 @@ export default function DiscoveryWelcomePage() {
           background: linear-gradient(90deg, var(--accent), var(--accent-deep));
         }
 
-        .dcw-codebox {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          background: var(--paper);
-          border: 1px solid var(--line);
-          border-radius: 16px;
-          padding: 14px;
-        }
-        .dcw-codewrap {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 10px;
-        }
-        .dcw-code {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 1.15rem;
-          font-weight: 800;
-          letter-spacing: 0.18em;
-          direction: ltr;
-          background: var(--surface);
-          border: 1px solid var(--line);
-          border-radius: 10px;
-          padding: 8px 14px;
-        }
-        .dcw-acked {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 0.85rem;
-          font-weight: 700;
-          color: var(--accent-deep);
-        }
-
         .dcw-btn {
           display: inline-flex;
           align-items: center;
@@ -610,7 +596,6 @@ export default function DiscoveryWelcomePage() {
         }
         .dcw-btn:hover { transform: translateY(-1px); }
         .dcw-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
-        .dcw-btn-sm { padding: 8px 14px; font-size: 0.82rem; }
         .dcw-btn-accent {
           background: var(--accent);
           color: #06301f;
