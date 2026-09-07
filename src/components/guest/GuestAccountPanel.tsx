@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck, KeyRound, Trash2, Copy, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
 
 import type { FloussyLocale } from "@/lib/localePreference";
 import type { AuthUser } from "@/lib/auth";
@@ -10,7 +11,7 @@ import { ackRecoveryCode, guestSummary, guestEvent, type GuestSummary } from "@/
 import { eraseGuest, readStoredRecoveryCode } from "@/lib/guestSession";
 import { armPostAckPrompt, consumePostAckFlag, shouldOpenPostAckPrompt } from "@/lib/guestPostAck";
 import { detectFragileContext } from "@/lib/guestFragileContext";
-import { AlertTriangle } from "lucide-react";
+import { RecoveryCodeVault } from "@/components/guest/RecoveryCodeVault";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -28,11 +29,6 @@ type Props = {
   /** "card" for the dashboard, "full" for the settings page. */
   variant?: "card" | "full";
 };
-
-function formatCode(raw: string): string {
-  const c = raw.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-  return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
-}
 
 export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props) {
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
@@ -71,8 +67,6 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
 
   const [claimOpen, setClaimOpen] = useState(false);
   const [eraseOpen, setEraseOpen] = useState(false);
-  const [codeShown, setCodeShown] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [acking, setAcking] = useState(false);
   const [erasing, setErasing] = useState(false);
   const [fragile, setFragile] = useState(false);
@@ -81,24 +75,12 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
     const ctx = detectFragileContext();
     if (ctx.fragile && level < 70) {
       setFragile(true);
-      setCodeShown(true);
       guestEvent("fragile_context_detected", { reason: ctx.reason });
     }
   }, [level]);
 
   const storedCode = readStoredRecoveryCode();
   const acked = Boolean(user.recovery_code_ack) || level >= 70;
-
-  const handleCopy = async () => {
-    if (!storedCode) return;
-    try {
-      await navigator.clipboard.writeText(formatCode(storedCode));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* ignore */
-    }
-  };
 
   const handleAck = async () => {
     setAcking(true);
@@ -133,6 +115,28 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
       guestEvent("guest_post_ack_prompt_shown", { protection_level: 70 });
     }
   }, [user.is_guest, user.claimed_at]);
+
+  // Tier 3: a still-unprotected guest who has been around a few days gets the
+  // recovery card re-surfaced once — then not again for another 3 days.
+  const [nudgeOpen, setNudgeOpen] = useState(false);
+  useEffect(() => {
+    if (variant !== "card" || level >= 70 || daysTracking < 3 || !storedCode) return;
+    const KEY = "7sabek.guest.code_nudge_at";
+    let last = 0;
+    try {
+      last = Number(window.localStorage.getItem(KEY)) || 0;
+    } catch {
+      /* ignore */
+    }
+    if (Date.now() - last < 3 * 86_400_000) return;
+    try {
+      window.localStorage.setItem(KEY, String(Date.now()));
+    } catch {
+      /* ignore */
+    }
+    setNudgeOpen(true);
+    guestEvent("guest_recovery_action", { action: "nudge_shown" });
+  }, [variant, level, daysTracking, storedCode]);
 
   const [eraseError, setEraseError] = useState<string | null>(null);
 
@@ -224,58 +228,17 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
 
       {/* Recovery code */}
       {storedCode ? (
-        <div
-          className="flex flex-col gap-2 rounded-xl p-3"
-          style={{
-            background: fragile ? "var(--warning-soft)" : "var(--surface-2)",
-            border: `1px solid ${fragile ? "var(--warning)" : "var(--border)"}`,
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4" style={{ color: "var(--muted)" }} aria-hidden />
-            <span className="text-[13px] font-semibold">{t.recoveryTitle}</span>
-          </div>
-          {fragile && (
-            <p
-              className="flex items-start gap-1.5 text-[12.5px] font-semibold leading-snug"
-              style={{ color: "var(--warning)" }}
-            >
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              {t.fragileWarning}
-            </p>
-          )}
-          <p className="text-[12.5px] leading-snug" style={{ color: "var(--muted)" }}>
-            {t.recoveryIntro}
-          </p>
-          {codeShown ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <code
-                className="rounded-lg px-3 py-1.5 text-base font-bold tracking-widest"
-                style={{ background: "var(--bg)", border: "1px solid var(--border-strong)", direction: "ltr" }}
-              >
-                {formatCode(storedCode)}
-              </code>
-              <Button type="button" variant="secondary" size="sm" onClick={handleCopy}>
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                <span className="ms-1">{copied ? t.copied : t.copy}</span>
-              </Button>
-            </div>
-          ) : (
-            <Button type="button" variant="secondary" size="sm" onClick={() => setCodeShown(true)} className="self-start">
-              {t.reveal}
-            </Button>
-          )}
-          {codeShown &&
-            (acked ? (
-              <span className="text-[12px] font-semibold" style={{ color: "var(--success)" }}>
-                {t.acked}
-              </span>
-            ) : (
-              <Button type="button" size="sm" onClick={handleAck} isLoading={acking} className="self-start">
-                {t.ackButton}
-              </Button>
-            ))}
-        </div>
+        <RecoveryCodeVault
+          code={storedCode}
+          locale={locale}
+          dir={dir}
+          acked={acked}
+          fragile={fragile}
+          onAck={handleAck}
+          ackLoading={acking}
+          onSecured={() => window.location.reload()}
+          where={variant === "card" ? "panel_dashboard" : "panel_settings"}
+        />
       ) : null}
 
       {/* Claim */}
@@ -375,6 +338,30 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         source="post_ack"
       />
 
+      <Dialog open={nudgeOpen} onOpenChange={setNudgeOpen}>
+        <DialogContent dir={dir}>
+          <DialogHeader>
+            <DialogTitle>{t.nudgeTitle}</DialogTitle>
+            <DialogDescription>{t.nudgeBody}</DialogDescription>
+          </DialogHeader>
+          {storedCode && (
+            <div className="mt-3">
+              <RecoveryCodeVault
+                code={storedCode}
+                locale={locale}
+                dir={dir}
+                acked={acked}
+                fragile={fragile}
+                onAck={handleAck}
+                ackLoading={acking}
+                onSecured={() => window.location.reload()}
+                where="nudge"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={eraseOpen} onOpenChange={setEraseOpen}>
         <DialogContent dir={dir}>
           <DialogHeader>
@@ -439,5 +426,33 @@ export function GuestModeChip({ locale, dir }: { locale: FloussyLocale; dir: "rt
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ─── Persistent "your budget isn't fully protected yet" pill (Tier 3) ──────────
+
+export function GuestProtectionPill({
+  user,
+  locale,
+}: {
+  user: AuthUser;
+  locale: FloussyLocale;
+}) {
+  const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
+  const router = useRouter();
+  const level = protectionLevelOf(user);
+  if (level >= 70) return null; // fully protected or better — nothing to nag about
+
+  return (
+    <button
+      type="button"
+      onClick={() => router.push("/settings")}
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
+      style={{ background: "var(--warning-soft)", color: "var(--warning)", border: "1px solid var(--warning)" }}
+      title={t.nudgeTitle}
+    >
+      <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+      {t.pill(level)}
+    </button>
   );
 }

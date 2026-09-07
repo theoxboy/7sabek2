@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Cairo } from "next/font/google";
 import {
   ShieldCheck,
   KeyRound,
-  Copy,
-  Check,
   ArrowRight,
+  Check,
   Sparkles,
   Wallet,
   RefreshCw,
@@ -22,14 +21,10 @@ import { ackRecoveryCode, guestEvent } from "@/lib/guestAnchorApi";
 import { readStoredRecoveryCode } from "@/lib/guestSession";
 import { markDiscoveryWelcomeSeen } from "@/lib/guestWelcome";
 import { detectFragileContext } from "@/lib/guestFragileContext";
+import { RecoveryCodeVault } from "@/components/guest/RecoveryCodeVault";
 import BrandLogo from "@/components/BrandLogo";
 
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
-
-function formatCode(raw: string): string {
-  const c = raw.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-  return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
-}
 
 const STEP_ICONS = [Sparkles, ShieldCheck, KeyRound];
 
@@ -66,8 +61,6 @@ export default function DiscoveryWelcomePage() {
 
   const [step, setStep] = useState(0);
   const [dirn, setDirn] = useState(1); // slide direction
-  const [codeShown, setCodeShown] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [acking, setAcking] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [fragile, setFragile] = useState(false);
@@ -76,7 +69,6 @@ export default function DiscoveryWelcomePage() {
     const ctx = detectFragileContext();
     if (ctx.fragile && level < 70) {
       setFragile(true);
-      setCodeShown(true);
       guestEvent("fragile_context_detected", { reason: ctx.reason });
     }
   }, [level]);
@@ -110,25 +102,6 @@ export default function DiscoveryWelcomePage() {
     }
   };
 
-  const handleCopy = async () => {
-    if (!storedCode) return;
-    try {
-      await navigator.clipboard.writeText(formatCode(storedCode));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const variants = useMemo(
-    () => ({
-      enter: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * 40 }),
-      center: { opacity: 1, x: 0 },
-      exit: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * -40 }),
-    }),
-    [reduce]
-  );
 
   const bullets = [
     { icon: Sparkles, text: t.explainBody[0] },
@@ -178,14 +151,10 @@ export default function DiscoveryWelcomePage() {
         </div>
 
         <div className="dcw-stage">
-          <AnimatePresence mode="wait" custom={dirn} initial={false}>
             <motion.section
               key={step}
-              custom={dirn}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
+              initial={{ opacity: 0, x: reduce ? 0 : dirn * 40 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ type: "spring", damping: 26, stiffness: 260 }}
               className="dcw-card"
             >
@@ -257,53 +226,25 @@ export default function DiscoveryWelcomePage() {
                     {t.recoveryTitle}
                   </span>
                   <h1 className="dcw-h1">{t.recoveryTitle}</h1>
-                  {fragile && <p className="dcw-warn">{t.fragileWarning}</p>}
-                  <p className="dcw-sub">{t.recoveryIntro}</p>
 
                   {storedCode ? (
-                    <div className="dcw-codebox">
-                      {codeShown ? (
-                        <div className="dcw-codewrap">
-                          <code className="dcw-code">{formatCode(storedCode)}</code>
-                          <button type="button" className="dcw-btn dcw-btn-ghost dcw-btn-sm" onClick={handleCopy}>
-                            {copied ? <Check className="dcw-ic" /> : <Copy className="dcw-ic" />}
-                            <span>{copied ? t.copied : t.copy}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="dcw-btn dcw-btn-ghost"
-                          onClick={() => setCodeShown(true)}
-                        >
-                          {t.reveal}
-                        </button>
-                      )}
-                      {acked ? (
-                        <span className="dcw-acked">
-                          <Check className="dcw-ic" /> {t.acked}
-                        </span>
-                      ) : (
-                        codeShown && (
-                          <button
-                            type="button"
-                            className="dcw-btn dcw-btn-accent"
-                            onClick={() => void handleAck()}
-                            disabled={acking}
-                          >
-                            {t.ackButton}
-                            {acking ? null : <ArrowRight className="dcw-ic dcw-arrow" />}
-                          </button>
-                        )
-                      )}
-                    </div>
+                    <RecoveryCodeVault
+                      code={storedCode}
+                      locale={locale}
+                      dir={dir}
+                      acked={acked}
+                      fragile={fragile}
+                      onAck={handleAck}
+                      ackLoading={acking}
+                      onSecured={() => leave(() => router.replace("/dashboard"))}
+                      where="welcome"
+                    />
                   ) : (
                     <p className="dcw-sub">{t.welcomeNoCode}</p>
                   )}
                 </>
               )}
             </motion.section>
-          </AnimatePresence>
         </div>
 
         <div className="dcw-nav">

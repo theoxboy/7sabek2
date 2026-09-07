@@ -59,6 +59,32 @@ export type GuestPanelCopy = {
   welcomeProtectionTitle: string;
   /** Fallback when no recovery code is held locally (rare). */
   welcomeNoCode: string;
+
+  // ── "never lose your code" vault ──────────────────────────────────────────
+  vaultDownload: string;
+  vaultDownloaded: string;
+  vaultShare: string;
+  vaultQrHint: string;
+  vaultAckLocked: string;
+  vaultImageHeading: string;
+  vaultImageHint: string;
+  /** Passkey — the "nothing to remember" path. */
+  vaultPasskeyCta: string;
+  vaultPasskeyHint: string;
+  vaultPasskeyWorking: string;
+  vaultPasskeyFailed: string;
+  vaultOrCode: string;
+  /** Email the code to yourself. */
+  vaultEmailToggle: string;
+  vaultEmailPlaceholder: string;
+  vaultEmailSend: string;
+  vaultEmailSent: string;
+  vaultEmailError: string;
+  /** Tier 3 — persistent header pill + the "still not saved" nudge. */
+  pill: (level: number) => string;
+  nudgeTitle: string;
+  nudgeBody: string;
+
   /** Shown once the guest has been tracking for a few days — a real, personal nudge. */
   trackingDays: (days: number) => string;
   /** Palier 3 — the guest's own numbers. */
@@ -118,6 +144,26 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     welcomeBack: "Précédent",
     welcomeProtectionTitle: "La protection de ton budget",
     welcomeNoCode: "Ton code de reprise sera disponible dans les réglages, une fois dans l’app.",
+    vaultDownload: "Enregistrer l’image",
+    vaultDownloaded: "Image enregistrée ✓",
+    vaultShare: "Partager",
+    vaultQrHint: "Scanne ce QR depuis un autre téléphone pour retrouver ton budget.",
+    vaultAckLocked: "Copie, enregistre ou partage ton code d’abord.",
+    vaultImageHeading: "Ton code de reprise 7sabek",
+    vaultImageHint: "Garde cette image. Elle ramène ton budget sur n’importe quel appareil, sans e-mail.",
+    vaultPasskeyCta: "Sécuriser avec Face ID / empreinte",
+    vaultPasskeyHint: "Le plus sûr : rien à noter, ton téléphone s’en souvient.",
+    vaultPasskeyWorking: "Validation…",
+    vaultPasskeyFailed: "La validation a échoué. Utilise le code de reprise.",
+    vaultOrCode: "ou garder un code de reprise",
+    vaultEmailToggle: "Me l’envoyer par e-mail",
+    vaultEmailPlaceholder: "ton@email.com",
+    vaultEmailSend: "Envoyer",
+    vaultEmailSent: "Envoyé ✓ — vérifie ta boîte mail",
+    vaultEmailError: "Envoi impossible. Réessaie.",
+    pill: (n) => `Protection ${n}%`,
+    nudgeTitle: "Ton budget n’est protégé que sur cet appareil",
+    nudgeBody: "Tu suis 7sabek depuis quelques jours sans avoir noté ton code de reprise. Prends 10 secondes maintenant — après, un navigateur effacé = tout perdu.",
     trackingDays: (d) => `Tu suis ton budget depuis ${d} jour${d > 1 ? "s" : ""}. Garde tout, même si tu changes de téléphone — crée ton compte gratuit.`,
     paliers: (dh, days, e) => `Tu as suivi ${dh.toLocaleString("fr-FR")} DH ${days > 0 ? `sur ${days} jour${days > 1 ? "s" : ""}` : "aujourd\u2019hui"}, dans ${e} enveloppe${e > 1 ? "s" : ""}. Garde tout — 10 secondes, c'est gratuit.`,
   },
@@ -173,6 +219,26 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     welcomeBack: "Back",
     welcomeProtectionTitle: "Your budget’s protection",
     welcomeNoCode: "Your recovery code will be in settings once you’re in the app.",
+    vaultDownload: "Save the image",
+    vaultDownloaded: "Image saved \u2713",
+    vaultShare: "Share",
+    vaultQrHint: "Scan this QR from another phone to get your budget back.",
+    vaultAckLocked: "Copy, save or share your code first.",
+    vaultImageHeading: "Your 7sabek recovery code",
+    vaultImageHint: "Keep this image. It brings your budget back on any device, no email.",
+    vaultPasskeyCta: "Secure with Face ID / fingerprint",
+    vaultPasskeyHint: "Safest: nothing to write down, your phone remembers it.",
+    vaultPasskeyWorking: "Verifying\u2026",
+    vaultPasskeyFailed: "Verification failed. Use the recovery code.",
+    vaultOrCode: "or keep a recovery code",
+    vaultEmailToggle: "Email it to me",
+    vaultEmailPlaceholder: "you@email.com",
+    vaultEmailSend: "Send",
+    vaultEmailSent: "Sent \u2713 \u2014 check your inbox",
+    vaultEmailError: "Couldn\u2019t send. Try again.",
+    pill: (n) => `Protection ${n}%`,
+    nudgeTitle: "Your budget is only safe on this device",
+    nudgeBody: "You\u2019ve been using 7sabek for a few days without saving your recovery code. Take 10 seconds now \u2014 after that, a cleared browser means it\u2019s all gone.",
     trackingDays: (d) => `You\u2019ve been tracking your budget for ${d} day${d > 1 ? "s" : ""}. Keep all of it, even if you switch phones \u2014 create your free account.`,
     paliers: (dh, days, e) => `You\u2019ve tracked ${dh.toLocaleString("en-US")} DH ${days > 0 ? `over ${days} day${days > 1 ? "s" : ""}` : "today"}, across ${e} envelope${e > 1 ? "s" : ""}. Keep all of it \u2014 10 seconds, it\u2019s free.`,
   },
@@ -228,6 +294,26 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     welcomeBack: "رجوع",
     welcomeProtectionTitle: "حماية الميزانية ديالك",
     welcomeNoCode: "كود الاسترجاع ديالك غادي يكون فالإعدادات من بعد ما تدخل للتطبيق.",
+    vaultDownload: "حفظ الصورة",
+    vaultDownloaded: "تحفظات الصورة ✓",
+    vaultShare: "مشاركة",
+    vaultQrHint: "سكاني هاد الـ QR من تيليفون آخر باش ترجّع الميزانية ديالك.",
+    vaultAckLocked: "نسخ، حفظ ولا شارك الكود ديالك الأول.",
+    vaultImageHeading: "كود الاسترجاع ديالك ف 7sabek",
+    vaultImageHint: "خبّي هاد الصورة. كترجّع ليك الميزانية ف أي تيليفون، بلا إيميل.",
+    vaultPasskeyCta: "أمّن بـ Face ID / البصمة",
+    vaultPasskeyHint: "الأكثر أماناً: بلا ما تسجّل والو، التيليفون كيتفكّر.",
+    vaultPasskeyWorking: "كنتحققو…",
+    vaultPasskeyFailed: "التحقق ما نجحش. استعمل كود الاسترجاع.",
+    vaultOrCode: "ولا خبّي كود الاسترجاع",
+    vaultEmailToggle: "صيفطو ليا فالإيميل",
+    vaultEmailPlaceholder: "الإيميل ديالك",
+    vaultEmailSend: "صيفط",
+    vaultEmailSent: "تصيفط ✓ — شوف البوسطة ديالك",
+    vaultEmailError: "ما تصيفطش. عاود.",
+    pill: (n) => `الحماية ${n}%`,
+    nudgeTitle: "الميزانية ديالك محمية غير ف هاد التيليفون",
+    nudgeBody: "كتستعمل 7sabek من شي أيام بلا ما تسجّل كود الاسترجاع ديالك. خود 10 ثواني دابا — من بعد، متصفح ممسوح = كولشي طار.",
     trackingDays: (d) => `كتتبّع الميزانية ديالك من ${d} ${d > 1 ? "أيام" : "يوم"}. خلّي كولشي محفوظ حتى إلا بدّلتي التيليفون — صاوب حسابك المجاني.`,
     paliers: (dh, days, e) => `تبّعتي ${dh.toLocaleString("ar-MA")} درهم ${days > 0 ? `ف ${days} ${days > 1 ? "أيام" : "يوم"}` : "اليوم"}، ف ${e} ${e > 1 ? "مغلفات" : "مغلف"}. خلّي كولشي — 10 ثواني، مجاني.`,
   },

@@ -81,6 +81,20 @@ export function GuestRecoveryPrompt({
 
   useEffect(() => {
     let cancelled = false;
+    // A scanned recovery QR lands here as ?rc=CODE — show the prompt straight
+    // away with the code filled in, no L2 gate.
+    try {
+      const rc = new URLSearchParams(window.location.search).get("rc");
+      if (rc) {
+        const clean = rc.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 8);
+        if (clean) {
+          setCode(clean);
+          setVisible(true);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
     checkL2Hint()
       .then((hit) => {
         if (!cancelled && hit) setVisible(true);
