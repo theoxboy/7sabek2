@@ -54,6 +54,11 @@ export const CHANGELOG: Release[] = [
             ar: "وضع الاكتشاف: بزّاف ديال الطرق باش عمرك ما تخسر كود الاسترجاع ديالك — حفظو كصورة (مع QR)، شارك، صيفطو ليك فالإيميل، ولا أمّن الميزانية ديالك بـ Face ID / البصمة. تذكير خفيف كيبقى حتى تدير الأمر.",
           },
           {
+            fr: "Mode découverte : la page de bienvenue s’affiche toujours à la création, le tableau de bord n’est plus encombré par l’encart de découverte, et la page Réglages ne montre que ce qui te concerne.",
+            en: "Discovery mode: the welcome page always shows on sign-up, the dashboard is no longer cluttered by the discovery box, and Settings only shows what applies to you.",
+            ar: "وضع الاكتشاف: صفحة الترحيب كتبان ديما فالبداية، التابلو دو بور ما بقاش مزحوم بعلبة الاكتشاف، وصفحة الإعدادات كتوري غير اللي يخصك.",
+          },
+          {
             fr: "La page d’accueil est moins encombrée : la fenêtre de l’application mobile ne s’ouvre plus toute seule à chaque visite. Elle reste accessible depuis le bouton en haut de page.",
             en: "The home page is less cluttered: the mobile-app window no longer pops up on its own on every visit. It’s still available from the button at the top of the page.",
             ar: "الصفحة الرئيسية ولّات أقل ازدحام: نافذة التطبيق ديال الموبايل ما بقاتش كتحل وحدها فكل زيارة. باقاها موجودة من الزر اللي فوق فالصفحة.",

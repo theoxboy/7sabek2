@@ -116,28 +116,6 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
     }
   }, [user.is_guest, user.claimed_at]);
 
-  // Tier 3: a still-unprotected guest who has been around a few days gets the
-  // recovery card re-surfaced once — then not again for another 3 days.
-  const [nudgeOpen, setNudgeOpen] = useState(false);
-  useEffect(() => {
-    if (variant !== "card" || level >= 70 || daysTracking < 3 || !storedCode) return;
-    const KEY = "7sabek.guest.code_nudge_at";
-    let last = 0;
-    try {
-      last = Number(window.localStorage.getItem(KEY)) || 0;
-    } catch {
-      /* ignore */
-    }
-    if (Date.now() - last < 3 * 86_400_000) return;
-    try {
-      window.localStorage.setItem(KEY, String(Date.now()));
-    } catch {
-      /* ignore */
-    }
-    setNudgeOpen(true);
-    guestEvent("guest_recovery_action", { action: "nudge_shown" });
-  }, [variant, level, daysTracking, storedCode]);
-
   const [eraseError, setEraseError] = useState<string | null>(null);
 
   const handleErase = async () => {
@@ -338,29 +316,6 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         source="post_ack"
       />
 
-      <Dialog open={nudgeOpen} onOpenChange={setNudgeOpen}>
-        <DialogContent dir={dir}>
-          <DialogHeader>
-            <DialogTitle>{t.nudgeTitle}</DialogTitle>
-            <DialogDescription>{t.nudgeBody}</DialogDescription>
-          </DialogHeader>
-          {storedCode && (
-            <div className="mt-3">
-              <RecoveryCodeVault
-                code={storedCode}
-                locale={locale}
-                dir={dir}
-                acked={acked}
-                fragile={fragile}
-                onAck={handleAck}
-                ackLoading={acking}
-                onSecured={() => window.location.reload()}
-                where="nudge"
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={eraseOpen} onOpenChange={setEraseOpen}>
         <DialogContent dir={dir}>

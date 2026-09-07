@@ -774,6 +774,7 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleteAcknowledge, setDeleteAcknowledge] = useState(false);
@@ -843,6 +844,7 @@ export default function SettingsPage() {
         setInitialSweepIntervalDays(data.sweep_interval_days);
         setInitialAutoSweepEnabled(data.auto_sweep_enabled);
         setUserId(authUser.id);
+        setIsGuest(Boolean(authUser.is_guest));
         const nextProfile = {
           firstName: authUser.first_name ?? "",
           lastName: authUser.last_name ?? "",
@@ -1310,9 +1312,11 @@ export default function SettingsPage() {
           actions={
             <div className="flex items-center gap-2">
               <Badge tone="muted">{FL_LOCALE_LABELS[locale]}</Badge>
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/onboarding">{copy.completeOnboarding}</Link>
-              </Button>
+              {!isGuest && (
+                <Button asChild variant="secondary" size="sm">
+                  <Link href="/onboarding">{copy.completeOnboarding}</Link>
+                </Button>
+              )}
             </div>
           }
         />
@@ -1338,18 +1342,24 @@ export default function SettingsPage() {
               {new Date(lastSavedAt).toLocaleTimeString()}
             </Badge>
           ) : null}
-          <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => profileRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-            {locale === "ar" ? "الحساب" : locale === "fr" ? "Compte" : "Account"}
-          </button>
+          {!isGuest && (
+            <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => profileRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+              {locale === "ar" ? "الحساب" : locale === "fr" ? "Compte" : "Account"}
+            </button>
+          )}
           <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => preferencesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
             {locale === "ar" ? "التفضيلات" : locale === "fr" ? "Préférences" : "Preferences"}
           </button>
-          <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => exportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-            {locale === "ar" ? "البيانات" : locale === "fr" ? "Données" : "Data"}
-          </button>
-          <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => dangerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-            {locale === "ar" ? "الأمان" : locale === "fr" ? "Sécurité" : "Security"}
-          </button>
+          {!isGuest && (
+            <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => exportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+              {locale === "ar" ? "البيانات" : locale === "fr" ? "Données" : "Data"}
+            </button>
+          )}
+          {!isGuest && (
+            <button type="button" className="rounded-full border px-2 py-1 text-xs" onClick={() => dangerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+              {locale === "ar" ? "الأمان" : locale === "fr" ? "Sécurité" : "Security"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1360,6 +1370,7 @@ export default function SettingsPage() {
         </p>
       ) : null}
 
+      {!isGuest && (
       <div ref={profileRef}>
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <UserRound className="h-4 w-4" />
@@ -1564,6 +1575,7 @@ export default function SettingsPage() {
         </form>
         </Section>
       </div>
+      )}
 
       <div ref={preferencesRef}>
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
@@ -1598,6 +1610,8 @@ export default function SettingsPage() {
             </select>
             <p className="text-xs text-[var(--muted)]">{copy.languageSubtitle}</p>
           </div>
+          {!isGuest && (
+          <>
           <div className="flex flex-col gap-2">
             <Label htmlFor="currency">{copy.currency}</Label>
             <Input
@@ -1656,15 +1670,19 @@ export default function SettingsPage() {
               <Badge tone="muted">{copy.noPendingChanges}</Badge>
             ) : null}
           </div>
+          </>
+          )}
         </form>
         </Section>
       </div>
 
       <div ref={themeRef}>
-        <PasskeyManager
-          locale={locale}
-          passkeysEnabled={passkeysEnabledForUser}
-        />
+        {!isGuest && (
+          <PasskeyManager
+            locale={locale}
+            passkeysEnabled={passkeysEnabledForUser}
+          />
+        )}
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <Palette className="h-4 w-4" />
           <span>{copy.themeTitle}</span>
@@ -1726,6 +1744,7 @@ export default function SettingsPage() {
         </Section>
       </div>
 
+      {!isGuest && (
       <div ref={exportRef}>
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <Globe className="h-4 w-4" />
@@ -1760,7 +1779,9 @@ export default function SettingsPage() {
         </div>
         </Section>
       </div>
+      )}
 
+      {!isGuest && (
       <div ref={logsRef}>
         <Section
           title={copy.logsTitle}
@@ -1776,7 +1797,9 @@ export default function SettingsPage() {
         </div>
         </Section>
       </div>
+      )}
 
+      {!isGuest && (
       <div ref={dangerRef}>
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <ShieldAlert className="h-4 w-4" />
@@ -1903,6 +1926,7 @@ export default function SettingsPage() {
         </div>
         </Section>
       </div>
+      )}
     </div>
   );
 }
