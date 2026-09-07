@@ -41,7 +41,7 @@ import { SystemMessageCard } from "@/components/announcements/SystemMessageCard"
 import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
-import { GuestAccountPanel, GuestModeChip } from "@/components/guest/GuestAccountPanel";
+import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -2307,7 +2307,10 @@ function AppLayoutContent({
                       <Menu className="h-5 w-5" aria-hidden />
                     </Button>
                     {user?.is_guest ? (
-                      <GuestModeChip locale={locale} dir={pageDir} />
+                      <>
+                        <GuestModeChip locale={locale} dir={pageDir} />
+                        <GuestProtectionPill user={user} locale={locale} />
+                      </>
                     ) : null}
                   </div>
                   <div className="floussy-topbar__right">

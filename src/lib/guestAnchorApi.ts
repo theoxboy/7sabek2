@@ -98,6 +98,18 @@ export async function ackRecoveryCode(): Promise<AuthUser> {
   });
 }
 
+/**
+ * `POST /auth/guest/email-code` — email the recovery code to an address the
+ * guest chooses. Not a claim: no password, no account. Rate-limited server-side.
+ */
+export async function emailRecoveryCode(email: string, recoveryCode: string): Promise<void> {
+  await apiFetch("/auth/guest/email-code", {
+    method: "POST",
+    body: { email, recovery_code: recoveryCode },
+    suppressAuthRedirect: true,
+  });
+}
+
 /** `POST /auth/guest/claim-passkey` — finish a passkey-based claim (a passkey is already registered). */
 export async function claimGuestWithPasskey(): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/guest/claim-passkey", {
