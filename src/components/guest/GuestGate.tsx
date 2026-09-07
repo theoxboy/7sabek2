@@ -293,6 +293,13 @@ export function GuestClaimDialog({
     onOpenChange(v);
   };
 
+  const markClaimSuccess = (method: "passkey" | "email" | "merge") => {
+    succeededRef.current = true;
+    if (source === "post_ack") {
+      guestEvent("guest_post_ack_prompt_converted", { method });
+    }
+  };
+
   const submitPasskey = async () => {
     setError(null);
     guestEvent("guest_claim_method_selected", { method: "passkey", source });
@@ -309,7 +316,7 @@ export function GuestClaimDialog({
       if (!verified) throw new Error("passkey_unverified");
       await claimGuestWithPasskey();
       await clearGuestLocalState();
-      succeededRef.current = true;
+      markClaimSuccess("passkey");
       onOpenChange(false);
       window.location.reload();
     } catch {
@@ -335,7 +342,7 @@ export function GuestClaimDialog({
     try {
       await claimGuestAccount(email.trim().toLowerCase(), password, recaptchaToken);
       await clearGuestLocalState();
-      succeededRef.current = true;
+      markClaimSuccess("email");
       onOpenChange(false);
       // Full reload so the app shell re-bootstraps as a full member
       // (unlocks navigation, drops the guest banners).
@@ -366,7 +373,7 @@ export function GuestClaimDialog({
     try {
       await mergeGuestIntoAccount(email.trim().toLowerCase(), password);
       await clearGuestLocalState();
-      succeededRef.current = true;
+      markClaimSuccess("merge");
       onOpenChange(false);
       window.location.reload();
     } catch (err) {

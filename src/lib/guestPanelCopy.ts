@@ -39,6 +39,12 @@ export type GuestPanelCopy = {
   /** Shown when the server deletion fails — the local anchor is kept, nothing is lost. */
   eraseFailed: string;
 
+  /** The prompt shown right after "I saved my code" (protection 40 → 70). */
+  postAckTitle: string;
+  postAckBody: string;
+  postAckCta: string;
+  postAckLater: string;
+
   explainTitle: string;
   explainBody: string[];
   explainClose: string;
@@ -82,6 +88,10 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     eraseConfirm: "Oui, tout effacer",
     eraseCancel: "Annuler",
     eraseFailed: "L’effacement n’a pas pu se faire. Rien n’a été supprimé — réessaie dans un moment.",
+    postAckTitle: "Tes données sont à moitié sécurisées",
+    postAckBody: "Tu as noté ton code de reprise — bravo. Crée ton compte gratuit maintenant (10 s) pour les garder sur tous tes appareils, sans risque.",
+    postAckCta: "Créer mon compte gratuit",
+    postAckLater: "Plus tard",
     explainTitle: "C’est quoi le Mode Découverte ?",
     explainBody: [
       "Tu essaies 7sabek sans créer de compte : pas d’e-mail, pas de mot de passe, pas de questionnaire.",
@@ -126,6 +136,10 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     eraseConfirm: "Yes, erase everything",
     eraseCancel: "Cancel",
     eraseFailed: "Couldn’t erase your data. Nothing was deleted — try again in a moment.",
+    postAckTitle: "Your data is half-secured",
+    postAckBody: "You saved your recovery code — nice. Create your free account now (10 s) to keep it on every device, safely.",
+    postAckCta: "Create my free account",
+    postAckLater: "Later",
     explainTitle: "What is discovery mode?",
     explainBody: [
       "You’re trying 7sabek without creating an account: no email, no password, no questionnaire.",
@@ -170,6 +184,10 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     eraseConfirm: "أيه، مسح كولشي",
     eraseCancel: "إلغاء",
     eraseFailed: "ما تقدرش يتمسح. حتى حاجة ما تمسحات — عاود من بعد شوية.",
+    postAckTitle: "البيانات ديالك مأمّنة نص الطريق",
+    postAckBody: "سجّلتي الكود ديال الاسترجاع — مزيان. صاوب حسابك المجاني دابا (10 ثواني) باش تخبّيه ف كل التيليفونات، بلا مخاطر.",
+    postAckCta: "صاوب حسابي المجاني",
+    postAckLater: "من بعد",
     explainTitle: "شنو هو وضع الاكتشاف؟",
     explainBody: [
       "كتجرّب 7sabek بلا ما تصاوب حساب: بلا إيميل، بلا كلمة السر، بلا أسئلة.",

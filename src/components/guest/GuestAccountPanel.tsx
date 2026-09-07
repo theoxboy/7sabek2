@@ -28,6 +28,9 @@ type Props = {
   variant?: "card" | "full";
 };
 
+/** Set just before the reload that follows "I saved my code" → triggers the post-ack prompt. */
+const POST_ACK_FLAG = "7sabek.guest.post_ack";
+
 function formatCode(raw: string): string {
   const c = raw.replace(/[^A-Z0-9]/gi, "").toUpperCase();
   return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
@@ -103,11 +106,36 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
     setAcking(true);
     try {
       await ackRecoveryCode();
+      // Surface a dedicated "finish your account" moment after the reload —
+      // the guest has just done the mental work of securing their data.
+      try {
+        window.sessionStorage.setItem(POST_ACK_FLAG, "1");
+      } catch {
+        /* ignore */
+      }
       window.location.reload();
     } catch {
       setAcking(false);
     }
   };
+
+  const [postAckOpen, setPostAckOpen] = useState(false);
+  const [claimOpenFromPostAck, setClaimOpenFromPostAck] = useState(false);
+  useEffect(() => {
+    // The panel renders as "card" on /dashboard and "full" on /settings, never
+    // both at once — so whichever is mounted after the ack reload shows it.
+    let flagged = false;
+    try {
+      flagged = window.sessionStorage.getItem(POST_ACK_FLAG) === "1";
+      if (flagged) window.sessionStorage.removeItem(POST_ACK_FLAG);
+    } catch {
+      /* ignore */
+    }
+    if (flagged && user.is_guest && !user.claimed_at) {
+      setPostAckOpen(true);
+      guestEvent("guest_post_ack_prompt_shown", { protection_level: 70 });
+    }
+  }, [user.is_guest, user.claimed_at]);
 
   const [eraseError, setEraseError] = useState<string | null>(null);
 
@@ -294,6 +322,52 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         locale={locale}
         dir={dir}
         source={variant === "card" ? "panel_dashboard" : "panel_settings"}
+      />
+
+      <Dialog
+        open={postAckOpen}
+        onOpenChange={(v) => {
+          if (!v) guestEvent("guest_post_ack_prompt_dismissed");
+          setPostAckOpen(v);
+        }}
+      >
+        <DialogContent dir={dir}>
+          <DialogHeader>
+            <DialogTitle>{t.postAckTitle}</DialogTitle>
+            <DialogDescription>{t.postAckBody}</DialogDescription>
+          </DialogHeader>
+          <div className="mt-3 flex flex-col gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setPostAckOpen(false);
+                setClaimOpenFromPostAck(true);
+              }}
+              className="w-full"
+            >
+              {t.postAckCta}
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                guestEvent("guest_post_ack_prompt_dismissed");
+                setPostAckOpen(false);
+              }}
+              className="text-center text-[12px] underline"
+              style={{ color: "var(--muted)" }}
+            >
+              {t.postAckLater}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <GuestClaimDialog
+        open={claimOpenFromPostAck}
+        onOpenChange={setClaimOpenFromPostAck}
+        locale={locale}
+        dir={dir}
+        source="post_ack"
       />
 
       <Dialog open={eraseOpen} onOpenChange={setEraseOpen}>
