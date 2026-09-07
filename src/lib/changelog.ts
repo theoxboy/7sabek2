@@ -43,6 +43,11 @@ export const CHANGELOG: Release[] = [
             en: "Discovery mode: the recovery-code wording is clearer — save it outside the browser, otherwise nothing can be recovered.",
             ar: "وضع الاكتشاف: النص ديال كود الاسترجاع ولّا أوضح — سجّلو خارج المتصفح، وإلا ما يمكن نرجّعو والو.",
           },
+          {
+            fr: "La page d’accueil est moins encombrée : la fenêtre de l’application mobile ne s’ouvre plus toute seule à chaque visite. Elle reste accessible depuis le bouton en haut de page.",
+            en: "The home page is less cluttered: the mobile-app window no longer pops up on its own on every visit. It’s still available from the button at the top of the page.",
+            ar: "الصفحة الرئيسية ولّات أقل ازدحام: نافذة التطبيق ديال الموبايل ما بقاتش كتحل وحدها فكل زيارة. باقاها موجودة من الزر اللي فوق فالصفحة.",
+          },
         ],
       },
       {

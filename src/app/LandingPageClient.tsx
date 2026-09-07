@@ -547,13 +547,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const [mobileNav, setMobileNav] = useState(false);
   const phoneRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-open Google Play popup after landing load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowGooglePlayPopup(true);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  // The Google Play popup is opened on demand only (header button + hero badge).
+  // It used to auto-open 1s after load on every visit, stacking on top of the
+  // language modal and the cookie banner; the PWA prompt already covers the
+  // "install the app" nudge automatically, with proper dismissal memory.
 
   useEffect(() => {
     const load = async () => {
