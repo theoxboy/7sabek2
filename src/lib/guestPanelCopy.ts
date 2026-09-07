@@ -39,12 +39,6 @@ export type GuestPanelCopy = {
   /** Shown when the server deletion fails — the local anchor is kept, nothing is lost. */
   eraseFailed: string;
 
-  /** The prompt shown right after "I saved my code" (protection 40 → 70). */
-  postAckTitle: string;
-  postAckBody: string;
-  postAckCta: string;
-  postAckLater: string;
-
   explainTitle: string;
   explainBody: string[];
   explainClose: string;
@@ -124,10 +118,6 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     eraseConfirm: "Oui, tout effacer",
     eraseCancel: "Annuler",
     eraseFailed: "L’effacement n’a pas pu se faire. Rien n’a été supprimé — réessaie dans un moment.",
-    postAckTitle: "Tes données sont à moitié sécurisées",
-    postAckBody: "Tu as noté ton code de reprise — bravo. Crée ton compte gratuit maintenant (10 s) pour les garder sur tous tes appareils, sans risque.",
-    postAckCta: "Créer mon compte gratuit",
-    postAckLater: "Plus tard",
     explainTitle: "C’est quoi le Mode Découverte ?",
     explainBody: [
       "Tu essaies 7sabek sans créer de compte : pas d’e-mail, pas de mot de passe, pas de questionnaire.",
@@ -143,7 +133,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     welcomeNext: "Suivant",
     welcomeBack: "Précédent",
     welcomeProtectionTitle: "La protection de ton budget",
-    welcomeNoCode: "Ton code de reprise sera disponible dans les réglages, une fois dans l’app.",
+    welcomeNoCode: "Ton code de reprise ne peut plus être affiché sur cet appareil. Sécurise ton budget avec Face ID ou en créant ton compte gratuit — c’est la seule façon de le retrouver ailleurs.",
     vaultDownload: "Enregistrer l’image",
     vaultDownloaded: "Image enregistrée ✓",
     vaultShare: "Partager",
@@ -159,7 +149,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     vaultEmailToggle: "Me l’envoyer par e-mail",
     vaultEmailPlaceholder: "ton@email.com",
     vaultEmailSend: "Envoyer",
-    vaultEmailSent: "Envoyé ✓ — vérifie ta boîte mail",
+    vaultEmailSent: "C’est parti ✓ — si l’adresse est bonne, tu vas recevoir le code.",
     vaultEmailError: "Envoi impossible. Réessaie.",
     pill: (n) => `Protection ${n}%`,
     nudgeTitle: "Ton budget n’est protégé que sur cet appareil",
@@ -199,10 +189,6 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     eraseConfirm: "Yes, erase everything",
     eraseCancel: "Cancel",
     eraseFailed: "Couldn’t erase your data. Nothing was deleted — try again in a moment.",
-    postAckTitle: "Your data is half-secured",
-    postAckBody: "You saved your recovery code — nice. Create your free account now (10 s) to keep it on every device, safely.",
-    postAckCta: "Create my free account",
-    postAckLater: "Later",
     explainTitle: "What is discovery mode?",
     explainBody: [
       "You’re trying 7sabek without creating an account: no email, no password, no questionnaire.",
@@ -218,7 +204,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     welcomeNext: "Next",
     welcomeBack: "Back",
     welcomeProtectionTitle: "Your budget’s protection",
-    welcomeNoCode: "Your recovery code will be in settings once you’re in the app.",
+    welcomeNoCode: "Your recovery code can no longer be shown on this device. Secure your budget with Face ID or by creating your free account — that’s the only way to get it back elsewhere.",
     vaultDownload: "Save the image",
     vaultDownloaded: "Image saved \u2713",
     vaultShare: "Share",
@@ -234,7 +220,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     vaultEmailToggle: "Email it to me",
     vaultEmailPlaceholder: "you@email.com",
     vaultEmailSend: "Send",
-    vaultEmailSent: "Sent \u2713 \u2014 check your inbox",
+    vaultEmailSent: "Done \u2713 \u2014 if the address is valid, the code is on its way.",
     vaultEmailError: "Couldn\u2019t send. Try again.",
     pill: (n) => `Protection ${n}%`,
     nudgeTitle: "Your budget is only safe on this device",
@@ -274,10 +260,6 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     eraseConfirm: "أيه، مسح كولشي",
     eraseCancel: "إلغاء",
     eraseFailed: "ما تقدرش يتمسح. حتى حاجة ما تمسحات — عاود من بعد شوية.",
-    postAckTitle: "البيانات ديالك مأمّنة نص الطريق",
-    postAckBody: "سجّلتي الكود ديال الاسترجاع — مزيان. صاوب حسابك المجاني دابا (10 ثواني) باش تخبّيه ف كل التيليفونات، بلا مخاطر.",
-    postAckCta: "صاوب حسابي المجاني",
-    postAckLater: "من بعد",
     explainTitle: "شنو هو وضع الاكتشاف؟",
     explainBody: [
       "كتجرّب 7sabek بلا ما تصاوب حساب: بلا إيميل، بلا كلمة السر، بلا أسئلة.",
@@ -293,7 +275,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     welcomeNext: "التالي",
     welcomeBack: "رجوع",
     welcomeProtectionTitle: "حماية الميزانية ديالك",
-    welcomeNoCode: "كود الاسترجاع ديالك غادي يكون فالإعدادات من بعد ما تدخل للتطبيق.",
+    welcomeNoCode: "كود الاسترجاع ما بقاش يمكن يتورى ف هاد التيليفون. أمّن الميزانية ديالك بـ Face ID ولا بصواب حسابك المجاني — هادي هي الطريقة الوحيدة باش ترجّعو.",
     vaultDownload: "حفظ الصورة",
     vaultDownloaded: "تحفظات الصورة ✓",
     vaultShare: "مشاركة",
@@ -309,7 +291,7 @@ export const GUEST_PANEL_COPY: Record<FloussyLocale, GuestPanelCopy> = {
     vaultEmailToggle: "صيفطو ليا فالإيميل",
     vaultEmailPlaceholder: "الإيميل ديالك",
     vaultEmailSend: "صيفط",
-    vaultEmailSent: "تصيفط ✓ — شوف البوسطة ديالك",
+    vaultEmailSent: "تصيفط ✓ — إلا كان الإيميل صحيح، غادي يوصلك الكود.",
     vaultEmailError: "ما تصيفطش. عاود.",
     pill: (n) => `الحماية ${n}%`,
     nudgeTitle: "الميزانية ديالك محمية غير ف هاد التيليفون",

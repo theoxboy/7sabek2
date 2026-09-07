@@ -1308,7 +1308,15 @@ export default function SettingsPage() {
       <div ref={headerRef}>
         <PageHeader
           title={copy.pageTitle}
-          subtitle={copy.pageSubtitle}
+          subtitle={
+            isGuest
+              ? locale === "ar"
+                ? "اللغة، الثيم، وحماية الميزانية ديالك."
+                : locale === "fr"
+                  ? "Langue, thème et protection de ton budget."
+                  : "Language, theme and your budget's protection."
+              : copy.pageSubtitle
+          }
           actions={
             <div className="flex items-center gap-2">
               <Badge tone="muted">{FL_LOCALE_LABELS[locale]}</Badge>

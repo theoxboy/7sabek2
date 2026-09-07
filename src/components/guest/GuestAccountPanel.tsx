@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
 
 import type { FloussyLocale } from "@/lib/localePreference";
@@ -9,7 +9,6 @@ import type { AuthUser } from "@/lib/auth";
 import { GUEST_PANEL_COPY, protectionLevelOf } from "@/lib/guestPanelCopy";
 import { ackRecoveryCode, guestSummary, guestEvent, type GuestSummary } from "@/lib/guestAnchorApi";
 import { eraseGuest, readStoredRecoveryCode } from "@/lib/guestSession";
-import { armPostAckPrompt, consumePostAckFlag, shouldOpenPostAckPrompt } from "@/lib/guestPostAck";
 import { detectFragileContext } from "@/lib/guestFragileContext";
 import { RecoveryCodeVault } from "@/components/guest/RecoveryCodeVault";
 import { Button } from "@/components/ui/Button";
@@ -26,11 +25,10 @@ type Props = {
   user: AuthUser;
   locale: FloussyLocale;
   dir: "rtl" | "ltr";
-  /** "card" for the dashboard, "full" for the settings page. */
-  variant?: "card" | "full";
 };
 
-export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props) {
+/** The full guest security panel — mounted on /settings only. */
+export function GuestAccountPanel({ user, locale, dir }: Props) {
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
   const level = protectionLevelOf(user);
 
@@ -86,35 +84,11 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
     setAcking(true);
     try {
       await ackRecoveryCode();
-      // Surface a dedicated "finish your account" moment after the reload —
-      // the guest has just done the mental work of securing their data. The ack
-      // button only exists inside this panel (/dashboard or /settings) and the
-      // reload stays on that route, so the panel is always mounted to catch it.
-      armPostAckPrompt();
       window.location.reload();
     } catch {
       setAcking(false);
     }
   };
-
-  const [postAckOpen, setPostAckOpen] = useState(false);
-  const [claimOpenFromPostAck, setClaimOpenFromPostAck] = useState(false);
-  // "dismissed" (X / Esc / "Plus tard") vs "advancing" (tapped the CTA) vs still open.
-  const postAckOutcomeRef = useRef<"dismissed" | "advancing" | null>(null);
-
-  // Funnel reading note: from `guest_post_ack_prompt_shown`, exactly one of
-  //   - `guest_post_ack_prompt_dismissed`  (X / Esc / overlay / "Plus tard")
-  //   - the CTA path → `guest_claim_dialog_opened {source:"post_ack"}` then
-  //     `guest_post_ack_prompt_converted` OR `claim_abandoned {source:"post_ack"}`
-  // A user on the CTA path never emits `_dismissed` — that is by design, not a
-  // dropped event.
-  useEffect(() => {
-    if (shouldOpenPostAckPrompt(consumePostAckFlag(), user)) {
-      postAckOutcomeRef.current = null;
-      setPostAckOpen(true);
-      guestEvent("guest_post_ack_prompt_shown", { protection_level: 70 });
-    }
-  }, [user.is_guest, user.claimed_at]);
 
   const [eraseError, setEraseError] = useState<string | null>(null);
 
@@ -215,7 +189,7 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
           onAck={handleAck}
           ackLoading={acking}
           onSecured={() => window.location.reload()}
-          where={variant === "card" ? "panel_dashboard" : "panel_settings"}
+          where="panel_settings"
         />
       ) : null}
 
@@ -230,92 +204,35 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
       </div>
 
       {/* Erase */}
-      {variant === "full" ? (
-        <div
-          className="flex flex-col gap-1.5 rounded-xl p-3"
-          style={{ border: "1px solid var(--error-soft)", background: "var(--error-soft)" }}
+      <div
+        className="flex flex-col gap-1.5 rounded-xl p-3"
+        style={{ border: "1px solid var(--error-soft)", background: "var(--error-soft)" }}
+      >
+        <span className="text-[13px] font-semibold" style={{ color: "var(--error)" }}>
+          {t.eraseTitle}
+        </span>
+        <p className="text-[12px] leading-snug" style={{ color: "var(--ink-2, var(--ink))" }}>
+          {t.eraseIntro}
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setEraseOpen(true)}
+          className="self-start"
         >
-          <span className="text-[13px] font-semibold" style={{ color: "var(--error)" }}>
-            {t.eraseTitle}
-          </span>
-          <p className="text-[12px] leading-snug" style={{ color: "var(--ink-2, var(--ink))" }}>
-            {t.eraseIntro}
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setEraseOpen(true)}
-            className="self-start"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span className="ms-1">{t.eraseButton}</span>
-          </Button>
-        </div>
-      ) : null}
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className="ms-1">{t.eraseButton}</span>
+        </Button>
+      </div>
 
       <GuestClaimDialog
         open={claimOpen}
         onOpenChange={setClaimOpen}
         locale={locale}
         dir={dir}
-        source={variant === "card" ? "panel_dashboard" : "panel_settings"}
+        source="panel_settings"
       />
-
-      <Dialog
-        open={postAckOpen}
-        onOpenChange={(v) => {
-          // Fire "dismissed" once, and only for a real dismissal (X / Esc /
-          // overlay) — not when the CTA is advancing to the claim dialog, and
-          // not a second time after the "Plus tard" button already fired it.
-          if (!v && postAckOutcomeRef.current === null) {
-            postAckOutcomeRef.current = "dismissed";
-            guestEvent("guest_post_ack_prompt_dismissed");
-          }
-          setPostAckOpen(v);
-        }}
-      >
-        <DialogContent dir={dir}>
-          <DialogHeader>
-            <DialogTitle>{t.postAckTitle}</DialogTitle>
-            <DialogDescription>{t.postAckBody}</DialogDescription>
-          </DialogHeader>
-          <div className="mt-3 flex flex-col gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                postAckOutcomeRef.current = "advancing";
-                setPostAckOpen(false);
-                setClaimOpenFromPostAck(true);
-              }}
-              className="w-full"
-            >
-              {t.postAckCta}
-            </Button>
-            <button
-              type="button"
-              onClick={() => {
-                postAckOutcomeRef.current = "dismissed";
-                guestEvent("guest_post_ack_prompt_dismissed");
-                setPostAckOpen(false);
-              }}
-              className="text-center text-[12px] underline"
-              style={{ color: "var(--muted)" }}
-            >
-              {t.postAckLater}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <GuestClaimDialog
-        open={claimOpenFromPostAck}
-        onOpenChange={setClaimOpenFromPostAck}
-        locale={locale}
-        dir={dir}
-        source="post_ack"
-      />
-
 
       <Dialog open={eraseOpen} onOpenChange={setEraseOpen}>
         <DialogContent dir={dir}>
@@ -395,8 +312,10 @@ export function GuestProtectionPill({
 }) {
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
   const router = useRouter();
+  const pathname = usePathname();
   const level = protectionLevelOf(user);
-  if (level >= 70) return null; // fully protected or better — nothing to nag about
+  // Nothing to nag about once secured, and no point pointing at /settings from /settings.
+  if (level >= 70 || pathname?.startsWith("/settings")) return null;
 
   return (
     <button

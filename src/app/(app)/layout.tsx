@@ -826,6 +826,12 @@ function AppLayoutContent({
           return;
         }
 
+        // /decouverte is guest-only — a member who lands there goes to the app.
+        if (isDiscoveryWelcome) {
+          router.replace("/dashboard");
+          return;
+        }
+
         const records = await apiFetch<OnboardingV2RecordOut[]>(
           "/users/me/onboarding-v2-records?limit=1"
         ).catch(() => [] as OnboardingV2RecordOut[]);
@@ -2507,7 +2513,7 @@ function AppLayoutContent({
               />
               {user?.is_guest && pathname?.startsWith("/settings") ? (
                 <div className="mx-auto mb-4 w-full max-w-3xl px-1">
-                  <GuestAccountPanel user={user} locale={locale} dir={pageDir} variant="full" />
+                  <GuestAccountPanel user={user} locale={locale} dir={pageDir} />
                 </div>
               ) : null}
               <PageTransition routeKey={pathname}>{children}</PageTransition>
