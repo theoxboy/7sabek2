@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ShieldCheck, KeyRound, Trash2, Copy, Check } from "lucide-react";
 
 import type { FloussyLocale } from "@/lib/localePreference";
@@ -8,6 +8,7 @@ import type { AuthUser } from "@/lib/auth";
 import { GUEST_PANEL_COPY, protectionLevelOf } from "@/lib/guestPanelCopy";
 import { ackRecoveryCode, guestSummary, guestEvent, type GuestSummary } from "@/lib/guestAnchorApi";
 import { eraseGuest, readStoredRecoveryCode } from "@/lib/guestSession";
+import { armPostAckPrompt, consumePostAckFlag, shouldOpenPostAckPrompt } from "@/lib/guestPostAck";
 import { detectFragileContext } from "@/lib/guestFragileContext";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -27,9 +28,6 @@ type Props = {
   /** "card" for the dashboard, "full" for the settings page. */
   variant?: "card" | "full";
 };
-
-/** Set just before the reload that follows "I saved my code" → triggers the post-ack prompt. */
-const POST_ACK_FLAG = "7sabek.guest.post_ack";
 
 function formatCode(raw: string): string {
   const c = raw.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -107,12 +105,10 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
     try {
       await ackRecoveryCode();
       // Surface a dedicated "finish your account" moment after the reload —
-      // the guest has just done the mental work of securing their data.
-      try {
-        window.sessionStorage.setItem(POST_ACK_FLAG, "1");
-      } catch {
-        /* ignore */
-      }
+      // the guest has just done the mental work of securing their data. The ack
+      // button only exists inside this panel (/dashboard or /settings) and the
+      // reload stays on that route, so the panel is always mounted to catch it.
+      armPostAckPrompt();
       window.location.reload();
     } catch {
       setAcking(false);
@@ -121,17 +117,12 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
 
   const [postAckOpen, setPostAckOpen] = useState(false);
   const [claimOpenFromPostAck, setClaimOpenFromPostAck] = useState(false);
+  // "dismissed" (X / Esc / "Plus tard") vs "advancing" (tapped the CTA) vs still open.
+  const postAckOutcomeRef = useRef<"dismissed" | "advancing" | null>(null);
+
   useEffect(() => {
-    // The panel renders as "card" on /dashboard and "full" on /settings, never
-    // both at once — so whichever is mounted after the ack reload shows it.
-    let flagged = false;
-    try {
-      flagged = window.sessionStorage.getItem(POST_ACK_FLAG) === "1";
-      if (flagged) window.sessionStorage.removeItem(POST_ACK_FLAG);
-    } catch {
-      /* ignore */
-    }
-    if (flagged && user.is_guest && !user.claimed_at) {
+    if (shouldOpenPostAckPrompt(consumePostAckFlag(), user)) {
+      postAckOutcomeRef.current = null;
       setPostAckOpen(true);
       guestEvent("guest_post_ack_prompt_shown", { protection_level: 70 });
     }
@@ -327,7 +318,13 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
       <Dialog
         open={postAckOpen}
         onOpenChange={(v) => {
-          if (!v) guestEvent("guest_post_ack_prompt_dismissed");
+          // Fire "dismissed" once, and only for a real dismissal (X / Esc /
+          // overlay) — not when the CTA is advancing to the claim dialog, and
+          // not a second time after the "Plus tard" button already fired it.
+          if (!v && postAckOutcomeRef.current === null) {
+            postAckOutcomeRef.current = "dismissed";
+            guestEvent("guest_post_ack_prompt_dismissed");
+          }
           setPostAckOpen(v);
         }}
       >
@@ -340,6 +337,7 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
             <Button
               type="button"
               onClick={() => {
+                postAckOutcomeRef.current = "advancing";
                 setPostAckOpen(false);
                 setClaimOpenFromPostAck(true);
               }}
@@ -350,6 +348,7 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
             <button
               type="button"
               onClick={() => {
+                postAckOutcomeRef.current = "dismissed";
                 guestEvent("guest_post_ack_prompt_dismissed");
                 setPostAckOpen(false);
               }}
