@@ -156,6 +156,8 @@ const fr = build("fr-FR", {
     guestClaimMethod: "Conversion : passkey vs e-mail",
     guestSilentLoss: "Perte silencieuse d’identité (L2)",
     guestDaily: "Invités créés / convertis par jour",
+    guestWallHits: "Murs de conversion — coups reçus",
+    guestWallConv: "Murs de conversion — convertis ensuite",
   },
 });
 
@@ -256,6 +258,8 @@ const en = build("en-CA", {
     guestClaimMethod: "Conversion: passkey vs email",
     guestSilentLoss: "Silent identity loss (L2)",
     guestDaily: "Guests created / converted per day",
+    guestWallHits: "Conversion walls — hits",
+    guestWallConv: "Conversion walls — claimed after",
   },
 });
 
@@ -355,6 +359,8 @@ const ar = build("ar-MA", {
     guestClaimMethod: "التحويل: passkey مقابل إيميل",
     guestSilentLoss: "فقدان الهوية الصامت (L2)",
     guestDaily: "الضيوف المُنشأون / المحوَّلون يومياً",
+    guestWallHits: "حواجز التحويل — الاصطدامات",
+    guestWallConv: "حواجز التحويل — اللي حوّلو من بعد",
   },
 });
 

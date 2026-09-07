@@ -340,6 +340,12 @@ export type GuestFunnelOut = {
   anchor_recovery_offered: number;
   silent_loss_rate: number;
   daily: { day: string; created: number; claimed: number }[];
+  per_wall: {
+    wall: string;
+    hits: number;
+    dialog_opened: number;
+    claimed_after: number;
+  }[];
 };
 
 export type FinanceDailyOut = {

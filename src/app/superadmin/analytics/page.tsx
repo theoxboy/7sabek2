@@ -53,6 +53,18 @@ import {
 
 type RangeDays = 7 | 30 | 90 | 365;
 
+/** Short labels for the guest conversion walls (matches the backend enum). */
+const WALL_LABEL: Record<string, string> = {
+  envelopes_cap: "Plafond enveloppes",
+  advisor_daily: "Conseiller IA",
+  reports: "Rapports",
+  goals: "Objectifs",
+  debts: "Dettes",
+  export: "Export",
+  history: "Historique",
+  multi_device: "Multi-appareil",
+};
+
 /* ------------------------------- helpers ---------------------------------- */
 
 function bucket<T>(
@@ -794,6 +806,34 @@ export default function SuperAdminAnalyticsPage() {
               data={(guestFunnel.data?.daily ?? []).map((d) => ({
                 name: d.day.slice(5),
                 value: d.created,
+              }))}
+              color={p.accent}
+            />
+          </ChartCard>
+          <ChartCard
+            title={copy.c.guestWallHits}
+            query={guestFunnel}
+            empty={(guestFunnel.data?.per_wall ?? []).every((w) => w.hits === 0)}
+            labels={labels}
+          >
+            <HBar
+              data={(guestFunnel.data?.per_wall ?? []).map((w) => ({
+                name: WALL_LABEL[w.wall] ?? w.wall,
+                value: w.hits,
+              }))}
+              color={p.amber}
+            />
+          </ChartCard>
+          <ChartCard
+            title={copy.c.guestWallConv}
+            query={guestFunnel}
+            empty={(guestFunnel.data?.per_wall ?? []).every((w) => w.claimed_after === 0)}
+            labels={labels}
+          >
+            <HBar
+              data={(guestFunnel.data?.per_wall ?? []).map((w) => ({
+                name: WALL_LABEL[w.wall] ?? w.wall,
+                value: w.claimed_after,
               }))}
               color={p.accent}
             />

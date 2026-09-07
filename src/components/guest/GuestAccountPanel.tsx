@@ -288,7 +288,13 @@ export function GuestAccountPanel({ user, locale, dir, variant = "full" }: Props
         </div>
       ) : null}
 
-      <GuestClaimDialog open={claimOpen} onOpenChange={setClaimOpen} locale={locale} dir={dir} />
+      <GuestClaimDialog
+        open={claimOpen}
+        onOpenChange={setClaimOpen}
+        locale={locale}
+        dir={dir}
+        source={variant === "card" ? "panel_dashboard" : "panel_settings"}
+      />
 
       <Dialog open={eraseOpen} onOpenChange={setEraseOpen}>
         <DialogContent dir={dir}>

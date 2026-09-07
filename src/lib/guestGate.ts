@@ -40,9 +40,9 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
 
 export type GuestRouteState = "open" | "limited" | "locked";
 
-/** How a guest experiences the page at `pathname`. */
-export function guestRouteState(pathname: string | null | undefined): GuestRouteState {
-  if (!pathname) return "open";
+/** The feature key a route maps to (longest prefix wins), or null. */
+export function guestRouteFeature(pathname: string | null | undefined): string | null {
+  if (!pathname) return null;
   let feature: string | null = null;
   let best = -1;
   for (const [prefix, key] of ROUTE_FEATURE) {
@@ -51,6 +51,26 @@ export function guestRouteState(pathname: string | null | undefined): GuestRoute
       feature = key;
     }
   }
+  return feature;
+}
+
+/** Analytics "wall" name for a gated route, or null for open routes. */
+export function guestWallForRoute(pathname: string | null | undefined): string | null {
+  const feature = guestRouteFeature(pathname);
+  if (!feature) return null;
+  const map: Record<string, string> = {
+    reports: "reports",
+    goals: "goals",
+    debts: "debts",
+    export: "export",
+    advisor: "advisor_daily",
+  };
+  return map[feature] ?? null;
+}
+
+/** How a guest experiences the page at `pathname`. */
+export function guestRouteState(pathname: string | null | undefined): GuestRouteState {
+  const feature = guestRouteFeature(pathname);
   if (!feature) return "open";
   const access: GuestFeatureAccess = guestFeatureAccess(feature);
   if (access === "open") return "open";

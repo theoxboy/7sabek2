@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock, Sparkles, Fingerprint } from "lucide-react";
 import { startRegistration } from "@simplewebauthn/browser";
 
 import type { FloussyLocale } from "@/lib/localePreference";
-import { GUEST_GATE_COPY, guestRouteState } from "@/lib/guestGate";
+import { GUEST_GATE_COPY, guestRouteFeature, guestRouteState, guestWallForRoute } from "@/lib/guestGate";
 import { claimGuestAccount, claimGuestWithPasskey, mergeGuestIntoAccount, guestEvent } from "@/lib/guestAnchorApi";
 import { clearGuestLocalState } from "@/lib/guestSession";
 import { getPasskeyFeatureStatus, getRegisterOptions, verifyRegistration } from "@/lib/passkeys";
@@ -33,18 +33,26 @@ type Props = {
  * free account" dialog.
  */
 const promptEventSentFor = new Set<string>();
+const wallHitSentFor = new Set<string>();
 
 export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
   const [claimOpen, setClaimOpen] = useState(false);
   const copy = GUEST_GATE_COPY[locale] ?? GUEST_GATE_COPY.fr;
   const state = guestRouteState(pathname);
   const visible = isGuest && state !== "open";
+  const claimSource = `wall:${guestWallForRoute(pathname) ?? guestRouteFeature(pathname) ?? "gate"}`;
 
   useEffect(() => {
+    if (!visible) return;
     const where = pathname ?? "";
-    if (visible && !promptEventSentFor.has(where)) {
+    if (!promptEventSentFor.has(where)) {
       promptEventSentFor.add(where);
       guestEvent("claim_prompt_shown", { where });
+    }
+    const wall = guestWallForRoute(pathname);
+    if (wall && !wallHitSentFor.has(wall)) {
+      wallHitSentFor.add(wall);
+      guestEvent("guest_wall_hit", { wall, route: where });
     }
   }, [visible, pathname]);
 
@@ -103,7 +111,7 @@ export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
         </div>
       </div>
 
-      <GuestClaimDialog open={claimOpen} onOpenChange={setClaimOpen} locale={locale} dir={dir} />
+      <GuestClaimDialog open={claimOpen} onOpenChange={setClaimOpen} locale={locale} dir={dir} source={claimSource} />
     </>
   );
 }
@@ -212,13 +220,18 @@ export function GuestClaimDialog({
   onOpenChange,
   locale,
   dir,
+  source = "unknown",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   locale: FloussyLocale;
   dir: "rtl" | "ltr";
+  /** Where the dialog was opened from — "wall:<name>" | "panel_dashboard" | "panel_settings" | "post_ack". */
+  source?: string;
 }) {
   const t = CLAIM_COPY[locale] ?? CLAIM_COPY.fr;
+  const succeededRef = useRef(false);
+  const openedEventSentRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -235,13 +248,23 @@ export function GuestClaimDialog({
   const recaptchaOn = isRecaptchaConfigured();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      openedEventSentRef.current = false;
+      return;
+    }
+    succeededRef.current = false;
     let cancelled = false;
     const supported =
       typeof window !== "undefined" &&
       typeof window.PublicKeyCredential !== "undefined";
+    const announce = (methodShown: "passkey_first" | "email_only") => {
+      if (openedEventSentRef.current) return;
+      openedEventSentRef.current = true;
+      guestEvent("guest_claim_dialog_opened", { source, method_shown: methodShown });
+    };
     if (!supported) {
       setShowEmail(true);
+      announce("email_only");
       return;
     }
     getPasskeyFeatureStatus()
@@ -249,18 +272,30 @@ export function GuestClaimDialog({
         if (!cancelled) {
           setPasskeyAvailable(Boolean(s?.enabled));
           setShowEmail(!s?.enabled);
+          announce(s?.enabled ? "passkey_first" : "email_only");
         }
       })
       .catch(() => {
-        if (!cancelled) setShowEmail(true);
+        if (!cancelled) {
+          setShowEmail(true);
+          announce("email_only");
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, source]);
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v && !succeededRef.current && openedEventSentRef.current) {
+      guestEvent("claim_abandoned", { source });
+    }
+    onOpenChange(v);
+  };
 
   const submitPasskey = async () => {
     setError(null);
+    guestEvent("guest_claim_method_selected", { method: "passkey", source });
     setPasskeyLoading(true);
     try {
       const options = await getRegisterOptions();
@@ -274,6 +309,7 @@ export function GuestClaimDialog({
       if (!verified) throw new Error("passkey_unverified");
       await claimGuestWithPasskey();
       await clearGuestLocalState();
+      succeededRef.current = true;
       onOpenChange(false);
       window.location.reload();
     } catch {
@@ -294,10 +330,12 @@ export function GuestClaimDialog({
       setError(t.recaptchaRequired);
       return;
     }
+    guestEvent("guest_claim_method_selected", { method: "email", source });
     setLoading(true);
     try {
       await claimGuestAccount(email.trim().toLowerCase(), password, recaptchaToken);
       await clearGuestLocalState();
+      succeededRef.current = true;
       onOpenChange(false);
       // Full reload so the app shell re-bootstraps as a full member
       // (unlocks navigation, drops the guest banners).
@@ -323,10 +361,12 @@ export function GuestClaimDialog({
   const submitMerge = async () => {
     if (mergeAmbiguous) return;
     setError(null);
+    guestEvent("guest_claim_method_selected", { method: "merge", source });
     setLoading(true);
     try {
       await mergeGuestIntoAccount(email.trim().toLowerCase(), password);
       await clearGuestLocalState();
+      succeededRef.current = true;
       onOpenChange(false);
       window.location.reload();
     } catch (err) {
@@ -346,7 +386,7 @@ export function GuestClaimDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent dir={dir}>
         <DialogHeader>
           <DialogTitle>{t.title}</DialogTitle>
