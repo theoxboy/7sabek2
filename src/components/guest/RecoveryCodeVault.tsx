@@ -71,6 +71,10 @@ export function RecoveryCodeVault({
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [emailState, setEmailState] = useState<"" | "sending" | "sent" | "error">("");
+  // Hidden until the backend endpoint is live in prod. Also self-heals on a 404.
+  const [emailAvailable, setEmailAvailable] = useState(
+    process.env.NEXT_PUBLIC_GUEST_EMAIL_CODE === "1"
+  );
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
@@ -168,8 +172,16 @@ export function RecoveryCodeVault({
       await emailRecoveryCode(clean, code);
       setEmailState("sent");
       guestEvent("guest_recovery_action", { action: "email", where });
-    } catch {
-      setEmailState("error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("404")) {
+        // Endpoint not deployed yet — retire the option quietly.
+        setEmailAvailable(false);
+        setEmailOpen(false);
+        setEmailState("");
+      } else {
+        setEmailState("error");
+      }
     }
   };
 
@@ -299,13 +311,15 @@ export function RecoveryCodeVault({
             <span className="ms-1">{t.vaultShare}</span>
           </Button>
         )}
-        <Button type="button" variant="ghost" size="sm" onClick={() => setEmailOpen((v) => !v)}>
-          <Mail className="h-3.5 w-3.5" />
-          <span className="ms-1">{t.vaultEmailToggle}</span>
-        </Button>
+        {emailAvailable && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEmailOpen((v) => !v)}>
+            <Mail className="h-3.5 w-3.5" />
+            <span className="ms-1">{t.vaultEmailToggle}</span>
+          </Button>
+        )}
       </div>
 
-      {emailOpen && emailState !== "sent" && (
+      {emailAvailable && emailOpen && emailState !== "sent" && (
         <form
           className="flex flex-col gap-1.5 sm:flex-row"
           onSubmit={(e) => {
