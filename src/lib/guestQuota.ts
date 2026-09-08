@@ -66,6 +66,8 @@ export const GUEST_FEATURE_ACCESS: Record<string, GuestFeatureAccess> = {
   envelopes: "open", // up to GUEST_LIMITS.envelopes
   transactions: "open", // never capped, never blocked
   "monthly-budget": "open",
+  "money-plan": "open", // split income → create envelopes; the guest's whole point
+  distribution: "open", // the rules that back the split above
   dashboard: "open",
   "reste-a-depenser": "open",
   categories: "open", // default catalogue, not editable
@@ -83,7 +85,7 @@ export const GUEST_FEATURE_ACCESS: Record<string, GuestFeatureAccess> = {
   "multi-device": "soft-wall",
 
   rules: "hidden",
-  sweeps: "hidden",
+  sweeps: "hidden", // reached via ROUTE_FEATURE ["/sweeps", "sweeps"]
   notifications: "hidden",
   "salary-reminders": "hidden",
   gamification: "hidden", // needs a public name

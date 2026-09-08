@@ -31,6 +31,16 @@ export const CHANGELOG: Release[] = [
     date: "2026-09-08",
     groups: [
       {
+        kind: "added",
+        items: [
+          {
+            fr: "Mode découverte : tu peux maintenant répartir ton revenu dans tes enveloppes et les créer d’un coup, sans compte. Tout est gardé si tu crées ton compte gratuit plus tard.",
+            en: "Discovery mode: you can now split your income across your envelopes and create them in one go, without an account. Everything is kept if you create your free account later.",
+            ar: "وضع الاكتشاف: دابا تقدر تقسم دخلك على الأظرفة ديالك وتصاوبهم مرة وحدة، بلا حساب. كلشي كيتحفظ إلا صاوبتي حسابك المجاني من بعد.",
+          },
+        ],
+      },
+      {
         kind: "improved",
         items: [
           {
