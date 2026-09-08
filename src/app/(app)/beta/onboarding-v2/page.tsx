@@ -11431,6 +11431,11 @@ export function BetaOnboardingV2PageContent({
   })();
   const isRegisterGuestMode = searchParams?.get("register") === "1";
   const isPostRegisterMode = searchParams?.get("post_register") === "1";
+  // A "Mode Découverte" guest who opted into onboarding from the dashboard
+  // card. They want to split their income, not fill a profile form — skip the
+  // "basic info" (name / photo) step; it can be done later in Settings.
+  const isGuestOnboardingOptIn =
+    resolvedJourneyMode === "onboarding" && searchParams?.get("from") === "guest";
   const isForcedReviewMode =
     resolvedJourneyMode === "onboarding" && searchParams?.get("forced_review") === "1";
   const shouldStayOnOnboarding =
@@ -11479,6 +11484,8 @@ export function BetaOnboardingV2PageContent({
   const [flowStage, setFlowStage] = useState<"collect_user" | "intro" | "questions">(
     resolvedJourneyMode === "money_plan"
       ? "questions"
+      : isGuestOnboardingOptIn
+        ? "questions"
       : isRegisterGuestMode
         ? initialRegisterProgress?.flow_stage === "questions" ||
           (initialRegisterProgress?.flow_stage === "intro" &&
@@ -11724,7 +11731,7 @@ export function BetaOnboardingV2PageContent({
       ...draftObjects,
       onboarding_progress_v2: buildCompatOnboardingProgressSnapshot({
         flowStage:
-          flowStage === "intro" && !hasCollectedUserInfo(answers)
+          flowStage === "intro" && !hasCollectedUserInfo(answers) && !isGuestOnboardingOptIn
             ? "collect_user"
             : flowStage,
         stepIndex: safeStepIndex,
@@ -14471,7 +14478,7 @@ export function BetaOnboardingV2PageContent({
   const effectiveFlowStage =
     resolvedJourneyMode === "money_plan"
       ? "questions"
-      : flowStage === "intro" && !hasCollectedUserInfo(answers)
+      : flowStage === "intro" && !hasCollectedUserInfo(answers) && !isGuestOnboardingOptIn
         ? "collect_user"
         : flowStage;
   const betaEntrySummaryEnabled = Boolean(authUser?.is_beta_tester || authUser?.role === "superadmin");
@@ -14587,7 +14594,9 @@ export function BetaOnboardingV2PageContent({
             },
           ];
 
-    return items.map((item, index) => {
+    return items
+      .filter((item) => !(isGuestOnboardingOptIn && item.key === "collect_user"))
+      .map((item, index) => {
       if (!item.questionId) {
         return {
           ...item,
@@ -14609,7 +14618,7 @@ export function BetaOnboardingV2PageContent({
         current,
       };
     });
-  }, [answers, currentQuestion?.id, effectiveFlowStage, resolvedJourneyMode, questions]);
+  }, [answers, currentQuestion?.id, effectiveFlowStage, isGuestOnboardingOptIn, resolvedJourneyMode, questions]);
   const onboardingShellClass = `${cairo.className} onboarding-arabic-font onboarding-copy`;
   const onboardingShellStyle = { fontFamily: `var(--font-cairo), "Cairo", sans-serif` };
   const isInteractiveGuidanceScreen =
