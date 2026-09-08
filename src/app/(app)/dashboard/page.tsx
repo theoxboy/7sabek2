@@ -1452,10 +1452,20 @@ function DashboardContent() {
       ) : (
         <>
           {/* Dashboard Cockpit Redesign */}
-          <div ref={headerRef} className="dashboard-cockpit relative overflow-hidden p-6 mb-6">
+          <div
+            ref={headerRef}
+            className="dashboard-cockpit relative overflow-hidden p-6 mb-6"
+            onPointerMove={(event) => {
+              const target = event.currentTarget;
+              const rect = target.getBoundingClientRect();
+              target.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+              target.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+            }}
+          >
             {/* Background glowing decorations */}
             <div className="dashboard-cockpit__decorative-glow dashboard-cockpit__decorative-glow--emerald" />
             <div className="dashboard-cockpit__decorative-glow dashboard-cockpit__decorative-glow--indigo" />
+            <div aria-hidden="true" className="dashboard-cockpit__spot" />
 
             {/* Header section (Title, Period and Main Buttons) */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[var(--border)] dark:border-slate-800">

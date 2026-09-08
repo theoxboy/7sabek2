@@ -1224,6 +1224,7 @@ body.onboarding-route-ar-body a svg {
   width: 180px;
   height: 180px;
   background: var(--accent);
+  animation: cockpitDrift 18s ease-in-out infinite;
 }
 
 .dashboard-cockpit__decorative-glow--indigo {
@@ -1232,6 +1233,36 @@ body.onboarding-route-ar-body a svg {
   width: 180px;
   height: 180px;
   background: #6366f1;
+  animation: cockpitDrift 23s ease-in-out infinite reverse;
+}
+
+@keyframes cockpitDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(36px, 30px) scale(1.14); }
+}
+
+/* Cursor-following spotlight */
+.dashboard-cockpit__spot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 30%), rgba(16, 185, 129, 0.14), transparent 66%);
+}
+
+.dashboard-cockpit:hover .dashboard-cockpit__spot {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-cockpit__decorative-glow--emerald,
+  .dashboard-cockpit__decorative-glow--indigo {
+    animation: none !important;
+  }
+  .dashboard-cockpit__spot {
+    display: none;
+  }
 }
 
 .dashboard-cockpit__subcard {

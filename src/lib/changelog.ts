@@ -27,6 +27,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.3.3",
+    date: "2026-09-08",
+    groups: [
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "Le bandeau en haut du tableau de bord est plus vivant : lumières animées et halo qui suit la souris.",
+            en: "The banner at the top of the dashboard feels more alive: gently moving lights and a glow that follows your cursor.",
+            ar: "الشريط اللي فوق فالطابلو دوبور ولا حي كثر: أضواء كتحرك بشوية وضّو كيتبع الماوس ديالك.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.2",
     date: "2026-09-07",
     groups: [
