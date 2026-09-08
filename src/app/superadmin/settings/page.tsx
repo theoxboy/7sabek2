@@ -90,7 +90,7 @@ const EMPTY_SETTINGS: PlatformSettingsOut = {
   guest_mode_message_ar: "وضع الاكتشاف موقّف دابا. صاوب حسابك المجاني — كياخد 20 ثانية.",
   guest_mode_message_type: "info",
   guest_mode_fallback_cta: true,
-  guest_mode_placements: ["login", "register"],
+  guest_mode_placements: ["login", "register", "android"],
   guest_mode_kill_existing: false,
 };
 
@@ -1303,6 +1303,7 @@ export default function SuperAdminSettingsPage() {
                       { value: "login", label: "Login" },
                       { value: "register", label: "Inscription" },
                       { value: "landing", label: "Page d’accueil" },
+                      { value: "android", label: "Appli Android" },
                     ].map((option) => (
                       <label
                         key={`guest-${option.value}`}

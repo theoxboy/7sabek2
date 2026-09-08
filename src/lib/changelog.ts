@@ -54,9 +54,9 @@ export const CHANGELOG: Release[] = [
             ar: "اختيار الاسم ديال الترتيب ما بقاش كيسد ليك الطريق للتطبيق: كيتقترح فصفحة الترتيب، مع بوطون « من بعد »، عداد الحروف، ورسائل مترجمة.",
           },
           {
-            fr: "L’équipe 7sabek peut maintenant activer ou mettre en pause le mode découverte, avec un message d’explication personnalisé si besoin.",
-            en: "The 7sabek team can now turn discovery mode on or pause it, with a custom explanation message when needed.",
-            ar: "فريق 7sabek دابا يقدر يشعّل ولا يوقّف وضع الاكتشاف، مع رسالة توضيحية مخصصة إلا كان خاص.",
+            fr: "L’équipe 7sabek peut maintenant activer ou mettre en pause le mode découverte (site et application Android), avec un message d’explication personnalisé si besoin.",
+            en: "The 7sabek team can now turn discovery mode on or pause it (website and Android app), with a custom explanation message when needed.",
+            ar: "فريق 7sabek دابا يقدر يشعّل ولا يوقّف وضع الاكتشاف (الموقع والتطبيق أندرويد)، مع رسالة توضيحية مخصصة إلا كان خاص.",
           },
           {
             fr: "Page d’accueil allégée : moins de textes qui se répètent, un bandeau d’installation Android plus court et une section d’en-tête plus aérée.",
