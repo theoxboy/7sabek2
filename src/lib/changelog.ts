@@ -34,9 +34,9 @@ export const CHANGELOG: Release[] = [
         kind: "added",
         items: [
           {
-            fr: "Mode découverte : tu peux maintenant répartir ton revenu dans tes enveloppes et les créer d’un coup, sans compte. Tout est gardé si tu crées ton compte gratuit plus tard.",
-            en: "Discovery mode: you can now split your income across your envelopes and create them in one go, without an account. Everything is kept if you create your free account later.",
-            ar: "وضع الاكتشاف: دابا تقدر تقسم دخلك على الأظرفة ديالك وتصاوبهم مرة وحدة، بلا حساب. كلشي كيتحفظ إلا صاوبتي حسابك المجاني من بعد.",
+            fr: "Mode découverte : si tu veux un vrai budget, tu peux maintenant lancer la configuration complète depuis le tableau de bord — revenu, dépenses, enveloppes et répartition automatique. C’est proposé, jamais imposé, et tout est gardé si tu crées ton compte ensuite.",
+            en: "Discovery mode: if you want a real budget, you can now start the full setup from the dashboard — income, spending, envelopes and automatic split. It’s offered, never forced, and everything is kept if you create your account afterwards.",
+            ar: "وضع الاكتشاف: إلا بغيتي ميزانية حقيقية، دابا تقدر تبدا الإعداد الكامل من الطابلو دو بور — الدخل، المصاريف، الأظرفة والتقسيم الأوتوماتيكي. كيتقترح عليك، ماشي إجباري، وكلشي كيتحفظ إلا صاوبتي حسابك من بعد.",
           },
         ],
       },
