@@ -23,7 +23,7 @@ import {
   HandCoins,
   Lock,
 } from "lucide-react";
-import { isGuestLockedHref } from "@/lib/guestGate";
+import { isGuestHiddenHref, isGuestLockedHref } from "@/lib/guestGate";
 import { protectionLevelOf } from "@/lib/guestPanelCopy";
 import BrandLogo from "@/components/BrandLogo";
 import { Button } from "@/components/ui/Button";
@@ -358,7 +358,11 @@ export function AppSidebar({
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-4 floussy-scroll">
         {SIDEBAR_SECTIONS.map((section, secIdx) => {
           const visibleItems = section.items.filter(
-            (item) => !item.betaOnly || betaAuthorized
+            (item) =>
+              (!item.betaOnly || betaAuthorized) &&
+              // Guests never see nav entries for features that are hidden for
+              // them (gamification, beta lab, …) — no dead / teasing links.
+              !(Boolean(user?.is_guest) && isGuestHiddenHref(item.href))
           );
           if (visibleItems.length === 0) return null;
 

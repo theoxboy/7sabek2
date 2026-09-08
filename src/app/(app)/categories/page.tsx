@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import { fetchMe } from "@/lib/auth";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
 import type {
@@ -601,6 +602,23 @@ export default function CategoriesPage() {
     loadData();
   }, []);
 
+  // Guests get the default catalogue read-only — no creating, renaming or
+  // deleting categories (the backend rejects those writes anyway).
+  const [isGuest, setIsGuest] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMe()
+      .then((me) => {
+        if (!cancelled) setIsGuest(Boolean(me?.is_guest));
+      })
+      .catch(() => {
+        if (!cancelled) setIsGuest(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -1106,6 +1124,16 @@ export default function CategoriesPage() {
         subtitle={copy.subtitle}
       />
 
+      {isGuest ? (
+        <p className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 px-4 py-3 text-sm text-[var(--muted)]">
+          {locale === "ar"
+            ? "فوضع الاكتشاف كتشوف الكاتيغوريات الافتراضية وتقدر تربطها بالأظرفة. تصاوب حسابك المجاني باش تزيد ولا تبدّل الكاتيغوريات."
+            : locale === "en"
+              ? "In discovery mode you can view the default categories and map them to envelopes. Create your free account to add or edit categories."
+              : "En mode découverte, tu peux voir les catégories par défaut et les relier à tes enveloppes. Crée ton compte gratuit pour en ajouter ou les modifier."}
+        </p>
+      ) : null}
+
       {loading ? <p className="text-sm text-[var(--muted)]">{copy.loading}</p> : null}
       {issue ? <IssueAlert issue={issue} tone="error" /> : null}
       {notificationIssueGuidance ? (
@@ -1119,6 +1147,7 @@ export default function CategoriesPage() {
         </div>
       ) : null}
 
+      {!isGuest && (
       <Section title={copy.addSection}>
         <div className="flex flex-wrap items-center gap-2">
           {mounted ? (
@@ -1376,6 +1405,7 @@ export default function CategoriesPage() {
         ) : null}
         </div>
       </Section>
+      )}
 
       <Section title={copy.listSection}>
         <Card className="space-y-4">
@@ -1392,7 +1422,7 @@ export default function CategoriesPage() {
                 className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
                 placeholder={copy.searchCategories}
               />
-              {mounted ? (
+              {mounted && !isGuest ? (
                 <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" variant="danger" type="button">
@@ -1554,7 +1584,7 @@ export default function CategoriesPage() {
                                 )}
                               </div>
                             </div>
-                            {editingId === cat.id ? (
+                            {!isGuest && editingId === cat.id ? (
                               <div className="mt-2 flex flex-col gap-2 md:flex-row">
                                 <input
                                   value={editingName}
@@ -1592,6 +1622,7 @@ export default function CategoriesPage() {
                                   </option>
                                 ))}
                             </select>
+                            {!isGuest && (
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
                             <Button
                               size="sm"
@@ -1609,6 +1640,7 @@ export default function CategoriesPage() {
                                 {copy.delete}
                               </Button>
                             </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1666,7 +1698,7 @@ export default function CategoriesPage() {
                                 )}
                               </div>
                             </div>
-                            {editingId === cat.id ? (
+                            {!isGuest && editingId === cat.id ? (
                               <div className="mt-2 flex flex-col gap-2 md:flex-row">
                                 <input
                                   value={editingName}
@@ -1704,6 +1736,7 @@ export default function CategoriesPage() {
                                   </option>
                                 ))}
                             </select>
+                            {!isGuest && (
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
                             <Button
                               size="sm"
@@ -1721,6 +1754,7 @@ export default function CategoriesPage() {
                                 {copy.delete}
                               </Button>
                             </div>
+                            )}
                           </div>
                         </div>
                       );

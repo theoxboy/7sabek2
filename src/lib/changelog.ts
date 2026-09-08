@@ -43,6 +43,11 @@ export const CHANGELOG: Release[] = [
             en: "The same glowing banner now tops the other pages too (transactions, envelopes, reports, categories, rules…).",
             ar: "نفس الشريط المضوّي ولا كيبان دابا فوق الصفحات الأخرى (المعاملات، الأظرفة، التقارير، الأصناف، القواعد…).",
           },
+          {
+            fr: "Mode découverte : les pages réservées aux comptes s’affichent en aperçu figé avec un message qui explique l’intérêt de la fonction, au lieu de boutons qui ne marchent pas. Le menu ne montre plus de raccourcis inutilisables, et la page des catégories est claire en lecture seule.",
+            en: "Discovery mode: account-only pages now show as a frozen preview with a message explaining what the feature does, instead of buttons that don’t work. The menu no longer shows shortcuts you can’t use, and the categories page is clear in read-only.",
+            ar: "وضع الاكتشاف: الصفحات اللي خاصها حساب كتبان دابا كأنها معاينة مجمّدة مع شرح ديال الفائدة، بلا بوطونات ما كيخدموش. القائمة ما بقاتش كتوري روابط ما تنفعش، وصفحة الأصناف واضحة فقراءة فقط.",
+          },
         ],
       },
     ],

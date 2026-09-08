@@ -43,6 +43,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
+import { guestRouteState } from "@/lib/guestGate";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -813,7 +814,7 @@ function AppLayoutContent({
         // whole point of the mode is trying the app without that funnel. The
         // onboarding stays available as an opt-in, never forced.
         if (me.is_guest) {
-          if (isClassicOnboarding || isBetaOnboarding || isMoneyPlanJourney) {
+          if (isClassicOnboarding || isBetaOnboarding) {
             router.replace("/dashboard");
             return;
           }
@@ -1000,7 +1001,9 @@ function AppLayoutContent({
   }, [user, isOnboarding, pathname]);
 
   useEffect(() => {
-    if (!user || isOnboarding) return;
+    // Guests have no notifications, salary reminders or regulation nags — skip
+    // the whole polling loop (it would only 403 on hidden-feature endpoints).
+    if (!user || isOnboarding || user.is_guest) return;
     let cancelled = false;
     let inFlight = false;
     let lastRefreshAt = 0;
@@ -1855,6 +1858,25 @@ function AppLayoutContent({
       });
   };
 
+  // A guest on a "locked" route sees the page as a frozen preview under the
+  // "create your free account" banner: dimmed, and fully non-interactive so no
+  // action can fire a doomed backend write.
+  const guestContentLocked =
+    Boolean(user?.is_guest) && guestRouteState(pathname) === "locked";
+  const renderChildren = () => {
+    const tree = <PageTransition routeKey={pathname}>{children}</PageTransition>;
+    if (!guestContentLocked) return tree;
+    return (
+      <div
+        className="pointer-events-none select-none opacity-60 blur-[1px]"
+        inert
+        aria-hidden="true"
+      >
+        {tree}
+      </div>
+    );
+  };
+
   if (isDiscoveryWelcome) {
     // The page paints its own full-screen landing-style background.
     return <PageTransition routeKey={pathname}>{children}</PageTransition>;
@@ -1994,7 +2016,7 @@ function AppLayoutContent({
             dir={pageDir}
           />
         </div>
-        <PageTransition routeKey={pathname}>{children}</PageTransition>
+        {renderChildren()}
       </div>
     );
   }
@@ -2345,7 +2367,8 @@ function AppLayoutContent({
                     >
                       <Globe className="h-4 w-4" />
                     </button>
-                    {!hydrated ? (
+                    {/* Notifications are hidden for guests — no bell, no drawer. */}
+                    {!user?.is_guest && (!hydrated ? (
                       <button
                         type="button"
                         className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] shadow-sm transition hover:border-emerald-200 hover:text-emerald-600"
@@ -2501,7 +2524,7 @@ function AppLayoutContent({
                         </div>
                         </PopoverContent>
                       </Popover>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -2516,7 +2539,7 @@ function AppLayoutContent({
                   <GuestAccountPanel user={user} locale={locale} dir={pageDir} />
                 </div>
               ) : null}
-              <PageTransition routeKey={pathname}>{children}</PageTransition>
+              {renderChildren()}
             </div>
           </div>
 

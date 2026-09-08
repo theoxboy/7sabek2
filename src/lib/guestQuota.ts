@@ -74,7 +74,6 @@ export const GUEST_FEATURE_ACCESS: Record<string, GuestFeatureAccess> = {
   "recovery-code": "open", // guest-only setting
   "clear-data": "open", // guest-only setting, immediate, no grace period
 
-  "history-past-months": "soft-wall", // triggers on first month rollover
   reports: "soft-wall",
   advisor: "soft-wall", // up to GUEST_LIMITS.advisorExchanges
   goals: "soft-wall", // greyed preview — it is a conversion argument
@@ -92,6 +91,8 @@ export const GUEST_FEATURE_ACCESS: Record<string, GuestFeatureAccess> = {
   profile: "hidden", // nothing to fill
   passkeys: "hidden", // moot before an account
   sessions: "hidden",
+  beta: "hidden", // the beta lab is opt-in for real members only
+  logs: "hidden", // account activity / security log — nothing there before an account
 };
 
 /** Access level for a feature key. Unknown keys default to `open` (fail-open for UI). */

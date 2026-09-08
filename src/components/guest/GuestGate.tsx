@@ -5,7 +5,7 @@ import { Lock, Sparkles, Fingerprint } from "lucide-react";
 import { startRegistration } from "@simplewebauthn/browser";
 
 import type { FloussyLocale } from "@/lib/localePreference";
-import { GUEST_GATE_COPY, guestRouteFeature, guestRouteState, guestWallForRoute } from "@/lib/guestGate";
+import { GUEST_GATE_COPY, guestPitchForRoute, guestRouteFeature, guestRouteState, guestWallForRoute } from "@/lib/guestGate";
 import { claimGuestAccount, claimGuestWithPasskey, mergeGuestIntoAccount, guestEvent } from "@/lib/guestAnchorApi";
 import { clearGuestLocalState } from "@/lib/guestSession";
 import { getPasskeyFeatureStatus, getRegisterOptions, verifyRegistration } from "@/lib/passkeys";
@@ -38,6 +38,7 @@ const wallHitSentFor = new Set<string>();
 export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
   const [claimOpen, setClaimOpen] = useState(false);
   const copy = GUEST_GATE_COPY[locale] ?? GUEST_GATE_COPY.fr;
+  const pitch = guestPitchForRoute(pathname, locale);
   const state = guestRouteState(pathname);
   const visible = isGuest && state !== "open";
   const claimSource = `wall:${guestWallForRoute(pathname) ?? guestRouteFeature(pathname) ?? "gate"}`;
@@ -92,7 +93,7 @@ export function GuestGateBanner({ isGuest, pathname, locale, dir }: Props) {
           </p>
           {!limited && (
             <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "var(--muted)" }}>
-              {copy.body}
+              {pitch ?? copy.body}
             </p>
           )}
         </div>

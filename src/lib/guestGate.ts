@@ -36,6 +36,8 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
   ["/notifications", "notifications"],
   ["/gamification", "gamification"],
   ["/shiftpilot", "reports"],
+  ["/beta", "beta"],
+  ["/logs", "logs"],
 ];
 
 export type GuestRouteState = "open" | "limited" | "locked";
@@ -64,6 +66,11 @@ export function guestWallForRoute(pathname: string | null | undefined): string |
     debts: "debts",
     export: "export",
     advisor: "advisor_daily",
+    rules: "rules",
+    notifications: "notifications",
+    gamification: "gamification",
+    beta: "beta",
+    logs: "logs",
   };
   return map[feature] ?? null;
 }
@@ -82,6 +89,15 @@ export function guestRouteState(pathname: string | null | undefined): GuestRoute
 /** Whether the sidebar entry for `href` should render dimmed + locked for a guest. */
 export function isGuestLockedHref(href: string): boolean {
   return guestRouteState(href) === "locked";
+}
+
+/**
+ * Whether the sidebar entry for `href` should be removed entirely for a guest
+ * (feature access `hidden` — no dead / teasing entries in the nav).
+ */
+export function isGuestHiddenHref(href: string): boolean {
+  const feature = guestRouteFeature(href);
+  return feature ? guestFeatureAccess(feature) === "hidden" : false;
 }
 
 // ─── Wording (trilingual — always names the app as free) ───────────────────────
@@ -138,3 +154,44 @@ export const GUEST_GATE_COPY: Record<FloussyLocale, GuestGateCopy> = {
     advisorExhausted: "صرفتي الرسائل ديال اليوم مع المستشار. صاوب حسابك المجاني باش تكمل بلا حدود — مجاني.",
   },
 };
+
+/**
+ * Feature-specific one-liner shown in the gate banner instead of the generic
+ * `body`. Written to sell the feature, not just explain the wall. Only the
+ * "conversion argument" features have one — everything else falls back to
+ * `GUEST_GATE_COPY[locale].body`.
+ */
+export const GUEST_FEATURE_PITCH: Partial<
+  Record<string, Record<FloussyLocale, string>>
+> = {
+  goals: {
+    fr: "Fixe un objectif d’épargne et vois, mois après mois, ce qu’il te reste à mettre de côté. Il faut juste un compte gratuit.",
+    en: "Set a savings goal and see, month after month, how much is left to put aside. Just needs a free account.",
+    ar: "حدد هدف ديال التوفير وشوف، شهر بعد شهر، شحال باقي خاصك تخبي. غير خاصك حساب مجاني.",
+  },
+  debts: {
+    fr: "Suis tes dettes et tes salaf, qui te doit quoi et quand rembourser — dès que ton compte gratuit est créé.",
+    en: "Track your debts and salaf, who owes what and when to repay — as soon as your free account is created.",
+    ar: "تبّع الديون والسلف ديالك، شكون خاصو يرجّع ليك وإمتى تخلّص — بمجرد ما تصاوب حسابك المجاني.",
+  },
+  reports: {
+    fr: "Des rapports clairs sur où part ton argent, mois par mois. Crée ton compte gratuit pour les débloquer.",
+    en: "Clear reports on where your money goes, month by month. Create your free account to unlock them.",
+    ar: "تقارير واضحة على فين كيمشي فلوسك، شهر بشهر. صاوب حسابك المجاني باش تحلّهم.",
+  },
+  export: {
+    fr: "Exporte ton budget et automatise la répartition de tes revenus. Réservé aux comptes gratuits.",
+    en: "Export your budget and automate how your income is split. Free accounts only.",
+    ar: "صدّر الميزانية ديالك وأتمت توزيع الدخل. غير للحسابات المجانية.",
+  },
+};
+
+/** The feature-specific pitch for a route, or null to use the generic body. */
+export function guestPitchForRoute(
+  pathname: string | null | undefined,
+  locale: FloussyLocale
+): string | null {
+  const feature = guestRouteFeature(pathname);
+  if (!feature) return null;
+  return GUEST_FEATURE_PITCH[feature]?.[locale] ?? null;
+}
