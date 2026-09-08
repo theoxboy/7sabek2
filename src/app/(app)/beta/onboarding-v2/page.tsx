@@ -7,6 +7,7 @@ import { Cairo } from "next/font/google";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
+import { GUEST_LIMITS } from "@/lib/guestQuota";
 import {
   Camera,
   Check,
@@ -15803,6 +15804,25 @@ export function BetaOnboardingV2PageContent({
         (item) => !distributionEnvelopeIdsByName[getDistributionNameEquivalentKey(item.name)]
       );
 
+      // "Mode Découverte" guests are capped at GUEST_LIMITS.envelopes. Check the
+      // whole batch up front so we never leave half the envelopes created and
+      // then hit a raw backend 403 mid-loop. A normal plan is 8–12 envelopes;
+      // this only bites an unusually large split.
+      if (
+        authUser?.is_guest &&
+        distributionRealEnvelopes.length + missingTargets.length > GUEST_LIMITS.envelopes
+      ) {
+        const cap = GUEST_LIMITS.envelopes;
+        setUiError(
+          locale === "ar"
+            ? `ف وضع الاكتشاف تقدر تصاوب حتى ${cap} ظرف. صاوب حسابك المجاني باش يكونو عندك بلا حدود — الأظرفة اللي عندك دابا كتبقى محفوظة.`
+            : locale === "en"
+              ? `In discovery mode you can create up to ${cap} envelopes. Create your free account for as many as you want — your current envelopes are kept.`
+              : `En mode découverte, tu peux créer jusqu'à ${cap} enveloppes. Crée ton compte gratuit pour en avoir autant que tu veux — tes enveloppes actuelles sont gardées.`
+        );
+        return;
+      }
+
       if (missingTargets.length > 0) {
         setDistributionSyncingTargets(true);
         for (const item of missingTargets) {
@@ -15828,9 +15848,12 @@ export function BetaOnboardingV2PageContent({
       setDistributionCtaBusy(false);
     }
   }, [
+    authUser?.is_guest,
     distributionCtaBusy,
     distributionEnvelopeIdsByName,
+    distributionRealEnvelopes.length,
     distributionTargetItems,
+    locale,
     refreshDistributionEnvelopeDirectory,
     refreshDistributionStatus,
   ]);

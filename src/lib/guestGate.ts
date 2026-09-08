@@ -17,6 +17,11 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
   ["/envelopes", "envelopes"],
   ["/categories", "categories"],
   ["/allocate", "monthly-budget"],
+  // The income-distribution journey a guest can run end to end: pick how the
+  // salary is split, then the envelopes get created. Both are their own feature
+  // keys (not "reports" / "export") so opening them here never widens those.
+  ["/khatat-lflous", "money-plan"],
+  ["/distribution", "distribution"],
   ["/settings", "theme"],
   ["/aide", "theme"],
   ["/releases", "theme"],
@@ -28,10 +33,8 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
   ["/goals", "goals"],
   ["/debts", "debts"],
   ["/salaf", "debts"],
-  ["/distribution", "export"],
   ["/planner", "reports"],
-  ["/khatat-lflous", "reports"],
-  ["/sweeps", "export"],
+  ["/sweeps", "sweeps"],
   ["/rules", "rules"],
   ["/notifications", "notifications"],
   ["/gamification", "gamification"],
@@ -64,7 +67,6 @@ export function guestWallForRoute(pathname: string | null | undefined): string |
     reports: "reports",
     goals: "goals",
     debts: "debts",
-    export: "export",
     advisor: "advisor_daily",
     rules: "rules",
     notifications: "notifications",
@@ -178,11 +180,6 @@ export const GUEST_FEATURE_PITCH: Partial<
     fr: "Des rapports clairs sur où part ton argent, mois par mois. Crée ton compte gratuit pour les débloquer.",
     en: "Clear reports on where your money goes, month by month. Create your free account to unlock them.",
     ar: "تقارير واضحة على فين كيمشي فلوسك، شهر بشهر. صاوب حسابك المجاني باش تحلّهم.",
-  },
-  export: {
-    fr: "Exporte ton budget et automatise la répartition de tes revenus. Réservé aux comptes gratuits.",
-    en: "Export your budget and automate how your income is split. Free accounts only.",
-    ar: "صدّر الميزانية ديالك وأتمت توزيع الدخل. غير للحسابات المجانية.",
   },
 };
 

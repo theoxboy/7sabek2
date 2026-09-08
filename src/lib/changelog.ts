@@ -31,8 +31,23 @@ export const CHANGELOG: Release[] = [
     date: "2026-09-08",
     groups: [
       {
+        kind: "added",
+        items: [
+          {
+            fr: "Mode découverte : tu peux maintenant répartir ton revenu dans tes enveloppes et les créer d’un coup, sans compte. Tout est gardé si tu crées ton compte gratuit plus tard.",
+            en: "Discovery mode: you can now split your income across your envelopes and create them in one go, without an account. Everything is kept if you create your free account later.",
+            ar: "وضع الاكتشاف: دابا تقدر تقسم دخلك على الأظرفة ديالك وتصاوبهم مرة وحدة، بلا حساب. كلشي كيتحفظ إلا صاوبتي حسابك المجاني من بعد.",
+          },
+        ],
+      },
+      {
         kind: "improved",
         items: [
+          {
+            fr: "Après avoir créé ton compte depuis le mode découverte, un rappel discret sur le tableau de bord te propose de compléter ton profil (prénom, photo) quand tu veux.",
+            en: "After creating your account from discovery mode, a quiet reminder on the dashboard invites you to complete your profile (first name, photo) whenever you like.",
+            ar: "من بعد ما تصاوب حسابك من وضع الاكتشاف، تذكير خفيف فالطابلو دو بور كيقترح ليك تكمل البروفيل ديالك (السمية، التصويرة) ملي بغيتي.",
+          },
           {
             fr: "Le bandeau en haut du tableau de bord est plus vivant : lumières animées et halo qui suit la souris.",
             en: "The banner at the top of the dashboard feels more alive: gently moving lights and a glow that follows your cursor.",

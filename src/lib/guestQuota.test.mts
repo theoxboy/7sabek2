@@ -76,6 +76,11 @@ test("feature gates: the money-in path is never walled", () => {
   assert.equal(guestFeatureAccess("monthly-budget"), "open");
 });
 
+test("feature gates: a guest can run the income-distribution journey", () => {
+  assert.equal(guestFeatureAccess("money-plan"), "open");
+  assert.equal(guestFeatureAccess("distribution"), "open");
+});
+
 test("feature gates: conversion arguments stay visible as soft walls", () => {
   assert.equal(guestFeatureAccess("reports"), "soft-wall");
   assert.equal(guestFeatureAccess("goals"), "soft-wall");
