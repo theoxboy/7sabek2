@@ -42,7 +42,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
-import { GuestOnboardingCard } from "@/components/guest/GuestOnboardingCard";
+import { GuestDistributionCard } from "@/components/guest/GuestDistributionCard";
 import { GuestClaimedProfileCard } from "@/components/guest/GuestClaimedProfileCard";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { guestRouteState } from "@/lib/guestGate";
@@ -2404,7 +2404,7 @@ function AppLayoutContent({
                 </div>
               ) : null}
               {user?.is_guest && pathname?.startsWith("/dashboard") ? (
-                <GuestOnboardingCard locale={locale} dir={pageDir} />
+                <GuestDistributionCard locale={locale} dir={pageDir} />
               ) : null}
               {!user?.is_guest &&
               user?.claimed_at &&

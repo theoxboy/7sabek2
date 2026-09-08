@@ -34,9 +34,9 @@ export const CHANGELOG: Release[] = [
         kind: "added",
         items: [
           {
-            fr: "Mode découverte : si tu veux un vrai budget, tu peux maintenant lancer la configuration complète depuis le tableau de bord — revenu, dépenses, enveloppes et répartition automatique. C’est proposé, jamais imposé, et tout est gardé si tu crées ton compte ensuite.",
-            en: "Discovery mode: if you want a real budget, you can now start the full setup from the dashboard — income, spending, envelopes and automatic split. It’s offered, never forced, and everything is kept if you create your account afterwards.",
-            ar: "وضع الاكتشاف: إلا بغيتي ميزانية حقيقية، دابا تقدر تبدا الإعداد الكامل من الطابلو دو بور — الدخل، المصاريف، الأظرفة والتقسيم الأوتوماتيكي. كيتقترح عليك، ماشي إجباري، وكلشي كيتحفظ إلا صاوبتي حسابك من بعد.",
+            fr: "Mode découverte : tu peux maintenant configurer la répartition de ton revenu entre tes enveloppes, sans compte. La page t’indique ce qu’un compte ajoute (enveloppes proposées automatiquement, vue complète de ton salaire et de tes dépenses) et te laisse le choix — tout est gardé si tu crées ton compte ensuite.",
+            en: "Discovery mode: you can now set up how your income is split across your envelopes, without an account. The page shows what an account adds (envelopes suggested automatically, a full view of your salary and spending) and leaves the choice to you — everything is kept if you create your account afterwards.",
+            ar: "وضع الاكتشاف: دابا تقدر تعمّر توزيع دخلك على الأظرفة ديالك، بلا حساب. الصفحة كتوريك شنو كيزيد الحساب (أظرفة مقترحة أوتوماتيك، نظرة كاملة على الراتب والمصاريف) وكتخليك تختار — وكلشي كيتحفظ إلا صاوبتي حسابك من بعد.",
           },
         ],
       },
