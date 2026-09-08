@@ -715,11 +715,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
     { href: "#pourqui", label: copy.nav.who },
   ];
 
-  const Tick = () => (
-    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 6L9 17l-5-5" />
-    </svg>
-  );
   const Arrow = () => (
     <svg className="lp-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12h14M13 6l6 6-6 6" />
@@ -980,24 +975,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
                 >
                   <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-[10.5px] uppercase font-bold text-emerald-400 tracking-wider leading-none">
-                      {isArabic ? "📱 متوفر الآن على أندرويد و Google Play" : "📱 Disponible sur Google Play & Android"}
-                    </span>
-                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white mt-0.5">
-                      {isArabic ? "انقر لتثبيت تطبيق 7sabek على هاتفك أندرويد ←" : "Installer l'application 7sabek sur votre smartphone Android →"}
-                    </span>
-                  </div>
+                  <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
+                    {isArabic ? "📱 حمّل التطبيق على أندرويد ←" : "📱 Télécharger l'app Android →"}
+                  </span>
                 </button>
               </div>
 
               <p className="lp-micro">{copy.hero.micro}</p>
-
-              <div className="lp-trust">
-                {copy.trust.map((item) => (
-                  <div key={item} className="lp-trustitem"><span className="lp-tick"><Tick /></span>{item}</div>
-                ))}
-              </div>
             </div>
 
             <div className="lp-visual" onPointerMove={onPhoneMove} onPointerLeave={onPhoneLeave}>
@@ -1060,7 +1044,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <div className="lp-head lp-center">
               <span className="lp-kicker">{copy.sim.kicker}</span>
               <h2 className={`${headingClass} lp-h2`}>{copy.sim.title}</h2>
-              <p className="lp-text">{copy.sim.text}</p>
             </div>
 
             <div className="lp-simcard">
@@ -1190,7 +1173,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 <div>
                   <span className="lp-kicker lp-kaccent">{copy.plan.kicker}</span>
                   <h2 className={`${headingClass} lp-h2 lp-white`}>{copy.plan.title}</h2>
-                  <p className="lp-text lp-textdim">{copy.plan.text}</p>
                   <div className="lp-ctarow">
                     <Link href="/register" className="lp-btn lp-btn-accent">{copy.plan.cta}</Link>
                   </div>
@@ -1217,7 +1199,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <div className="lp-head lp-center">
               <span className="lp-kicker">{copy.tour.kicker}</span>
               <h2 className={`${headingClass} lp-h2`}>{copy.tour.title}</h2>
-              <p className="lp-text">{copy.tour.text}</p>
             </div>
 
             <div className="lp-tabs" role="tablist">

@@ -58,6 +58,11 @@ export const CHANGELOG: Release[] = [
             en: "The 7sabek team can now turn discovery mode on or pause it, with a custom explanation message when needed.",
             ar: "فريق 7sabek دابا يقدر يشعّل ولا يوقّف وضع الاكتشاف، مع رسالة توضيحية مخصصة إلا كان خاص.",
           },
+          {
+            fr: "Page d’accueil allégée : moins de textes qui se répètent, un bandeau d’installation Android plus court et une section d’en-tête plus aérée.",
+            en: "Lighter landing page: fewer repetitive blurbs, a shorter Android install banner and a more breathable header section.",
+            ar: "الصفحة الرئيسية ولّات أخف: نصوص أقل كتعاود، شريط تثبيت أندرويد أقصر، وجزء العنوان ولّا أوسع.",
+          },
         ],
       },
     ],
