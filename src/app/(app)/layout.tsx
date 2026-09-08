@@ -43,6 +43,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
 import { GuestDistributionCard } from "@/components/guest/GuestDistributionCard";
+import { GuestClaimedProfileCard } from "@/components/guest/GuestClaimedProfileCard";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { guestRouteState } from "@/lib/guestGate";
 import {
@@ -2397,6 +2398,12 @@ function AppLayoutContent({
               ) : null}
               {user?.is_guest && pathname?.startsWith("/dashboard") ? (
                 <GuestDistributionCard locale={locale} dir={pageDir} />
+              ) : null}
+              {!user?.is_guest &&
+              user?.claimed_at &&
+              !user?.has_completed_onboarding_v2 &&
+              pathname?.startsWith("/dashboard") ? (
+                <GuestClaimedProfileCard user={user} locale={locale} dir={pageDir} />
               ) : null}
               {renderChildren()}
             </div>
