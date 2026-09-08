@@ -38,6 +38,11 @@ export const CHANGELOG: Release[] = [
             en: "The banner at the top of the dashboard feels more alive: gently moving lights and a glow that follows your cursor.",
             ar: "الشريط اللي فوق فالطابلو دوبور ولا حي كثر: أضواء كتحرك بشوية وضّو كيتبع الماوس ديالك.",
           },
+          {
+            fr: "Le même bandeau lumineux habille maintenant le haut des autres pages (transactions, enveloppes, rapports, catégories, règles…).",
+            en: "The same glowing banner now tops the other pages too (transactions, envelopes, reports, categories, rules…).",
+            ar: "نفس الشريط المضوّي ولا كيبان دابا فوق الصفحات الأخرى (المعاملات، الأظرفة، التقارير، الأصناف، القواعد…).",
+          },
         ],
       },
     ],
