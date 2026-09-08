@@ -19,6 +19,7 @@ import { SystemMessageCard } from "@/components/announcements/SystemMessageCard"
 import { getAppVersionLabel } from "@/lib/app-version";
 import { getLoginOptions, verifyLogin } from "@/lib/passkeys";
 import BrandLogo from "@/components/BrandLogo";
+import { GuestModeButton, guestModeMessage } from "@/components/guest/GuestModeButton";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -619,8 +620,13 @@ export default function LoginPage() {
       // A brand-new guest walks through /decouverte first; a returning guest who
       // already secured their budget goes straight to the app.
       router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
-    } catch {
-      setError(copy.guestStartError);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : "";
+      if (raw.includes("guest_mode_disabled")) {
+        setError(guestModeMessage(status, locale) || copy.guestStartError);
+      } else {
+        setError(copy.guestStartError);
+      }
     } finally {
       setGuestLoading(false);
     }
@@ -1004,18 +1010,19 @@ export default function LoginPage() {
                     ) : null}
                   </form>
 
-                  <div className="mt-6 flex flex-col items-center gap-2">
-                    <Button
-                      type="button"
-                      onClick={handleGuestStart}
-                      isLoading={guestLoading}
+                  <div className="mt-6">
+                    <GuestModeButton
+                      status={status}
+                      locale={locale}
+                      dir={pageDir}
+                      placement="login"
+                      loading={guestLoading}
+                      onStart={handleGuestStart}
+                      label={copy.tryWithoutAccount}
+                      hint={copy.tryWithoutAccountHint}
                       className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] hover:bg-[#0B8F53]/10"
-                    >
-                      {copy.tryWithoutAccount}
-                    </Button>
-                    <p className="text-center text-[0.78rem] font-medium text-[#4E625A]">
-                      {copy.tryWithoutAccountHint}
-                    </p>
+                      hintClassName="mt-2 text-center text-[0.78rem] font-medium text-[#4E625A]"
+                    />
                   </div>
 
                   <p className="mt-4 flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">

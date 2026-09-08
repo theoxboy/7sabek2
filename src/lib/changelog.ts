@@ -53,6 +53,11 @@ export const CHANGELOG: Release[] = [
             en: "Picking your leaderboard nickname no longer blocks your way into the app: it’s offered on the leaderboard page, with a “Later” button, a character counter and translated messages.",
             ar: "اختيار الاسم ديال الترتيب ما بقاش كيسد ليك الطريق للتطبيق: كيتقترح فصفحة الترتيب، مع بوطون « من بعد »، عداد الحروف، ورسائل مترجمة.",
           },
+          {
+            fr: "L’équipe 7sabek peut maintenant activer ou mettre en pause le mode découverte, avec un message d’explication personnalisé si besoin.",
+            en: "The 7sabek team can now turn discovery mode on or pause it, with a custom explanation message when needed.",
+            ar: "فريق 7sabek دابا يقدر يشعّل ولا يوقّف وضع الاكتشاف، مع رسالة توضيحية مخصصة إلا كان خاص.",
+          },
         ],
       },
     ],

@@ -346,6 +346,58 @@ export type GuestFunnelOut = {
     dialog_opened: number;
     claimed_after: number;
   }[];
+  /** Optional — added alongside the admin guest dashboard block. */
+  protection_40?: number;
+  protection_100?: number;
+  guests_at_risk?: number;
+};
+
+export type GuestAdminStatus = "active" | "claimed" | "at_risk" | "stale";
+
+export type GuestAdminRow = {
+  id: string;
+  guest_created_at: string | null;
+  last_seen_at: string | null;
+  protection_level: number | null;
+  recovery_code_ack: boolean;
+  envelope_count: number;
+  transaction_count: number;
+  expense_total: string;
+  status: GuestAdminStatus;
+  claimed_at: string | null;
+  claim_method: "passkey" | "email" | "merge" | null;
+  device: string | null;
+  country: string | null;
+};
+
+export type GuestAdminListOut = {
+  rows: GuestAdminRow[];
+  total: number;
+  next_cursor?: string | null;
+};
+
+export type GuestAdminEvent = {
+  name: string;
+  at: string;
+  meta?: Record<string, unknown> | null;
+};
+
+export type GuestAdminDetailOut = GuestAdminRow & {
+  events: GuestAdminEvent[];
+  envelopes: { id: string; name: string; allocated: string; spent: string }[];
+  recent_transactions: {
+    id: string;
+    kind: string;
+    amount: string;
+    label: string;
+    occurred_on: string;
+  }[];
+  anchor: {
+    ip_prefix?: string | null;
+    first_seen_at?: string | null;
+    last_seen_at?: string | null;
+    signal_count?: number | null;
+  } | null;
 };
 
 export type FinanceDailyOut = {
@@ -580,9 +632,27 @@ export type PlatformStatusOut = {
     passkeys?: boolean;
     [key: string]: boolean | undefined;
   };
+  /** "Mode Découverte" (guest) — client reads these to render the guest button. */
+  guest_mode_enabled?: boolean;
+  guest_mode_button?: "hidden" | "message";
+  guest_mode_message_fr?: string;
+  guest_mode_message_en?: string;
+  guest_mode_message_ar?: string;
+  guest_mode_message_type?: "info" | "warning" | "soon";
+  guest_mode_fallback_cta?: boolean;
+  guest_mode_placements?: string[];
 };
 
 export type PlatformSettingsOut = {
+  guest_mode_enabled: boolean;
+  guest_mode_button: "hidden" | "message";
+  guest_mode_message_fr: string;
+  guest_mode_message_en: string;
+  guest_mode_message_ar: string;
+  guest_mode_message_type: "info" | "warning" | "soon";
+  guest_mode_fallback_cta: boolean;
+  guest_mode_placements: string[];
+  guest_mode_kill_existing: boolean;
   platform_name: string;
   support_email: string;
   registration_enabled: boolean;

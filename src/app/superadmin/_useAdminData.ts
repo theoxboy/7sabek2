@@ -11,6 +11,8 @@ import type {
   DeliveryQueueStatusOut,
   EmailCenterSystemStatusOut,
   FinanceDailyOut,
+  GuestAdminDetailOut,
+  GuestAdminListOut,
   GuestFunnelOut,
   OnboardingV2AdminRecordListOut,
   PlatformAnalyticsOut,
@@ -65,6 +67,42 @@ export function useTrafficSummary(days = 7) {
 export function useGuestFunnel(days = 30) {
   return useAdmin<GuestFunnelOut>(`/analytics/guest-funnel?days=${days}`, {
     refreshInterval: 120_000,
+  });
+}
+
+export type GuestListParams = {
+  status?: string;
+  hasTx?: boolean;
+  protection?: string;
+  q?: string;
+  sort?: string;
+  limit?: number;
+  cursor?: string;
+};
+
+export function useGuestList(params: GuestListParams) {
+  const qs = new URLSearchParams();
+  if (params.status && params.status !== "all") qs.set("status", params.status);
+  if (params.hasTx) qs.set("has_tx", "1");
+  if (params.protection && params.protection !== "all")
+    qs.set("protection", params.protection);
+  if (params.q?.trim()) qs.set("q", params.q.trim());
+  if (params.sort) qs.set("sort", params.sort);
+  qs.set("limit", String(params.limit ?? 50));
+  if (params.cursor) qs.set("cursor", params.cursor);
+  return useAdmin<GuestAdminListOut>(`/admin/guests?${qs.toString()}`, {
+    refreshInterval: 60_000,
+  });
+}
+
+export function useGuestDetail(id: string | null) {
+  return useAdmin<GuestAdminDetailOut>(id ? `/admin/guests/${id}` : null);
+}
+
+export async function purgeGuestAccount(id: string): Promise<void> {
+  await apiFetch(`/admin/guests/${id}`, {
+    method: "DELETE",
+    headers: { "x-admin-bypass": "true" },
   });
 }
 

@@ -49,6 +49,7 @@ import {
   useAdminSummary,
   useAllUsers,
   useFinanceSeries,
+  useGuestFunnel,
   usePlatformAnalytics,
   useSystemHealth,
   useTrafficSummary,
@@ -71,6 +72,7 @@ export default function SuperAdminPage() {
   const analytics = usePlatformAnalytics(30);
   const traffic = useTrafficSummary(7);
   const finance = useFinanceSeries(range);
+  const guestFunnel = useGuestFunnel(30);
   const activity = useActivityLog(12);
   const users = useAllUsers();
   const health = useSystemHealth();
@@ -691,6 +693,82 @@ export default function SuperAdminPage() {
           <p className="mt-0.5 text-xs text-[var(--muted)]">
             + {fmt(traffic_.internal)} {copy.acquisition.sourceInternal}
           </p>
+        </AdminCard>
+      </div>
+
+      {/* ------------------------ mode découverte ------------------------ */}
+      <div className="space-y-3">
+        <SectionEyebrow>
+          {locale === "ar" ? "وضع الاكتشاف" : locale === "en" ? "Discovery mode" : "Mode Découverte"}
+        </SectionEyebrow>
+        <AdminCard>
+          <CardHead
+            title={
+              locale === "ar" ? "الضيوف" : locale === "en" ? "Guests" : "Invités"
+            }
+            action={
+              <div className="flex gap-3 text-xs font-semibold">
+                <Link href="/superadmin/guests" className="text-[var(--accent-strong)] hover:underline">
+                  {locale === "ar" ? "اللائحة" : locale === "en" ? "List" : "Liste"}
+                </Link>
+                <Link href="/superadmin/analytics" className="text-[var(--accent-strong)] hover:underline">
+                  Analytics
+                </Link>
+              </div>
+            }
+          />
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              label={locale === "ar" ? "نشيطين" : locale === "en" ? "Active" : "Actifs"}
+              value={fmt(guestFunnel.data?.guests_active_now ?? 0)}
+            />
+            <KpiCard
+              label={locale === "ar" ? "تصاوبو (30 يوم)" : locale === "en" ? "Created (30d)" : "Créés (30 j)"}
+              value={fmt(guestFunnel.data?.guests_created ?? 0)}
+            />
+            <KpiCard
+              label={locale === "ar" ? "نسبة التحويل" : locale === "en" ? "Conversion" : "Conversion"}
+              value={
+                guestFunnel.data
+                  ? `${Math.round(guestFunnel.data.claim_rate * 100)}%`
+                  : "—"
+              }
+            />
+            <KpiCard
+              label={locale === "ar" ? "الضياع الصامت" : locale === "en" ? "Silent loss" : "Perte silencieuse"}
+              value={
+                guestFunnel.data
+                  ? `${(guestFunnel.data.silent_loss_rate * 100).toFixed(1)}%`
+                  : "—"
+              }
+              delta={
+                (guestFunnel.data?.silent_loss_rate ?? 0) > 0.03 ? -1 : undefined
+              }
+            />
+          </div>
+          <ChartFrame
+            height={160}
+            loading={guestFunnel.isLoading}
+            error={Boolean(guestFunnel.error)}
+            empty={(guestFunnel.data?.daily.length ?? 0) === 0}
+            labels={chartLabels}
+            onRetry={() => guestFunnel.mutate()}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={(guestFunnel.data?.daily ?? []).map((d) => ({
+                  day: d.day.slice(5),
+                  created: d.created,
+                  claimed: d.claimed,
+                }))}
+              >
+                <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Area type="monotone" dataKey="created" stroke={palette.accent} fill={palette.accent} fillOpacity={0.14} />
+                <Area type="monotone" dataKey="claimed" stroke={palette.positive} fill={palette.positive} fillOpacity={0.14} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartFrame>
         </AdminCard>
       </div>
 

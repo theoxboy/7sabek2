@@ -83,6 +83,15 @@ const EMPTY_SETTINGS: PlatformSettingsOut = {
   password_min_length: 8,
   default_auto_distribution_enabled: false,
   account_deletion_grace_days: 30,
+  guest_mode_enabled: true,
+  guest_mode_button: "message",
+  guest_mode_message_fr: "Le mode découverte est en pause pour le moment. Crée ton compte gratuit — ça prend 20 secondes.",
+  guest_mode_message_en: "Discovery mode is paused for now. Create your free account — it takes 20 seconds.",
+  guest_mode_message_ar: "وضع الاكتشاف موقّف دابا. صاوب حسابك المجاني — كياخد 20 ثانية.",
+  guest_mode_message_type: "info",
+  guest_mode_fallback_cta: true,
+  guest_mode_placements: ["login", "register"],
+  guest_mode_kill_existing: false,
 };
 
 const AI_PROVIDER_PRESETS: Array<{
@@ -981,6 +990,15 @@ export default function SuperAdminSettingsPage() {
         password_min_length: Number(formState.password_min_length),
         default_auto_distribution_enabled: formState.default_auto_distribution_enabled,
         account_deletion_grace_days: Number(formState.account_deletion_grace_days),
+        guest_mode_enabled: formState.guest_mode_enabled,
+        guest_mode_button: formState.guest_mode_button,
+        guest_mode_message_fr: formState.guest_mode_message_fr.trim(),
+        guest_mode_message_en: formState.guest_mode_message_en.trim(),
+        guest_mode_message_ar: formState.guest_mode_message_ar.trim(),
+        guest_mode_message_type: formState.guest_mode_message_type,
+        guest_mode_fallback_cta: formState.guest_mode_fallback_cta,
+        guest_mode_placements: formState.guest_mode_placements,
+        guest_mode_kill_existing: formState.guest_mode_kill_existing,
       };
       const updated = await adminFetch<PlatformSettingsOut>("/admin/settings", {
         method: "PATCH",
@@ -1260,6 +1278,160 @@ export default function SuperAdminSettingsPage() {
                   ))}
                 </div>
               </div>
+              <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Mode Découverte (invités)
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Le bouton « Essayer sans compte » sur le login / l’inscription.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formState.guest_mode_enabled}
+                    onCheckedChange={(checked) =>
+                      setFormState((prev) => ({ ...prev, guest_mode_enabled: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Emplacements</Label>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { value: "login", label: "Login" },
+                      { value: "register", label: "Inscription" },
+                      { value: "landing", label: "Page d’accueil" },
+                    ].map((option) => (
+                      <label
+                        key={`guest-${option.value}`}
+                        className="flex items-center gap-2 text-xs text-gray-600"
+                      >
+                        <Checkbox
+                          checked={formState.guest_mode_placements.includes(option.value)}
+                          onCheckedChange={() =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              guest_mode_placements: prev.guest_mode_placements.includes(
+                                option.value
+                              )
+                                ? prev.guest_mode_placements.filter((v) => v !== option.value)
+                                : [...prev.guest_mode_placements, option.value],
+                            }))
+                          }
+                        />
+                        <span className="font-medium text-gray-900">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {!formState.guest_mode_enabled && (
+                  <div className="space-y-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Quand le mode est désactivé, le bouton…</Label>
+                      <div className="flex flex-wrap gap-4 text-xs text-gray-700">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="guest-button-behaviour"
+                            checked={formState.guest_mode_button === "hidden"}
+                            onChange={() =>
+                              setFormState((prev) => ({ ...prev, guest_mode_button: "hidden" }))
+                            }
+                          />
+                          <span>est masqué complètement</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="guest-button-behaviour"
+                            checked={formState.guest_mode_button === "message"}
+                            onChange={() =>
+                              setFormState((prev) => ({ ...prev, guest_mode_button: "message" }))
+                            }
+                          />
+                          <span>reste visible et affiche un message au clic</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {formState.guest_mode_button === "message" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Type de message</Label>
+                          <select
+                            value={formState.guest_mode_message_type}
+                            onChange={(event) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                guest_mode_message_type: event.target
+                                  .value as PlatformSettingsOut["guest_mode_message_type"],
+                              }))
+                            }
+                            className="rounded-lg border border-gray-200 px-2 py-1 text-xs"
+                          >
+                            <option value="info">Info</option>
+                            <option value="warning">Avertissement</option>
+                            <option value="soon">Bientôt disponible</option>
+                          </select>
+                        </div>
+
+                        {(
+                          [
+                            ["guest_mode_message_fr", "Message — Français"],
+                            ["guest_mode_message_en", "Message — English"],
+                            ["guest_mode_message_ar", "Message — الدارجة"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <div key={key} className="space-y-1">
+                            <Label className="text-xs">{label}</Label>
+                            <Textarea
+                              value={formState[key]}
+                              onChange={(event) =>
+                                setFormState((prev) => ({ ...prev, [key]: event.target.value }))
+                              }
+                              rows={2}
+                              dir={key.endsWith("ar") ? "rtl" : "ltr"}
+                            />
+                          </div>
+                        ))}
+
+                        <label className="flex items-center gap-2 text-xs text-gray-700">
+                          <Checkbox
+                            checked={formState.guest_mode_fallback_cta}
+                            onCheckedChange={(checked) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                guest_mode_fallback_cta: Boolean(checked),
+                              }))
+                            }
+                          />
+                          <span>Proposer un bouton « Créer un compte » dans le message</span>
+                        </label>
+                      </>
+                    )}
+
+                    <label className="flex items-center gap-2 text-xs text-gray-700">
+                      <Checkbox
+                        checked={formState.guest_mode_kill_existing}
+                        onCheckedChange={(checked) =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            guest_mode_kill_existing: Boolean(checked),
+                          }))
+                        }
+                      />
+                      <span>
+                        Fermer aussi les sessions invités déjà ouvertes (sinon elles finissent
+                        normalement)
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 px-3 py-2">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">

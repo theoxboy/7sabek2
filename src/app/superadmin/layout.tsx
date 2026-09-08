@@ -7,6 +7,7 @@ import {
   Archive,
   BarChart3,
   Bell,
+  Ghost,
   LayoutDashboard,
   Menu,
   ShieldCheck,
@@ -67,6 +68,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navDashboard: string;
     navAnalytics: string;
     navUsers: string;
+    navGuests: string;
     navOnboarding: string;
     navShiftPilot: string;
     navSettings: string;
@@ -117,6 +119,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navDashboard: "Dashboard",
     navAnalytics: "Analytics complète",
     navUsers: "Utilisateurs",
+    navGuests: "Invités (Découverte)",
     navOnboarding: "Onboarding clients",
     navShiftPilot: "ShiftPilot",
     navSettings: "Paramètres",
@@ -166,6 +169,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navDashboard: "Dashboard",
     navAnalytics: "Full analytics",
     navUsers: "Users",
+    navGuests: "Guests (Discovery)",
     navOnboarding: "Client onboarding",
     navShiftPilot: "ShiftPilot",
     navSettings: "Settings",
@@ -215,6 +219,7 @@ const SUPERADMIN_DIALOG_COPY: Record<
     navDashboard: "لوحة القيادة",
     navAnalytics: "التحليلات الكاملة",
     navUsers: "المستخدمين",
+    navGuests: "الضيوف (الاكتشاف)",
     navOnboarding: "أونبوردينغ الزبناء",
     navShiftPilot: "شيفت بايلوت",
     navSettings: "الإعدادات",
@@ -304,6 +309,7 @@ export default function SuperAdminLayout({
       title: copy.groupUsers,
       items: [
         { href: "/superadmin/users", label: copy.navUsers, icon: Users, enabled: true },
+        { href: "/superadmin/guests", label: copy.navGuests, icon: Ghost, enabled: true },
         { href: "/superadmin/onboarding-records", label: copy.navOnboarding, icon: Rows3, enabled: true },
       ],
     },
