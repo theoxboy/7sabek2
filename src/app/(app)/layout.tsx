@@ -42,7 +42,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
-import { GuestDistributionCard } from "@/components/guest/GuestDistributionCard";
+import { GuestOnboardingCard } from "@/components/guest/GuestOnboardingCard";
 import { GuestClaimedProfileCard } from "@/components/guest/GuestClaimedProfileCard";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { guestRouteState } from "@/lib/guestGate";
@@ -783,6 +783,13 @@ function AppLayoutContent({
         // whole point of the mode is trying the app without that funnel. The
         // onboarding stays available as an opt-in, never forced.
         if (me.is_guest) {
+          // A guest can opt into the full onboarding from the dashboard card
+          // (`?from=guest`) — it is the real "declare income → split → create
+          // envelopes" tool. Without that opt-in, onboarding stays skipped.
+          const guestOptedIntoOnboarding =
+            (isClassicOnboarding || isBetaOnboarding) &&
+            searchParams?.get("from") === "guest";
+          if (guestOptedIntoOnboarding) return;
           if (isClassicOnboarding || isBetaOnboarding) {
             router.replace("/dashboard");
             return;
@@ -2397,7 +2404,7 @@ function AppLayoutContent({
                 </div>
               ) : null}
               {user?.is_guest && pathname?.startsWith("/dashboard") ? (
-                <GuestDistributionCard locale={locale} dir={pageDir} />
+                <GuestOnboardingCard locale={locale} dir={pageDir} />
               ) : null}
               {!user?.is_guest &&
               user?.claimed_at &&
