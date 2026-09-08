@@ -30,7 +30,7 @@ type Feat = { k: string; t: string; d: string };
 type Copy = {
   nav: { sim: string; plan: string; tour: string; feat: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; try: string };
-  hero: { badge: string; t1: string; t2: string; sub: string; micro: string };
+  hero: { t1: string; t2: string; sub: string; micro: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
@@ -61,7 +61,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "Simulateur", plan: "Money Plan", tour: "L’app", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
     cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", try: "Essayer le simulateur" },
     hero: {
-      badge: "Budget par enveloppes, pensé pour le Maroc",
       t1: "Chaque dirham,",
       t2: "une mission claire.",
       sub: "7sabek répartit ton salaire dans des enveloppes et te dit ce qu’il te reste vraiment.",
@@ -206,7 +205,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "Simulator", plan: "Money Plan", tour: "The app", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
     cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", try: "Try the simulator" },
     hero: {
-      badge: "Envelope budgeting, built for Morocco",
       t1: "Every dirham,",
       t2: "a clear mission.",
       sub: "7sabek splits your salary into envelopes and tells you what you actually have left.",
@@ -351,7 +349,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "المحاكاة", plan: "خطة الفلوس", tour: "التطبيق", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
     cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", try: "جرب المحاكاة" },
     hero: {
-      badge: "ميزانية بالأظرفة، مصممة للمغرب",
       t1: "كل درهم،",
       t2: "عندو مهمة واضحة.",
       sub: "7sabek كيوزع السالير ديالك على الأظرفة وكيقول ليك شحال بقا ليك بالضبط.",
