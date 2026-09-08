@@ -943,7 +943,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
           <div className="lp-wrap lp-herogrid">
             <div>
-              <span className="lp-eyebrow"><span className="lp-sq" />{copy.hero.badge}</span>
               <h1 className={`${headingClass} lp-h1`}>
                 <span className="lp-line">
                   {copy.hero.t1.split(" ").map((word, index) => (
