@@ -48,6 +48,11 @@ export const CHANGELOG: Release[] = [
             en: "Discovery mode: account-only pages now show as a frozen preview with a message explaining what the feature does, instead of buttons that don’t work. The menu no longer shows shortcuts you can’t use, and the categories page is clear in read-only.",
             ar: "وضع الاكتشاف: الصفحات اللي خاصها حساب كتبان دابا كأنها معاينة مجمّدة مع شرح ديال الفائدة، بلا بوطونات ما كيخدموش. القائمة ما بقاتش كتوري روابط ما تنفعش، وصفحة الأصناف واضحة فقراءة فقط.",
           },
+          {
+            fr: "Le choix du pseudo de classement ne bloque plus l’entrée dans l’app : il est proposé sur la page du classement, avec un bouton « Plus tard », un compteur de caractères et des messages traduits.",
+            en: "Picking your leaderboard nickname no longer blocks your way into the app: it’s offered on the leaderboard page, with a “Later” button, a character counter and translated messages.",
+            ar: "اختيار الاسم ديال الترتيب ما بقاش كيسد ليك الطريق للتطبيق: كيتقترح فصفحة الترتيب، مع بوطون « من بعد »، عداد الحروف، ورسائل مترجمة.",
+          },
         ],
       },
     ],

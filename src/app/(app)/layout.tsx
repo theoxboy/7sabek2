@@ -44,6 +44,10 @@ import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { guestRouteState } from "@/lib/guestGate";
+import {
+  LeaderboardNamePrompt,
+  shouldNudgeLeaderboardName,
+} from "@/components/leaderboard/LeaderboardNamePrompt";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -300,15 +304,6 @@ const APP_SHELL_COPY = {
 
 const APP_MODAL_COPY = {
   fr: {
-    leaderboardTitle: "Choisis ton pseudo de classement",
-    leaderboardDescription:
-      "Le ranking est actif pour tous. Ton pseudo est public. Tu peux le changer 2 fois par mois.",
-    leaderboardRule1: "Pseudo propre obligatoire (insultes interdites).",
-    leaderboardRule2:
-      "En cas d’abus, le compte peut être suspendu 10 jours par un filtre automatique.",
-    leaderboardLabel: "Ton pseudo (3 à 20 caractères)",
-    leaderboardPlaceholder: "Ex: BudgetMaster",
-    leaderboardSave: "Enregistrer mon pseudo",
     regulationTitle: "Action requise avant de continuer",
     regulationDescription: (count: number) =>
       `Nous avons détecté ${count} catégorie(s) non reliée(s) à une enveloppe. Pour bien classer tes dépenses, il faut corriger cela.`,
@@ -320,15 +315,6 @@ const APP_MODAL_COPY = {
     superadminOnly: "Seuls les superadmins peuvent se connecter.",
   },
   en: {
-    leaderboardTitle: "Choose your leaderboard nickname",
-    leaderboardDescription:
-      "The ranking is active for everyone. Your nickname is public. You can change it twice a month.",
-    leaderboardRule1: "A clean nickname is required (insults are forbidden).",
-    leaderboardRule2:
-      "In case of abuse, the account may be suspended for 10 days by an automatic filter.",
-    leaderboardLabel: "Your nickname (3 to 20 characters)",
-    leaderboardPlaceholder: "e.g. BudgetMaster",
-    leaderboardSave: "Save my nickname",
     regulationTitle: "Action required before continuing",
     regulationDescription: (count: number) =>
       `We detected ${count} category(ies) not linked to an envelope. To classify your expenses properly, this must be fixed.`,
@@ -340,15 +326,6 @@ const APP_MODAL_COPY = {
     superadminOnly: "Only superadmins can sign in.",
   },
   ar: {
-    leaderboardTitle: "اختار الاسم ديالك فالكلاسمون",
-    leaderboardDescription:
-      "الترتيب خدام عند الجميع. الاسم ديالك كيبان للناس، وتقدر تبدلو غير جوج مرات فالشهر.",
-    leaderboardRule1: "خاص الاسم يكون نقي وواضح، بلا سبان ولا إساءة.",
-    leaderboardRule2:
-      "إلا كان سوء استعمال، الحساب يقدر يتوقف 10 أيام بفلتر أوتوماتيكي.",
-    leaderboardLabel: "الاسم ديالك فالكلاسمون (من 3 حتى 20 حرف)",
-    leaderboardPlaceholder: "مثال: BudgetMaster",
-    leaderboardSave: "سجّل الاسم ديالي",
     regulationTitle: "كاين إجراء خاصك ديرو قبل ما تكمل",
     regulationDescription: (count: number) =>
       `لقينا ${count} فئات ما مربوطاش مع حتى ظرف. باش المصاريف ديالك يتنظمو مزيان، خاصك تصلح هادشي.`,
@@ -362,13 +339,6 @@ const APP_MODAL_COPY = {
 } satisfies Record<
   FloussyLocale,
   {
-    leaderboardTitle: string;
-    leaderboardDescription: string;
-    leaderboardRule1: string;
-    leaderboardRule2: string;
-    leaderboardLabel: string;
-    leaderboardPlaceholder: string;
-    leaderboardSave: string;
     regulationTitle: string;
     regulationDescription: (count: number) => string;
     regulationWarning: string;
@@ -685,9 +655,6 @@ function AppLayoutContent({
   >([]);
   const [regulationPromptOpen, setRegulationPromptOpen] = useState(false);
   const [leaderboardPromptOpen, setLeaderboardPromptOpen] = useState(false);
-  const [leaderboardName, setLeaderboardName] = useState("");
-  const [leaderboardSaving, setLeaderboardSaving] = useState(false);
-  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
   const status = usePlatformStatus();
   const hasPathPrefix = useCallback(
     (prefix: string) =>
@@ -962,21 +929,16 @@ function AppLayoutContent({
   }, [isOnboarding, router, user]);
 
   useEffect(() => {
-    if (!user || isOnboarding) return;
-    if (user.role !== "user") return;
-    // Guests are never nagged for a leaderboard pseudo — the leaderboard needs
-    // a full account and is hidden for them.
-    if (user.is_guest) {
+    if (!user || isOnboarding) {
       setLeaderboardPromptOpen(false);
       return;
     }
-    if (!user.leaderboard_name) {
-      setLeaderboardName("");
-      setLeaderboardPromptOpen(true);
-      return;
-    }
-    setLeaderboardPromptOpen(false);
-  }, [user, isOnboarding]);
+    // Only nudge for a leaderboard pseudo where it makes sense — on the
+    // leaderboard page itself — and never block the rest of the app with it.
+    // Guests never see it (the leaderboard is hidden for them). "Plus tard"
+    // snoozes it for a week (localStorage), Réglages stays the calm path.
+    setLeaderboardPromptOpen(isGamification && shouldNudgeLeaderboardName(user));
+  }, [user, isOnboarding, isGamification]);
 
   useEffect(() => {
     if (!user || isOnboarding) return;
@@ -1162,43 +1124,6 @@ function AppLayoutContent({
     syncFromTour();
     return () => observer.disconnect();
   }, []);
-
-  const handleLeaderboardSave = async () => {
-    const value = leaderboardName.trim();
-    if (!value) {
-      setLeaderboardError("Le pseudo est obligatoire.");
-      return;
-    }
-    if (!/^[A-Za-z0-9 _.-]{3,20}$/.test(value)) {
-      setLeaderboardError(
-        "3 à 20 caractères (lettres, chiffres, espaces, . _ -)."
-      );
-      return;
-    }
-    setLeaderboardSaving(true);
-    setLeaderboardError(null);
-    try {
-      const updated = await apiFetch<AuthUser>("/users/me/profile", {
-        method: "PATCH",
-        body: { leaderboard_name: value },
-      });
-      setUser(updated);
-      setLeaderboardPromptOpen(false);
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : "Erreur";
-      if (raw.includes("PSEUDO_CHANGE_LIMIT")) {
-        setLeaderboardError("Limite atteinte: 2 changements par mois.");
-      } else if (raw.includes("PSEUDO_BLOCKED_FOR_ABUSE")) {
-        setLeaderboardError("Pseudo interdit: suspension automatique 10 jours.");
-      } else if (raw.includes("PSEUDO_CHARS_INVALID")) {
-        setLeaderboardError("Caractères invalides dans le pseudo.");
-      } else {
-        setLeaderboardError(raw);
-      }
-    } finally {
-      setLeaderboardSaving(false);
-    }
-  };
 
   const dueIncomeReminders = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -1927,48 +1852,13 @@ function AppLayoutContent({
   if (isGamification || isGoals) {
     return (
       <div className="min-h-screen text-[var(--ink)]">
-        <Dialog
+        <LeaderboardNamePrompt
           open={leaderboardPromptOpen}
-          onOpenChange={(next) => {
-            if (!next) return;
-            setLeaderboardPromptOpen(next);
-          }}
-        >
-          <DialogContent
-            className="max-w-md"
-            onInteractOutside={(event) => event.preventDefault()}
-            onEscapeKeyDown={(event) => event.preventDefault()}
-          >
-            <DialogHeader>
-              <DialogTitle>{modalCopy.leaderboardTitle}</DialogTitle>
-              <DialogDescription>{modalCopy.leaderboardDescription}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 text-sm text-[var(--muted)]">
-              <p>{modalCopy.leaderboardRule1}</p>
-              <p>{modalCopy.leaderboardRule2}</p>
-            </div>
-            <div className="mt-2 flex flex-col gap-2">
-              <label htmlFor="leaderboard-modal" className="text-sm font-semibold">
-                {modalCopy.leaderboardLabel}
-              </label>
-              <input
-                id="leaderboard-modal"
-                value={leaderboardName}
-                onChange={(event) => setLeaderboardName(event.target.value)}
-                placeholder={modalCopy.leaderboardPlaceholder}
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)]"
-              />
-              {leaderboardError ? (
-                <p className="text-xs text-[var(--error)]">{leaderboardError}</p>
-              ) : null}
-            </div>
-            <DialogFooter>
-              <Button onClick={handleLeaderboardSave} isLoading={leaderboardSaving}>
-                {modalCopy.leaderboardSave}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onOpenChange={setLeaderboardPromptOpen}
+          locale={locale}
+          dir={pageDir}
+          onSaved={setUser}
+        />
         <Dialog
           open={regulationPromptOpen && !isRegulation}
           onOpenChange={(next) => {
@@ -2032,48 +1922,13 @@ function AppLayoutContent({
       <div className="app-shell-v2__orb app-shell-v2__orb--one" aria-hidden />
       <div className="app-shell-v2__orb app-shell-v2__orb--two" aria-hidden />
       <div className="app-shell-v2__grid" aria-hidden />
-      <Dialog
+      <LeaderboardNamePrompt
         open={leaderboardPromptOpen}
-        onOpenChange={(next) => {
-          if (!next) return;
-          setLeaderboardPromptOpen(next);
-        }}
-      >
-        <DialogContent
-          className="max-w-md"
-          onInteractOutside={(event) => event.preventDefault()}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>{modalCopy.leaderboardTitle}</DialogTitle>
-            <DialogDescription>{modalCopy.leaderboardDescription}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm text-[var(--muted)]">
-            <p>{modalCopy.leaderboardRule1}</p>
-            <p>{modalCopy.leaderboardRule2}</p>
-          </div>
-          <div className="mt-2 flex flex-col gap-2">
-            <label htmlFor="leaderboard-modal" className="text-sm font-semibold">
-              {modalCopy.leaderboardLabel}
-            </label>
-            <input
-              id="leaderboard-modal"
-              value={leaderboardName}
-              onChange={(event) => setLeaderboardName(event.target.value)}
-              placeholder={modalCopy.leaderboardPlaceholder}
-              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)]"
-            />
-            {leaderboardError ? (
-              <p className="text-xs text-[var(--error)]">{leaderboardError}</p>
-            ) : null}
-          </div>
-          <DialogFooter>
-            <Button onClick={handleLeaderboardSave} isLoading={leaderboardSaving}>
-              {modalCopy.leaderboardSave}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setLeaderboardPromptOpen}
+        locale={locale}
+        dir={pageDir}
+        onSaved={setUser}
+      />
       <Dialog
         open={regulationPromptOpen && !isRegulation}
         onOpenChange={(next) => {
