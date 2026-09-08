@@ -2408,7 +2408,7 @@ function AppLayoutContent({
               ) : null}
               {!user?.is_guest &&
               user?.claimed_at &&
-              !user?.has_completed_onboarding_v2 &&
+              !user?.first_name &&
               pathname?.startsWith("/dashboard") ? (
                 <GuestClaimedProfileCard user={user} locale={locale} dir={pageDir} />
               ) : null}
