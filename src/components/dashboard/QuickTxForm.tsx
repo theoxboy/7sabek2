@@ -314,6 +314,11 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
   const { data: dashboardData } = useSWR<DashboardOut>("/dashboard", apiFetch);
   const data = dashboardData;
 
+  // /dashboard's user object omits is_guest — read it from /auth/me (shared,
+  // cached) so the guest-specific quick-tx behaviour actually fires.
+  const { data: meData } = useSWR<{ is_guest?: boolean }>("/auth/me", apiFetch);
+  const isGuestUser = Boolean(meData?.is_guest);
+
   const loadData = useCallback(async () => {
     await Promise.all([
       mutate("/categories"),
@@ -1194,7 +1199,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
 
     // "Mode Découverte" guests set the split on the light /repartir page —
     // /distribution is a locked preview for them.
-    if (data?.user?.is_guest) {
+    if (isGuestUser) {
       router.push("/repartir");
       return;
     }
@@ -1211,7 +1216,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       // ignore
     }
     router.push("/distribution");
-  }, [quickTxDraft, quickTxReminderIdsToMark, router, quickTxDistributionPreview, data?.user?.is_guest]);
+  }, [quickTxDraft, quickTxReminderIdsToMark, router, quickTxDistributionPreview, isGuestUser]);
 
   const handleMapCategoryInline = async (categoryId: string, envelopeId: string) => {
     if (!envelopeId) return;
@@ -1664,7 +1669,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
         // A guest with no split rules has nothing to preview — don't strand
         // them on an empty step; record the income (it lands in Cash) and let
         // the toast point them at /repartir.
-        if (data?.user?.is_guest && !(preview.items && preview.items.length)) {
+        if (isGuestUser && !(preview.items && preview.items.length)) {
           await executeSaveTransaction(
             effectiveCategoryId,
             effectiveAmount,
@@ -2751,7 +2756,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                     <span>{formatMoney(Number(quickTxDraft.amount))} {data?.user.currency ?? "MAD"}</span>
                   </div>
                 </>
-              ) : data?.user?.is_guest ? (
+              ) : isGuestUser ? (
                 <p className="text-xs text-[var(--muted)]">
                   {locale === "ar"
                     ? "مازال ما عمّرتيش التقسيم ديالك. الدخل غادي يمشي للكاش — تقدر تقسمو من بعد."
@@ -2810,7 +2815,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
             disabled={quickTxSubmitting}
             className="rounded-xl"
           >
-            {data?.user?.is_guest
+            {isGuestUser
               ? locale === "ar"
                 ? "إعداد التقسيم"
                 : locale === "en"
