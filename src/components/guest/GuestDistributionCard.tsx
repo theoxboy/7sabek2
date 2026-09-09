@@ -47,7 +47,7 @@ export function GuestDistributionCard({ locale, dir }: Props) {
   return (
     <div className="mx-auto mb-4 w-full max-w-3xl px-1">
       <Link
-        href="/distribution"
+        href="/repartir"
         dir={dir}
         onClick={() => guestEvent("guest_cta_click", { cta: "distribution_card", route: "/dashboard" })}
         className="group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card,var(--surface))] p-4 transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"

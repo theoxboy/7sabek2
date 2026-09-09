@@ -39,7 +39,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
 import { IntroSequence } from "@/components/onboarding/IntroSequence";
-import { GuestDistributionNotice } from "@/components/guest/GuestDistributionNotice";
 import {
   DistributionConfigDialog,
   type SavedDistributionConfig,
@@ -18374,9 +18373,6 @@ export function BetaOnboardingV2PageContent({
     >
       {locale === "ar" ? onboardingArabicStyleTag : null}
       <div className="grid min-h-screen w-full grid-rows-[auto_1fr] px-6 pb-10 pt-8 sm:px-10 lg:px-12 2xl:px-16">
-        {isStandaloneDistributionRoute && authUser?.is_guest ? (
-          <GuestDistributionNotice locale={locale} dir={pageDir} />
-        ) : null}
         {!isStandaloneDistributionRoute ? (
           <header className="space-y-4">
             <div className="flex items-center justify-between">

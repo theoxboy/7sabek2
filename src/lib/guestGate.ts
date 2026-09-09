@@ -17,9 +17,11 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
   ["/envelopes", "envelopes"],
   ["/categories", "categories"],
   ["/allocate", "monthly-budget"],
-  // The income-distribution journey a guest can run end to end: pick how the
-  // salary is split, then the envelopes get created. Both are their own feature
-  // keys (not "reports" / "export") so opening them here never widens those.
+  // A guest configures the income split on its own light page (percent per
+  // envelope, no onboarding). Its own feature key so opening it widens nothing.
+  ["/repartir", "income-split"],
+  // The heavy money-plan / distribution flows stay a locked preview for guests
+  // — they pull in the onboarding questionnaire. /repartir is the guest tool.
   ["/khatat-lflous", "money-plan"],
   ["/distribution", "distribution"],
   ["/settings", "theme"],
@@ -180,6 +182,16 @@ export const GUEST_FEATURE_PITCH: Partial<
     fr: "Des rapports clairs sur où part ton argent, mois par mois. Crée ton compte gratuit pour les débloquer.",
     en: "Clear reports on where your money goes, month by month. Create your free account to unlock them.",
     ar: "تقارير واضحة على فين كيمشي فلوسك، شهر بشهر. صاوب حسابك المجاني باش تحلّهم.",
+  },
+  distribution: {
+    fr: "La répartition avancée (montants fixes, priorités, automatique à chaque revenu) arrive avec ton compte. En mode découverte, règle les pourcentages depuis « Répartir mon revenu ».",
+    en: "Advanced distribution (fixed amounts, priorities, automatic on every income) comes with your account. In discovery mode, set the percentages from “Split my income”.",
+    ar: "التوزيع المتقدم (مبالغ ثابتة، أولويات، أوتوماتيك مع كل دخل) كيجي مع حسابك. ف وضع الاكتشاف، عدّل النسب من « قسّم دخلي ».",
+  },
+  "money-plan": {
+    fr: "Le plan complet (revenu, dépenses, dettes, objectifs et enveloppes proposées automatiquement) se construit avec ton compte. Pour l'instant, tu peux régler ta répartition depuis « Répartir mon revenu ».",
+    en: "The full plan (income, spending, debts, goals and envelopes suggested automatically) is built with your account. For now, you can set your split from “Split my income”.",
+    ar: "الخطة الكاملة (الدخل، المصاريف، الديون، الأهداف والأظرفة المقترحة أوتوماتيك) كتتبنى مع حسابك. دابا، تقدر تعدّل التقسيم من « قسّم دخلي ».",
   },
 };
 

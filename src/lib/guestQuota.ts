@@ -66,8 +66,9 @@ export const GUEST_FEATURE_ACCESS: Record<string, GuestFeatureAccess> = {
   envelopes: "open", // up to GUEST_LIMITS.envelopes
   transactions: "open", // never capped, never blocked
   "monthly-budget": "open",
-  "money-plan": "open", // split income → create envelopes; the guest's whole point
-  distribution: "open", // the rules that back the split above
+  "income-split": "open", // the guest's light "set the % per envelope" page (/repartir)
+  "money-plan": "soft-wall", // /khatat-lflous pulls in the onboarding questionnaire
+  distribution: "soft-wall", // /distribution does too — /repartir is the guest tool
   dashboard: "open",
   "reste-a-depenser": "open",
   categories: "open", // default catalogue, not editable
