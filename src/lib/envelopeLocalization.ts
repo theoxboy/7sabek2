@@ -10,6 +10,14 @@ const norm = (value: string) =>
 const isPrefix = (value: string, prefixes: string[]) =>
   prefixes.some((prefix) => value.startsWith(prefix));
 
+/**
+ * Envelope names are stored normalised (lower-cased) by the backend, so the
+ * display layer must re-capitalise. Keeps accents and only touches the first
+ * letter of each word.
+ */
+const titleCase = (value: string) =>
+  value.replace(/(^|[\s—\-/])([\p{L}])/gu, (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase());
+
 export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): string {
   const normalized = norm(name);
 
@@ -90,6 +98,9 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
     if (["courses", "nourriture"].includes(normalized)) return "Groceries";
     if (["sante"].includes(normalized)) return "Health";
     if (["loisirs"].includes(normalized)) return "Leisure";
+    if (["transport"].includes(normalized)) return "Transport";
+    if (["restaurants", "restaurant"].includes(normalized)) return "Restaurants";
+    if (["shopping"].includes(normalized)) return "Shopping";
     if (["factures"].includes(normalized)) return "Bills";
     if (["cadeaux"].includes(normalized)) return "Gifts";
     if (["voyage", "voyages"].includes(normalized)) return "Travel";
@@ -117,9 +128,9 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
   }
 
   if (locale === "fr") {
-    if (normalized === "savings") return "Épargne";
-    if (["phone"].includes(normalized)) return "Téléphone";
-    if (["miscellaneous", "misc"].includes(normalized)) return "Divers";
+    if (["savings", "epargnes", "epargne"].includes(normalized)) return "Épargne";
+    if (["phone", "telephone"].includes(normalized)) return "Téléphone";
+    if (["miscellaneous", "misc", "divers"].includes(normalized)) return "Divers";
     if (["vehicle maintenance"].includes(normalized)) return "Entretien véhicule";
     if (["car insurance"].includes(normalized)) return "Assurance auto";
     if (["car loan"].includes(normalized)) return "Crédit auto";
@@ -139,5 +150,9 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
     }
   }
 
+  // Latin-script locales: names come back lower-cased from the API — re-capitalise.
+  if ((locale === "fr" || locale === "en") && /[a-z]/.test(name) && name === name.toLowerCase()) {
+    return titleCase(name);
+  }
   return name;
 }
