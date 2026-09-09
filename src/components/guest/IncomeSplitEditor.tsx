@@ -286,7 +286,7 @@ export function IncomeSplitEditor({
                 <input
                   type="range"
                   min={0}
-                  max={Math.max(cap, v)}
+                  max={100}
                   step={STEP}
                   value={v}
                   onChange={(ev) => setEnvelope(e.id, Number(ev.target.value))}

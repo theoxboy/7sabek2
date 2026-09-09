@@ -1101,15 +1101,19 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
 
   const isEarlyPaydayTriggered = useMemo(() => {
     if (quickTxDraft.type !== "income") return false;
+    // Guests are exploring — never make them decide "did your pay date change
+    // permanently?". Their income just lands normally.
+    if (isGuestUser) return false;
     if (!quickTxDraft.occurred_on || !data?.current_period?.end || !data?.sweep_status?.income_declared) return false;
     if (quickTxDraft.occurred_on >= data.current_period.end) return false;
     const selectedCategoryObj = categories.find(c => c.id === quickTxEffectiveCategoryId);
     if (!selectedCategoryObj) return false;
     return isInternalIncomeCategory(selectedCategoryObj.name);
-  }, [quickTxDraft.type, quickTxDraft.occurred_on, data, categories, quickTxEffectiveCategoryId]);
+  }, [quickTxDraft.type, quickTxDraft.occurred_on, data, categories, quickTxEffectiveCategoryId, isGuestUser]);
 
   const quickTxIncomeDateEarlyWarning = useMemo(() => {
     if (quickTxDraft.type !== "income") return null;
+    if (isGuestUser) return null;
     if (isEarlyPaydayTriggered) return null;
     if (!quickTxDraft.occurred_on || !data?.current_period?.end) return null;
     if (quickTxDraft.occurred_on < data.current_period.end) {
@@ -1121,7 +1125,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
         : `Warning: you selected a date before your expected salary date (${expectedLabel}). This will close your current period early and start a new one. It is recommended to use your actual salary date.`;
     }
     return null;
-  }, [quickTxDraft.type, quickTxDraft.occurred_on, data?.current_period?.end, locale, isEarlyPaydayTriggered]);
+  }, [quickTxDraft.type, quickTxDraft.occurred_on, data?.current_period?.end, locale, isEarlyPaydayTriggered, isGuestUser]);
 
   const quickTxPeriodBoundsPreview = useMemo(() => {
     if (quickTxDraft.type !== "income") return null;
@@ -2735,7 +2739,9 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                           className="rounded-xl border border-emerald-100 bg-white/90 dark:bg-slate-900 dark:border-slate-800 px-3 py-2.5 text-xs shadow-sm"
                         >
                           <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-medium text-[var(--ink)]">{item.name}</span>
+                            <span className="font-medium text-[var(--ink)]">
+                              {localizeEnvelopeLabel(item.name, locale)}
+                            </span>
                             <span className="font-bold text-emerald-800 dark:text-emerald-300">
                               {formatMoney(item.amount)} {data?.user.currency ?? "MAD"}
                             </span>
