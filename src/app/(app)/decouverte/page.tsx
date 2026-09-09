@@ -68,7 +68,7 @@ type OnbCopy = {
   presetDesc: Record<SplitPreset, string>;
   readyEyebrow: string;
   readyTitle: string;
-  recap: (income: number, envelopes: number) => string;
+  recap: (income: number, envelopes: number, splitSaved: boolean) => string;
   addExpenseHint: string;
   next: string;
   back: string;
@@ -106,8 +106,8 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     },
     readyEyebrow: "Tu es prêt",
     readyTitle: "Ton budget est prêt ✓",
-    recap: (i, e) =>
-      `${i > 0 ? `${i.toLocaleString("fr-FR")} DH de revenu · ` : ""}${e} enveloppe${e > 1 ? "s" : ""} · répartition enregistrée`,
+    recap: (i, e, s) =>
+      `${i > 0 ? `${i.toLocaleString("fr-FR")} DH de revenu · ` : ""}${e} enveloppe${e > 1 ? "s" : ""}${s ? " · répartition enregistrée" : ""}`,
     addExpenseHint: "Pour ajouter une dépense : le bouton **+** en bas de l'écran.",
     next: "Suivant",
     back: "Précédent",
@@ -143,8 +143,8 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     },
     readyEyebrow: "You're ready",
     readyTitle: "Your budget is ready ✓",
-    recap: (i, e) =>
-      `${i > 0 ? `${i.toLocaleString("en-US")} DH income · ` : ""}${e} envelope${e > 1 ? "s" : ""} · split saved`,
+    recap: (i, e, s) =>
+      `${i > 0 ? `${i.toLocaleString("en-US")} DH income · ` : ""}${e} envelope${e > 1 ? "s" : ""}${s ? " · split saved" : ""}`,
     addExpenseHint: "To add an expense: the **+** button at the bottom of the screen.",
     next: "Next",
     back: "Back",
@@ -180,8 +180,8 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     },
     readyEyebrow: "واجد",
     readyTitle: "الميزانية ديالك واجدة ✓",
-    recap: (i, e) =>
-      `${i > 0 ? `${i.toLocaleString("ar-MA")} درهم دخل · ` : ""}${e} ظرف · التقسيم تسجّل`,
+    recap: (i, e, s) =>
+      `${i > 0 ? `${i.toLocaleString("ar-MA")} درهم دخل · ` : ""}${e} ظرف${s ? " · التقسيم تسجّل" : ""}`,
     addExpenseHint: "باش تزيد مصروف: بوطون **+** اللي تحت.",
     next: "التالي",
     back: "اللي فات",
@@ -271,6 +271,7 @@ export default function DiscoveryWelcomePage() {
   const [addBusy, setAddBusy] = useState(false);
   const [addErr, setAddErr] = useState<string | null>(null);
   const [splitSaving, setSplitSaving] = useState(false);
+  const [splitSaved, setSplitSaved] = useState(false);
   const incomeLoggedRef = useRef(false);
 
   useEffect(() => {
@@ -371,6 +372,7 @@ export default function DiscoveryWelcomePage() {
     try {
       if (envs.length > 0) {
         await saveIncomeSplit(envs, pct);
+        setSplitSaved(true);
         guestEvent("guest_cta_click", { cta: "decouverte_split_saved", route: "/decouverte" });
       }
     } catch {
@@ -504,7 +506,7 @@ export default function DiscoveryWelcomePage() {
                   />
                   <span>{o.currency}</span>
                 </div>
-                <button type="button" className="dcw-textlink" onClick={() => go(step + 2)}>
+                <button type="button" className="dcw-textlink" onClick={() => go(step + 1)}>
                   {o.incomeLater}
                 </button>
               </>
@@ -544,7 +546,7 @@ export default function DiscoveryWelcomePage() {
                 </span>
                 <h1 className="dcw-h1">{o.readyTitle}</h1>
                 <p className="dcw-recap">
-                  {o.recap(incomeValue, Math.max(envs.length, 1))}
+                  {o.recap(incomeValue, Math.max(envs.length, 1), splitSaved)}
                 </p>
 
                 {storedCode ? (
