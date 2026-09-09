@@ -10,7 +10,21 @@ import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { parseAmountInput } from "@/lib/parseAmount";
 import { fetchMe, type AuthUser } from "@/lib/auth";
 import { guestEvent } from "@/lib/guestAnchorApi";
+import { GUEST_LIMITS } from "@/lib/guestQuota";
 import type { FloussyLocale } from "@/lib/localePreference";
+
+/** A short curated list of household envelopes to offer below the list. The
+ *  French name is what we POST — envelopeLocalization handles the display. */
+const SUGGESTED: { fr: string; en: string; ar: string }[] = [
+  { fr: "Santé", en: "Health", ar: "الصحة" },
+  { fr: "Loisirs", en: "Leisure", ar: "الترفيه" },
+  { fr: "Restaurants", en: "Restaurants", ar: "المطاعم" },
+  { fr: "Shopping", en: "Shopping", ar: "التسوق" },
+  { fr: "Factures", en: "Bills", ar: "لفواتير" },
+  { fr: "Cadeaux", en: "Gifts", ar: "الهدايا" },
+  { fr: "Voyage", en: "Travel", ar: "السفر" },
+  { fr: "Abonnements", en: "Subscriptions", ar: "الاشتراكات" },
+];
 
 /** GET/PUT /distribution/config — the split rules, no income required. */
 type ConfigItem = {
@@ -67,6 +81,11 @@ const COPY: Record<
     saveError: string;
     empty: string;
     emptyCta: string;
+    addTitle: string;
+    addManualPlaceholder: string;
+    addButton: string;
+    addError: string;
+    capReached: string;
     noticeSummary: string;
     noticeMissing: string[];
     noticeCta: string;
@@ -94,6 +113,11 @@ const COPY: Record<
     saveError: "L'enregistrement a échoué.",
     empty: "Tu n'as pas encore d'enveloppes à répartir.",
     emptyCta: "Créer mes enveloppes",
+    addTitle: "Ajouter une enveloppe",
+    addManualPlaceholder: "Ou tape un nom…",
+    addButton: "Ajouter",
+    addError: "L'ajout a échoué.",
+    capReached: `En mode découverte, tu peux créer jusqu'à ${GUEST_LIMITS.envelopes} enveloppes. Crée ton compte pour en avoir autant que tu veux — tes enveloppes actuelles sont gardées.`,
     noticeSummary: "Ce qu'un compte ajoute",
     noticeMissing: [
       "les enveloppes proposées automatiquement d'après tes dépenses",
@@ -123,6 +147,11 @@ const COPY: Record<
     saveError: "Saving failed.",
     empty: "You have no envelopes to split yet.",
     emptyCta: "Create my envelopes",
+    addTitle: "Add an envelope",
+    addManualPlaceholder: "Or type a name…",
+    addButton: "Add",
+    addError: "Couldn't add it.",
+    capReached: `In discovery mode you can create up to ${GUEST_LIMITS.envelopes} envelopes. Create your account for as many as you want — your current envelopes are kept.`,
     noticeSummary: "What an account adds",
     noticeMissing: [
       "envelopes suggested automatically from your spending",
@@ -152,6 +181,11 @@ const COPY: Record<
     saveError: "الحفظ ما نجحش.",
     empty: "مازال ما عندكش أظرفة باش تقسم.",
     emptyCta: "صاوب الأظرفة ديالي",
+    addTitle: "زيد ظرف",
+    addManualPlaceholder: "ولا كتب سمية…",
+    addButton: "زيد",
+    addError: "الزيادة ما نجحاتش.",
+    capReached: `ف وضع الاكتشاف تقدر تصاوب حتى ${GUEST_LIMITS.envelopes} ظرف. صاوب حسابك باش يكونو عندك بلا حدود — الأظرفة اللي عندك دابا كتبقى محفوظة.`,
     noticeSummary: "شنو كيزيد ليك الحساب",
     noticeMissing: [
       "الأظرفة مقترحة أوتوماتيك حسب المصاريف ديالك",
@@ -214,6 +248,9 @@ export default function RepartirPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
 
   const noticeStoredDismissed = (() => {
     try {
@@ -314,6 +351,42 @@ export default function RepartirPage() {
     setPct(next);
     setActivePreset(key);
     setSaveState("idle");
+  };
+
+  const addEnvelope = async (rawName: string) => {
+    const name = rawName.trim();
+    if (!name || addBusy) return;
+    if (
+      envelopes.some((e) => e.name.trim().toLowerCase() === name.toLowerCase())
+    ) {
+      setManualName("");
+      return;
+    }
+    if (isGuest && envelopes.length >= GUEST_LIMITS.envelopes) {
+      setAddErr(t.capReached);
+      return;
+    }
+    setAddBusy(true);
+    setAddErr(null);
+    try {
+      const created = await apiFetch<{ id: string; name: string }>("/envelopes", {
+        method: "POST",
+        body: { name, rollover_enabled: false },
+      });
+      setEnvelopes((prev) => [...prev, { id: created.id, name: created.name }]);
+      setPct((prev) => ({ ...prev, [created.id]: 0 }));
+      setManualName("");
+      setActivePreset(null);
+      setSaveState("idle");
+      guestEvent("guest_cta_click", { cta: "repartir_add_envelope", route: "/repartir" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      setAddErr(
+        msg.includes("guest_quota") || /\b20\b/.test(msg) ? t.capReached : t.addError
+      );
+    } finally {
+      setAddBusy(false);
+    }
   };
 
   const dismissNotice = () => {
@@ -543,8 +616,9 @@ export default function RepartirPage() {
             <div className="hidden lg:block">{saveButton}</div>
           </div>
 
-          {/* ── main: envelope cards ── */}
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:mt-0 lg:grid-cols-1 xl:grid-cols-2">
+          {/* ── main: envelope cards + add ── */}
+          <div className="mt-5 flex flex-col gap-4 lg:mt-0">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {envelopes.map((e, i) => {
               const v = pct[e.id] || 0;
               const capForThis = 100 - (total - v);
@@ -614,6 +688,60 @@ export default function RepartirPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* add an envelope — suggestions + manual */}
+          <div className="rounded-xl border border-dashed border-[var(--border-strong,var(--border))] bg-[var(--surface)] p-3.5">
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--ink)]">
+              <Plus className="h-3.5 w-3.5 text-[var(--accent-strong,var(--accent))]" />
+              {t.addTitle}
+            </p>
+            {(() => {
+              const present = new Set(envelopes.map((e) => e.name.trim().toLowerCase()));
+              const chips = SUGGESTED.filter((s) => !present.has(s.fr.toLowerCase()));
+              return chips.length > 0 ? (
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {chips.map((s) => (
+                    <button
+                      key={s.fr}
+                      type="button"
+                      disabled={addBusy}
+                      onClick={() => addEnvelope(s.fr)}
+                      className="rounded-full border border-[var(--border-strong,var(--border))] bg-[var(--surface-2,var(--surface))] px-3 py-1.5 text-[12.5px] font-medium text-[var(--ink-soft,var(--ink))] hover:border-[var(--accent)] hover:text-[var(--accent-strong,var(--accent))] disabled:opacity-40"
+                    >
+                      + {s[locale] ?? s.fr}
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+            <div className="mt-2.5 flex gap-2">
+              <input
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void addEnvelope(manualName);
+                  }
+                }}
+                placeholder={t.addManualPlaceholder}
+                maxLength={40}
+                className="min-w-0 flex-1 rounded-lg border border-[var(--border-strong,var(--border))] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+              />
+              <button
+                type="button"
+                disabled={addBusy || !manualName.trim()}
+                onClick={() => void addEnvelope(manualName)}
+                className="flex-none rounded-lg bg-[var(--accent)] px-3.5 py-2 text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-40"
+              >
+                {t.addButton}
+              </button>
+            </div>
+            {addErr ? (
+              <p className="mt-2 text-[12px] text-[var(--error,#b23b2c)]">{addErr}</p>
+            ) : null}
+          </div>
           </div>
 
           {/* ── mobile sticky save ── */}

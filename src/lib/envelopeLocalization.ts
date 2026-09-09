@@ -23,6 +23,9 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
     if (["loyer", "rent"].includes(normalized)) return "الكراء";
     if (["telephone", "phone", "tel"].includes(normalized)) return "الهاتف";
     if (["divers", "miscellaneous", "misc", "autres", "other"].includes(normalized)) return "مصاريف أخرى";
+    if (["cadeaux", "gifts", "cadeaux & dons", "gifts & charity"].includes(normalized)) return "الهدايا";
+    if (["voyage", "travel", "voyages"].includes(normalized)) return "السفر";
+    if (["abonnements", "subscriptions", "abonnement"].includes(normalized)) return "الاشتراكات";
     if (["transport public", "public transport"].includes(normalized)) return "النقل العمومي";
     if (["transport"].includes(normalized)) return "التنقل";
     if (["carburant", "fuel"].includes(normalized)) return "الوقود";
@@ -85,6 +88,12 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
     if (["divers", "miscellaneous", "misc", "autres"].includes(normalized)) return "Miscellaneous";
     if (["loyer"].includes(normalized)) return "Rent";
     if (["courses", "nourriture"].includes(normalized)) return "Groceries";
+    if (["sante"].includes(normalized)) return "Health";
+    if (["loisirs"].includes(normalized)) return "Leisure";
+    if (["factures"].includes(normalized)) return "Bills";
+    if (["cadeaux"].includes(normalized)) return "Gifts";
+    if (["voyage", "voyages"].includes(normalized)) return "Travel";
+    if (["abonnements", "abonnement"].includes(normalized)) return "Subscriptions";
     if (normalized === "master") return "Goal — master";
     if (["carburant"].includes(normalized)) return "Fuel";
     if (["assurance auto"].includes(normalized)) return "Car insurance";
