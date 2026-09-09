@@ -737,6 +737,11 @@ export default function BetaChatPage() {
       <div className="flex-1 flex overflow-hidden relative max-w-7xl w-full mx-auto">
         {/* LEFT PANELS WORKSPACE: DISCUSSIONS ENGINE */}
         <div className="flex-1 flex flex-col h-full bg-[var(--surface-2)]/10 overflow-hidden relative min-w-0">
+          {userProfile?.is_guest ? (
+            <div className="border-b border-[var(--border)]/40 bg-[var(--surface-2)]/40 px-4 py-2 text-center text-[12px] text-[var(--muted)] sm:px-8">
+              {GUEST_GATE_COPY[locale].advisorLimit}
+            </div>
+          ) : null}
           {/* SCROLLABLE VIEWPORT */}
           <div
             className="flex-1 overflow-y-auto px-4 py-6 sm:p-8 space-y-6 scroll-smooth"
