@@ -350,76 +350,93 @@ export default function RepartirPage() {
     }
   };
 
+  const saveButton = (
+    <>
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saveState === "saving"}
+        className={`w-full rounded-xl px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60 ${
+          saveState === "saved" ? "bg-[var(--accent-strong,var(--accent))]" : "bg-[var(--accent)]"
+        }`}
+      >
+        {saveState === "saving" ? t.saving : saveState === "saved" ? `${t.saved} ✓` : t.save}
+      </button>
+      {saveState === "error" ? (
+        <p className="mt-2 text-center text-[12.5px] text-[var(--error,#b23b2c)]">
+          {errorMsg ?? t.saveError}
+        </p>
+      ) : null}
+    </>
+  );
+
+  const notice = showNotice ? (
+    <details
+      className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2,var(--surface))] px-3.5 py-3"
+      open={noticeOpen}
+      onToggle={(e) => setNoticeOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+        <Lock className="h-3.5 w-3.5 flex-none text-[var(--accent-strong,var(--accent))]" />
+        {t.noticeSummary}
+        <ChevronDown
+          className={`ms-auto h-3.5 w-3.5 text-[var(--muted)] transition-transform ${
+            noticeOpen ? "rotate-180" : ""
+          }`}
+        />
+      </summary>
+      <ul className="mt-2.5 space-y-1 ps-4">
+        {t.noticeMissing.map((m) => (
+          <li key={m} className="flex gap-2 text-[12.5px] text-[var(--muted)]">
+            <span aria-hidden="true" className="text-[var(--accent-strong,var(--accent))]">
+              •
+            </span>
+            <span>{m}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Link
+          href="/onboarding?from=guest"
+          onClick={() =>
+            guestEvent("guest_cta_click", { cta: "repartir_notice_onboarding", route: "/repartir" })
+          }
+          className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-[12.5px] font-semibold text-white hover:opacity-90"
+        >
+          {t.noticeCta}
+          <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+        </Link>
+        <button
+          type="button"
+          onClick={dismissNotice}
+          className="text-[12px] font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+        >
+          {t.noticeStay}
+        </button>
+      </div>
+    </details>
+  ) : null;
+
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-24" dir={dir}>
+    <div className="w-full pb-28 lg:pb-10" dir={dir}>
       <header className="flex flex-col gap-1.5">
         {isGuest ? (
           <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[var(--accent-soft,rgba(23,199,119,0.14))] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[var(--accent-strong,var(--accent))]">
             {t.eyebrow}
           </span>
         ) : null}
-        <h1 className="text-2xl font-semibold text-[var(--ink)]">{t.title}</h1>
-        <p className="text-sm text-[var(--muted)]">{t.subtitle}</p>
+        <h1 className="text-2xl font-semibold text-[var(--ink)] sm:text-[1.7rem]">{t.title}</h1>
+        <p className="max-w-prose text-sm text-[var(--muted)]">{t.subtitle}</p>
       </header>
 
-      {showNotice ? (
-        <details
-          className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2,var(--surface))] px-3.5 py-3"
-          open={noticeOpen}
-          onToggle={(e) => setNoticeOpen((e.target as HTMLDetailsElement).open)}
-        >
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
-            <Lock className="h-3.5 w-3.5 flex-none text-[var(--accent-strong,var(--accent))]" />
-            {t.noticeSummary}
-            <ChevronDown
-              className={`ms-auto h-3.5 w-3.5 text-[var(--muted)] transition-transform ${
-                noticeOpen ? "rotate-180" : ""
-              }`}
-            />
-          </summary>
-          <ul className="mt-2.5 space-y-1 ps-4">
-            {t.noticeMissing.map((m) => (
-              <li key={m} className="flex gap-2 text-[12.5px] text-[var(--muted)]">
-                <span aria-hidden="true" className="text-[var(--accent-strong,var(--accent))]">
-                  •
-                </span>
-                <span>{m}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Link
-              href="/onboarding?from=guest"
-              onClick={() =>
-                guestEvent("guest_cta_click", {
-                  cta: "repartir_notice_onboarding",
-                  route: "/repartir",
-                })
-              }
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-[12.5px] font-semibold text-white hover:opacity-90"
-            >
-              {t.noticeCta}
-              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
-            </Link>
-            <button
-              type="button"
-              onClick={dismissNotice}
-              className="text-[12px] font-medium text-[var(--muted)] hover:text-[var(--ink)]"
-            >
-              {t.noticeStay}
-            </button>
-          </div>
-        </details>
-      ) : null}
-
       {status === "loading" ? (
-        <div className="h-40 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface-2,var(--surface))]" />
+        <div className="mt-5 h-56 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface-2,var(--surface))]" />
       ) : status === "error" ? (
-        <p className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-6 text-center text-sm text-[var(--error,#b23b2c)]">
+        <p className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-6 text-center text-sm text-[var(--error,#b23b2c)]">
           {t.loadError}
         </p>
       ) : envelopes.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-8 text-center">
+        <div className="mt-5 flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-10 text-center">
           <p className="text-sm text-[var(--muted)]">{t.empty}</p>
           <Link
             href="/envelopes"
@@ -429,100 +446,113 @@ export default function RepartirPage() {
           </Link>
         </div>
       ) : (
-        <>
-          {/* ── header card: remaining + stacked bar + income ── */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2,var(--surface))] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[12px] font-semibold text-[var(--muted)]">
-                  {left === 0 ? t.allDoneLbl : t.left}
-                </p>
-                <p
-                  className={`text-[1.7rem] font-extrabold leading-tight tabular-nums ${
-                    left === 0 ? "text-[var(--success,#0b8f53)]" : "text-[var(--ink)]"
+        <div className="mt-5 gap-6 lg:grid lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start xl:gap-8">
+          {/* ── aside: summary + presets + save (desktop) ── */}
+          <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+            {notice}
+
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2,var(--surface))] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[12px] font-semibold text-[var(--muted)]">
+                    {left === 0 ? t.allDoneLbl : t.left}
+                  </p>
+                  <p
+                    className={`text-[1.7rem] font-extrabold leading-tight tabular-nums ${
+                      left === 0 ? "text-[var(--success,#0b8f53)]" : "text-[var(--ink)]"
+                    }`}
+                  >
+                    {left === 0 ? `${t.allDone} ✓` : `${left}%`}
+                  </p>
+                </div>
+                {incomeValue > 0 && left > 0 ? (
+                  <p className="pt-1 text-end text-[12px] text-[var(--muted)]">
+                    <span className="font-bold text-[var(--ink)]">
+                      {fmt((incomeValue * left) / 100)}
+                    </span>{" "}
+                    {t.currency}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="mt-3 flex h-3 gap-[1.5px] overflow-hidden rounded-full bg-[var(--border)]">
+                {envelopes.map((e, i) =>
+                  pct[e.id] ? (
+                    <span
+                      key={e.id}
+                      className="block transition-[width] duration-150"
+                      style={{
+                        width: `${pct[e.id]}%`,
+                        background: BAR_COLORS[i % BAR_COLORS.length],
+                      }}
+                      title={`${localizeEnvelopeLabel(e.name, locale)} ${pct[e.id]}%`}
+                    />
+                  ) : null
+                )}
+                {left > 0 ? (
+                  <span
+                    className="block transition-[width] duration-150"
+                    style={{ width: `${left}%`, background: REST_COLOR }}
+                  />
+                ) : null}
+              </div>
+
+              <div className="mt-3 flex items-center gap-2 border-t border-dashed border-[var(--border-strong,var(--border))] pt-3">
+                <label htmlFor="repartir-income" className="text-[12.5px] text-[var(--muted)]">
+                  {t.incomeLabel}
+                </label>
+                <input
+                  id="repartir-income"
+                  inputMode="decimal"
+                  value={income}
+                  onChange={(e) => setIncome(e.target.value)}
+                  placeholder="6000"
+                  className="w-24 rounded-lg border border-[var(--border-strong,var(--border))] bg-[var(--surface)] px-2.5 py-1.5 text-center text-[13px] font-bold tabular-nums text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                />
+                <span className="text-[12.5px] text-[var(--muted)]">{t.currency}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["equal", t.presetEqual],
+                  ["essentials", t.presetEssentials],
+                  ["save", t.presetSave],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                    activePreset === key
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                      : "border-[var(--border-strong,var(--border))] bg-[var(--surface)] text-[var(--ink-soft,var(--muted))] hover:border-[var(--accent)] hover:text-[var(--accent-strong,var(--accent))]"
                   }`}
                 >
-                  {left === 0 ? `${t.allDone} ✓` : `${left}%`}
-                </p>
-              </div>
-              {incomeValue > 0 && left > 0 ? (
-                <p className="pt-1 text-end text-[12px] text-[var(--muted)]">
-                  <span className="font-bold text-[var(--ink)]">{fmt((incomeValue * left) / 100)}</span>{" "}
-                  {t.currency}
-                </p>
-              ) : null}
+                  {label}
+                </button>
+              ))}
             </div>
 
-            <div className="mt-3 flex h-3 gap-[1.5px] overflow-hidden rounded-full bg-[var(--border)]">
-              {envelopes.map((e, i) =>
-                pct[e.id] ? (
-                  <span
-                    key={e.id}
-                    className="block transition-[width] duration-150"
-                    style={{
-                      width: `${pct[e.id]}%`,
-                      background: BAR_COLORS[i % BAR_COLORS.length],
-                    }}
-                    title={`${localizeEnvelopeLabel(e.name, locale)} ${pct[e.id]}%`}
-                  />
-                ) : null
-              )}
-              {left > 0 ? (
-                <span
-                  className="block transition-[width] duration-150"
-                  style={{ width: `${left}%`, background: REST_COLOR }}
-                />
-              ) : null}
-            </div>
+            {left > 0 ? (
+              <p className="text-[12.5px] text-[var(--muted)]">{t.restToCash}</p>
+            ) : null}
 
-            <div className="mt-3 flex items-center gap-2 border-t border-dashed border-[var(--border-strong,var(--border))] pt-3">
-              <label htmlFor="repartir-income" className="text-[12.5px] text-[var(--muted)]">
-                {t.incomeLabel}
-              </label>
-              <input
-                id="repartir-income"
-                inputMode="decimal"
-                value={income}
-                onChange={(e) => setIncome(e.target.value)}
-                placeholder="6000"
-                className="w-24 rounded-lg border border-[var(--border-strong,var(--border))] bg-[var(--surface)] px-2.5 py-1.5 text-center text-[13px] font-bold tabular-nums text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-              />
-              <span className="text-[12.5px] text-[var(--muted)]">{t.currency}</span>
-            </div>
+            <div className="hidden lg:block">{saveButton}</div>
           </div>
 
-          {/* ── presets ── */}
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["equal", t.presetEqual],
-                ["essentials", t.presetEssentials],
-                ["save", t.presetSave],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => applyPreset(key)}
-                className={`rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  activePreset === key
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-                    : "border-[var(--border-strong,var(--border))] bg-[var(--surface)] text-[var(--ink-soft,var(--muted))] hover:border-[var(--accent)] hover:text-[var(--accent-strong,var(--accent))]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── envelope rows ── */}
-          <div className="flex flex-col divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+          {/* ── main: envelope cards ── */}
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:mt-0 lg:grid-cols-1 xl:grid-cols-2">
             {envelopes.map((e, i) => {
               const v = pct[e.id] || 0;
-              const others = total - v;
-              const capForThis = 100 - others;
+              const capForThis = 100 - (total - v);
               return (
-                <div key={e.id} className="flex flex-col gap-2 p-3.5">
+                <div
+                  key={e.id}
+                  className="flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5"
+                >
                   <div className="flex items-center gap-2.5">
                     <span
                       aria-hidden="true"
@@ -545,7 +575,9 @@ export default function RepartirPage() {
                         </span>
                       </>
                     ) : (
-                      <span className="text-[14px] font-bold tabular-nums text-[var(--ink)]">{v}%</span>
+                      <span className="text-[14px] font-bold tabular-nums text-[var(--ink)]">
+                        {v}%
+                      </span>
                     )}
                   </div>
 
@@ -584,29 +616,11 @@ export default function RepartirPage() {
             })}
           </div>
 
-          {left > 0 ? (
-            <p className="text-[12.5px] text-[var(--muted)]">{t.restToCash}</p>
-          ) : null}
-
-          {/* ── sticky save ── */}
-          <div className="sticky bottom-0 -mx-1 mt-1 bg-gradient-to-t from-[var(--bg,var(--ground,#ffffff))] via-[var(--bg,var(--ground,#ffffff))] to-transparent px-1 pb-3 pt-4">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saveState === "saving"}
-              className={`w-full rounded-xl px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60 ${
-                saveState === "saved" ? "bg-[var(--accent-strong,var(--accent-deep,var(--accent)))]" : "bg-[var(--accent)]"
-              }`}
-            >
-              {saveState === "saving" ? t.saving : saveState === "saved" ? `${t.saved} ✓` : t.save}
-            </button>
-            {saveState === "error" ? (
-              <p className="mt-2 text-center text-[12.5px] text-[var(--error,#b23b2c)]">
-                {errorMsg ?? t.saveError}
-              </p>
-            ) : null}
+          {/* ── mobile sticky save ── */}
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--bg)]/95 px-4 py-3 backdrop-blur lg:hidden">
+            <div className="mx-auto max-w-xl">{saveButton}</div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
