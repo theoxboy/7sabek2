@@ -1,26 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Cairo } from "next/font/google";
 import {
-  ShieldCheck,
   KeyRound,
   ArrowRight,
   Check,
   Sparkles,
   Wallet,
-  RefreshCw,
+  Layers,
+  Coins,
 } from "lucide-react";
 
+import { apiFetch } from "@/lib/api";
 import { useAppLocale } from "@/lib/appLocale";
-import { fetchMe, refreshAuthSession, type AuthUser } from "@/lib/auth";
-import { GUEST_PANEL_COPY, protectionLevelOf } from "@/lib/guestPanelCopy";
+import { fetchMe, type AuthUser } from "@/lib/auth";
+import { GUEST_PANEL_COPY } from "@/lib/guestPanelCopy";
 import { ackRecoveryCode, guestEvent } from "@/lib/guestAnchorApi";
 import { readStoredRecoveryCode } from "@/lib/guestSession";
 import { markDiscoveryWelcomeSeen } from "@/lib/guestWelcome";
 import { detectFragileContext } from "@/lib/guestFragileContext";
+import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
+import { parseAmountInput } from "@/lib/parseAmount";
+import { buildPresetSplit, type SplitPreset } from "@/lib/incomeSplit";
+import type { FloussyLocale } from "@/lib/localePreference";
 import { RecoveryCodeVault } from "@/components/guest/RecoveryCodeVault";
 import { GuestClaimDialog } from "@/components/guest/GuestGate";
 import { Button } from "@/components/ui/Button";
@@ -28,26 +33,213 @@ import BrandLogo from "@/components/BrandLogo";
 
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
 
-const STEP_ICONS = [Sparkles, ShieldCheck, KeyRound];
+const STEP_ICONS = [Sparkles, Layers, Coins, Wallet, KeyRound];
+const STEP_KEY = "7sabek.guest.decouverte_step";
+const INCOME_CATEGORY_NAME = "income_general";
+const TOTAL = 5;
+
+type Envelope = { id: string; name: string };
+type ConfigItem = { target_id: string; name: string };
+type ConfigOut = { envelopes: ConfigItem[]; goals: ConfigItem[] };
+type CategoryOut = { id: string; name: string };
+
+const SPLIT_PRESETS: { key: SplitPreset; icon: string }[] = [
+  { key: "essentials", icon: "🏠" },
+  { key: "equal", icon: "⚖️" },
+  { key: "save", icon: "🐷" },
+];
+
+type OnbCopy = {
+  conceptEyebrow: string;
+  conceptTitle: string;
+  conceptBullets: string[];
+  conceptCaption: string;
+  cashLabel: string;
+  incomeEyebrow: string;
+  incomeTitle: string;
+  incomeSub: string;
+  incomePlaceholder: string;
+  currency: string;
+  incomeLater: string;
+  splitEyebrow: string;
+  splitTitle: string;
+  splitSub: string;
+  splitKeep: string;
+  splitSaving: string;
+  presetName: Record<SplitPreset, string>;
+  presetDesc: Record<SplitPreset, string>;
+  readyEyebrow: string;
+  readyTitle: string;
+  recap: (income: number, envelopes: number) => string;
+  addExpenseHint: string;
+  next: string;
+  back: string;
+  skip: string;
+  finish: string;
+};
+
+const ONB: Record<FloussyLocale, OnbCopy> = {
+  fr: {
+    conceptEyebrow: "Comment ça marche",
+    conceptTitle: "Ton argent, dans des enveloppes",
+    conceptBullets: [
+      "Ton revenu arrive dans **Cash** — l'argent pas encore rangé.",
+      "Tu le répartis dans des **enveloppes** : Loyer, Courses, Transport… (on t'en a déjà créé 5).",
+      "Quand tu dépenses, ça sort de l'enveloppe concernée. Tu vois toujours ce qu'il te reste.",
+    ],
+    conceptCaption: "Chaque dépense sort de son enveloppe.",
+    cashLabel: "Cash",
+    incomeEyebrow: "Ton revenu",
+    incomeTitle: "Combien tu gagnes par mois ?",
+    incomeSub: "Ça nous sert à calculer combien mettre dans chaque enveloppe. Tu pourras le changer.",
+    incomePlaceholder: "6000",
+    currency: "DH",
+    incomeLater: "Je préfère le faire plus tard",
+    splitEyebrow: "Ta répartition",
+    splitTitle: "On partage ton revenu",
+    splitSub: "Choisis un point de départ. Tu ajusteras enveloppe par enveloppe quand tu veux.",
+    splitKeep: "Garder la répartition proposée",
+    splitSaving: "Enregistrement…",
+    presetName: { essentials: "L'essentiel d'abord", equal: "Égal", save: "Épargner plus" },
+    presetDesc: {
+      essentials: "Plus pour le loyer et les courses, le reste suit.",
+      equal: "La même part dans chaque enveloppe.",
+      save: "Une bonne part mise de côté chaque mois.",
+    },
+    readyEyebrow: "Tu es prêt",
+    readyTitle: "Ton budget est prêt ✓",
+    recap: (i, e) =>
+      `${i > 0 ? `${i.toLocaleString("fr-FR")} DH de revenu · ` : ""}${e} enveloppe${e > 1 ? "s" : ""} · répartition enregistrée`,
+    addExpenseHint: "Pour ajouter une dépense : le bouton **+** en bas de l'écran.",
+    next: "Suivant",
+    back: "Précédent",
+    skip: "Passer",
+    finish: "Aller à mon budget",
+  },
+  en: {
+    conceptEyebrow: "How it works",
+    conceptTitle: "Your money, in envelopes",
+    conceptBullets: [
+      "Your income lands in **Cash** — money not sorted yet.",
+      "You split it into **envelopes**: Rent, Groceries, Transport… (we made you 5 already).",
+      "When you spend, it comes out of that envelope. You always see what's left.",
+    ],
+    conceptCaption: "Every expense comes out of its envelope.",
+    cashLabel: "Cash",
+    incomeEyebrow: "Your income",
+    incomeTitle: "How much do you earn a month?",
+    incomeSub: "We use it to work out how much goes into each envelope. You can change it.",
+    incomePlaceholder: "6000",
+    currency: "DH",
+    incomeLater: "I'd rather do this later",
+    splitEyebrow: "Your split",
+    splitTitle: "Splitting your income",
+    splitSub: "Pick a starting point. You'll fine-tune envelope by envelope whenever you like.",
+    splitKeep: "Keep the suggested split",
+    splitSaving: "Saving…",
+    presetName: { essentials: "Essentials first", equal: "Equal", save: "Save more" },
+    presetDesc: {
+      essentials: "More for rent and groceries, the rest follows.",
+      equal: "The same share in every envelope.",
+      save: "A solid chunk set aside every month.",
+    },
+    readyEyebrow: "You're ready",
+    readyTitle: "Your budget is ready ✓",
+    recap: (i, e) =>
+      `${i > 0 ? `${i.toLocaleString("en-US")} DH income · ` : ""}${e} envelope${e > 1 ? "s" : ""} · split saved`,
+    addExpenseHint: "To add an expense: the **+** button at the bottom of the screen.",
+    next: "Next",
+    back: "Back",
+    skip: "Skip",
+    finish: "Go to my budget",
+  },
+  ar: {
+    conceptEyebrow: "كيفاش كتخدم",
+    conceptTitle: "فلوسك، فأظرفة",
+    conceptBullets: [
+      "الدخل ديالك كيوصل لـ **لكاش** — الفلوس اللي مازال ما ترتّباتش.",
+      "كتقسمو على **الأظرفة**: الكراء، الماكلة، التنقل… (صاوبنا ليك 5 من قبل).",
+      "ملي كتصرف، كيخرج من الظرف المعني. ديما كتشوف شنو باقي ليك.",
+    ],
+    conceptCaption: "كل مصروف كيخرج من الظرف ديالو.",
+    cashLabel: "لكاش",
+    incomeEyebrow: "الدخل ديالك",
+    incomeTitle: "شحال كتدخّل فالشهر؟",
+    incomeSub: "كنستعملوه باش نحسبو شحال ندخّلو لكل ظرف. تقدر تبدلو من بعد.",
+    incomePlaceholder: "6000",
+    currency: "درهم",
+    incomeLater: "نفضّل نديرو من بعد",
+    splitEyebrow: "التقسيم ديالك",
+    splitTitle: "نقسمو الدخل ديالك",
+    splitSub: "اختار نقطة البداية. غادي تعدّل ظرف بظرف ملي بغيتي.",
+    splitKeep: "خلّي التقسيم المقترح",
+    splitSaving: "كيتسجّل…",
+    presetName: { essentials: "الضروري أولاً", equal: "بالتساوي", save: "توفير أكثر" },
+    presetDesc: {
+      essentials: "كثر للكراء والماكلة، والباقي كيتبع.",
+      equal: "نفس الحصة فكل ظرف.",
+      save: "حصة مزيانة كتبقى مخبّية كل شهر.",
+    },
+    readyEyebrow: "واجد",
+    readyTitle: "الميزانية ديالك واجدة ✓",
+    recap: (i, e) =>
+      `${i > 0 ? `${i.toLocaleString("ar-MA")} درهم دخل · ` : ""}${e} ظرف · التقسيم تسجّل`,
+    addExpenseHint: "باش تزيد مصروف: بوطون **+** اللي تحت.",
+    next: "التالي",
+    back: "اللي فات",
+    skip: "قفز",
+    finish: "مشي للميزانية ديالي",
+  },
+};
+
+/** "**bold**" → <b>bold</b>, for the short onboarding bullets. */
+function renderMd(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) =>
+    p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b> : <span key={i}>{p}</span>
+  );
+}
+
+function readSavedStep(): number {
+  try {
+    const n = Number(window.localStorage.getItem(STEP_KEY));
+    return Number.isFinite(n) ? Math.max(0, Math.min(TOTAL - 1, n)) : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export default function DiscoveryWelcomePage() {
   const router = useRouter();
   const { locale, dir } = useAppLocale("fr");
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
+  const o = ONB[locale] ?? ONB.fr;
   const reduce = useReducedMotion();
   const isAr = locale === "ar";
 
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [envs, setEnvs] = useState<Envelope[]>([]);
+  const [incomeCatId, setIncomeCatId] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     fetchMe()
-      .then((me) => {
+      .then(async (me) => {
         if (cancelled) return;
         if (!me.is_guest) {
           router.replace("/dashboard");
           return;
         }
         setUser(me);
+        const [cats, config] = await Promise.all([
+          apiFetch<CategoryOut[]>("/categories").catch(() => [] as CategoryOut[]),
+          apiFetch<ConfigOut>("/distribution/config").catch(
+            () => ({ envelopes: [], goals: [] } as ConfigOut)
+          ),
+        ]);
+        if (cancelled) return;
+        setIncomeCatId(cats.find((c) => c.name === INCOME_CATEGORY_NAME)?.id ?? null);
+        setEnvs(config.envelopes.map((e) => ({ id: e.target_id, name: e.name })));
       })
       .catch(() => {
         if (!cancelled) router.replace("/login");
@@ -57,26 +249,40 @@ export default function DiscoveryWelcomePage() {
     };
   }, [router]);
 
-  const level = user ? protectionLevelOf(user) : 40;
   const storedCode = readStoredRecoveryCode();
-  const acked = Boolean(user?.recovery_code_ack) || level >= 70;
+  const acked = Boolean(user?.recovery_code_ack);
 
   const [step, setStep] = useState(0);
-  const [dirn, setDirn] = useState(1); // slide direction
+  const [dirn, setDirn] = useState(1);
   const [acking, setAcking] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [fragile, setFragile] = useState(false);
   const [claimOpen, setClaimOpen] = useState(false);
+  const [income, setIncome] = useState("");
+  const [splitBusy, setSplitBusy] = useState<SplitPreset | "keep" | null>(null);
+  const incomeLoggedRef = useRef(false);
+
+  useEffect(() => {
+    setStep(readSavedStep());
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STEP_KEY, String(step));
+    } catch {
+      /* ignore */
+    }
+  }, [step]);
 
   useEffect(() => {
     const ctx = detectFragileContext();
-    if (ctx.fragile && level < 70) {
+    if (ctx.fragile && !acked) {
       setFragile(true);
       guestEvent("fragile_context_detected", { reason: ctx.reason });
     }
-  }, [level]);
+  }, [acked]);
 
-  const TOTAL = 3;
+  const incomeValue = parseAmountInput(income) ?? 0;
   const last = step === TOTAL - 1;
 
   const go = (next: number) => {
@@ -84,34 +290,85 @@ export default function DiscoveryWelcomePage() {
     setStep(Math.max(0, Math.min(TOTAL - 1, next)));
   };
 
+  const clearSavedStep = () => {
+    try {
+      window.localStorage.removeItem(STEP_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const leave = (fn: () => void) => {
     markDiscoveryWelcomeSeen();
+    clearSavedStep();
     fn();
   };
 
   const handleContinue = () => {
     setContinuing(true);
+    void logIncomeIfNeeded();
     leave(() => router.replace("/dashboard"));
   };
 
   const handleAck = async () => {
     setAcking(true);
     try {
+      await logIncomeIfNeeded();
       await ackRecoveryCode(); // fires protection_level_changed 40→70 server-side
-      await refreshAuthSession();
       leave(() => router.replace("/dashboard"));
     } catch {
       setAcking(false);
     }
   };
 
+  async function logIncomeIfNeeded() {
+    if (incomeLoggedRef.current || incomeValue <= 0 || !incomeCatId) return;
+    incomeLoggedRef.current = true;
+    try {
+      await apiFetch("/transactions", {
+        method: "POST",
+        body: {
+          type: "income",
+          category_id: incomeCatId,
+          amount: incomeValue.toFixed(2),
+          occurred_on: new Date().toISOString().slice(0, 10),
+        },
+      });
+      guestEvent("guest_first_tx", { via: "decouverte" });
+    } catch {
+      incomeLoggedRef.current = false; // let a later attempt retry
+    }
+  }
 
-  const bullets = [
-    { icon: Sparkles, text: t.explainBody[0] },
-    { icon: Wallet, text: t.explainBody[1] },
-    { icon: KeyRound, text: t.explainBody[2] },
-    { icon: RefreshCw, text: t.explainBody[3] },
-  ].filter((b) => Boolean(b.text));
+  const pickSplit = async (choice: SplitPreset | "keep") => {
+    if (splitBusy) return;
+    setSplitBusy(choice);
+    try {
+      if (choice !== "keep" && envs.length > 0) {
+        const pct = buildPresetSplit(envs, choice);
+        await apiFetch("/distribution/config", {
+          method: "PUT",
+          body: {
+            auto_enabled: true,
+            goals: [],
+            envelopes: envs.map((e) => {
+              const p = pct[e.id] || 0;
+              return p > 0
+                ? { target_id: e.id, mode: "percent", percent: String(p), enabled: true }
+                : { target_id: e.id, mode: "none", enabled: false };
+            }),
+          },
+        });
+        guestEvent("guest_cta_click", { cta: `decouverte_split_${choice}`, route: "/decouverte" });
+      }
+      go(step + 1);
+    } catch {
+      // Non-blocking: they can set the split later from /repartir.
+      go(step + 1);
+    } finally {
+      setSplitBusy(null);
+    }
+  };
 
   return (
     <div
@@ -154,111 +411,180 @@ export default function DiscoveryWelcomePage() {
         </div>
 
         <div className="dcw-stage">
-            <motion.section
-              key={step}
-              initial={{ opacity: 0, x: reduce ? 0 : dirn * 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ type: "spring", damping: 26, stiffness: 260 }}
-              className="dcw-card"
-            >
-              {step === 0 && (
-                <>
-                  <span className="dcw-eyebrow">
-                    <span className="dcw-sq" />
-                    {t.chipLabel}
-                  </span>
-                  <h1 className="dcw-h1">{t.welcomeTitle}</h1>
-                  <p className="dcw-sub">{t.panelIntro}</p>
-                  <ul className="dcw-list">
-                    {bullets.map((b, i) => {
-                      const Ico = b.icon;
+          <motion.section
+            key={step}
+            initial={{ opacity: 0, x: reduce ? 0 : dirn * 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ type: "spring", damping: 26, stiffness: 260 }}
+            className="dcw-card"
+          >
+            {step === 0 && (
+              <>
+                <span className="dcw-eyebrow">
+                  <span className="dcw-sq" />
+                  {t.chipLabel}
+                </span>
+                <h1 className="dcw-h1">{t.welcomeTitle}</h1>
+                <p className="dcw-sub">{t.panelIntro}</p>
+                <ul className="dcw-list">
+                  {[t.explainBody[0], t.explainBody[1], t.explainBody[3]]
+                    .filter(Boolean)
+                    .map((text, i) => {
+                      const Ico = [Sparkles, Wallet, KeyRound][i] ?? Sparkles;
                       return (
                         <li key={i} className="dcw-li">
                           <span className="dcw-li-ic" aria-hidden="true">
                             <Ico />
                           </span>
-                          <span>{b.text}</span>
+                          <span>{text}</span>
                         </li>
                       );
                     })}
-                  </ul>
-                </>
-              )}
+                </ul>
+              </>
+            )}
 
-              {step === 1 && (
-                <>
-                  <span className="dcw-eyebrow">
-                    <span className="dcw-sq" />
-                    {t.gaugeLabel}
-                  </span>
-                  <h1 className="dcw-h1">{t.welcomeProtectionTitle}</h1>
-                  <div className="dcw-gauge">
-                    <div className="dcw-gauge-top">
-                      <span>{t.gaugeLabel}</span>
-                      <span className="dcw-gauge-pct">{level}%</span>
-                    </div>
-                    <div className="dcw-track">
-                      <motion.span
-                        className="dcw-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${level}%` }}
-                        transition={{ duration: reduce ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    </div>
+            {step === 1 && (
+              <>
+                <span className="dcw-eyebrow">
+                  <span className="dcw-sq" />
+                  {o.conceptEyebrow}
+                </span>
+                <h1 className="dcw-h1">{o.conceptTitle}</h1>
+                <div className="dcw-diagram" aria-hidden="true">
+                  <span className="dcw-di-cash">{o.cashLabel}</span>
+                  <span className="dcw-di-arrow" />
+                  <div className="dcw-di-envs">
+                    {(envs.length ? envs.slice(0, 4) : [{ id: "a", name: "Loyer" }, { id: "b", name: "Courses" }, { id: "c", name: "Transport" }]).map((e, i) => (
+                      <span key={e.id} style={{ background: `var(--di-${i % 4})` }}>
+                        {localizeEnvelopeLabel(e.name, locale)}
+                      </span>
+                    ))}
                   </div>
-                  <ul className="dcw-list dcw-steps">
-                    {t.steps.map((s) => {
-                      const on = level >= s.level;
-                      return (
-                        <li key={s.level} className={`dcw-li ${on ? "" : "is-off"}`}>
-                          <span className={`dcw-bullet ${on ? "is-on" : ""}`} aria-hidden="true" />
-                          <span>
-                            <b>{s.name}</b> — {s.desc}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              )}
+                </div>
+                <ul className="dcw-list dcw-concept">
+                  {o.conceptBullets.map((b, i) => (
+                    <li key={i} className="dcw-li">
+                      <span className="dcw-li-num" aria-hidden="true">{i + 1}</span>
+                      <span>{renderMd(b)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="dcw-caption">{o.conceptCaption}</p>
+              </>
+            )}
 
-              {step === 2 && (
-                <>
-                  <span className="dcw-eyebrow">
-                    <span className="dcw-sq" />
-                    {t.recoveryTitle}
-                  </span>
-                  <h1 className="dcw-h1">{t.recoveryTitle}</h1>
+            {step === 2 && (
+              <>
+                <span className="dcw-eyebrow">
+                  <span className="dcw-sq" />
+                  {o.incomeEyebrow}
+                </span>
+                <h1 className="dcw-h1">{o.incomeTitle}</h1>
+                <p className="dcw-sub">{o.incomeSub}</p>
+                <div className="dcw-income">
+                  <input
+                    inputMode="decimal"
+                    value={income}
+                    onChange={(e) => setIncome(e.target.value)}
+                    placeholder={o.incomePlaceholder}
+                    aria-label={o.incomeTitle}
+                    autoFocus
+                  />
+                  <span>{o.currency}</span>
+                </div>
+                <button type="button" className="dcw-textlink" onClick={() => go(step + 2)}>
+                  {o.incomeLater}
+                </button>
+              </>
+            )}
 
-                  {storedCode ? (
-                    <RecoveryCodeVault
-                      code={storedCode}
-                      locale={locale}
-                      dir={dir}
-                      acked={acked}
-                      fragile={fragile}
-                      onAck={handleAck}
-                      ackLoading={acking}
-                      onSecured={() => leave(() => router.replace("/dashboard"))}
-                      where="welcome"
-                    />
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
-                      <p className="dcw-sub">{t.welcomeNoCode}</p>
-                      <Button type="button" onClick={() => setClaimOpen(true)} className="w-full">
-                        {t.claimCta}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </motion.section>
+            {step === 3 && (
+              <>
+                <span className="dcw-eyebrow">
+                  <span className="dcw-sq" />
+                  {o.splitEyebrow}
+                </span>
+                <h1 className="dcw-h1">{o.splitTitle}</h1>
+                <p className="dcw-sub">{o.splitSub}</p>
+                <div className="dcw-presets">
+                  {SPLIT_PRESETS.map(({ key, icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className="dcw-preset"
+                      disabled={Boolean(splitBusy)}
+                      onClick={() => void pickSplit(key)}
+                    >
+                      <span className="dcw-preset-ic" aria-hidden="true">{icon}</span>
+                      <span className="dcw-preset-body">
+                        <b>{o.presetName[key]}</b>
+                        <span>{o.presetDesc[key]}</span>
+                      </span>
+                      {splitBusy === key ? (
+                        <span className="dcw-preset-load">{o.splitSaving}</span>
+                      ) : (
+                        <ArrowRight className="dcw-ic dcw-arrow" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="dcw-textlink"
+                  disabled={Boolean(splitBusy)}
+                  onClick={() => void pickSplit("keep")}
+                >
+                  {o.splitKeep}
+                </button>
+              </>
+            )}
+
+            {step === 4 && (
+              <>
+                <span className="dcw-eyebrow">
+                  <span className="dcw-sq" />
+                  {o.readyEyebrow}
+                </span>
+                <h1 className="dcw-h1">{o.readyTitle}</h1>
+                <p className="dcw-recap">
+                  {o.recap(incomeValue, Math.max(envs.length, 1))}
+                </p>
+
+                {storedCode ? (
+                  <RecoveryCodeVault
+                    code={storedCode}
+                    locale={locale}
+                    dir={dir}
+                    acked={acked}
+                    fragile={fragile}
+                    onAck={handleAck}
+                    ackLoading={acking}
+                    onSecured={() => {
+                      void logIncomeIfNeeded();
+                      leave(() => router.replace("/dashboard"));
+                    }}
+                    where="welcome"
+                  />
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    <p className="dcw-sub">{t.welcomeNoCode}</p>
+                    <Button type="button" onClick={() => setClaimOpen(true)} className="w-full">
+                      {t.claimCta}
+                    </Button>
+                  </div>
+                )}
+
+                <p className="dcw-caption">{renderMd(o.addExpenseHint)}</p>
+              </>
+            )}
+          </motion.section>
         </div>
 
         <div className="dcw-nav">
           {step > 0 ? (
             <button type="button" className="dcw-btn dcw-btn-ghost" onClick={() => go(step - 1)}>
-              {t.welcomeBack}
+              {o.back}
             </button>
           ) : (
             <span />
@@ -271,12 +597,21 @@ export default function DiscoveryWelcomePage() {
               onClick={handleContinue}
               disabled={continuing}
             >
-              {t.welcomeContinue}
+              {o.finish}
               <ArrowRight className="dcw-ic dcw-arrow" />
             </button>
+          ) : step === 3 ? (
+            <span />
           ) : (
-            <button type="button" className="dcw-btn dcw-btn-accent" onClick={() => go(step + 1)}>
-              {t.welcomeNext}
+            <button
+              type="button"
+              className="dcw-btn dcw-btn-accent"
+              onClick={() => {
+                if (step === 2) void logIncomeIfNeeded();
+                go(step + 1);
+              }}
+            >
+              {o.next}
               <ArrowRight className="dcw-ic dcw-arrow" />
             </button>
           )}
@@ -284,7 +619,7 @@ export default function DiscoveryWelcomePage() {
 
         {!last && (
           <button type="button" className="dcw-skip" onClick={handleContinue}>
-            {t.welcomeSkip}
+            {o.skip}
           </button>
         )}
       </main>
@@ -577,6 +912,152 @@ export default function DiscoveryWelcomePage() {
           height: 100%;
           border-radius: 6px;
           background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+        }
+
+        /* ── concept diagram ── */
+        .dcw-root {
+          --di-0: #4c7eff;
+          --di-1: #f2a93b;
+          --di-2: #17c777;
+          --di-3: #8b6ad4;
+        }
+        .dcw-diagram {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          margin: 2px 0 6px;
+        }
+        .dcw-di-cash {
+          font-size: 0.8rem;
+          font-weight: 800;
+          color: var(--ink);
+          background: var(--surface-2);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 5px 16px;
+        }
+        .dcw-di-arrow {
+          width: 2px;
+          height: 16px;
+          background: var(--border-strong);
+        }
+        .dcw-di-envs {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 6px;
+        }
+        .dcw-di-envs span {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #06301f;
+          border-radius: 8px;
+          padding: 4px 10px;
+          filter: saturate(0.9);
+        }
+
+        .dcw-concept .dcw-li { align-items: flex-start; }
+        .dcw-li-num {
+          flex: none;
+          width: 22px;
+          height: 22px;
+          border-radius: 7px;
+          background: var(--accent-soft);
+          color: var(--accent-deep);
+          font-size: 0.78rem;
+          font-weight: 800;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .dcw-caption {
+          font-size: 0.8rem;
+          color: var(--ink-mute);
+          margin-top: 2px;
+        }
+
+        /* ── income field ── */
+        .dcw-income {
+          display: flex;
+          align-items: baseline;
+          justify-content: center;
+          gap: 10px;
+          background: var(--surface-2);
+          border: 1px solid var(--line);
+          border-radius: 18px;
+          padding: 20px;
+          margin: 4px 0 10px;
+        }
+        .dcw-income input {
+          width: 150px;
+          font-family: inherit;
+          font-size: 2rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          text-align: center;
+          color: var(--ink);
+          background: transparent;
+          border: none;
+          outline: none;
+        }
+        .dcw-income span { font-size: 0.9rem; color: var(--ink-mute); font-weight: 600; }
+
+        .dcw-textlink {
+          align-self: center;
+          background: none;
+          border: none;
+          font: inherit;
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: var(--ink-mute);
+          cursor: pointer;
+          padding: 4px 8px;
+        }
+        .dcw-textlink:hover:not(:disabled) { color: var(--ink); }
+        .dcw-textlink:disabled { opacity: 0.5; cursor: default; }
+
+        /* ── split presets ── */
+        .dcw-presets {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin: 4px 0 8px;
+        }
+        .dcw-preset {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          text-align: start;
+          font: inherit;
+          background: var(--surface);
+          border: 1px solid var(--line);
+          border-radius: 16px;
+          padding: 14px;
+          cursor: pointer;
+          transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+        }
+        .dcw-preset:hover:not(:disabled) {
+          border-color: var(--accent);
+          transform: translateY(-1px);
+          box-shadow: var(--shadow);
+        }
+        .dcw-preset:disabled { opacity: 0.55; cursor: default; }
+        .dcw-preset-ic { font-size: 1.4rem; flex: none; }
+        .dcw-preset-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .dcw-preset-body b { font-size: 0.92rem; font-weight: 700; color: var(--ink); }
+        .dcw-preset-body span { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.4; }
+        .dcw-preset-load { font-size: 0.76rem; font-weight: 700; color: var(--accent-deep); flex: none; }
+        .dcw-preset .dcw-arrow { color: var(--ink-mute); flex: none; }
+
+        .dcw-recap {
+          font-size: 0.82rem;
+          color: var(--ink-soft);
+          background: var(--surface-2);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 9px 12px;
+          margin-bottom: 4px;
         }
 
         .dcw-btn {

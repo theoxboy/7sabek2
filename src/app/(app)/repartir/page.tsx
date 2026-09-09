@@ -11,6 +11,13 @@ import { parseAmountInput } from "@/lib/parseAmount";
 import { fetchMe, type AuthUser } from "@/lib/auth";
 import { guestEvent } from "@/lib/guestAnchorApi";
 import { GUEST_LIMITS } from "@/lib/guestQuota";
+import {
+  SPLIT_STEP as STEP,
+  buildPresetSplit,
+  roundToSplitStep as roundToStep,
+  sumSplit as sum,
+  type SplitPreset,
+} from "@/lib/incomeSplit";
 import type { FloussyLocale } from "@/lib/localePreference";
 
 /** A short curated list of household envelopes to offer below the list. The
@@ -39,8 +46,6 @@ type ConfigItem = {
 type ConfigOut = { auto_enabled: boolean; envelopes: ConfigItem[]; goals: ConfigItem[] };
 
 type Envelope = { id: string; name: string };
-
-const STEP = 5;
 
 /**
  * Categorical palette for the stacked bar only — decorative, not theme chrome.
@@ -198,42 +203,6 @@ const COPY: Record<
 
 const NOTICE_DISMISS_KEY = "7sabek.guest.repartir_notice.dismissed";
 
-const roundToStep = (n: number) => Math.round(n / STEP) * STEP;
-const sum = (o: Record<string, number>) => Object.values(o).reduce((s, v) => s + (v || 0), 0);
-
-/** Distribute 100 across envelopes proportionally to weights, in STEP increments,
- *  never exceeding 100 (remainder simply stays in Cash). */
-function splitByWeights(ids: string[], weightOf: (id: string) => number): Record<string, number> {
-  if (ids.length === 0) return {};
-  const total = ids.reduce((s, id) => s + weightOf(id), 0) || ids.length;
-  const out: Record<string, number> = {};
-  let running = 0;
-  ids.forEach((id, i) => {
-    if (i === ids.length - 1) {
-      out[id] = Math.max(0, Math.min(100 - running, roundToStep((weightOf(id) / total) * 100)));
-    } else {
-      const v = Math.max(0, Math.min(100 - running, roundToStep((weightOf(id) / total) * 100)));
-      out[id] = v;
-      running += v;
-    }
-  });
-  return out;
-}
-
-/** Rough essential-ness from the raw envelope name, for the presets. */
-function essentialWeight(name: string): number {
-  const n = name.trim().toLowerCase();
-  if (/(loyer|rent|كراء|logement|housing)/.test(n)) return 3;
-  if (/(course|food|nourriture|ماكلة|أكل|groc)/.test(n)) return 3;
-  if (/(transport|تنقل|carburant|fuel|essence)/.test(n)) return 2;
-  if (/(epargne|épargne|saving|ادخار|توفير)/.test(n)) return 2;
-  if (/(phone|téléphone|telephone|هاتف|تليفون)/.test(n)) return 1;
-  return 1.5;
-}
-function isSavings(name: string): boolean {
-  return /(epargne|épargne|saving|ادخار|توفير)/.test(name.trim().toLowerCase());
-}
-
 export default function RepartirPage() {
   const { locale, dir } = useAppLocale("fr");
   const t = COPY[locale] ?? COPY.fr;
@@ -283,10 +252,7 @@ export default function RepartirPage() {
         const rawTotal = sum(raw);
         let next: Record<string, number>;
         if (rawTotal === 0) {
-          next = splitByWeights(envs.map((e) => e.id), (id) => {
-            const env = envs.find((x) => x.id === id);
-            return env ? essentialWeight(env.name) : 1;
-          });
+          next = buildPresetSplit(envs, "essentials");
           setActivePreset("essentials");
         } else if (rawTotal > 100) {
           next = {};
@@ -337,18 +303,8 @@ export default function RepartirPage() {
     });
   };
 
-  const applyPreset = (key: "equal" | "essentials" | "save") => {
-    const ids = envelopes.map((e) => e.id);
-    const nameOf = (id: string) => envelopes.find((e) => e.id === id)?.name ?? "";
-    let next: Record<string, number>;
-    if (key === "equal") {
-      next = splitByWeights(ids, () => 1);
-    } else if (key === "save") {
-      next = splitByWeights(ids, (id) => (isSavings(nameOf(id)) ? 4 : essentialWeight(nameOf(id))));
-    } else {
-      next = splitByWeights(ids, (id) => essentialWeight(nameOf(id)));
-    }
-    setPct(next);
+  const applyPreset = (key: SplitPreset) => {
+    setPct(buildPresetSplit(envelopes, key));
     setActivePreset(key);
     setSaveState("idle");
   };
