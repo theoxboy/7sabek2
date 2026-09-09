@@ -9,7 +9,8 @@ import { useAppLocale } from "@/lib/appLocale";
 import { parseAmountInput } from "@/lib/parseAmount";
 import { fetchMe, type AuthUser } from "@/lib/auth";
 import { guestEvent } from "@/lib/guestAnchorApi";
-import { buildPresetSplit, roundToSplitStep, sumSplit, type SplitPreset } from "@/lib/incomeSplit";
+import { buildPresetSplit, type SplitPreset } from "@/lib/incomeSplit";
+import { getSplitPercentages, saveIncomeSplit } from "@/lib/distribution";
 import {
   IncomeSplitEditor,
   createSplitEnvelope,
@@ -17,15 +18,7 @@ import {
 } from "@/components/guest/IncomeSplitEditor";
 import type { FloussyLocale } from "@/lib/localePreference";
 
-/** GET/PUT /distribution/config — the split rules, no income required. */
-type ConfigItem = {
-  target_id: string;
-  name: string;
-  mode: "none" | "fixed" | "percent";
-  percent?: string | null;
-  enabled: boolean;
-};
-type ConfigOut = { auto_enabled: boolean; envelopes: ConfigItem[]; goals: ConfigItem[] };
+type EnvelopeRow = { id: string; name: string; is_cash?: boolean; is_goal?: boolean };
 
 const COPY: Record<
   FloussyLocale,
@@ -144,42 +137,26 @@ export default function RepartirPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const [user, config] = await Promise.all([
+        const [user, rawEnvs, saved] = await Promise.all([
           fetchMe().catch(() => null),
-          apiFetch<ConfigOut>("/distribution/config"),
+          apiFetch<EnvelopeRow[]>("/envelopes"),
+          getSplitPercentages(),
         ]);
         if (cancelled) return;
         setMe(user);
-        const envs = (config.envelopes ?? []).map((e) => ({ id: e.target_id, name: e.name }));
+        const envs = (rawEnvs ?? [])
+          .filter((e) => !e.is_cash && !e.is_goal)
+          .map((e) => ({ id: e.id, name: e.name }));
         setEnvelopes(envs);
 
-        // Existing percentages, normalised so the screen never opens in error.
-        const raw: Record<string, number> = {};
-        for (const e of config.envelopes ?? []) {
-          raw[e.target_id] =
-            e.mode === "percent" && e.enabled && e.percent ? Math.max(0, Number(e.percent)) : 0;
-        }
-        const rawTotal = sumSplit(raw);
-        let next: Record<string, number>;
-        if (rawTotal === 0) {
-          next = buildPresetSplit(envs, "essentials");
-          setActivePreset("essentials");
-        } else if (rawTotal > 100) {
-          next = {};
-          let running = 0;
-          envs.forEach((e, i) => {
-            const v =
-              i === envs.length - 1
-                ? Math.max(0, 100 - running)
-                : roundToSplitStep((raw[e.id] / rawTotal) * 100);
-            next[e.id] = v;
-            running += v;
-          });
+        const hasSaved = envs.some((e) => (saved[e.id] || 0) > 0);
+        if (hasSaved) {
+          setPct(Object.fromEntries(envs.map((e) => [e.id, saved[e.id] || 0])));
+          setActivePreset(null);
         } else {
-          next = {};
-          for (const e of envs) next[e.id] = roundToSplitStep(raw[e.id] ?? 0);
+          setPct(buildPresetSplit(envs, "essentials"));
+          setActivePreset("essentials");
         }
-        setPct(next);
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("error");
@@ -224,19 +201,7 @@ export default function RepartirPage() {
     setSaveState("saving");
     setSaveErr(null);
     try {
-      await apiFetch<ConfigOut>("/distribution/config", {
-        method: "PUT",
-        body: {
-          auto_enabled: true,
-          goals: [],
-          envelopes: envelopes.map((e) => {
-            const p = pct[e.id] || 0;
-            return p > 0
-              ? { target_id: e.id, mode: "percent", percent: String(p), enabled: true }
-              : { target_id: e.id, mode: "none", enabled: false };
-          }),
-        },
-      });
+      await saveIncomeSplit(envelopes, pct);
       setSaveState("saved");
       guestEvent("guest_cta_click", { cta: "repartir_saved", route: "/repartir" });
     } catch (err) {

@@ -25,6 +25,7 @@ import { detectFragileContext } from "@/lib/guestFragileContext";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { parseAmountInput } from "@/lib/parseAmount";
 import { buildPresetSplit, type SplitPreset } from "@/lib/incomeSplit";
+import { getSplitPercentages, saveIncomeSplit } from "@/lib/distribution";
 import {
   IncomeSplitEditor,
   createSplitEnvelope,
@@ -43,14 +44,7 @@ const STEP_KEY = "7sabek.guest.decouverte_step";
 const INCOME_CATEGORY_NAME = "income_general";
 const TOTAL = 5;
 
-type ConfigItem = {
-  target_id: string;
-  name: string;
-  mode?: "none" | "fixed" | "percent";
-  percent?: string | null;
-  enabled?: boolean;
-};
-type ConfigOut = { envelopes: ConfigItem[]; goals: ConfigItem[] };
+type EnvelopeRow = { id: string; name: string; is_cash?: boolean; is_goal?: boolean };
 type CategoryOut = { id: string; name: string };
 
 type OnbCopy = {
@@ -237,28 +231,23 @@ export default function DiscoveryWelcomePage() {
           return;
         }
         setUser(me);
-        const [cats, config] = await Promise.all([
+        const [cats, rawEnvs, saved] = await Promise.all([
           apiFetch<CategoryOut[]>("/categories").catch(() => [] as CategoryOut[]),
-          apiFetch<ConfigOut>("/distribution/config").catch(
-            () => ({ envelopes: [], goals: [] } as ConfigOut)
-          ),
+          apiFetch<EnvelopeRow[]>("/envelopes").catch(() => [] as EnvelopeRow[]),
+          getSplitPercentages().catch(() => ({}) as Record<string, number>),
         ]);
         if (cancelled) return;
         setIncomeCatId(cats.find((c) => c.name === INCOME_CATEGORY_NAME)?.id ?? null);
-        const list = config.envelopes.map((e) => ({ id: e.target_id, name: e.name }));
+        const list = (rawEnvs ?? [])
+          .filter((e) => !e.is_cash && !e.is_goal)
+          .map((e) => ({ id: e.id, name: e.name }));
         setEnvs(list);
-        const existing: Record<string, number> = {};
-        let hasExisting = false;
-        for (const e of config.envelopes) {
-          const item = e as ConfigItem;
-          const v =
-            item.mode === "percent" && item.enabled && item.percent
-              ? Math.max(0, Math.round(Number(item.percent)))
-              : 0;
-          existing[e.target_id] = v;
-          if (v > 0) hasExisting = true;
-        }
-        setPct(hasExisting ? existing : buildPresetSplit(list, "essentials"));
+        const hasExisting = list.some((e) => (saved[e.id] || 0) > 0);
+        setPct(
+          hasExisting
+            ? Object.fromEntries(list.map((e) => [e.id, saved[e.id] || 0]))
+            : buildPresetSplit(list, "essentials")
+        );
         setActivePreset(hasExisting ? null : "essentials");
       })
       .catch(() => {
@@ -381,19 +370,7 @@ export default function DiscoveryWelcomePage() {
     setSplitSaving(true);
     try {
       if (envs.length > 0) {
-        await apiFetch("/distribution/config", {
-          method: "PUT",
-          body: {
-            auto_enabled: true,
-            goals: [],
-            envelopes: envs.map((e) => {
-              const p = pct[e.id] || 0;
-              return p > 0
-                ? { target_id: e.id, mode: "percent", percent: String(p), enabled: true }
-                : { target_id: e.id, mode: "none", enabled: false };
-            }),
-          },
-        });
+        await saveIncomeSplit(envs, pct);
         guestEvent("guest_cta_click", { cta: "decouverte_split_saved", route: "/decouverte" });
       }
     } catch {

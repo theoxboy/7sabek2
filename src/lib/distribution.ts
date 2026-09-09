@@ -100,6 +100,58 @@ export async function getRules(): Promise<DistributionRule[]> {
   return apiFetch<DistributionRule[]>("/distribution/rules");
 }
 
+/**
+ * Current income-split percentages by envelope id, read from the *effective*
+ * rules that declaring income actually applies (`/distribution/rules`).
+ * `PUT /distribution/config` writes a legacy table the engine ignores, so the
+ * light split UIs must read and write here instead.
+ */
+export async function getSplitPercentages(): Promise<Record<string, number>> {
+  const rules = await getRules().catch(() => [] as DistributionRule[]);
+  const out: Record<string, number> = {};
+  for (const rule of rules) {
+    if (rule.target_type !== "envelope" || !rule.enabled) continue;
+    if ((rule.mode === "percent" || rule.mode === "percent_of_income") && rule.percent) {
+      out[rule.target_id] = Math.round(Number(rule.percent));
+    }
+  }
+  return out;
+}
+
+/**
+ * Persist an income split so declaring income actually distributes it: a single
+ * active saved config whose percent rows become the effective `DistributionRule`
+ * set. Envelopes at 0% are left out.
+ */
+export async function saveIncomeSplit(
+  envelopes: Array<{ id: string }>,
+  pct: Record<string, number>
+): Promise<void> {
+  const rows: DistributionSavedRow[] = envelopes
+    .filter((e) => (pct[e.id] || 0) > 0)
+    .map((e, index) => ({
+      target_type: "envelope",
+      target_id: e.id,
+      mode: "percent",
+      enabled: true,
+      percent: String(pct[e.id]),
+      rank: index + 1,
+    }));
+
+  const existing = await listSavedDistributionConfigs().catch(
+    () => [] as DistributionSavedConfig[]
+  );
+  const activeId = existing.find((c) => c.is_active)?.id;
+
+  await saveDistributionConfig({
+    id: activeId,
+    name: "Ma répartition",
+    auto_enabled: true,
+    percent_mode: "ranked",
+    rows,
+  });
+}
+
 export async function getSettings(): Promise<DistributionSettings> {
   return apiFetch<DistributionSettings>("/users/me/settings");
 }
