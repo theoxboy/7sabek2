@@ -27,6 +27,32 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.4.0",
+    date: "2026-09-09",
+    groups: [
+      {
+        kind: "added",
+        items: [
+          {
+            fr: "Mode découverte : une prise en main en 5 écrans juste après « Essayer sans compte » — comment marche l'app, ton revenu, une répartition de départ à choisir, et ton code de reprise. Passable à chaque écran, et elle reprend là où tu t'es arrêté.",
+            en: "Discovery mode: a 5-screen getting-started right after \"Try without an account\" — how the app works, your income, a starting split to choose, and your recovery code. Skippable at every screen, and it resumes where you left off.",
+            ar: "وضع الاكتشاف: تعريف ف 5 شاشات مباشرة من بعد « جرّب بلا حساب » — كيفاش كتخدم الأبليكاسيون، الدخل ديالك، تقسيم ديال البداية باش تختار، وكود الاسترجاع ديالك. تقدر تقفز فأي شاشة، وكتكمل من فين وقفتي.",
+          },
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "La page « Répartir mon revenu » occupe maintenant tout l'écran sur ordinateur, et tu peux ajouter des enveloppes — depuis une liste de suggestions (Santé, Loisirs, Restaurants…) ou en tapant un nom.",
+            en: "The \"Split my income\" page now uses the full screen on desktop, and you can add envelopes — from a list of suggestions (Health, Leisure, Restaurants…) or by typing a name.",
+            ar: "صفحة « قسّم دخلي » ولّات كتاخد الشاشة كاملة فالأورديناتور، وتقدر تزيد أظرفة — من لائحة اقتراحات (الصحة، الترفيه، المطاعم…) ولا بكتابة سمية.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.3",
     date: "2026-09-08",
     groups: [
