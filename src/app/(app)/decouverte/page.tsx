@@ -25,6 +25,11 @@ import { detectFragileContext } from "@/lib/guestFragileContext";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { parseAmountInput } from "@/lib/parseAmount";
 import { buildPresetSplit, type SplitPreset } from "@/lib/incomeSplit";
+import {
+  IncomeSplitEditor,
+  createSplitEnvelope,
+  type SplitEnvelope,
+} from "@/components/guest/IncomeSplitEditor";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { RecoveryCodeVault } from "@/components/guest/RecoveryCodeVault";
 import { GuestClaimDialog } from "@/components/guest/GuestGate";
@@ -38,16 +43,15 @@ const STEP_KEY = "7sabek.guest.decouverte_step";
 const INCOME_CATEGORY_NAME = "income_general";
 const TOTAL = 5;
 
-type Envelope = { id: string; name: string };
-type ConfigItem = { target_id: string; name: string };
+type ConfigItem = {
+  target_id: string;
+  name: string;
+  mode?: "none" | "fixed" | "percent";
+  percent?: string | null;
+  enabled?: boolean;
+};
 type ConfigOut = { envelopes: ConfigItem[]; goals: ConfigItem[] };
 type CategoryOut = { id: string; name: string };
-
-const SPLIT_PRESETS: { key: SplitPreset; icon: string }[] = [
-  { key: "essentials", icon: "🏠" },
-  { key: "equal", icon: "⚖️" },
-  { key: "save", icon: "🐷" },
-];
 
 type OnbCopy = {
   conceptEyebrow: string;
@@ -218,7 +222,9 @@ export default function DiscoveryWelcomePage() {
   const isAr = locale === "ar";
 
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [envs, setEnvs] = useState<Envelope[]>([]);
+  const [envs, setEnvs] = useState<SplitEnvelope[]>([]);
+  const [pct, setPct] = useState<Record<string, number>>({});
+  const [activePreset, setActivePreset] = useState<SplitPreset | null>("essentials");
   const [incomeCatId, setIncomeCatId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -239,7 +245,21 @@ export default function DiscoveryWelcomePage() {
         ]);
         if (cancelled) return;
         setIncomeCatId(cats.find((c) => c.name === INCOME_CATEGORY_NAME)?.id ?? null);
-        setEnvs(config.envelopes.map((e) => ({ id: e.target_id, name: e.name })));
+        const list = config.envelopes.map((e) => ({ id: e.target_id, name: e.name }));
+        setEnvs(list);
+        const existing: Record<string, number> = {};
+        let hasExisting = false;
+        for (const e of config.envelopes) {
+          const item = e as ConfigItem;
+          const v =
+            item.mode === "percent" && item.enabled && item.percent
+              ? Math.max(0, Math.round(Number(item.percent)))
+              : 0;
+          existing[e.target_id] = v;
+          if (v > 0) hasExisting = true;
+        }
+        setPct(hasExisting ? existing : buildPresetSplit(list, "essentials"));
+        setActivePreset(hasExisting ? null : "essentials");
       })
       .catch(() => {
         if (!cancelled) router.replace("/login");
@@ -259,7 +279,9 @@ export default function DiscoveryWelcomePage() {
   const [fragile, setFragile] = useState(false);
   const [claimOpen, setClaimOpen] = useState(false);
   const [income, setIncome] = useState("");
-  const [splitBusy, setSplitBusy] = useState<SplitPreset | "keep" | null>(null);
+  const [addBusy, setAddBusy] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
+  const [splitSaving, setSplitSaving] = useState(false);
   const incomeLoggedRef = useRef(false);
 
   useEffect(() => {
@@ -340,12 +362,25 @@ export default function DiscoveryWelcomePage() {
     }
   }
 
-  const pickSplit = async (choice: SplitPreset | "keep") => {
-    if (splitBusy) return;
-    setSplitBusy(choice);
+  const handleAddEnv = async (name: string) => {
+    setAddBusy(true);
+    setAddErr(null);
+    const res = await createSplitEnvelope(name, envs, true, locale);
+    if (res && "error" in res) {
+      setAddErr(res.error);
+    } else if (res) {
+      setEnvs((prev) => [...prev, res]);
+      setPct((prev) => ({ ...prev, [res.id]: 0 }));
+      setActivePreset(null);
+    }
+    setAddBusy(false);
+  };
+
+  const saveSplitAndNext = async () => {
+    if (splitSaving) return;
+    setSplitSaving(true);
     try {
-      if (choice !== "keep" && envs.length > 0) {
-        const pct = buildPresetSplit(envs, choice);
+      if (envs.length > 0) {
         await apiFetch("/distribution/config", {
           method: "PUT",
           body: {
@@ -359,14 +394,13 @@ export default function DiscoveryWelcomePage() {
             }),
           },
         });
-        guestEvent("guest_cta_click", { cta: `decouverte_split_${choice}`, route: "/decouverte" });
+        guestEvent("guest_cta_click", { cta: "decouverte_split_saved", route: "/decouverte" });
       }
-      go(step + 1);
     } catch {
       // Non-blocking: they can set the split later from /repartir.
-      go(step + 1);
     } finally {
-      setSplitBusy(null);
+      setSplitSaving(false);
+      go(step + 1);
     }
   };
 
@@ -507,36 +541,21 @@ export default function DiscoveryWelcomePage() {
                 </span>
                 <h1 className="dcw-h1">{o.splitTitle}</h1>
                 <p className="dcw-sub">{o.splitSub}</p>
-                <div className="dcw-presets">
-                  {SPLIT_PRESETS.map(({ key, icon }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className="dcw-preset"
-                      disabled={Boolean(splitBusy)}
-                      onClick={() => void pickSplit(key)}
-                    >
-                      <span className="dcw-preset-ic" aria-hidden="true">{icon}</span>
-                      <span className="dcw-preset-body">
-                        <b>{o.presetName[key]}</b>
-                        <span>{o.presetDesc[key]}</span>
-                      </span>
-                      {splitBusy === key ? (
-                        <span className="dcw-preset-load">{o.splitSaving}</span>
-                      ) : (
-                        <ArrowRight className="dcw-ic dcw-arrow" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="dcw-textlink"
-                  disabled={Boolean(splitBusy)}
-                  onClick={() => void pickSplit("keep")}
-                >
-                  {o.splitKeep}
-                </button>
+                <IncomeSplitEditor
+                  envelopes={envs}
+                  pct={pct}
+                  onPctChange={setPct}
+                  onAddEnvelope={handleAddEnv}
+                  addBusy={addBusy}
+                  addError={addErr}
+                  income={incomeValue}
+                  locale={locale}
+                  dir={dir}
+
+                  activePreset={activePreset}
+                  onPresetChange={setActivePreset}
+                  compact
+                />
               </>
             )}
 
@@ -601,7 +620,15 @@ export default function DiscoveryWelcomePage() {
               <ArrowRight className="dcw-ic dcw-arrow" />
             </button>
           ) : step === 3 ? (
-            <span />
+            <button
+              type="button"
+              className="dcw-btn dcw-btn-accent"
+              onClick={() => void saveSplitAndNext()}
+              disabled={splitSaving}
+            >
+              {splitSaving ? o.splitSaving : o.next}
+              <ArrowRight className="dcw-ic dcw-arrow" />
+            </button>
           ) : (
             <button
               type="button"
