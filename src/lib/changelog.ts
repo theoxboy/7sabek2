@@ -44,6 +44,11 @@ export const CHANGELOG: Release[] = [
         kind: "improved",
         items: [
           {
+            fr: "La page « Répartir mon revenu » est plus simple : impossible de dépasser 100 %, une barre montre la forme de ton budget, tes montants en dirhams sont affichés, et trois réglages rapides (égal, l'essentiel d'abord, épargner plus) te font gagner du temps.",
+            en: "The \"Split my income\" page is simpler: you can't go over 100%, a bar shows the shape of your budget, your amounts show in dirhams, and three quick presets (equal, essentials first, save more) save you time.",
+            ar: "صفحة « قسّم دخلي » ولّات أبسط: ما تقدرش تفوت 100٪، شريط كيوريك شكل الميزانية ديالك، المبالغ بالدرهم كتبان، وثلاثة إعدادات سريعة (بالتساوي، الضروري أولاً، توفير أكثر) كيربحو ليك الوقت.",
+          },
+          {
             fr: "Après avoir créé ton compte depuis le mode découverte, un rappel discret sur le tableau de bord te propose de compléter ton profil (prénom, photo) quand tu veux.",
             en: "After creating your account from discovery mode, a quiet reminder on the dashboard invites you to complete your profile (first name, photo) whenever you like.",
             ar: "من بعد ما تصاوب حسابك من وضع الاكتشاف، تذكير خفيف فالطابلو دو بور كيقترح ليك تكمل البروفيل ديالك (السمية، التصويرة) ملي بغيتي.",
