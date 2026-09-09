@@ -1192,6 +1192,12 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       }
     }
 
+    // "Mode Découverte" guests set the split on the light /repartir page —
+    // /distribution is a locked preview for them.
+    if (data?.user?.is_guest) {
+      router.push("/repartir");
+      return;
+    }
     try {
       sessionStorage.setItem(
         QUICK_TX_INCOME_RESUME_STORAGE_KEY,
@@ -1205,7 +1211,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       // ignore
     }
     router.push("/distribution");
-  }, [quickTxDraft, quickTxReminderIdsToMark, router, quickTxDistributionPreview]);
+  }, [quickTxDraft, quickTxReminderIdsToMark, router, quickTxDistributionPreview, data?.user?.is_guest]);
 
   const handleMapCategoryInline = async (categoryId: string, envelopeId: string) => {
     if (!envelopeId) return;
@@ -2733,6 +2739,14 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                     <span>{formatMoney(Number(quickTxDraft.amount))} {data?.user.currency ?? "MAD"}</span>
                   </div>
                 </>
+              ) : data?.user?.is_guest ? (
+                <p className="text-xs text-[var(--muted)]">
+                  {locale === "ar"
+                    ? "مازال ما عمّرتيش التقسيم ديالك. الدخل غادي يمشي للكاش — تقدر تقسمو من بعد."
+                    : locale === "en"
+                    ? "You haven't set up your split yet. Your income goes to Cash — you can split it afterwards."
+                    : "Tu n'as pas encore réglé ta répartition. Ton revenu ira dans Cash — tu pourras le répartir ensuite."}
+                </p>
               ) : (
                 <p className="text-xs text-[var(--muted)] italic">
                   {locale === "ar"
@@ -2784,7 +2798,13 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
             disabled={quickTxSubmitting}
             className="rounded-xl"
           >
-            {locale === "ar"
+            {data?.user?.is_guest
+              ? locale === "ar"
+                ? "إعداد التقسيم"
+                : locale === "en"
+                ? "Set up my split"
+                : "Configurer ma répartition"
+              : locale === "ar"
               ? "بدّل التوزيع"
               : locale === "en"
               ? "Change distribution"
