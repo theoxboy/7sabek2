@@ -1661,6 +1661,18 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
             occurred_on: effectiveOccurredOn,
           },
         });
+        // A guest with no split rules has nothing to preview — don't strand
+        // them on an empty step; record the income (it lands in Cash) and let
+        // the toast point them at /repartir.
+        if (data?.user?.is_guest && !(preview.items && preview.items.length)) {
+          await executeSaveTransaction(
+            effectiveCategoryId,
+            effectiveAmount,
+            effectiveOccurredOn,
+            effectiveDescription
+          );
+          return;
+        }
         setQuickTxDistributionPreview(preview);
         setQuickTxStep("income_preview");
       } catch (err) {
