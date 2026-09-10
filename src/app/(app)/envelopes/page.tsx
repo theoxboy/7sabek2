@@ -2654,6 +2654,15 @@ export default function EnvelopesPage() {
                 <DialogHeader>
                   <DialogTitle>{copy.newEnvelope}</DialogTitle>
                   <DialogDescription>{copy.addEnvelopeDesc}</DialogDescription>
+                  {isGuest ? (
+                    <p className="mt-1 text-xs font-semibold text-[var(--accent-strong,#0b8f53)]">
+                      {locale === "ar"
+                        ? `وضع الاكتشاف: ${envelopes.length}/${GUEST_LIMITS.envelopes} ظرف مستعمل`
+                        : locale === "en"
+                          ? `Discovery mode: ${envelopes.length}/${GUEST_LIMITS.envelopes} envelopes used`
+                          : `Mode découverte : ${envelopes.length}/${GUEST_LIMITS.envelopes} enveloppes créées`}
+                    </p>
+                  ) : null}
                 </DialogHeader>
                 <div className="mt-2 grid gap-3">
                   <input
@@ -2693,8 +2702,19 @@ export default function EnvelopesPage() {
                       {copy.cancel}
                     </Button>
                   </DialogClose>
-                  <Button type="button" onClick={handleCreate} isLoading={updating}>
-                    {copy.add}
+                  <Button
+                    type="button"
+                    onClick={handleCreate}
+                    isLoading={updating}
+                    disabled={isGuest && !guestEnvelopeQuota.allowed}
+                  >
+                    {isGuest && !guestEnvelopeQuota.allowed
+                      ? locale === "ar"
+                        ? "بلغت الحد الأقصى (20)"
+                        : locale === "en"
+                          ? "Limit reached (20)"
+                          : "Plafond atteint (20)"
+                      : copy.add}
                   </Button>
                 </DialogFooter>
               </DialogContent>
