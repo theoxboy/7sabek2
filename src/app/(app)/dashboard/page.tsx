@@ -2582,6 +2582,22 @@ function DashboardContent() {
             <EmptyState
               title={copy.noExpensesTitle}
               description={copy.noExpensesDescription}
+              action={
+                <Button
+                  type="button"
+                  onClick={() => openQuickTx("expense")}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#17C777] font-bold text-[#06301F] hover:bg-[#0B8F53] hover:text-white text-xs px-4 py-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>
+                    {locale === "ar"
+                      ? "تسجيل أول مصروف"
+                      : locale === "en"
+                        ? "Log first expense"
+                        : "Enregistrer une première dépense"}
+                  </span>
+                </Button>
+              }
             />
           ) : recentExpenses.length === 0 ? (
             <EmptyState

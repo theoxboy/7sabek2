@@ -278,6 +278,7 @@ export default function DiscoveryWelcomePage() {
   const [step, setStep] = useState(0);
   const [dirn, setDirn] = useState(1);
   const [acking, setAcking] = useState(false);
+  const [ackCelebrated, setAckCelebrated] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [fragile, setFragile] = useState(false);
   const [claimOpen, setClaimOpen] = useState(false);
@@ -369,7 +370,10 @@ export default function DiscoveryWelcomePage() {
     try {
       await logIncomeIfNeeded();
       await ackRecoveryCode(); // fires protection_level_changed 40→70 server-side
-      leave(() => router.replace("/dashboard"));
+      setAckCelebrated(true);
+      setTimeout(() => {
+        leave(() => router.replace("/dashboard"));
+      }, 700);
     } catch {
       setAcking(false);
     }
@@ -625,6 +629,19 @@ export default function DiscoveryWelcomePage() {
                     </Button>
                   </div>
                 )}
+
+                {ackCelebrated ? (
+                  <div className="flex items-center justify-center gap-2 rounded-xl bg-[#0B8F53]/15 border border-[#0B8F53]/30 p-3 text-sm font-bold text-[#0B8F53]">
+                    <Check className="h-5 w-5" />
+                    <span>
+                      {locale === "ar"
+                        ? "تم تأمين الميزانية بنجاح! نسبة الحماية 70% ✓"
+                        : locale === "en"
+                          ? "Budget secured! Protection level 70% ✓"
+                          : "Budget sécurisé avec succès ! Protection à 70% ✓"}
+                    </span>
+                  </div>
+                ) : null}
 
                 <p className="dcw-caption">{renderMd(o.addExpenseHint)}</p>
               </>
@@ -1186,16 +1203,23 @@ export default function DiscoveryWelcomePage() {
           gap: 12px;
         }
         .dcw-skip {
-          background: none;
-          border: none;
+          background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+          border: 1px solid var(--line);
+          border-radius: 999px;
           font: inherit;
-          font-size: 0.83rem;
-          font-weight: 600;
-          color: var(--ink-mute);
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: var(--ink-soft);
           cursor: pointer;
-          padding: 4px 8px;
+          padding: 8px 18px;
+          margin-top: 6px;
+          transition: all 0.16s ease;
         }
-        .dcw-skip:hover { color: var(--ink); }
+        .dcw-skip:hover {
+          color: var(--ink);
+          background: var(--surface-2);
+          border-color: var(--border-strong);
+        }
       `}</style>
     </div>
   );

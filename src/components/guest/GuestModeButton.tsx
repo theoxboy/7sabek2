@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Info, TriangleAlert, Sparkles } from "lucide-react";
 
 import type { FloussyLocale } from "@/lib/localePreference";
 import type { PlatformStatusOut } from "@/lib/types";
+import { resolveAnchorToken } from "@/lib/guestAnchor";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -90,7 +91,32 @@ export function GuestModeButton({
   hintClassName,
 }: Props) {
   const [msgOpen, setMsgOpen] = useState(false);
+  const [hasAnchor, setHasAnchor] = useState(false);
+  const [preparingEnvelopes, setPreparingEnvelopes] = useState(false);
   const t = COPY[locale] ?? COPY.fr;
+
+  useEffect(() => {
+    let active = true;
+    resolveAnchorToken()
+      .then((tok) => {
+        if (active && tok) setHasAnchor(true);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      setPreparingEnvelopes(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPreparingEnvelopes(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Missing status (offline / old backend) → behave exactly like before.
   const enabled = status?.guest_mode_enabled ?? true;
@@ -99,11 +125,31 @@ export function GuestModeButton({
 
   if (!onThisPlacement) return null;
 
+  const resumeText =
+    locale === "ar"
+      ? "استئناف ميزانيتي"
+      : locale === "en"
+        ? "Resume my budget"
+        : "Reprendre mon budget";
+
+  const effectiveLabel = hasAnchor ? resumeText : label;
+  const preparingText =
+    locale === "ar"
+      ? "جاري تحضير ميزانيتك..."
+      : locale === "en"
+        ? "Preparing your budget..."
+        : "Préparation de vos enveloppes...";
+
   if (enabled) {
     return (
       <div className="flex w-full flex-col items-center gap-2">
-        <Button type="button" onClick={onStart} isLoading={loading} className={className}>
-          {label}
+        <Button
+          type="button"
+          onClick={onStart}
+          isLoading={loading}
+          className={className}
+        >
+          {loading && preparingEnvelopes ? preparingText : effectiveLabel}
         </Button>
         {hint ? <p className={hintClassName}>{hint}</p> : null}
       </div>
