@@ -65,7 +65,7 @@ export function useTrafficSummary(days = 7) {
 }
 
 export function useGuestFunnel(days = 30) {
-  return useAdmin<GuestFunnelOut>(`/analytics/guest-funnel?days=${days}`, {
+  return useAdmin<GuestFunnelOut>(`/admin/guests/funnel?days=${days}`, {
     refreshInterval: 120_000,
   });
 }

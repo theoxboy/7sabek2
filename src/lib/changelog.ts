@@ -31,6 +31,21 @@ export const CHANGELOG: Release[] = [
     date: "2026-09-10",
     groups: [
       {
+        kind: "improved",
+        items: [
+          {
+            fr: "Écran de répartition (mode découverte) : chaque point de départ explique en une ligne ce qu'il fait, la répartition « Égale » est maintenant vraiment équilibrée, et un choix appliqué par erreur s'annule d'un seul tap sans perdre tes réglages.",
+            en: "Split screen (discovery mode): each starting point now says in one line what it does, the \"Equal\" split is genuinely even, and a preset applied by mistake can be undone in one tap without losing your tweaks.",
+            ar: "شاشة التقسيم (وضع الاكتشاف): كل نقطة بداية كتشرح ف سطر واش كتدير، تقسيم « بالتساوي » ولا متوازن بصح، والاختيار اللي طبقتيه بالغلط كترجعو بضغطة وحدة بلا ما تخسر التعديلات ديالك.",
+          },
+          {
+            fr: "Ajouter une enveloppe pendant la répartition garde ton découpage au lieu de tout remettre à zéro, et « Passer » enregistre quand même la répartition affichée à l'écran.",
+            en: "Adding an envelope while splitting keeps your breakdown instead of resetting it, and \"Skip\" still saves the split shown on screen.",
+            ar: "زيادة ظرف أثناء التقسيم كتحافظ على التوزيع ديالك بلا ما يرجع كلشي لصفر، و « تجاوز » كيسجل التقسيم اللي بان فالشاشة.",
+          },
+        ],
+      },
+      {
         kind: "fixed",
         items: [
           {

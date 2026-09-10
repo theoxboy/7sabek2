@@ -1772,7 +1772,7 @@ function AppLayoutContent({
       ? "internal"
       : "referral";
     const timerId = window.setTimeout(() => {
-      apiFetch("/analytics/pageviews", {
+      apiFetch("/pulse/pageviews", {
         method: "POST",
         body: { path: pathname, referrer, source },
       }).catch(() => null);

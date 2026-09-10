@@ -25,6 +25,7 @@ import { detectFragileContext } from "@/lib/guestFragileContext";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { parseAmountInput } from "@/lib/parseAmount";
 import { buildPresetSplit, type SplitPreset } from "@/lib/incomeSplit";
+import { GUEST_LIMITS } from "@/lib/guestQuota";
 import { getSplitPercentages, saveIncomeSplit } from "@/lib/distribution";
 import {
   IncomeSplitEditor,
@@ -64,6 +65,9 @@ type OnbCopy = {
   splitSub: string;
   splitKeep: string;
   splitSaving: string;
+  splitError: string;
+  stepWord: string;
+  progressLabel: string;
   presetName: Record<SplitPreset, string>;
   presetDesc: Record<SplitPreset, string>;
   readyEyebrow: string;
@@ -98,6 +102,10 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     splitSub: "Choisis un point de départ. Tu ajusteras enveloppe par enveloppe quand tu veux.",
     splitKeep: "Garder la répartition proposée",
     splitSaving: "Enregistrement…",
+    splitError:
+      "La répartition n'a pas pu être enregistrée. Tu pourras la refaire depuis « Répartir ».",
+    stepWord: "Étape",
+    progressLabel: "Progression",
     presetName: { essentials: "L'essentiel d'abord", equal: "Égal", save: "Épargner plus" },
     presetDesc: {
       essentials: "Plus pour le loyer et les courses, le reste suit.",
@@ -111,7 +119,7 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     addExpenseHint: "Pour ajouter une dépense : le bouton **+** en bas de l'écran.",
     next: "Suivant",
     back: "Précédent",
-    skip: "Passer",
+    skip: "Passer la configuration",
     finish: "Aller à mon budget",
   },
   en: {
@@ -135,6 +143,9 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     splitSub: "Pick a starting point. You'll fine-tune envelope by envelope whenever you like.",
     splitKeep: "Keep the suggested split",
     splitSaving: "Saving…",
+    splitError: "We couldn't save your split. You can redo it later from “Split”.",
+    stepWord: "Step",
+    progressLabel: "Progress",
     presetName: { essentials: "Essentials first", equal: "Equal", save: "Save more" },
     presetDesc: {
       essentials: "More for rent and groceries, the rest follows.",
@@ -148,7 +159,7 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     addExpenseHint: "To add an expense: the **+** button at the bottom of the screen.",
     next: "Next",
     back: "Back",
-    skip: "Skip",
+    skip: "Skip setup",
     finish: "Go to my budget",
   },
   ar: {
@@ -172,6 +183,9 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     splitSub: "اختار نقطة البداية. غادي تعدّل ظرف بظرف ملي بغيتي.",
     splitKeep: "خلّي التقسيم المقترح",
     splitSaving: "كيتسجّل…",
+    splitError: "التقسيم ما تسجّلش. تقدر تعاود ديرو من « قسّم » من بعد.",
+    stepWord: "خطوة",
+    progressLabel: "التقدم",
     presetName: { essentials: "الضروري أولاً", equal: "بالتساوي", save: "توفير أكثر" },
     presetDesc: {
       essentials: "كثر للكراء والماكلة، والباقي كيتبع.",
@@ -185,7 +199,7 @@ const ONB: Record<FloussyLocale, OnbCopy> = {
     addExpenseHint: "باش تزيد مصروف: بوطون **+** اللي تحت.",
     next: "التالي",
     back: "اللي فات",
-    skip: "قفز",
+    skip: "تجاوز الإعداد",
     finish: "مشي للميزانية ديالي",
   },
 };
@@ -272,11 +286,20 @@ export default function DiscoveryWelcomePage() {
   const [addErr, setAddErr] = useState<string | null>(null);
   const [splitSaving, setSplitSaving] = useState(false);
   const [splitSaved, setSplitSaved] = useState(false);
+  const [splitError, setSplitError] = useState(false);
   const incomeLoggedRef = useRef(false);
+  const splitPersistedRef = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     setStep(readSavedStep());
   }, []);
+
+  // Move focus to the step heading on every transition so keyboard and
+  // screen-reader users are told the panel changed.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [step]);
 
   useEffect(() => {
     try {
@@ -316,9 +339,28 @@ export default function DiscoveryWelcomePage() {
     fn();
   };
 
+  /** Best-effort save of the current split. Returns false if the call failed. */
+  async function persistSplit(): Promise<boolean> {
+    if (splitPersistedRef.current) return true;
+    if (envs.length === 0) return true;
+    try {
+      await saveIncomeSplit(envs, pct);
+      splitPersistedRef.current = true;
+      setSplitSaved(true);
+      setSplitError(false);
+      guestEvent("guest_cta_click", { cta: "decouverte_split_saved", route: "/decouverte" });
+      return true;
+    } catch {
+      setSplitError(true);
+      return false;
+    }
+  }
+
   const handleContinue = () => {
     setContinuing(true);
     void logIncomeIfNeeded();
+    // Keep whatever split is on screen even when the user skips the rest.
+    if (step >= 3) void persistSplit();
     leave(() => router.replace("/dashboard"));
   };
 
@@ -359,9 +401,15 @@ export default function DiscoveryWelcomePage() {
     if (res && "error" in res) {
       setAddErr(res.error);
     } else if (res) {
-      setEnvs((prev) => [...prev, res]);
-      setPct((prev) => ({ ...prev, [res.id]: 0 }));
-      setActivePreset(null);
+      const nextEnvs = [...envs, res];
+      setEnvs(nextEnvs);
+      // Fold the new envelope into the active preset rather than dropping it at
+      // 0% and forcing a full re-split.
+      setPct(
+        activePreset
+          ? buildPresetSplit(nextEnvs, activePreset)
+          : { ...pct, [res.id]: 0 }
+      );
     }
     setAddBusy(false);
   };
@@ -369,18 +417,11 @@ export default function DiscoveryWelcomePage() {
   const saveSplitAndNext = async () => {
     if (splitSaving) return;
     setSplitSaving(true);
-    try {
-      if (envs.length > 0) {
-        await saveIncomeSplit(envs, pct);
-        setSplitSaved(true);
-        guestEvent("guest_cta_click", { cta: "decouverte_split_saved", route: "/decouverte" });
-      }
-    } catch {
-      // Non-blocking: they can set the split later from /repartir.
-    } finally {
-      setSplitSaving(false);
-      go(step + 1);
-    }
+    // Non-blocking: a failure surfaces a note but still lets them move on —
+    // the split can be redone later from /repartir.
+    await persistSplit();
+    setSplitSaving(false);
+    go(step + 1);
   };
 
   return (
@@ -403,7 +444,7 @@ export default function DiscoveryWelcomePage() {
           <BrandLogo locale={locale} priority />
         </div>
 
-        <div className="dcw-dots" role="tablist" aria-label="steps">
+        <nav className="dcw-dots" aria-label={o.progressLabel}>
           {Array.from({ length: TOTAL }).map((_, i) => {
             const Ico = STEP_ICONS[i] ?? Sparkles;
             const done = i < step;
@@ -412,8 +453,8 @@ export default function DiscoveryWelcomePage() {
               <button
                 key={i}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                aria-label={`${o.stepWord} ${i + 1} / ${TOTAL}`}
+                aria-current={active ? "step" : undefined}
                 onClick={() => go(i)}
                 className={`dcw-dot ${active ? "is-active" : ""} ${done ? "is-done" : ""}`}
               >
@@ -421,7 +462,7 @@ export default function DiscoveryWelcomePage() {
               </button>
             );
           })}
-        </div>
+        </nav>
 
         <div className="dcw-stage">
           <motion.section
@@ -437,7 +478,7 @@ export default function DiscoveryWelcomePage() {
                   <span className="dcw-sq" />
                   {t.chipLabel}
                 </span>
-                <h1 className="dcw-h1">{t.welcomeTitle}</h1>
+                <h1 className="dcw-h1" ref={headingRef} tabIndex={-1}>{t.welcomeTitle}</h1>
                 <p className="dcw-sub">{t.panelIntro}</p>
                 <ul className="dcw-list">
                   {[t.explainBody[0], t.explainBody[1], t.explainBody[3]]
@@ -463,7 +504,7 @@ export default function DiscoveryWelcomePage() {
                   <span className="dcw-sq" />
                   {o.conceptEyebrow}
                 </span>
-                <h1 className="dcw-h1">{o.conceptTitle}</h1>
+                <h1 className="dcw-h1" ref={headingRef} tabIndex={-1}>{o.conceptTitle}</h1>
                 <div className="dcw-diagram" aria-hidden="true">
                   <span className="dcw-di-cash">{o.cashLabel}</span>
                   <span className="dcw-di-arrow" />
@@ -493,7 +534,7 @@ export default function DiscoveryWelcomePage() {
                   <span className="dcw-sq" />
                   {o.incomeEyebrow}
                 </span>
-                <h1 className="dcw-h1">{o.incomeTitle}</h1>
+                <h1 className="dcw-h1" ref={headingRef} tabIndex={-1}>{o.incomeTitle}</h1>
                 <p className="dcw-sub">{o.incomeSub}</p>
                 <div className="dcw-income">
                   <input
@@ -518,7 +559,7 @@ export default function DiscoveryWelcomePage() {
                   <span className="dcw-sq" />
                   {o.splitEyebrow}
                 </span>
-                <h1 className="dcw-h1">{o.splitTitle}</h1>
+                <h1 className="dcw-h1" ref={headingRef} tabIndex={-1}>{o.splitTitle}</h1>
                 <p className="dcw-sub">{o.splitSub}</p>
                 <IncomeSplitEditor
                   envelopes={envs}
@@ -533,8 +574,15 @@ export default function DiscoveryWelcomePage() {
 
                   activePreset={activePreset}
                   onPresetChange={setActivePreset}
+                  presetDescriptions={o.presetDesc}
+                  atEnvelopeCap={envs.length >= GUEST_LIMITS.envelopes}
                   compact
                 />
+                {splitError ? (
+                  <p className="dcw-inline-err" role="status">
+                    {o.splitError}
+                  </p>
+                ) : null}
               </>
             )}
 
@@ -544,10 +592,15 @@ export default function DiscoveryWelcomePage() {
                   <span className="dcw-sq" />
                   {o.readyEyebrow}
                 </span>
-                <h1 className="dcw-h1">{o.readyTitle}</h1>
+                <h1 className="dcw-h1" ref={headingRef} tabIndex={-1}>{o.readyTitle}</h1>
                 <p className="dcw-recap">
                   {o.recap(incomeValue, Math.max(envs.length, 1), splitSaved)}
                 </p>
+                {splitError ? (
+                  <p className="dcw-inline-err" role="status">
+                    {o.splitError}
+                  </p>
+                ) : null}
 
                 {storedCode ? (
                   <RecoveryCodeVault
@@ -661,6 +714,7 @@ export default function DiscoveryWelcomePage() {
           --border-strong: #cdd8c8;
           --muted: #4e625a;
           --accent-strong: #0b8f53;
+          --on-accent: #ffffff;
           --success: #0b8f53;
           --warning: #9a5b00;
           --warning-soft: #fff6e6;
@@ -836,6 +890,9 @@ export default function DiscoveryWelcomePage() {
           font-size: clamp(1.5rem, 5.5vw, 1.9rem);
           line-height: 1.15;
           font-weight: 800;
+        }
+        .dcw-h1:focus {
+          outline: none;
         }
         .dcw-sub {
           font-size: 0.95rem;
@@ -1064,6 +1121,15 @@ export default function DiscoveryWelcomePage() {
           border-radius: 12px;
           padding: 9px 12px;
           margin-bottom: 4px;
+        }
+        .dcw-inline-err {
+          font-size: 0.8rem;
+          line-height: 1.5;
+          color: var(--error);
+          background: color-mix(in srgb, var(--error) 8%, var(--surface));
+          border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
+          border-radius: 12px;
+          padding: 9px 12px;
         }
 
         .dcw-btn {

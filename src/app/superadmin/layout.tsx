@@ -402,7 +402,7 @@ export default function SuperAdminLayout({
       : referrer.startsWith(origin)
       ? "internal"
       : "referral";
-    apiFetch("/analytics/pageviews", {
+    apiFetch("/pulse/pageviews", {
       method: "POST",
       body: { path: pathname, referrer, source },
     }).catch(() => null);

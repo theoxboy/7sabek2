@@ -25,6 +25,7 @@
   --accent: #10b981;
   --accent-strong: #059669;
   --accent-soft: #d1fae5;
+  --on-accent: #ffffff;
 
   --success: #16a34a;
   --success-soft: #dcfce7;
@@ -51,6 +52,7 @@
   --accent: #38bdf8;
   --accent-strong: #0ea5e9;
   --accent-soft: #0a2940;
+  --on-accent: #04202b;
 
   --success: #22c55e;
   --success-soft: #11341f;

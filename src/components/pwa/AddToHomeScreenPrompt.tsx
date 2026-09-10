@@ -89,6 +89,7 @@ function getLocaleFromDocument(): Locale {
 
 export default function AddToHomeScreenPrompt() {
   const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/superadmin") || pathname?.startsWith("/admin");
   const { locale: appLocale, dir } = useAppLocale("ar");
   const [mounted, setMounted] = useState(false);
   const [canShowByConsent, setCanShowByConsent] = useState(false);
@@ -111,7 +112,7 @@ export default function AddToHomeScreenPrompt() {
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isAdmin) return;
 
     const checkConsent = () => {
       const consentAccepted = hasCookieConsent();
@@ -140,10 +141,10 @@ export default function AddToHomeScreenPrompt() {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, onConsentUpdated);
     };
-  }, [mounted]);
+  }, [mounted, isAdmin]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isAdmin) return;
 
     const ua = window.navigator.userAgent;
     const detectedPlatform = detectPlatform(ua);
@@ -152,10 +153,10 @@ export default function AddToHomeScreenPrompt() {
 
     setPlatform(detectedPlatform);
     setIsStandalone(standaloneByDisplayMode || iosStandalone);
-  }, [mounted]);
+  }, [mounted, isAdmin]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isAdmin) return;
 
     const onBeforeInstallPrompt = (event: Event) => {
       const promptEvent = event as BeforeInstallPromptEvent;
@@ -165,7 +166,7 @@ export default function AddToHomeScreenPrompt() {
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-  }, [mounted]);
+  }, [mounted, isAdmin]);
 
   const saveDismissState = useCallback(
     (useNeverShow: boolean) => {
@@ -295,6 +296,8 @@ export default function AddToHomeScreenPrompt() {
   const showAndroidInstallButton = platform === "android" && Boolean(deferredPrompt);
   const instructions = platform === "ios" ? copy.iosSteps : copy.androidSteps;
   const dialogTitleId = "a2hs-title";
+
+  if (isAdmin) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[45] px-4" dir={isRTL ? "rtl" : "ltr"}>
