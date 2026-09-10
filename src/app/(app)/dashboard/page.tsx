@@ -855,7 +855,9 @@ function DashboardContent() {
   const chartData = useMemo(() => {
     if (!data) return [];
     const spentVal = expenseTotal;
-    const reservedVal = envelopeRows.reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
+    const reservedVal = envelopeRows
+      .filter((env) => !env.isCash)
+      .reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
     const freeVal = Number(data.available_to_allocate || 0);
     const total = spentVal + reservedVal + freeVal;
 
@@ -899,7 +901,9 @@ function DashboardContent() {
   const totalBudget = useMemo(() => {
     if (!data) return 0;
     const spentVal = expenseTotal;
-    const reservedVal = envelopeRows.reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
+    const reservedVal = envelopeRows
+      .filter((env) => !env.isCash)
+      .reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
     const freeVal = Number(data.available_to_allocate || 0);
     return spentVal + reservedVal + freeVal;
   }, [data, expenseTotal, envelopeRows]);

@@ -288,7 +288,6 @@ export default function DiscoveryWelcomePage() {
   const [splitSaving, setSplitSaving] = useState(false);
   const [splitSaved, setSplitSaved] = useState(false);
   const [splitError, setSplitError] = useState(false);
-  const incomeLoggedRef = useRef(false);
   const splitPersistedRef = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -359,7 +358,6 @@ export default function DiscoveryWelcomePage() {
 
   const handleContinue = () => {
     setContinuing(true);
-    void logIncomeIfNeeded();
     // Keep whatever split is on screen even when the user skips the rest.
     if (step >= 3) void persistSplit();
     leave(() => router.replace("/dashboard"));
@@ -368,7 +366,6 @@ export default function DiscoveryWelcomePage() {
   const handleAck = async () => {
     setAcking(true);
     try {
-      await logIncomeIfNeeded();
       await ackRecoveryCode(); // fires protection_level_changed 40→70 server-side
       setAckCelebrated(true);
       setTimeout(() => {
@@ -378,25 +375,6 @@ export default function DiscoveryWelcomePage() {
       setAcking(false);
     }
   };
-
-  async function logIncomeIfNeeded() {
-    if (incomeLoggedRef.current || incomeValue <= 0 || !incomeCatId) return;
-    incomeLoggedRef.current = true;
-    try {
-      await apiFetch("/transactions", {
-        method: "POST",
-        body: {
-          type: "income",
-          category_id: incomeCatId,
-          amount: incomeValue.toFixed(2),
-          occurred_on: new Date().toISOString().slice(0, 10),
-        },
-      });
-      guestEvent("guest_first_tx", { via: "decouverte" });
-    } catch {
-      incomeLoggedRef.current = false; // let a later attempt retry
-    }
-  }
 
   const handleAddEnv = async (name: string) => {
     setAddBusy(true);
@@ -616,7 +594,6 @@ export default function DiscoveryWelcomePage() {
                     onAck={handleAck}
                     ackLoading={acking}
                     onSecured={() => {
-                      void logIncomeIfNeeded();
                       leave(() => router.replace("/dashboard"));
                     }}
                     where="welcome"
@@ -683,7 +660,6 @@ export default function DiscoveryWelcomePage() {
               type="button"
               className="dcw-btn dcw-btn-accent"
               onClick={() => {
-                if (step === 2) void logIncomeIfNeeded();
                 go(step + 1);
               }}
             >
