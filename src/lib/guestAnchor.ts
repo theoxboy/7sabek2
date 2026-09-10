@@ -117,15 +117,28 @@ async function readIdb(): Promise<string | null> {
   const db = await openIdb();
   if (!db) return null;
   return new Promise((resolve) => {
+    let closed = false;
+    const safeClose = () => {
+      if (!closed) {
+        closed = true;
+        try {
+          db.close();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
     try {
       const tx = db.transaction(IDB_STORE, "readonly");
       const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
       req.onsuccess = () => resolve(normaliseToken(req.result as string | undefined));
       req.onerror = () => resolve(null);
+      tx.oncomplete = () => safeClose();
+      tx.onerror = () => safeClose();
+      tx.onabort = () => safeClose();
     } catch {
+      safeClose();
       resolve(null);
-    } finally {
-      db.close();
     }
   });
 }
@@ -134,16 +147,35 @@ async function writeIdb(token: string): Promise<boolean> {
   const db = await openIdb();
   if (!db) return false;
   return new Promise((resolve) => {
+    let closed = false;
+    const safeClose = () => {
+      if (!closed) {
+        closed = true;
+        try {
+          db.close();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
     try {
       const tx = db.transaction(IDB_STORE, "readwrite");
       tx.objectStore(IDB_STORE).put(token, IDB_KEY);
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
-      tx.onabort = () => resolve(false);
+      tx.oncomplete = () => {
+        safeClose();
+        resolve(true);
+      };
+      tx.onerror = () => {
+        safeClose();
+        resolve(false);
+      };
+      tx.onabort = () => {
+        safeClose();
+        resolve(false);
+      };
     } catch {
+      safeClose();
       resolve(false);
-    } finally {
-      db.close();
     }
   });
 }
@@ -151,14 +183,38 @@ async function writeIdb(token: string): Promise<boolean> {
 async function clearIdb(): Promise<void> {
   const db = await openIdb();
   if (!db) return;
-  try {
-    const tx = db.transaction(IDB_STORE, "readwrite");
-    tx.objectStore(IDB_STORE).delete(IDB_KEY);
-  } catch {
-    /* ignore */
-  } finally {
-    db.close();
-  }
+  return new Promise((resolve) => {
+    let closed = false;
+    const safeClose = () => {
+      if (!closed) {
+        closed = true;
+        try {
+          db.close();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    try {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).delete(IDB_KEY);
+      tx.oncomplete = () => {
+        safeClose();
+        resolve();
+      };
+      tx.onerror = () => {
+        safeClose();
+        resolve();
+      };
+      tx.onabort = () => {
+        safeClose();
+        resolve();
+      };
+    } catch {
+      safeClose();
+      resolve();
+    }
+  });
 }
 
 // ─── Resolution / persistence across vaults ────────────────────────────────────

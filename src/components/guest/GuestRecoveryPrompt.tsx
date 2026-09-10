@@ -24,6 +24,7 @@ const COPY: Record<
     notFound: string;
     generic: string;
     dismiss: string;
+    openTrigger: string;
   }
 > = {
   fr: {
@@ -36,6 +37,7 @@ const COPY: Record<
     notFound: "Code inconnu. Vérifie et réessaie.",
     generic: "Impossible de récupérer. Réessaie.",
     dismiss: "Ce n’est pas moi",
+    openTrigger: "Tu as un code de récupération de budget ? Restaurer mon accès",
   },
   en: {
     title: "A budget might live on this device",
@@ -47,6 +49,7 @@ const COPY: Record<
     notFound: "Unknown code. Check it and try again.",
     generic: "Could not recover. Try again.",
     dismiss: "That’s not me",
+    openTrigger: "Have a budget recovery code? Restore my access",
   },
   ar: {
     title: "يمكن كاينة ميزانية ف هاد التيليفون",
@@ -58,12 +61,13 @@ const COPY: Record<
     notFound: "كود ماشي معروف. تأكد وعاود.",
     generic: "ما قدرناش نرجّعو. عاود.",
     dismiss: "ماشي أنا",
+    openTrigger: "عندك كود استرجاع الميزانية؟ استرجاع الوصول",
   },
 };
 
 /**
- * Shown on /login when L2 says a guest budget might live on this device.
- * It never restores on its own — the recovery code is the only key.
+ * Shown on /login when L2 says a guest budget might live on this device,
+ * or triggered on demand by the visitor.
  */
 export function GuestRecoveryPrompt({
   locale,
@@ -105,14 +109,37 @@ export function GuestRecoveryPrompt({
     };
   }, []);
 
-  if (!visible) return null;
+  if (!visible) {
+    return (
+      <div dir={dir} className="mb-4 text-center">
+        <button
+          type="button"
+          onClick={() => setVisible(true)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline"
+          style={{ color: "var(--accent-strong, #10b981)" }}
+        >
+          <KeyRound className="h-3.5 w-3.5" aria-hidden />
+          <span>{t.openTrigger}</span>
+        </button>
+      </div>
+    );
+  }
 
   const submit = async () => {
     setError(null);
     setLoading(true);
     try {
       resetAuthClientState();
-      await recoverGuest(code.trim());
+      const res = await recoverGuest(code.trim());
+      if (res.guest_token) {
+        const { persistAnchorToken } = await import("@/lib/guestAnchor");
+        await persistAnchorToken(res.guest_token);
+      }
+      try {
+        window.localStorage.setItem("7sabek.guest.recovery_code", code.trim());
+      } catch {
+        /* ignore */
+      }
       markAuthSessionHint();
       router.replace("/dashboard");
     } catch (err) {

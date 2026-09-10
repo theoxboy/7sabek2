@@ -60,8 +60,10 @@ export async function resumeGuest(token: string): Promise<{ user: AuthUser }> {
 }
 
 /** `POST /auth/guest/recover` — exchange a recovery code for a session (phase 3). */
-export async function recoverGuest(recoveryCode: string): Promise<{ user: AuthUser }> {
-  return apiFetch<{ user: AuthUser }>("/auth/guest/recover", {
+export async function recoverGuest(
+  recoveryCode: string
+): Promise<{ user: AuthUser; guest_token?: string | null }> {
+  return apiFetch<{ user: AuthUser; guest_token?: string | null }>("/auth/guest/recover", {
     method: "POST",
     body: { recovery_code: recoveryCode },
     suppressAuthRedirect: true,
