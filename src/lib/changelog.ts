@@ -27,6 +27,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.4.1",
+    date: "2026-09-10",
+    groups: [
+      {
+        kind: "fixed",
+        items: [
+          {
+            fr: "Améliorations de stabilité sur les outils internes.",
+            en: "Stability improvements to internal tools.",
+            ar: "تحسينات فالاستقرار على الأدوات الداخلية.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.4.0",
     date: "2026-09-09",
     groups: [

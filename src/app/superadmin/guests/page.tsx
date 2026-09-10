@@ -84,6 +84,8 @@ const COPY = {
       "Supprimer définitivement cet invité et toutes ses données ? Action irréversible.",
     cancel: "Annuler",
     confirm: "Purger",
+    purgeFailed:
+      "La suppression a échoué côté serveur. Réessaie dans un moment ou préviens la technique si ça persiste.",
     close: "Fermer",
     days: "j",
     chart: { loading: "Chargement…", empty: "Aucune donnée", error: "Erreur", retry: "Réessayer" },
@@ -129,6 +131,8 @@ const COPY = {
       "Permanently delete this guest and all their data? This cannot be undone.",
     cancel: "Cancel",
     confirm: "Purge",
+    purgeFailed:
+      "The server refused the deletion. Try again in a moment, or flag it to engineering if it keeps failing.",
     close: "Close",
     days: "d",
     chart: { loading: "Loading…", empty: "No data", error: "Error", retry: "Retry" },
@@ -173,6 +177,8 @@ const COPY = {
     purgeConfirm: "تمسح هاد الضيف وكل البيانات ديالو نهائيا؟ ما يمكنش الرجوع.",
     cancel: "إلغاء",
     confirm: "امسح",
+    purgeFailed:
+      "السيرفر رفض المحو. عاود من بعد شوية، ولا عيّط للتقنيين إلا بقا كيطيح.",
     close: "سدّ",
     days: "يوم",
     chart: { loading: "كيتحمّل…", empty: "ما كاين داتا", error: "خطأ", retry: "عاود" },
@@ -206,6 +212,7 @@ export default function SuperadminGuestsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<GuestAdminRow | null>(null);
   const [purging, setPurging] = useState(false);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
 
   const params: GuestListParams = { status, protection, hasTx, q, sort: "created_desc" };
   const list = useGuestList(params);
@@ -277,13 +284,14 @@ export default function SuperadminGuestsPage() {
   const confirmPurge = async () => {
     if (!purgeTarget) return;
     setPurging(true);
+    setPurgeError(null);
     try {
       await purgeGuestAccount(purgeTarget.id);
       setPurgeTarget(null);
       if (selectedId === purgeTarget.id) setSelectedId(null);
       await list.mutate();
     } catch {
-      /* surfaced by the row staying */
+      setPurgeError(t.purgeFailed);
     } finally {
       setPurging(false);
     }
@@ -604,14 +612,34 @@ export default function SuperadminGuestsPage() {
       </Dialog>
 
       {/* Purge confirm */}
-      <Dialog open={Boolean(purgeTarget)} onOpenChange={(o) => !o && setPurgeTarget(null)}>
+      <Dialog
+        open={Boolean(purgeTarget)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPurgeTarget(null);
+            setPurgeError(null);
+          }
+        }}
+      >
         <DialogContent dir={dir} className="max-w-sm">
           <DialogHeader>
             <DialogTitle>{t.purge}</DialogTitle>
             <DialogDescription>{t.purgeConfirm}</DialogDescription>
           </DialogHeader>
+          {purgeError && (
+            <p className="rounded-lg bg-[var(--error)]/10 px-3 py-2 text-sm text-[var(--error)]">
+              {purgeError}
+            </p>
+          )}
           <DialogFooter className="mt-3">
-            <Button variant="ghost" onClick={() => setPurgeTarget(null)} disabled={purging}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPurgeTarget(null);
+                setPurgeError(null);
+              }}
+              disabled={purging}
+            >
               {t.cancel}
             </Button>
             <Button variant="danger" onClick={() => void confirmPurge()} isLoading={purging}>

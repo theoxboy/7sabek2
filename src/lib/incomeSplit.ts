@@ -16,6 +16,10 @@ export const sumSplit = (o: Record<string, number>) =>
 /**
  * Distribute 100 across envelopes proportionally to weights, in SPLIT_STEP
  * increments, never exceeding 100 (any remainder simply stays in Cash).
+ *
+ * The rounding remainder is spread across the envelopes with the largest
+ * fractional parts — one SPLIT_STEP each — rather than dumped on the last row,
+ * so an "equal" split stays visually even (20/20/15/15/15/15, not 15×5 + 25).
  */
 export function splitByWeights(
   ids: string[],
@@ -23,13 +27,21 @@ export function splitByWeights(
 ): Record<string, number> {
   if (ids.length === 0) return {};
   const total = ids.reduce((s, id) => s + weightOf(id), 0) || ids.length;
+
+  const ideal = ids.map((id) => ((weightOf(id) / total) * 100) / SPLIT_STEP);
+  const base = ideal.map((n) => Math.floor(n));
+  let steps = Math.round(100 / SPLIT_STEP) - base.reduce((s, n) => s + n, 0);
+
+  // Hand each remaining step to the envelope currently furthest below its ideal.
+  const order = ids
+    .map((_, i) => i)
+    .sort((a, b) => ideal[b] - base[b] - (ideal[a] - base[a]));
+  for (let k = 0; steps > 0 && k < order.length; k++, steps--) base[order[k]] += 1;
+
   const out: Record<string, number> = {};
   let running = 0;
   ids.forEach((id, i) => {
-    const v =
-      i === ids.length - 1
-        ? Math.max(0, 100 - running)
-        : Math.max(0, Math.min(100 - running, roundToSplitStep((weightOf(id) / total) * 100)));
+    const v = Math.max(0, Math.min(100 - running, base[i] * SPLIT_STEP));
     out[id] = v;
     running += v;
   });
