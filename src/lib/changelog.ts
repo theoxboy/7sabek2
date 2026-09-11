@@ -53,6 +53,11 @@ export const CHANGELOG: Release[] = [
             en: "The install button on the home page now adapts to your device: direct download on Android, add to home screen on iPhone, and one-click install on Chrome (computer).",
             ar: "زر التثبيت فالصفحة الرئيسية ولا كيتأقلم مع الجهاز ديالك: تحميل مباشر فأندرويد، زيادة للشاشة الرئيسية فالآيفون، وتثبيت بضغطة وحدة فـ Chrome (كمبيوتر).",
           },
+          {
+            fr: "Le simulateur de la page d'accueil calcule maintenant des charges fixes réalistes selon le salaire testé (plus de loyer qui dépasse un petit salaire), et explique la différence entre montant fixe et pourcentage.",
+            en: "The home page simulator now scales fixed expenses realistically with the tested salary (no more rent bigger than a small paycheck), and explains the difference between a fixed amount and a percentage.",
+            ar: "محاكي الصفحة الرئيسية دابا كيحسب مصاريف ثابتة معقولة حسب السالير اللي كتجرب (ماشي كنكرا فوق السالير ديالي)، وكيشرح الفرق بين المبلغ الثابت والنسبة.",
+          },
         ],
       },
       {

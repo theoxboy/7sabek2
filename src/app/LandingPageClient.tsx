@@ -47,13 +47,13 @@ type Feat = { k: string; t: string; d: string };
 
 type Copy = {
   nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
-  cta: { start: string; login: string; logout: string; dashboard: string; free: string; installIOS: string; installChrome: string };
+  cta: { start: string; login: string; logout: string; dashboard: string; free: string; installAndroid: string; installIOS: string; installChrome: string };
   hero: { taglineA: string; taglineB: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  sim: { kicker: string; income: string; left: string; fixed: string };
+  sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   how: { kicker: string; title: string; steps: Duo[] };
   ft: { kicker: string; title: string; items: Feat[] };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
@@ -65,7 +65,7 @@ type Copy = {
 const COPY: Record<FloussyLocale, Copy> = {
   fr: {
     nav: { sim: "Simulateur", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
-    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer l'extension sur Chrome" },
+    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installAndroid: "App Android", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer sur Chrome" },
     hero: {
       taglineA: "Ton budget,",
       taglineB: "entre tes mains.",
@@ -79,6 +79,8 @@ const COPY: Record<FloussyLocale, Copy> = {
       income: "Ton salaire mensuel",
       left: "Ce qui part à l’épargne",
       fixed: "Fixe",
+      fixedHint: "un montant qui reste le même chaque mois",
+      pctHint: "une part de ton salaire qui s’ajuste toute seule",
     },
     how: {
       kicker: "Au quotidien",
@@ -138,7 +140,7 @@ const COPY: Record<FloussyLocale, Copy> = {
 
   en: {
     nav: { sim: "Simulator", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
-    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installIOS: "Add to Home Screen", installChrome: "Install the extension on Chrome" },
+    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installAndroid: "Android app", installIOS: "Add to Home Screen", installChrome: "Install on Chrome" },
     hero: {
       taglineA: "Your budget,",
       taglineB: "in your hands.",
@@ -152,6 +154,8 @@ const COPY: Record<FloussyLocale, Copy> = {
       income: "Your monthly salary",
       left: "What goes to savings",
       fixed: "Fixed",
+      fixedHint: "an amount that stays the same every month",
+      pctHint: "a share of your salary that adjusts on its own",
     },
     how: {
       kicker: "Day to day",
@@ -211,7 +215,7 @@ const COPY: Record<FloussyLocale, Copy> = {
 
   ar: {
     nav: { sim: "المحاكاة", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
-    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت الإضافة على Chrome" },
+    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", installAndroid: "تطبيق أندرويد", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت على Chrome" },
     hero: {
       taglineA: "حسابك",
       taglineB: "بيدك.",
@@ -225,6 +229,8 @@ const COPY: Record<FloussyLocale, Copy> = {
       income: "السالير ديالك فالشهر",
       left: "اللي كيمشي للادخار",
       fixed: "ثابت",
+      fixedHint: "مبلغ ما كيتبدلش كل شهر",
+      pctHint: "نسبة من السالير كتتبدل معاه بروحها",
     },
     how: {
       kicker: "فاليومي",
@@ -288,17 +294,30 @@ const COPY: Record<FloussyLocale, Copy> = {
 /*  then percent-of-income, and whatever is left goes to savings.       */
 /* ------------------------------------------------------------------ */
 type Rule =
-  | { key: keyof Copy["env"]; kind: "fixed"; amount: number; color: string }
+  // A "fixed" rule still stands for a real-world fixed cost (rent, a loan
+  // installment) that doesn't move month to month — but a fixed cost for a
+  // 3 000 MAD salary isn't the same number as one for a 40 000 MAD salary.
+  // `amount` is the value at REFERENCE_SALARY; min/max keep it inside a
+  // realistic range as the slider moves, instead of a flat 3 200 MAD rent
+  // silently eating a 3 000 MAD income.
+  | { key: keyof Copy["env"]; kind: "fixed"; amount: number; min: number; max: number; color: string }
   | { key: keyof Copy["env"]; kind: "pct"; pct: number; color: string };
 
+const REFERENCE_SALARY = 12400;
+
 const RULES: Rule[] = [
-  { key: "rent", kind: "fixed", amount: 3200, color: "#0A241D" },
-  { key: "debt", kind: "fixed", amount: 2100, color: "#8B7CF6" },
-  { key: "net", kind: "fixed", amount: 199, color: "#123A2E" },
+  { key: "rent", kind: "fixed", amount: 3200, min: 600, max: 4500, color: "#0A241D" },
+  { key: "debt", kind: "fixed", amount: 2100, min: 0, max: 3200, color: "#8B7CF6" },
+  { key: "net", kind: "fixed", amount: 199, min: 199, max: 199, color: "#123A2E" },
   { key: "food", kind: "pct", pct: 22, color: "#17C777" },
   { key: "transport", kind: "pct", pct: 8, color: "#4C7EFF" },
   { key: "fun", kind: "pct", pct: 6, color: "#F2A93B" },
 ];
+
+function scaledFixedAmount(rule: { amount: number; min: number; max: number }, salary: number) {
+  const scaled = Math.round(((rule.amount / REFERENCE_SALARY) * salary) / 100) * 100;
+  return Math.min(rule.max, Math.max(rule.min, scaled));
+}
 
 const MARQUEE: Array<{ key: keyof Copy["env"]; v: string; up: boolean; c: string }> = [
   { key: "rent", v: "-3 200", up: false, c: "#0A241D" },
@@ -468,7 +487,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const allocation = useMemo(() => {
     let remaining = salary;
     const rows = RULES.map((rule) => {
-      const want = rule.kind === "fixed" ? rule.amount : Math.round((salary * rule.pct) / 100);
+      const want = rule.kind === "fixed" ? scaledFixedAmount(rule, salary) : Math.round((salary * rule.pct) / 100);
       const got = Math.max(0, Math.min(want, remaining));
       remaining -= got;
       return {
@@ -753,52 +772,42 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               </h1>
               <div className="lp-ctarow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
-              </div>
 
-              {/* 📱 Device-aware install CTA: Android → Play/APK popup,
-                  iOS → the existing "Add to Home Screen" prompt, Chromium
-                  desktop → the browser's PWA install prompt. Nothing on
-                  other desktop browsers (no install path to trigger). */}
-              {heroInstallKind === "android" ? (
-                <div className="mt-3.5 mb-1.5">
+                {/* Device-aware install CTA: Android → Play/APK popup, iOS →
+                    the existing "Add to Home Screen" prompt, Chromium desktop
+                    → the browser's own PWA install prompt. Nothing on other
+                    desktop browsers (no install path to trigger). Each one
+                    keeps that platform's own brand color instead of a flat
+                    black pill. */}
+                {heroInstallKind === "android" ? (
                   <button
                     type="button"
                     onClick={() => setShowGooglePlayPopup(true)}
-                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                    className="lp-btn lp-btn-ghost lp-install lp-install-android"
                   >
-                    <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
-                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
-                      {isArabic ? "📱 حمّل التطبيق على أندرويد ←" : "📱 Télécharger l'app Android →"}
-                    </span>
+                    <GooglePlayIcon className="w-[18px] h-[18px] flex-shrink-0" />
+                    <span>{copy.cta.installAndroid}</span>
                   </button>
-                </div>
-              ) : heroInstallKind === "ios" ? (
-                <div className="mt-3.5 mb-1.5">
+                ) : heroInstallKind === "ios" ? (
                   <button
                     type="button"
                     onClick={() => triggerAddToHomeScreenPrompt()}
-                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                    className="lp-btn lp-btn-ghost lp-install lp-install-ios"
                   >
-                    <Apple className="w-5 h-5 flex-shrink-0 text-white" />
-                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
-                      {copy.cta.installIOS}
-                    </span>
+                    <Apple className="w-4 h-4 flex-shrink-0" />
+                    <span>{copy.cta.installIOS}</span>
                   </button>
-                </div>
-              ) : heroInstallKind === "chromium-desktop" && chromeDeferredPrompt ? (
-                <div className="mt-3.5 mb-1.5">
+                ) : heroInstallKind === "chromium-desktop" && chromeDeferredPrompt ? (
                   <button
                     type="button"
                     onClick={handleChromeInstall}
-                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                    className="lp-btn lp-btn-ghost lp-install lp-install-chrome"
                   >
-                    <Chrome className="w-5 h-5 flex-shrink-0 text-white" />
-                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
-                      {copy.cta.installChrome}
-                    </span>
+                    <Chrome className="w-4 h-4 flex-shrink-0" />
+                    <span>{copy.cta.installChrome}</span>
                   </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
 
             <div className="lp-visual" onPointerMove={onPhoneMove} onPointerLeave={onPhoneLeave}>
@@ -895,6 +904,11 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 </div>
 
                 <div>
+                  <p className="lp-simlegend">
+                    <span className="lp-legendtag">{copy.sim.fixed}</span> {copy.sim.fixedHint}
+                    <span className="lp-legendsep" aria-hidden="true">·</span>
+                    <span className="lp-legendtag">%</span> {copy.sim.pctHint}
+                  </p>
                   <div className="lp-alloc">
                     {allocation.rows.map((row) => (
                       <div key={row.key} className="lp-allocrow">
@@ -1089,6 +1103,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-btn-accent:hover::after { left: 150%; }
         .lp-btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
         .lp-btn-ghost:hover { border-color: var(--ink); }
+        .lp-install { border-width: 1.5px; }
+        .lp-install-android { border-color: #34a853; color: #1e7e34; }
+        .lp-install-android:hover { background: #eefaf1; border-color: #1e7e34; }
+        .lp-install-ios { border-color: #1d1d1f; color: #1d1d1f; }
+        .lp-install-ios:hover { background: #f2f2f3; border-color: #000; }
+        .lp-install-chrome { border-color: #4285f4; color: #1a56c4; }
+        .lp-install-chrome:hover { background: #eef4ff; border-color: #1a56c4; }
         .lp-btn-ghostdark { background: transparent; color: #fff; border-color: rgba(255,255,255,.26); }
         .lp-btn-ghostdark:hover { border-color: #fff; background: rgba(255,255,255,.06); }
         [dir="rtl"] .lp-arrow { transform: scaleX(-1); }
@@ -1181,6 +1202,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-preset { font-family: inherit; font-size: .76rem; font-weight: 700; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer; transition: all .16s ease; }
         .lp-preset:hover { border-color: var(--accent); color: var(--accent-deep); }
         .lp-preset[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+        .lp-simlegend { margin: 0 0 14px; font-size: .76rem; line-height: 1.6; color: var(--ink-mute); }
+        .lp-legendtag { font-weight: 800; color: var(--ink); }
+        .lp-legendsep { margin: 0 7px; opacity: .5; }
         .lp-alloc { display: flex; flex-direction: column; gap: 11px; }
         .lp-allocrow { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
         .lp-allocname { font-size: .87rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
