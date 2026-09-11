@@ -28,7 +28,7 @@ type Feat = { k: string; t: string; d: string };
 type Copy = {
   nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; try: string };
-  hero: { tagline: string; sub: string };
+  hero: { taglineA: string; taglineB: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
@@ -47,8 +47,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "Simulateur", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
     cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", try: "Essayer le simulateur" },
     hero: {
-      tagline: "Ton budget, entre tes mains.",
-      sub: "7sabek répartit ton salaire dans des enveloppes et te dit ce qu’il te reste vraiment.",
+      taglineA: "Ton budget,",
+      taglineB: "entre tes mains.",
     },
     trust: ["Connexion par clé d’accès", "Simulation avant application", "Export de tes données", "Multilingue FR / EN / AR"],
     chips: { rent: "Loyer", rentM: "Échéance 3j", sal: "Salaire", salM: "Mensuel", net: "Internet", netM: "Renouvellement", debt: "Crédit voiture", debtM: "Priorité 1", sav: "Épargne", savM: "Auto · reliquat" },
@@ -120,8 +120,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "Simulator", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
     cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", try: "Try the simulator" },
     hero: {
-      tagline: "Your budget, in your hands.",
-      sub: "7sabek splits your salary into envelopes and tells you what you actually have left.",
+      taglineA: "Your budget,",
+      taglineB: "in your hands.",
     },
     trust: ["Passkey sign-in", "Simulate before applying", "Export your data", "Multilingual FR / EN / AR"],
     chips: { rent: "Rent", rentM: "Due in 3d", sal: "Salary", salM: "Monthly", net: "Internet", netM: "Renewal", debt: "Car loan", debtM: "Priority 1", sav: "Savings", savM: "Auto · leftover" },
@@ -193,8 +193,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "المحاكاة", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
     cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", try: "جرب المحاكاة" },
     hero: {
-      tagline: "حسابك بيدك.",
-      sub: "7sabek كيوزع السالير ديالك على الأظرفة وكيقول ليك شحال بقا ليك بالضبط.",
+      taglineA: "حسابك",
+      taglineB: "بيدك.",
     },
     trust: ["دخول بمفتاح الأمان", "محاكاة قبل التطبيق", "تصدير البيانات ديالك", "بثلاث لغات"],
     chips: { rent: "الكراء", rentM: "باقي 3 أيام", sal: "السالير", salM: "شهري", net: "الأنترنيت", netM: "تجديد", debt: "كريدي الطوموبيل", debtM: "أولوية 1", sav: "الادخار", savM: "أوتوماتيكي · الباقي" },
@@ -700,8 +700,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
           <div className="lp-wrap lp-herogrid">
             <div>
-              <h1 className={`${headingClass} lp-h1`}>{copy.hero.tagline}</h1>
-              <p className="lp-sub">{copy.hero.sub}</p>
+              <h1 className={`${headingClass} lp-h1`}>
+                <span className="lp-tagAccent">{copy.hero.taglineA}</span>{" "}
+                <span className="lp-tagInk">{copy.hero.taglineB}</span>
+              </h1>
               <div className="lp-ctarow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
                 <a href="#simulateur" className="lp-btn lp-btn-ghost">{copy.cta.try}</a>
@@ -1026,7 +1028,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-deep); font-size: .79rem; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
         .lp-sq { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); flex: none; }
         .lp-h1 { font-size: clamp(2.1rem, 4.4vw, 3.6rem); line-height: 1.08; font-weight: 800; margin-top: 20px; }
-        .lp-sub { margin-top: 16px; max-width: 34ch; font-size: clamp(1.15rem, 2.4vw, 1.6rem); line-height: 1.45; font-weight: 500; color: var(--ink-soft); }
+        .lp-tagAccent { color: var(--accent-deep); }
+        .lp-tagInk { color: var(--ink); }
         .lp-ctarow { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
         .lp-centerrow { justify-content: center; }
         .lp-trust { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px 18px; max-width: 470px; }
