@@ -52,7 +52,7 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  why: { kicker: string; title: string; items: Duo[] };
+  why: { kicker: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
   who: { kicker: string; title: string; items: Duo[] };
@@ -74,7 +74,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     why: {
       kicker: "Étape par étape",
-      title: "Voilà comment 7sabek t’accompagne",
       items: [
         { t: "On regarde qui tu es et où part ton argent", d: "Un état des lieux rapide de tes revenus et de tes dépenses, pour partir d’une base claire." },
         { t: "On te propose ta répartition", d: "Un programme de répartition pensé pour ton salaire, que tu ajustes avant de valider." },
@@ -134,7 +133,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     why: {
       kicker: "Step by step",
-      title: "Here’s how 7sabek has your back",
       items: [
         { t: "We look at who you are and where your money goes", d: "A quick snapshot of your income and spending, to start from a clear picture." },
         { t: "We suggest your split", d: "A distribution plan built for your salary, which you adjust before confirming." },
@@ -194,7 +192,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     why: {
       kicker: "خطوة بخطوة",
-      title: "هاكا كيمشي معاك 7sabek",
       items: [
         { t: "كنشوفو شكون نتا وفين كيمشيو الفلوس ديالك", d: "نظرة سريعة على الدخل والمصاريف ديالك، باش نبداو من صورة واضحة." },
         { t: "كنقترحو عليك برنامج التوزيع ديالك", d: "برنامج توزيع مبني على السالير ديالك، كتعدلو قبل ما تأكد." },
@@ -830,14 +827,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           <div className="lp-wrap">
             <div className="lp-head lp-center">
               <span className="lp-kicker">{copy.why.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.why.title}</h2>
             </div>
             <div className="lp-whygrid">
               {copy.why.items.map((item, index) => {
                 return (
                   <div key={item.t} className="lp-whycard">
                     <span className="lp-whyblob">
-                      <Image src={WHY_IMAGES[index]} alt={item.t} width={104} height={104} className="lp-whyimg" />
+                      <Image src={WHY_IMAGES[index]} alt={item.t} width={176} height={176} className="lp-whyimg" />
                       <span className="lp-whystep" dir="ltr">{`0${index + 1}`}</span>
                     </span>
                     <h3>{item.t}</h3>
@@ -1221,9 +1217,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-whygrid { margin-top: 44px; display: grid; gap: 32px 20px; grid-template-columns: 1fr; text-align: center; }
         @media (min-width: 640px) { .lp-whygrid { grid-template-columns: repeat(2,1fr); } }
         @media (min-width: 1060px) { .lp-whygrid { grid-template-columns: repeat(4,1fr); } }
-        .lp-whyblob { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 104px; height: 104px; margin-bottom: 18px; }
-        .lp-whystep { position: absolute; top: -2px; inset-inline-end: -2px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent-deep); color: #fff; font-size: .68rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--surface); }
-        .lp-whyimg { width: 104px; height: 104px; }
+        .lp-whyblob { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 176px; height: 176px; margin-bottom: 14px; }
+        .lp-whystep { position: absolute; top: 4px; inset-inline-end: 4px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 999px; background: var(--accent-deep); color: #fff; font-size: .76rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--surface); }
+        .lp-whyimg { width: 176px; height: 176px; }
         .lp-whycard h3 { font-size: 1.04rem; font-weight: 800; }
         .lp-whycard p { margin-top: 8px; font-size: .87rem; line-height: 1.58; color: var(--ink-soft); }
 
