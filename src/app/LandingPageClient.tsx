@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, Chrome, Globe, Receipt, Search, Target, Wallet } from "lucide-react";
+import { Apple, Chrome, Globe } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
@@ -284,9 +285,14 @@ const MARQUEE: Array<{ key: keyof Copy["env"]; v: string; up: boolean; c: string
 
 const PRESETS = [6000, 12400, 20000, 32000];
 
-// One icon per copy.why.items entry, in order — kept out of the copy object
-// since components aren't per-locale content.
-const WHY_ICONS = [Search, Wallet, Receipt, Target];
+// One custom illustration per copy.why.items entry, in order — kept out of
+// the copy object since assets aren't per-locale content.
+const WHY_IMAGES = [
+  "/landing/why/step-1-diagnostic.png",
+  "/landing/why/step-2-split.png",
+  "/landing/why/step-3-tracking.png",
+  "/landing/why/step-4-goals.png",
+];
 
 function fmt(value: number) {
   return Math.round(value).toLocaleString("fr-FR").replace(/ | /g, " ");
@@ -828,11 +834,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </div>
             <div className="lp-whygrid">
               {copy.why.items.map((item, index) => {
-                const Icon = WHY_ICONS[index];
                 return (
                   <div key={item.t} className="lp-whycard">
                     <span className="lp-whyblob">
-                      <Icon className="lp-whyicon" aria-hidden="true" />
+                      <Image src={WHY_IMAGES[index]} alt={item.t} width={104} height={104} className="lp-whyimg" />
                       <span className="lp-whystep" dir="ltr">{`0${index + 1}`}</span>
                     </span>
                     <h3>{item.t}</h3>
@@ -1216,9 +1221,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-whygrid { margin-top: 44px; display: grid; gap: 32px 20px; grid-template-columns: 1fr; text-align: center; }
         @media (min-width: 640px) { .lp-whygrid { grid-template-columns: repeat(2,1fr); } }
         @media (min-width: 1060px) { .lp-whygrid { grid-template-columns: repeat(4,1fr); } }
-        .lp-whyblob { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 84px; height: 84px; border-radius: 50%; background: var(--accent-soft); margin-bottom: 18px; }
-        .lp-whystep { position: absolute; top: -4px; inset-inline-end: -4px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent-deep); color: #fff; font-size: .68rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
-        .lp-whyicon { width: 34px; height: 34px; color: var(--accent-deep); }
+        .lp-whyblob { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 104px; height: 104px; margin-bottom: 18px; }
+        .lp-whystep { position: absolute; top: -2px; inset-inline-end: -2px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent-deep); color: #fff; font-size: .68rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--surface); }
+        .lp-whyimg { width: 104px; height: 104px; }
         .lp-whycard h3 { font-size: 1.04rem; font-weight: 800; }
         .lp-whycard p { margin-top: 8px; font-size: .87rem; line-height: 1.58; color: var(--ink-soft); }
 
