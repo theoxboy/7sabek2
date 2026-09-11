@@ -34,9 +34,9 @@ export const CHANGELOG: Release[] = [
         kind: "added",
         items: [
           {
-            fr: "Une nouvelle section « Pourquoi 7sabek » sur la page d'accueil résume en 4 points ce que l'app change pour toi : répartition automatique, alerte avant dépassement, objectifs protégés et dettes maîtrisées.",
-            en: "A new \"Why 7sabek\" section on the home page sums up what the app changes for you in 4 points: automatic splitting, warnings before overspending, protected goals, and debt under control.",
-            ar: "قسم جديد « علاش 7sabek » فالصفحة الرئيسية كيلخص فـ4 نقط شنو كيبدل ليك التطبيق: توزيع أوتوماتيكي، تنبيه قبل التجاوز، أهداف محمية، وديون تحت السيطرة.",
+            fr: "Une nouvelle section « Étape par étape » sur la page d'accueil explique en 4 points comment 7sabek t'accompagne : ta situation, ta répartition, le suivi de tes dépenses, puis tes crédits et tes objectifs.",
+            en: "A new \"Step by step\" section on the home page walks through 4 points on how 7sabek has your back: your situation, your split, tracking your spending, then your debts and goals.",
+            ar: "قسم جديد « خطوة بخطوة » فالصفحة الرئيسية كيشرح فـ4 نقط كيفاش كيمشي معاك 7sabek: وضعيتك، التوزيع ديالك، تتبع المصاريف، ومن بعد الكريديات والأهداف.",
           },
         ],
       },

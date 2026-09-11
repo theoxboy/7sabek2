@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, BellRing, Chrome, CreditCard, Globe, Target, Wallet } from "lucide-react";
+import { Apple, Chrome, Globe, Receipt, Search, Target, Wallet } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
@@ -76,13 +76,13 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     why: {
-      kicker: "Pourquoi 7sabek",
-      title: "Le budget, enfin sous contrôle",
+      kicker: "Étape par étape",
+      title: "Voilà comment 7sabek t’accompagne",
       items: [
-        { t: "Ton salaire, réparti tout seul", d: "Loyer, courses, épargne : chaque dirham part direct dans la bonne enveloppe dès que ton salaire arrive." },
-        { t: "On te prévient avant, pas après", d: "Une enveloppe qui commence à se vider te le dit tout de suite, pas à la fin du mois." },
-        { t: "Tes objectifs, jamais entamés", d: "Voyage, urgence, gros achat : chaque objectif garde sa propre enveloppe, à l’abri d’une dépense impulsive." },
-        { t: "Tes dettes, sous contrôle", d: "Isole tes remboursements avec une priorité claire, sans jamais casser ton budget du mois." },
+        { t: "On regarde qui tu es et où part ton argent", d: "Un état des lieux rapide de tes revenus et de tes dépenses, pour partir d’une base claire." },
+        { t: "On te propose ta répartition", d: "Un programme de répartition pensé pour ton salaire, que tu ajustes avant de valider." },
+        { t: "On suit tes dépenses avec toi", d: "Chaque dépense est enregistrée et rattachée à la bonne enveloppe, en temps réel." },
+        { t: "On t’aide à aller jusqu’au bout", d: "Organise tes finances, rembourse tes crédits et atteins tes objectifs, mois après mois." },
       ],
     },
     sim: {
@@ -161,13 +161,13 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     why: {
-      kicker: "Why 7sabek",
-      title: "Your budget, finally under control",
+      kicker: "Step by step",
+      title: "Here’s how 7sabek has your back",
       items: [
-        { t: "Your salary, split for you", d: "Rent, groceries, savings: every dirham lands in the right envelope the moment your salary arrives." },
-        { t: "Warned before, not after", d: "An envelope running low tells you right away, not at the end of the month." },
-        { t: "Your goals, never touched", d: "Travel, emergencies, big purchases: each goal keeps its own envelope, safe from an impulse buy." },
-        { t: "Your debt, under control", d: "Keep repayments isolated with a clear priority, without ever breaking your monthly budget." },
+        { t: "We look at who you are and where your money goes", d: "A quick snapshot of your income and spending, to start from a clear picture." },
+        { t: "We suggest your split", d: "A distribution plan built for your salary, which you adjust before confirming." },
+        { t: "We track your spending with you", d: "Every expense is logged and linked to the right envelope, in real time." },
+        { t: "We help you see it through", d: "Organize your finances, pay off your debts, and reach your goals, month after month." },
       ],
     },
     sim: {
@@ -246,13 +246,13 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     why: {
-      kicker: "علاش 7sabek",
-      title: "الميزانية ديالك، تحت السيطرة بصح",
+      kicker: "خطوة بخطوة",
+      title: "هاكا كيمشي معاك 7sabek",
       items: [
-        { t: "السالير ديالك، كيتقسم بروحو", d: "الكراء، التقضية، الادخار: كل درهم كيمشي مباشرة للظرف الصحيح دغيا ما يدخل السالير." },
-        { t: "كنعلموك قبل، ماشي من بعد", d: "الظرف اللي بدا يسالي كيقول ليك دغيا، ماشي فآخر الشهر." },
-        { t: "الأهداف ديالك، حتى حد ما كيمسها", d: "سفر، طوارئ، شرا كبير: كل هدف عندو الظرف ديالو، بعيد عن أي صرف طايش." },
-        { t: "الديون ديالك، تحت السيطرة", d: "افصل السداد ديالك بأولوية واضحة، بلا ما تخرب الميزانية ديال الشهر." },
+        { t: "كنشوفو شكون نتا وفين كيمشيو الفلوس ديالك", d: "نظرة سريعة على الدخل والمصاريف ديالك، باش نبداو من صورة واضحة." },
+        { t: "كنقترحو عليك برنامج التوزيع ديالك", d: "برنامج توزيع مبني على السالير ديالك، كتعدلو قبل ما تأكد." },
+        { t: "كنتبعو معاك المصاريف ديالك", d: "كل مصروف كيتسجل ويترتبط بالظرف الصحيح، فالوقت الحقيقي." },
+        { t: "كنعاونوك توصل للأخير", d: "نظم فلوسك، خلص الكريديات ديالك، ووصل لأهدافك، شهر بعد شهر." },
       ],
     },
     sim: {
@@ -365,7 +365,7 @@ const PRESETS = [6000, 12400, 20000, 32000];
 
 // One icon per copy.why.items entry, in order — kept out of the copy object
 // since components aren't per-locale content.
-const WHY_ICONS = [Wallet, BellRing, Target, CreditCard];
+const WHY_ICONS = [Search, Wallet, Receipt, Target];
 
 function fmt(value: number) {
   return Math.round(value).toLocaleString("fr-FR").replace(/ | /g, " ");
@@ -911,8 +911,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 const Icon = WHY_ICONS[index];
                 return (
                   <div key={item.t} className="lp-whycard">
-                    <span className="lp-whyblob" aria-hidden="true">
-                      <Icon className="lp-whyicon" />
+                    <span className="lp-whyblob">
+                      <Icon className="lp-whyicon" aria-hidden="true" />
+                      <span className="lp-whystep" dir="ltr">{`0${index + 1}`}</span>
                     </span>
                     <h3>{item.t}</h3>
                     <p>{item.d}</p>
@@ -1337,7 +1338,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-whygrid { margin-top: 44px; display: grid; gap: 32px 20px; grid-template-columns: 1fr; text-align: center; }
         @media (min-width: 640px) { .lp-whygrid { grid-template-columns: repeat(2,1fr); } }
         @media (min-width: 1060px) { .lp-whygrid { grid-template-columns: repeat(4,1fr); } }
-        .lp-whyblob { display: inline-flex; align-items: center; justify-content: center; width: 84px; height: 84px; border-radius: 50%; background: var(--accent-soft); margin-bottom: 18px; }
+        .lp-whyblob { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 84px; height: 84px; border-radius: 50%; background: var(--accent-soft); margin-bottom: 18px; }
+        .lp-whystep { position: absolute; top: -4px; inset-inline-end: -4px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent-deep); color: #fff; font-size: .68rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
         .lp-whyicon { width: 34px; height: 34px; color: var(--accent-deep); }
         .lp-whycard h3 { font-size: 1.04rem; font-weight: 800; }
         .lp-whycard p { margin-top: 8px; font-size: .87rem; line-height: 1.58; color: var(--ink-soft); }
