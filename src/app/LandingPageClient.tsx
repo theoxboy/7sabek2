@@ -1043,13 +1043,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         @media (min-width: 980px) { .lp-herogrid { grid-template-columns: 1.02fr .98fr; gap: 24px; } }
         .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-deep); font-size: .79rem; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
         .lp-sq { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); flex: none; }
-        .lp-h1 { font-size: clamp(2.5rem, 5.4vw, 4.35rem); line-height: 1; font-weight: 800; margin-top: 20px; }
+        .lp-h1 { font-size: clamp(1.7rem, 3.2vw, 2.5rem); line-height: 1.12; font-weight: 800; margin-top: 20px; }
         .lp-line { display: block; }
         .lp-l2 { color: var(--accent-deep); margin-top: .16em; }
         .lp-w { display: inline-block; margin-inline-end: .25em; }
         .lp-intro .lp-w { opacity: 0; transform: translateY(26px) rotate(2deg); animation: lpWord .62s cubic-bezier(.22,1,.36,1) forwards; animation-delay: var(--wd, 0s); }
         @keyframes lpWord { to { opacity: 1; transform: none; } }
-        .lp-sub { margin-top: 20px; max-width: 47ch; font-size: 1.06rem; line-height: 1.62; color: var(--ink-soft); }
+        .lp-sub { margin-top: 16px; max-width: 34ch; font-size: clamp(1.45rem, 3.2vw, 2.4rem); line-height: 1.32; font-weight: 700; color: var(--ink); }
         .lp-ctarow { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
         .lp-centerrow { justify-content: center; }
         .lp-trust { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px 18px; max-width: 470px; }
