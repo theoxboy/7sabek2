@@ -839,7 +839,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         <section className="lp-aisection">
           <div className="lp-wrap">
             <div className="lp-aibanner">
-              <Image src="/landing/ai/ba-omar-logo.png" alt="7sabek AI" width={48} height={48} className="lp-aiicon" />
+              <Image src="/landing/ai/ba-omar-avatar.png" alt="Ba Omar" width={56} height={56} className="lp-aiicon" />
               <div>
                 <h3 className={headingClass}>{copy.ai.title}</h3>
                 <p>{copy.ai.desc}</p>
