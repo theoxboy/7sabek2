@@ -38,6 +38,11 @@ export const CHANGELOG: Release[] = [
             en: "A new \"Step by step\" section on the home page walks through 4 points on how 7sabek has your back: your situation, your split, tracking your spending, then your debts and goals.",
             ar: "قسم جديد « خطوة بخطوة » فالصفحة الرئيسية كيشرح فـ4 نقط كيفاش كيمشي معاك 7sabek: وضعيتك، التوزيع ديالك، تتبع المصاريف، ومن بعد الكريديات والأهداف.",
           },
+          {
+            fr: "Page d'accueil encore allégée : les sections détaillées devenues redondantes avec la nouvelle présentation ont été retirées.",
+            en: "Home page trimmed further: the detailed sections that had become redundant with the new presentation were removed.",
+            ar: "الصفحة الرئيسية زادت خفت: تحيدو الأقسام المفصلة اللي ولات زايدة مع التقديم الجديد.",
+          },
         ],
       },
     ],

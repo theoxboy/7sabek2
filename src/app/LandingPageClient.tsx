@@ -43,10 +43,8 @@ function detectHeroInstallKind(ua: string): HeroInstallKind {
 }
 
 type Duo = { t: string; d: string };
-type Feat = { k: string; t: string; d: string };
-
 type Copy = {
-  nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
+  nav: { sim: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; installAndroid: string; installIOS: string; installChrome: string };
   hero: { taglineA: string; taglineB: string };
   trust: string[];
@@ -55,8 +53,6 @@ type Copy = {
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
   why: { kicker: string; title: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
-  how: { kicker: string; title: string; steps: Duo[] };
-  ft: { kicker: string; title: string; items: Feat[] };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
   who: { kicker: string; title: string; items: Duo[] };
   fin: { title: string; alt: string; micro: string };
@@ -65,7 +61,7 @@ type Copy = {
 
 const COPY: Record<FloussyLocale, Copy> = {
   fr: {
-    nav: { sim: "Simulateur", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
+    nav: { sim: "Simulateur", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
     cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installAndroid: "App Android", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer sur Chrome" },
     hero: {
       taglineA: "Ton budget,",
@@ -92,31 +88,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       fixed: "Fixe",
       fixedHint: "un montant qui reste le même chaque mois",
       pctHint: "une part de ton salaire qui s’ajuste toute seule",
-    },
-    how: {
-      kicker: "Au quotidien",
-      title: "Ton budget fonctionne en 4 étapes simples.",
-      steps: [
-        { t: "Ton salaire arrive dans Cash", d: "Point de départ neutre, avant toute répartition automatique." },
-        { t: "Distribution automatique", d: "Réparti vers dépenses, dettes, objectifs et épargne selon tes règles." },
-        { t: "Suivi en temps réel", d: "Chaque dépense impacte l’enveloppe liée, immédiatement." },
-        { t: "Fin de cycle optimisée", d: "Le reliquat éligible part automatiquement vers l’épargne." },
-      ],
-    },
-    ft: {
-      kicker: "Fonctionnalités",
-      title: "Tout ce qu’il faut pour piloter ton budget au quotidien.",
-      items: [
-        { k: "Zéro-based", t: "Enveloppes budgétaires", d: "Donne une mission à chaque dirham : loyer, courses, sorties, épargne — chacun dans sa propre enveloppe." },
-        { k: "Saisie rapide", t: "Ajoute une dépense en une phrase", d: "Décris ta dépense en langage naturel, 7sabek propose le montant et la catégorie." },
-        { k: "Répartition", t: "Règles fixes ou en pourcentage", d: "Fixe un montant ou un pourcentage par enveloppe. Le reliquat part automatiquement vers l’épargne." },
-        { k: "Sans surprise", t: "Simulation avant application", d: "Visualise l’effet d’une règle avant qu’elle ne touche réellement ton argent." },
-        { k: "Cycle réel", t: "Ta date de paie, pas un calendrier générique", d: "Paie hebdomadaire, mensuelle ou irrégulière : le cycle suit ta réalité, pas l’inverse." },
-        { k: "Sécurité", t: "Connexion par clé d’accès", d: "Fini les mots de passe oubliés : connecte-toi avec une clé de sécurité moderne (passkey)." },
-        { k: "Rapports", t: "Comprends où part ton argent", d: "Tendances, répartition par catégorie, et export de tes données à tout moment." },
-        { k: "Objectifs", t: "Séparés de tes dépenses", d: "Voyage, urgence, achat important : chaque objectif a sa propre enveloppe, jamais touchée par erreur." },
-        { k: "Dettes", t: "Priorisées, pas oubliées", d: "Isole tes remboursements avec une priorité claire, sans casser ton budget courant." },
-      ],
     },
     cmp: {
       kicker: "Comparatif",
@@ -150,7 +121,7 @@ const COPY: Record<FloussyLocale, Copy> = {
   },
 
   en: {
-    nav: { sim: "Simulator", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
+    nav: { sim: "Simulator", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
     cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installAndroid: "Android app", installIOS: "Add to Home Screen", installChrome: "Install on Chrome" },
     hero: {
       taglineA: "Your budget,",
@@ -177,31 +148,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       fixed: "Fixed",
       fixedHint: "an amount that stays the same every month",
       pctHint: "a share of your salary that adjusts on its own",
-    },
-    how: {
-      kicker: "Day to day",
-      title: "Your budget runs in 4 simple steps.",
-      steps: [
-        { t: "Your salary lands in Cash", d: "A neutral starting point, before any automatic split." },
-        { t: "Automatic distribution", d: "Allocated across spending, debt, goals and savings following your rules." },
-        { t: "Real-time tracking", d: "Every expense hits its linked envelope, immediately." },
-        { t: "Optimised cycle end", d: "Eligible leftovers move automatically to savings." },
-      ],
-    },
-    ft: {
-      kicker: "Features",
-      title: "Everything you need to run your budget every day.",
-      items: [
-        { k: "Zero-based", t: "Budget envelopes", d: "Give every dirham a job: rent, groceries, going out, savings — each in its own envelope." },
-        { k: "Fast entry", t: "Add an expense in one sentence", d: "Describe your expense in plain language and 7sabek suggests the amount and category." },
-        { k: "Allocation", t: "Fixed or percentage rules", d: "Set a fixed amount or a percentage per envelope. The leftover goes to savings automatically." },
-        { k: "No surprises", t: "Simulate before applying", d: "See what a rule does before it ever touches your real money." },
-        { k: "Real cycle", t: "Your payday, not a generic calendar", d: "Weekly, monthly or irregular pay: the cycle follows your reality, not the other way round." },
-        { k: "Security", t: "Passkey sign-in", d: "No more forgotten passwords: sign in with a modern security key (passkey)." },
-        { k: "Reports", t: "Understand where your money goes", d: "Trends, category breakdown, and export of your data at any time." },
-        { k: "Goals", t: "Kept apart from spending", d: "Travel, emergencies, big purchases: each goal has its own envelope, never touched by mistake." },
-        { k: "Debt", t: "Prioritised, not forgotten", d: "Isolate repayments with a clear priority, without breaking your day-to-day budget." },
-      ],
     },
     cmp: {
       kicker: "Comparison",
@@ -235,7 +181,7 @@ const COPY: Record<FloussyLocale, Copy> = {
   },
 
   ar: {
-    nav: { sim: "المحاكاة", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
+    nav: { sim: "المحاكاة", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
     cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", installAndroid: "تطبيق أندرويد", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت على Chrome" },
     hero: {
       taglineA: "حسابك",
@@ -262,31 +208,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       fixed: "ثابت",
       fixedHint: "مبلغ ما كيتبدلش كل شهر",
       pctHint: "نسبة من السالير كتتبدل معاه بروحها",
-    },
-    how: {
-      kicker: "فاليومي",
-      title: "الميزانية ديالك كتخدم فـ4 خطوات بسيطة.",
-      steps: [
-        { t: "السالير كيدخل للكاش", d: "نقطة بداية محايدة، قبل أي توزيع أوتوماتيكي." },
-        { t: "التوزيع الأوتوماتيكي", d: "كيتقسم على المصاريف، الديون، الأهداف والادخار حسب القواعد ديالك." },
-        { t: "التتبع فالوقت الحقيقي", d: "كل مصروف كيأثر على الظرف المرتبط بيه، دغيا." },
-        { t: "نهاية الدورة محسّنة", d: "الباقي المؤهل كيمشي أوتوماتيكياً للادخار." },
-      ],
-    },
-    ft: {
-      kicker: "الخصائص",
-      title: "كل ما تحتاجو باش تسير الميزانية ديالك يومياً.",
-      items: [
-        { k: "من الصفر", t: "الأظرفة ديال الميزانية", d: "عطي مهمة لكل درهم: الكراء، التقضية، الخرجات، الادخار — كل واحد فالظرف ديالو." },
-        { k: "تسجيل سريع", t: "زيد مصروف بجملة وحدة", d: "وصف المصروف ديالك بلغة عادية، و7sabek كيقترح ليك المبلغ والصنف." },
-        { k: "التوزيع", t: "قواعد ثابتة ولا بالنسبة المئوية", d: "حدد مبلغ ثابت ولا نسبة مئوية لكل ظرف. الباقي كيمشي أوتوماتيكياً للادخار." },
-        { k: "بلا مفاجآت", t: "محاكاة قبل التطبيق", d: "شوف تأثير أي قاعدة قبل ما تمس الفلوس ديالك بصح." },
-        { k: "دورة حقيقية", t: "تاريخ الخلاص ديالك، ماشي روزنامة عامة", d: "خلاص أسبوعي، شهري ولا غير منتظم: الدورة كتمشي مع الواقع ديالك، ماشي العكس." },
-        { k: "الأمان", t: "دخول بمفتاح الأمان", d: "سالا نسيان كلمة السر: دخل بمفتاح أمان عصري (passkey)." },
-        { k: "التقارير", t: "فهم فين كتمشي فلوسك", d: "الاتجاهات، التقسيم حسب الصنف، وتصدير البيانات ديالك فأي وقت." },
-        { k: "الأهداف", t: "منفصلة على المصاريف", d: "سفر، طوارئ، شرا مهم: كل هدف عندو الظرف ديالو، وما كيتمسش بالغلط." },
-        { k: "الديون", t: "بأولوية، ماشي منسية", d: "افصل السداد ديالك بأولوية واضحة، بلا ما تخرب الميزانية اليومية." },
-      ],
     },
     cmp: {
       kicker: "مقارنة",
@@ -569,7 +490,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
   const navLinks = [
     { href: "#simulateur", label: copy.nav.sim },
-    { href: "#fonctions", label: copy.nav.feat },
     { href: "#pourqui", label: copy.nav.who },
   ];
 
@@ -994,44 +914,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           </div>
         </section>
 
-        {/* ============================ STEPS ============================ */}
-        <section className="lp-section">
-          <div className="lp-wrap">
-            <div className="lp-head">
-              <span className="lp-kicker">{copy.how.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.how.title}</h2>
-            </div>
-            <div className="lp-grid4">
-              {copy.how.steps.map((step, index) => (
-                <div key={step.t} className="lp-card" style={{ "--d": `${index * 0.07}s` } as React.CSSProperties}>
-                  <span className={`${headingClass} lp-idx`} dir="ltr">{`0${index + 1}`}</span>
-                  <h3>{step.t}</h3>
-                  <p>{step.d}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ============================ FEATURES ============================ */}
-        <section id="fonctions" className="lp-section lp-surface lp-band">
-          <div className="lp-wrap">
-            <div className="lp-head">
-              <span className="lp-kicker">{copy.ft.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.ft.title}</h2>
-            </div>
-            <div className="lp-grid3">
-              {copy.ft.items.map((item, index) => (
-                <div key={item.t} className="lp-card" style={{ "--d": `${index * 0.05}s` } as React.CSSProperties}>
-                  <span className="lp-fttag">{item.k}</span>
-                  <h3>{item.t}</h3>
-                  <p>{item.d}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ============================ COMPARE ============================ */}
         <section className="lp-section">
           <div className="lp-wrap">
@@ -1081,7 +963,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               <h2 className={`${headingClass} lp-white`}>{copy.fin.title}</h2>
               <div className="lp-ctarow lp-centerrow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
-                <a href="#fonctions" className="lp-btn lp-btn-ghostdark">{copy.fin.alt}</a>
+                <a href="#pourquoi" className="lp-btn lp-btn-ghostdark">{copy.fin.alt}</a>
               </div>
               <p className="lp-finmicro">{copy.fin.micro}</p>
             </div>
@@ -1325,12 +1207,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         [dir="rtl"] .lp-shot svg text.lp-capsm { transform: translateY(7px); }
         .lp-shotcap { margin-top: 16px; text-align: center; font-size: .87rem; color: var(--ink-soft); line-height: 1.55; max-width: 60ch; margin-inline: auto; }
 
-        .lp-grid2, .lp-grid3, .lp-grid4 { margin-top: 40px; display: grid; gap: 16px; grid-template-columns: 1fr; }
+        .lp-grid2 { margin-top: 40px; display: grid; gap: 16px; grid-template-columns: 1fr; }
         @media (min-width: 720px) { .lp-grid2 { grid-template-columns: repeat(2,1fr); } }
-        @media (min-width: 700px) { .lp-grid3 { grid-template-columns: repeat(2,1fr); } }
-        @media (min-width: 1060px) { .lp-grid3 { grid-template-columns: repeat(3,1fr); } }
-        @media (min-width: 640px) { .lp-grid4 { grid-template-columns: repeat(2,1fr); } }
-        @media (min-width: 1060px) { .lp-grid4 { grid-template-columns: repeat(4,1fr); } }
         .lp-card { position: relative; border: 1px solid var(--line); background: var(--surface); border-radius: 26px; padding: 24px; transition: border-color .18s, transform .18s, box-shadow .18s; }
         .lp-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: var(--shadow); }
         .lp-card h3 { margin-top: 12px; font-size: 1.02rem; font-weight: 800; }
@@ -1343,9 +1221,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-whyicon { width: 34px; height: 34px; color: var(--accent-deep); }
         .lp-whycard h3 { font-size: 1.04rem; font-weight: 800; }
         .lp-whycard p { margin-top: 8px; font-size: .87rem; line-height: 1.58; color: var(--ink-soft); }
-        .lp-fttag { font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-deep); }
-        .lp-ar .lp-fttag { letter-spacing: 0; }
-        .lp-idx { font-size: 2rem; font-weight: 800; -webkit-text-stroke: 1.5px var(--accent); color: transparent; line-height: 1; }
 
         .lp-comparewrap { margin-top: 38px; border: 1px solid var(--line); border-radius: 26px; overflow: hidden; background: var(--surface); }
         .lp-tscroll { overflow-x: auto; }
