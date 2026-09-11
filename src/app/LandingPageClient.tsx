@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Globe } from "lucide-react";
-import { Bricolage_Grotesque, Cairo, Manrope } from "next/font/google";
+import { Cairo } from "next/font/google";
 
 import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
 import BrandLogo from "@/components/BrandLogo";
@@ -20,15 +20,13 @@ import {
 } from "@/lib/localePreference";
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
-const displayFont = Bricolage_Grotesque({ subsets: ["latin"], weight: ["400", "600", "700", "800"] });
-const bodyFont = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "900"] });
 
 type Duo = { t: string; d: string };
 type Feat = { k: string; t: string; d: string };
 
 type Copy = {
-  nav: { sim: string; plan: string; tour: string; feat: string; who: string; cgu: string; priv: string; contact: string };
+  nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; try: string };
   hero: { t1: string; t2: string; sub: string; micro: string };
   trust: string[];
@@ -36,29 +34,18 @@ type Copy = {
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
   sim: { kicker: string; title: string; text: string; income: string; left: string; note: string; fixed: string };
-  ck: { kicker: string; title: string; text: string; items: string[]; verdicts: Duo[]; solutions: string[]; cta: string };
-  plan: { kicker: string; title: string; text: string; cta: string; steps: Duo[] };
-  tour: { kicker: string; title: string; text: string; tabs: string[]; caps: string[] };
   how: { kicker: string; title: string; steps: Duo[] };
   ft: { kicker: string; title: string; items: Feat[] };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
   who: { kicker: string; title: string; items: Duo[] };
   fin: { title: string; text: string; alt: string; micro: string };
-  sv: {
-    cash: string; income: string; addEnv: string; rollOn: string; rollOff: string; almost: string;
-    debtP1: string; of1100: string; of400: string; of350: string; of2100: string;
-    savDefault: string; savDesc: string; rules: string; fixed: string; leftover: string;
-    toSavings: string; auto: string; simulate: string; save: string; simulation: string;
-    distributed: string; fixedCosts: string; debts: string; expenses: string;
-    exportCsv: string; incVsExp: string; byCat: string; savRegularity: string; vsPrev: string;
-  };
   fabor: string;
   foot: string;
 };
 
 const COPY: Record<FloussyLocale, Copy> = {
   fr: {
-    nav: { sim: "Simulateur", plan: "Money Plan", tour: "L’app", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
+    nav: { sim: "Simulateur", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
     cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", try: "Essayer le simulateur" },
     hero: {
       t1: "Chaque dirham,",
@@ -78,58 +65,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       left: "Ce qui part à l’épargne",
       note: "Exemple illustratif. Dans l’app, tes enveloppes, tes montants et tes règles sont les tiens — et rien n’est appliqué avant que tu valides.",
       fixed: "Fixe",
-    },
-    ck: {
-      kicker: "Diagnostic express",
-      title: "Coche ce qui te parle.",
-      text: "Six situations, aucune donnée demandée. À la fin, tu sauras si 7sabek te sert vraiment — ou pas.",
-      items: [
-        "À la fin du mois, je ne sais pas vraiment où est parti mon argent.",
-        "Je découvre que j’ai trop dépensé une fois que c’est déjà fait.",
-        "Je répartis mon salaire de tête, ou pas du tout.",
-        "J’ai une dette que je repousse de mois en mois.",
-        "J’ai un projet que je n’arrive jamais à financer.",
-        "J’ai déjà abandonné un tableur ou une app de budget.",
-      ],
-      verdicts: [
-        { t: "Coche au moins une case.", d: "Le diagnostic s’affiche ici, avec ce que 7sabek change concrètement pour toi." },
-        { t: "Tu es plutôt bien organisé.", d: "Franchement, tu gères déjà. 7sabek te ferait surtout gagner du temps : la répartition et le suivi deviennent automatiques, c’est tout." },
-        { t: "Tu es dans la zone fragile.", d: "Ton budget tient debout, mais rien ne t’alerte avant qu’il ne casse. C’est exactement le moment où une méthode d’enveloppes change la donne." },
-        { t: "C’est ton argent qui décide à ta place.", d: "Chaque dirham part sans mission précise. C’est le cas type où passer aux enveloppes change tout, dès le premier salaire." },
-      ],
-      solutions: [
-        "Enveloppes : un montant clair par poste",
-        "Alerte avant le dépassement, pas après",
-        "Distribution automatique de ton salaire",
-        "Dettes isolées et priorisées",
-        "Objectifs séparés, jamais entamés",
-        "Money Plan : le budget est construit avec toi",
-      ],
-      cta: "Créer mon plan",
-    },
-    plan: {
-      kicker: "Le point de départ",
-      title: "Un plan financier construit avec toi, pas à ta place.",
-      text: "Dès l’inscription, 7sabek pose les bonnes questions sur ton revenu, tes charges fixes, tes dettes et tes objectifs — puis calcule ta capacité réelle de remboursement et ta réserve de sécurité. Tu ajustes la répartition proposée, tu valides, et tu démarres avec un budget qui te ressemble.",
-      cta: "Construire mon plan",
-      steps: [
-        { t: "Profil de revenu", d: "Salarié, freelance, artisan ou revenus mixtes — le calcul s’adapte à ta réalité." },
-        { t: "Charges & dettes", d: "Loyer, abonnements, remboursements en cours : tout est déclaré une seule fois." },
-        { t: "Capacité & réserve", d: "7sabek calcule combien tu peux vraiment rembourser sans casser ton mois." },
-        { t: "Enveloppes proposées", d: "Une première répartition prête à l’emploi — que tu peux ajuster à tout moment." },
-      ],
-    },
-    tour: {
-      kicker: "Aperçu",
-      title: "Regarde l’app de l’intérieur.",
-      text: "Quatre écrans, une seule logique : tu vois toujours ce qu’il te reste, et pourquoi.",
-      tabs: ["Tableau de bord", "Enveloppes", "Répartition", "Rapports"],
-      caps: [
-        "Le tableau de bord : cash disponible, dépenses du cycle, et l’état réel de chaque enveloppe d’un seul coup d’œil.",
-        "Chaque enveloppe montre ce qui reste, si le report est actif, et t’alerte avant que tu dépasses.",
-        "Tes règles de répartition : montants fixes, pourcentages, et le reliquat qui part vers l’épargne — simulé avant d’être appliqué.",
-        "Tendances, répartition par catégorie et régularité d’épargne — exportables quand tu veux.",
-      ],
     },
     how: {
       kicker: "Au quotidien",
@@ -185,24 +120,12 @@ const COPY: Record<FloussyLocale, Copy> = {
       alt: "Découvrir les fonctionnalités",
       micro: "Zéro dirham à sortir. Faboooor, vraiment.",
     },
-    sv: {
-      cash: "CASH", income: "REVENU", addEnv: "+ Enveloppe",
-      rollOn: "Report activé · 12 opérations", rollOff: "Report désactivé · 6 opérations",
-      almost: "Presque épuisée · 10 MAD restants", debtP1: "Dette · priorité 1",
-      of1100: "sur 1 100", of400: "sur 400", of350: "sur 350", of2100: "sur 2 100",
-      savDefault: "Épargne (par défaut)", savDesc: "Reçoit le reliquat de fin de cycle",
-      rules: "Règles actives", fixed: "FIXE", leftover: "Reliquat", toSavings: "Envoyé vers Épargne", auto: "auto",
-      simulate: "Simuler la répartition", save: "Enregistrer", simulation: "Simulation", distributed: "MAD réparti",
-      fixedCosts: "Charges fixes", debts: "Dettes", expenses: "Dépenses",
-      exportCsv: "Exporter CSV", incVsExp: "Revenus vs dépenses", byCat: "Par catégorie",
-      savRegularity: "Régularité d’épargne", vsPrev: "vs cycle précédent",
-    },
     fabor: "c’est faboooor",
     foot: "© 2026 7sabek. Tous droits réservés.",
   },
 
   en: {
-    nav: { sim: "Simulator", plan: "Money Plan", tour: "The app", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
+    nav: { sim: "Simulator", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
     cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", try: "Try the simulator" },
     hero: {
       t1: "Every dirham,",
@@ -222,58 +145,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       left: "What goes to savings",
       note: "Illustrative example. In the app, your envelopes, amounts and rules are your own — and nothing is applied until you confirm.",
       fixed: "Fixed",
-    },
-    ck: {
-      kicker: "Quick check",
-      title: "Tick what sounds like you.",
-      text: "Six situations, no data asked. By the end you’ll know whether 7sabek is actually for you — or not.",
-      items: [
-        "At the end of the month, I don’t really know where my money went.",
-        "I find out I overspent only once it’s already done.",
-        "I split my salary in my head, or not at all.",
-        "I have a debt I keep pushing to next month.",
-        "I have a plan I never manage to fund.",
-        "I’ve already given up on a spreadsheet or a budgeting app.",
-      ],
-      verdicts: [
-        { t: "Tick at least one box.", d: "Your read-out appears here, with what 7sabek actually changes for you." },
-        { t: "You’re pretty well organised.", d: "Honestly, you’ve got this. 7sabek would mainly save you time: the splitting and the tracking become automatic. That’s it." },
-        { t: "You’re in the fragile zone.", d: "Your budget holds up, but nothing warns you before it breaks. That’s exactly when an envelope method starts paying off." },
-        { t: "Your money is deciding for you.", d: "Every dirham leaves without a job. This is the textbook case where switching to envelopes changes everything, from the first payday." },
-      ],
-      solutions: [
-        "Envelopes: a clear amount per area",
-        "Warned before you overspend, not after",
-        "Automatic splitting of your salary",
-        "Debt kept apart and prioritised",
-        "Goals kept separate, never raided",
-        "Money Plan: the budget is built with you",
-      ],
-      cta: "Build my plan",
-    },
-    plan: {
-      kicker: "The starting point",
-      title: "A financial plan built with you, not for you.",
-      text: "From sign-up, 7sabek asks the right questions about your income, fixed costs, debts and goals — then computes your real repayment capacity and your safety buffer. You adjust the proposed split, confirm, and start with a budget that fits you.",
-      cta: "Build my plan",
-      steps: [
-        { t: "Income profile", d: "Salaried, freelance, craftsperson or mixed income — the maths adapts to you." },
-        { t: "Costs & debts", d: "Rent, subscriptions, ongoing repayments: declared once, used everywhere." },
-        { t: "Capacity & buffer", d: "7sabek works out how much you can really repay without breaking your month." },
-        { t: "Proposed envelopes", d: "A ready-to-use first split — that you can adjust at any time." },
-      ],
-    },
-    tour: {
-      kicker: "A look inside",
-      title: "See the app from the inside.",
-      text: "Four screens, one logic: you always see what’s left, and why.",
-      tabs: ["Dashboard", "Envelopes", "Allocation", "Reports"],
-      caps: [
-        "The dashboard: available cash, cycle spending, and the real state of every envelope at a glance.",
-        "Each envelope shows what’s left, whether rollover is on, and warns you before you overspend.",
-        "Your allocation rules: fixed amounts, percentages, and the leftover flowing to savings — simulated before it’s applied.",
-        "Trends, category breakdown and savings consistency — exportable whenever you want.",
-      ],
     },
     how: {
       kicker: "Day to day",
@@ -329,24 +200,12 @@ const COPY: Record<FloussyLocale, Copy> = {
       alt: "Explore the features",
       micro: "Not one dirham to pay. Freeeee, really.",
     },
-    sv: {
-      cash: "CASH", income: "INCOME", addEnv: "+ Envelope",
-      rollOn: "Rollover on · 12 entries", rollOff: "Rollover off · 6 entries",
-      almost: "Almost empty · 10 MAD left", debtP1: "Debt · priority 1",
-      of1100: "of 1,100", of400: "of 400", of350: "of 350", of2100: "of 2,100",
-      savDefault: "Savings (default)", savDesc: "Receives the end-of-cycle leftover",
-      rules: "Active rules", fixed: "FIXED", leftover: "Leftover", toSavings: "Sent to Savings", auto: "auto",
-      simulate: "Simulate allocation", save: "Save", simulation: "Simulation", distributed: "MAD allocated",
-      fixedCosts: "Fixed costs", debts: "Debt", expenses: "Spending",
-      exportCsv: "Export CSV", incVsExp: "Income vs spending", byCat: "By category",
-      savRegularity: "Savings consistency", vsPrev: "vs previous cycle",
-    },
     fabor: "it’s freeeee",
     foot: "© 2026 7sabek. All rights reserved.",
   },
 
   ar: {
-    nav: { sim: "المحاكاة", plan: "خطة الفلوس", tour: "التطبيق", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
+    nav: { sim: "المحاكاة", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
     cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", try: "جرب المحاكاة" },
     hero: {
       t1: "كل درهم،",
@@ -366,58 +225,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       left: "اللي كيمشي للادخار",
       note: "هادا غير مثال توضيحي. فالتطبيق، الأظرفة والمبالغ والقواعد كلها ديالك — وحتى حاجة ما كتطبق حتى تأكد نتا.",
       fixed: "ثابت",
-    },
-    ck: {
-      kicker: "تشخيص سريع",
-      title: "شيك على اللي كيوقع ليك.",
-      text: "ست حالات، بلا ما نطلبو منك حتى معلومة. فالأخير غادي تعرف واش 7sabek كينفعك بصح — ولا لا.",
-      items: [
-        "فآخر الشهر، ما كنعرفش بصح فين مشاو ليا الفلوس.",
-        "كنعرف بللي صرفت بزااااف غير من بعد ما يكون فات الفوت.",
-        "كنقسم السالير ديالي فراسي، ولا ما كنقسمو حتى قسمة.",
-        "عندي دين كنأجلو من شهر لشهر.",
-        "عندي مشروع عمري ما قدرت نموّلو.",
-        "سبق ليا خليت جدول ولا تطبيق ديال الميزانية.",
-      ],
-      verdicts: [
-        { t: "شيك على شي حاجة وحدة على الأقل.", d: "التشخيص غادي يبان هنا، مع اللي كيبدلو 7sabek عندك بصح." },
-        { t: "راك منظم مزيان.", d: "بصراحة راك مسير راسك. 7sabek غادي يربحك غير الوقت: التوزيع والتتبع كيوليو أوتوماتيكيين، وصافي." },
-        { t: "راك فالمنطقة الهشة.", d: "الميزانية ديالك واقفة، ولكن حتى حاجة ما كتنبهك قبل ما تطيح. هادي بالضبط اللحظة اللي طريقة الأظرفة كتبدل فيها كلشي." },
-        { t: "الفلوس هي اللي كتقرر بلاصتك.", d: "كل درهم كيخرج بلا مهمة واضحة. هادي هي الحالة اللي فيها الأظرفة كيبدلو كلشي، من أول سالير." },
-      ],
-      solutions: [
-        "الأظرفة: مبلغ واضح لكل جزء",
-        "تنبيه قبل التجاوز، ماشي من بعد",
-        "توزيع أوتوماتيكي للسالير ديالك",
-        "الديون مفصولة وبأولوية",
-        "الأهداف منفصلة، وما كيتمسوش",
-        "خطة الفلوس: الميزانية كتتبنى معاك",
-      ],
-      cta: "بني الخطة ديالي",
-    },
-    plan: {
-      kicker: "نقطة البداية",
-      title: "خطة فلوس مبنية معاك، ماشي بلاصتك.",
-      text: "من أول ما تسجل، 7sabek كيسولك على الدخل ديالك، المصاريف الثابتة، الديون والأهداف — ومن بعد كيحسب القدرة الحقيقية ديالك على السداد والاحتياطي ديال الأمان. كتعدل التوزيع المقترح، كتأكد، وكتبدا بميزانية على قياسك.",
-      cta: "بني الخطة ديالي",
-      steps: [
-        { t: "نوع الدخل", d: "مأجور، فريلانس، حرفي ولا مداخيل مخلوطة — الحساب كيتأقلم مع الواقع ديالك." },
-        { t: "المصاريف والديون", d: "الكراء، الاشتراكات، السداد اللي خدام: كلشي كيتصرح به مرة وحدة." },
-        { t: "القدرة والاحتياطي", d: "7sabek كيحسب شحال تقدر تسدد بصح بلا ما تخرب الشهر ديالك." },
-        { t: "الأظرفة المقترحة", d: "توزيع أولي واجد للاستعمال — وتقدر تعدلو فأي وقت." },
-      ],
-    },
-    tour: {
-      kicker: "نظرة من الداخل",
-      title: "شوف التطبيق من الداخل.",
-      text: "أربع سكرينات، ومنطق واحد: ديما كتشوف شحال بقا ليك، وعلاش.",
-      tabs: ["لوحة القيادة", "الأظرفة", "التوزيع", "التقارير"],
-      caps: [
-        "لوحة القيادة: الكاش المتوفر، مصاريف الدورة، وحالة كل ظرف بنظرة وحدة.",
-        "كل ظرف كيبين ليك شحال بقا فيه، واش الترحيل شاعل، وكينبهك قبل ما تتجاوز.",
-        "قواعد التوزيع ديالك: مبالغ ثابتة، نسب مئوية، والباقي كيمشي للادخار — بمحاكاة قبل التطبيق.",
-        "الاتجاهات، التقسيم حسب الصنف، والانتظام فالادخار — وتقدر تصدرهم فأي وقت.",
-      ],
     },
     how: {
       kicker: "فاليومي",
@@ -473,18 +280,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       alt: "اكتشف الخصائص",
       micro: "حتى درهم ما غادي تخلص. فابووووور بصح.",
     },
-    sv: {
-      cash: "كاش", income: "دخل", addEnv: "+ ظرف",
-      rollOn: "الترحيل شاعل · 12 عملية", rollOff: "الترحيل طافي · 6 عمليات",
-      almost: "قريب يسالي · بقا 10 درهم", debtP1: "دين · أولوية 1",
-      of1100: "من 1 100", of400: "من 400", of350: "من 350", of2100: "من 2 100",
-      savDefault: "الادخار (افتراضي)", savDesc: "كياخد الباقي فنهاية الدورة",
-      rules: "القواعد المفعلة", fixed: "ثابت", leftover: "الباقي", toSavings: "كيمشي للادخار", auto: "أوتوماتيكي",
-      simulate: "شوف المحاكاة", save: "حفظ", simulation: "المحاكاة", distributed: "درهم موزع",
-      fixedCosts: "مصاريف ثابتة", debts: "الديون", expenses: "المصاريف",
-      exportCsv: "تصدير CSV", incVsExp: "الدخل مقابل المصاريف", byCat: "حسب الصنف",
-      savRegularity: "انتظام الادخار", vsPrev: "مقارنة بالدورة السابقة",
-    },
     fabor: "فابووووور",
     foot: "© 2026 7sabek. جميع الحقوق محفوظة.",
   },
@@ -536,8 +331,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const [showGooglePlayPopup, setShowGooglePlayPopup] = useState(false);
 
   const [salary, setSalary] = useState(12400);
-  const [checked, setChecked] = useState<boolean[]>(() => Array(6).fill(false));
-  const [shot, setShot] = useState(0);
   const [introReady, setIntroReady] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -663,15 +456,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
     return { rows, savings: Math.max(0, remaining) };
   }, [salary, copy.sim.fixed]);
 
-  const pickedCount = checked.filter(Boolean).length;
-  const level = pickedCount === 0 ? 0 : pickedCount <= 2 ? 1 : pickedCount <= 4 ? 2 : 3;
-  const verdict = copy.ck.verdicts[level];
-  const levelColor = ["#7C8D86", "#0B8F53", "#F2A93B", "#F2686B"][level];
-
-  const toggleCheck = useCallback((index: number) => {
-    setChecked((prev) => prev.map((value, i) => (i === index ? !value : value)));
-  }, []);
-
   const onPhoneMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (reduceMotion) return;
     const scene = event.currentTarget;
@@ -706,8 +490,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
   const navLinks = [
     { href: "#simulateur", label: copy.nav.sim },
-    { href: "#plan", label: copy.nav.plan },
-    { href: "#apercu", label: copy.nav.tour },
     { href: "#fonctions", label: copy.nav.feat },
     { href: "#pourqui", label: copy.nav.who },
   ];
@@ -1101,129 +883,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           </div>
         </section>
 
-        {/* ============================ CHECKLIST ============================ */}
-        <section id="diagnostic" className="lp-section lp-surface lp-band">
-          <div className="lp-wrap">
-            <div className="lp-head lp-center">
-              <span className="lp-kicker">{copy.ck.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.ck.title}</h2>
-              <p className="lp-text">{copy.ck.text}</p>
-            </div>
-
-            <div className="lp-ckgrid">
-              {copy.ck.items.map((item, index) => (
-                <button
-                  key={item}
-                  type="button"
-                  className="lp-ck"
-                  aria-pressed={checked[index]}
-                  onClick={() => toggleCheck(index)}
-                >
-                  <span className="lp-ckbox">✓</span>
-                  <span>{item}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="lp-ckresult" role="status" aria-live="polite">
-              <div className="lp-ckgauge">
-                <div>
-                  <span className={`${headingClass} lp-cknum`} style={{ color: levelColor }}>{pickedCount}</span>
-                  <span className={`${headingClass} lp-ckden`}>/6</span>
-                </div>
-                <div className="lp-cksegs">
-                  {[0, 1, 2, 3, 4, 5].map((index) => (
-                    <span key={index} className="lp-ckseg" style={index < pickedCount ? { background: levelColor } : undefined} />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className={`${headingClass} lp-ckverdict`}>{verdict.t}</h3>
-                <p className="lp-ckadvice">{verdict.d}</p>
-                {pickedCount > 0 ? (
-                  <>
-                    <div className="lp-cksol">
-                      {checked.map((isOn, index) =>
-                        isOn ? (
-                          <span key={copy.ck.solutions[index]} className="lp-ckchip">
-                            <span className="lp-ckcd" />{copy.ck.solutions[index]}
-                          </span>
-                        ) : null
-                      )}
-                    </div>
-                    <div className="lp-ckactions">
-                      <Link href="/register" className="lp-btn lp-btn-accent">{copy.ck.cta}<Arrow /></Link>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ============================ MONEY PLAN ============================ */}
-        <section id="plan" className="lp-section">
-          <div className="lp-wrap">
-            <div className="lp-dark">
-              <div className="lp-plangrid">
-                <div>
-                  <span className="lp-kicker lp-kaccent">{copy.plan.kicker}</span>
-                  <h2 className={`${headingClass} lp-h2 lp-white`}>{copy.plan.title}</h2>
-                  <div className="lp-ctarow">
-                    <Link href="/register" className="lp-btn lp-btn-accent">{copy.plan.cta}</Link>
-                  </div>
-                </div>
-                <div>
-                  {copy.plan.steps.map((step, index) => (
-                    <div key={step.t} className="lp-planstep">
-                      <span className={`${headingClass} lp-planN`} dir="ltr">{`0${index + 1}`}</span>
-                      <div>
-                        <h4>{step.t}</h4>
-                        <p>{step.d}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ============================ APP TOUR ============================ */}
-        <section id="apercu" className="lp-section lp-surface lp-band">
-          <div className="lp-wrap">
-            <div className="lp-head lp-center">
-              <span className="lp-kicker">{copy.tour.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.tour.title}</h2>
-            </div>
-
-            <div className="lp-tabs" role="tablist">
-              {copy.tour.tabs.map((tab, index) => (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={shot === index}
-                  className="lp-tab"
-                  onClick={() => setShot(index)}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="lp-stage">
-              <div className="lp-shot" key={shot}>
-                {shot === 0 ? <ShotDashboard copy={copy} /> : null}
-                {shot === 1 ? <ShotEnvelopes copy={copy} /> : null}
-                {shot === 2 ? <ShotDistribution copy={copy} /> : null}
-                {shot === 3 ? <ShotReports copy={copy} /> : null}
-              </div>
-              <p className="lp-shotcap">{copy.tour.caps[shot]}</p>
-            </div>
-          </div>
-        </section>
-
         {/* ============================ STEPS ============================ */}
         <section className="lp-section">
           <div className="lp-wrap">
@@ -1605,238 +1264,5 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         }
       `}</style>
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Mock app screens                                                   */
-/* ------------------------------------------------------------------ */
-function ShotDashboard({ copy }: { copy: Copy }) {
-  const bars: Array<[string, string, number, string]> = [
-    [copy.env.food, "640 / 1 100", 295, "#17C777"],
-    [copy.env.transport, "210 / 400", 266, "#17C777"],
-    [copy.env.fun, "340 / 350", 493, "#F2A93B"],
-    [copy.env.debt, "2 100 / 2 100", 508, "#8B7CF6"],
-    [copy.env.save, "1 500 / 1 500", 508, "#17C777"],
-  ];
-  return (
-    <svg viewBox="0 0 960 560" role="img" aria-label={copy.tour.tabs[0]}>
-      <defs>
-        <linearGradient id="lpAr1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#17C777" stopOpacity=".28" /><stop offset="100%" stopColor="#17C777" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <rect width="960" height="560" rx="18" fill="#F6F8F4" />
-      <rect x="0" y="0" width="960" height="56" rx="18" fill="#FFFFFF" /><rect x="0" y="40" width="960" height="16" fill="#FFFFFF" />
-      <line x1="0" y1="56" x2="960" y2="56" stroke="#E3E8DF" />
-      <circle cx="34" cy="28" r="9" fill="#17C777" />
-      <rect x="52" y="22" width="62" height="12" rx="6" fill="#0A241D" opacity=".82" />
-      <rect x="24" y="80" width="292" height="104" rx="16" fill="#FFFFFF" stroke="#E3E8DF" />
-      <rect x="44" y="102" width="98" height="8" rx="4" fill="#7C8D86" />
-      <text x="44" y="152" fontSize="30" fontWeight="800" fill="#0B8F53">2 640,00</text>
-      <text x="196" y="152" fontSize="13" fontWeight="700" fill="#7C8D86">MAD</text>
-      <rect x="256" y="98" width="46" height="20" rx="10" fill="#E2F7EC" />
-      <text x="264" y="112" fontSize="10" fontWeight="800" fill="#0B8F53">{copy.sv.cash}</text>
-      <rect x="332" y="80" width="292" height="104" rx="16" fill="#FFFFFF" stroke="#E3E8DF" />
-      <rect x="352" y="102" width="86" height="8" rx="4" fill="#7C8D86" />
-      <text x="352" y="152" fontSize="30" fontWeight="800" fill="#0A241D">7 214,00</text>
-      <text x="512" y="152" fontSize="13" fontWeight="700" fill="#7C8D86">MAD</text>
-      <rect x="640" y="80" width="296" height="104" rx="16" fill="#FFFFFF" stroke="#E3E8DF" />
-      <rect x="660" y="102" width="76" height="8" rx="4" fill="#7C8D86" />
-      <text x="660" y="152" fontSize="30" fontWeight="800" fill="#0A241D">12 400</text>
-      <text x="790" y="152" fontSize="13" fontWeight="700" fill="#7C8D86">MAD</text>
-      <rect x="856" y="98" width="60" height="20" rx="10" fill="#EAEFFF" />
-      <text x="864" y="112" fontSize="10" fontWeight="800" fill="#2E5BD1">{copy.sv.income}</text>
-
-      <rect x="24" y="204" width="560" height="332" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <g fontSize="13" fontWeight="700" fill="#0A241D">
-        {bars.map((row, index) => {
-          const y = 278 + index * 58;
-          return (
-            <g key={row[0]}>
-              <text x="46" y={y}>{row[0]}</text>
-              <text x="470" y={y} textAnchor="end" fill="#4E625A">{row[1]}</text>
-              <rect x="46" y={y + 10} width="508" height="9" rx="4.5" fill="#EEF1EA" />
-              <rect x="46" y={y + 10} width={row[2]} height="9" rx="4.5" fill={row[3]} />
-            </g>
-          );
-        })}
-      </g>
-
-      <rect x="600" y="204" width="336" height="332" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <rect x="622" y="228" width="104" height="10" rx="5" fill="#0A241D" opacity=".8" />
-      <path d="M622,420 662,398 702,406 742,368 782,382 822,338 862,352 902,306 902,470 622,470Z" fill="url(#lpAr1)" />
-      <polyline points="622,420 662,398 702,406 742,368 782,382 822,338 862,352 902,306" fill="none" stroke="#17C777" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="902" cy="306" r="5" fill="#17C777" stroke="#fff" strokeWidth="2.5" />
-    </svg>
-  );
-}
-
-function ShotEnvelopes({ copy }: { copy: Copy }) {
-  const rows = [
-    { n: copy.env.food, s: copy.sv.rollOn, v: "460 MAD", of: copy.sv.of1100, w: 372, c: "#17C777", bg: "#E2F7EC", stroke: "#E3E8DF", vc: "#0A241D" },
-    { n: copy.env.transport, s: copy.sv.rollOff, v: "190 MAD", of: copy.sv.of400, w: 336, c: "#4C7EFF", bg: "#EAEFFF", stroke: "#E3E8DF", vc: "#0A241D" },
-    { n: copy.env.fun, s: copy.sv.almost, v: "10 MAD", of: copy.sv.of350, w: 622, c: "#F2A93B", bg: "#FDF2DF", stroke: "#F2A93B", vc: "#B97913" },
-    { n: copy.env.debt, s: copy.sv.debtP1, v: "0 MAD", of: copy.sv.of2100, w: 640, c: "#8B7CF6", bg: "#F1EEFE", stroke: "#E3E8DF", vc: "#0A241D" },
-  ];
-  return (
-    <svg viewBox="0 0 960 560" role="img" aria-label={copy.tour.tabs[1]}>
-      <rect width="960" height="560" rx="18" fill="#F6F8F4" />
-      <rect x="0" y="0" width="960" height="56" rx="18" fill="#FFFFFF" /><rect x="0" y="40" width="960" height="16" fill="#FFFFFF" />
-      <line x1="0" y1="56" x2="960" y2="56" stroke="#E3E8DF" />
-      <circle cx="34" cy="28" r="9" fill="#17C777" /><rect x="52" y="22" width="76" height="12" rx="6" fill="#0A241D" opacity=".82" />
-      <rect x="786" y="16" width="142" height="24" rx="12" fill="#17C777" />
-      <text x="808" y="32" fontSize="11" fontWeight="800" fill="#06301F">{copy.sv.addEnv}</text>
-
-      {rows.map((row, index) => {
-        const y = 80 + index * 100;
-        return (
-          <g key={row.n}>
-            <rect x="24" y={y} width="912" height="86" rx="16" fill="#FFFFFF" stroke={row.stroke} strokeOpacity={row.stroke === "#E3E8DF" ? 1 : 0.5} />
-            <rect x="46" y={y + 28} width="34" height="34" rx="10" fill={row.bg} />
-            <circle cx="63" cy={y + 45} r="6" fill={row.c} />
-            <text x="98" y={y + 36} fontSize="15" fontWeight="800" fill="#0A241D">{row.n}</text>
-            <text x="98" y={y + 58} fontSize="11.5" fontWeight="600" fill="#7C8D86">{row.s}</text>
-            <text x="912" y={y + 36} textAnchor="end" fontSize="20" fontWeight="800" fill={row.vc}>{row.v}</text>
-            <text x="912" y={y + 58} textAnchor="end" fontSize="11" fontWeight="700" fill="#7C8D86" className="lp-capsm">{row.of}</text>
-            <rect x="98" y={y + 68} width="640" height="7" rx="3.5" fill="#EEF1EA" />
-            <rect x="98" y={y + 68} width={row.w} height="7" rx="3.5" fill={row.c} />
-          </g>
-        );
-      })}
-
-      <rect x="24" y="480" width="912" height="60" rx="16" fill="#E2F7EC" stroke="#17C777" strokeOpacity=".35" />
-      <text x="46" y="508" fontSize="13" fontWeight="800" fill="#0B8F53">{copy.sv.savDefault}</text>
-      <text x="46" y="528" fontSize="11.5" fontWeight="600" fill="#0B8F53" opacity=".8" className="lp-capsm">{copy.sv.savDesc}</text>
-      <text x="912" y="518" textAnchor="end" fontSize="22" fontWeight="800" fill="#0B8F53">+1 500 MAD</text>
-    </svg>
-  );
-}
-
-function ShotDistribution({ copy }: { copy: Copy }) {
-  const rules = [
-    { tag: copy.sv.fixed, dark: true, name: copy.env.rent, val: "3 200 MAD" },
-    { tag: copy.sv.fixed, dark: true, name: copy.env.debt, val: "2 100 MAD" },
-    { tag: "%", dark: false, name: copy.env.food, val: "22 %" },
-    { tag: "%", dark: false, name: copy.env.transport, val: "8 %" },
-  ];
-  const legend: Array<[string, string, string]> = [
-    [copy.sv.fixedCosts, "5 300", "#0A241D"],
-    [copy.sv.debts, "2 100", "#8B7CF6"],
-    [copy.sv.expenses, "3 500", "#17C777"],
-    [copy.env.save, "1 500", "#4C7EFF"],
-  ];
-  return (
-    <svg viewBox="0 0 960 560" role="img" aria-label={copy.tour.tabs[2]}>
-      <rect width="960" height="560" rx="18" fill="#F6F8F4" />
-      <rect x="0" y="0" width="960" height="56" rx="18" fill="#FFFFFF" /><rect x="0" y="40" width="960" height="16" fill="#FFFFFF" />
-      <line x1="0" y1="56" x2="960" y2="56" stroke="#E3E8DF" />
-      <circle cx="34" cy="28" r="9" fill="#17C777" /><rect x="52" y="22" width="88" height="12" rx="6" fill="#0A241D" opacity=".82" />
-
-      <rect x="24" y="80" width="556" height="456" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <text x="46" y="112" fontSize="13" fontWeight="800" fill="#0A241D">{copy.sv.rules}</text>
-      {rules.map((rule, index) => {
-        const y = 132 + index * 68;
-        return (
-          <g key={`${rule.name}-${rule.val}`} fontSize="12.5">
-            <rect x="46" y={y} width="512" height="58" rx="12" fill="#F6F8F4" />
-            <rect x="62" y={y + 18} width="52" height="20" rx="10" fill={rule.dark ? "#0A241D" : "#E2F7EC"} />
-            <text x="70" y={y + 32} fontSize="9.5" fontWeight="800" fill={rule.dark ? "#fff" : "#0B8F53"}>{rule.tag}</text>
-            <text x="126" y={y + 33} fontWeight="800" fill="#0A241D">{rule.name}</text>
-            <text x="542" y={y + 33} textAnchor="end" fontWeight="800" fill={rule.dark ? "#0A241D" : "#0B8F53"}>{rule.val}</text>
-          </g>
-        );
-      })}
-      <rect x="46" y="404" width="512" height="58" rx="12" fill="#E2F7EC" stroke="#17C777" strokeOpacity=".3" />
-      <text x="62" y="429" fontSize="11.5" fontWeight="800" fill="#0B8F53">{copy.sv.leftover}</text>
-      <text x="62" y="447" fontSize="10.5" fontWeight="600" fill="#0B8F53" opacity=".85" className="lp-capsm">{copy.sv.toSavings}</text>
-      <text x="542" y="440" textAnchor="end" fontSize="18" fontWeight="800" fill="#0B8F53">{copy.sv.auto}</text>
-      <rect x="46" y="482" width="250" height="34" rx="12" fill="#0A241D" />
-      <text x="70" y="504" fontSize="12" fontWeight="800" fill="#fff">{copy.sv.simulate}</text>
-      <rect x="310" y="482" width="150" height="34" rx="12" fill="#fff" stroke="#E3E8DF" />
-      <text x="336" y="504" fontSize="12" fontWeight="800" fill="#4E625A">{copy.sv.save}</text>
-
-      <rect x="600" y="80" width="336" height="456" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <text x="622" y="112" fontSize="13" fontWeight="800" fill="#0A241D">{copy.sv.simulation}</text>
-      <g transform="translate(768,250)">
-        <circle r="86" fill="none" stroke="#EEF1EA" strokeWidth="34" />
-        <circle r="86" fill="none" stroke="#0A241D" strokeWidth="34" strokeDasharray="140 400" transform="rotate(-90)" />
-        <circle r="86" fill="none" stroke="#8B7CF6" strokeWidth="34" strokeDasharray="92 400" transform="rotate(70)" />
-        <circle r="86" fill="none" stroke="#17C777" strokeWidth="34" strokeDasharray="120 400" transform="rotate(140)" />
-        <circle r="86" fill="none" stroke="#4C7EFF" strokeWidth="34" strokeDasharray="44 400" transform="rotate(228)" />
-        <text textAnchor="middle" y="-4" fontSize="26" fontWeight="800" fill="#0A241D">12 400</text>
-        <text textAnchor="middle" y="18" fontSize="11" fontWeight="700" fill="#7C8D86">{copy.sv.distributed}</text>
-      </g>
-      <g fontSize="11.5" fontWeight="700">
-        {legend.map(([label, value, color], index) => {
-          const y = 392 + index * 28;
-          return (
-            <g key={label}>
-              <rect x="628" y={y} width="10" height="10" rx="3" fill={color} />
-              <text x="648" y={y + 9} fill="#4E625A">{label}</text>
-              <text x="908" y={y + 9} textAnchor="end" fill="#0A241D">{value}</text>
-            </g>
-          );
-        })}
-      </g>
-    </svg>
-  );
-}
-
-function ShotReports({ copy }: { copy: Copy }) {
-  const cats: Array<[string, string, number, string]> = [
-    [copy.env.food, "2 730", 330, "#17C777"],
-    [copy.env.transport, "980", 140, "#4C7EFF"],
-    [copy.env.fun, "640", 92, "#F2A93B"],
-  ];
-  const heat = ["#E2F7EC", "#9AE6C0", "#17C777", "#17C777", "#0B8F53", "#E2F7EC", "#9AE6C0", "#17C777", "#0B8F53", "#9AE6C0", "#17C777", "#E2F7EC", "#17C777", "#0B8F53", "#9AE6C0", "#17C777", "#0B8F53", "#0B8F53", "#17C777", "#9AE6C0", "#17C777"];
-  return (
-    <svg viewBox="0 0 960 560" role="img" aria-label={copy.tour.tabs[3]}>
-      <defs>
-        <linearGradient id="lpAr2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4C7EFF" stopOpacity=".26" /><stop offset="100%" stopColor="#4C7EFF" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <rect width="960" height="560" rx="18" fill="#F6F8F4" />
-      <rect x="0" y="0" width="960" height="56" rx="18" fill="#FFFFFF" /><rect x="0" y="40" width="960" height="16" fill="#FFFFFF" />
-      <line x1="0" y1="56" x2="960" y2="56" stroke="#E3E8DF" />
-      <circle cx="34" cy="28" r="9" fill="#17C777" /><rect x="52" y="22" width="70" height="12" rx="6" fill="#0A241D" opacity=".82" />
-      <rect x="780" y="16" width="148" height="24" rx="12" fill="#F6F8F4" stroke="#E3E8DF" />
-      <text x="802" y="32" fontSize="11" fontWeight="800" fill="#4E625A">{copy.sv.exportCsv}</text>
-
-      <rect x="24" y="80" width="912" height="240" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <text x="46" y="112" fontSize="13" fontWeight="800" fill="#0A241D">{copy.sv.incVsExp}</text>
-      <g stroke="#EEF1EA"><line x1="46" y1="160" x2="914" y2="160" /><line x1="46" y1="210" x2="914" y2="210" /><line x1="46" y1="260" x2="914" y2="260" /></g>
-      <path d="M46,266 156,240 266,252 376,208 486,224 596,182 706,196 816,150 914,138 914,296 46,296Z" fill="url(#lpAr2)" />
-      <polyline points="46,266 156,240 266,252 376,208 486,224 596,182 706,196 816,150 914,138" fill="none" stroke="#4C7EFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="46,286 156,278 266,282 376,268 486,276 596,258 706,266 816,246 914,240" fill="none" stroke="#17C777" strokeWidth="3" strokeDasharray="7 6" strokeLinecap="round" />
-      <circle cx="914" cy="138" r="5.5" fill="#4C7EFF" stroke="#fff" strokeWidth="2.5" />
-
-      <rect x="24" y="336" width="446" height="200" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <text x="46" y="368" fontSize="13" fontWeight="800" fill="#0A241D">{copy.sv.byCat}</text>
-      <g fontSize="11.5" fontWeight="700">
-        {cats.map(([label, value, width, color], index) => {
-          const y = 400 + index * 44;
-          return (
-            <g key={label}>
-              <text x="46" y={y} fill="#4E625A">{label}</text>
-              <text x="448" y={y} textAnchor="end" fill="#0A241D">{value}</text>
-              <rect x="46" y={y + 8} width="402" height="8" rx="4" fill="#EEF1EA" />
-              <rect x="46" y={y + 8} width={width} height="8" rx="4" fill={color} />
-            </g>
-          );
-        })}
-      </g>
-
-      <rect x="490" y="336" width="446" height="200" rx="18" fill="#FFFFFF" stroke="#E3E8DF" />
-      <text x="512" y="368" fontSize="13" fontWeight="800" fill="#0A241D">{copy.sv.savRegularity}</text>
-      <g>
-        {heat.map((fill, index) => (
-          <rect key={index} x={512 + (index % 7) * 24} y={386 + Math.floor(index / 7) * 24} width="18" height="18" rx="4" fill={fill} />
-        ))}
-      </g>
-      <text x="512" y="490" fontSize="26" fontWeight="800" fill="#0B8F53">+18 %</text>
-      <text x="512" y="512" fontSize="11.5" fontWeight="600" fill="#7C8D86" className="lp-capsm">{copy.sv.vsPrev}</text>
-    </svg>
   );
 }
