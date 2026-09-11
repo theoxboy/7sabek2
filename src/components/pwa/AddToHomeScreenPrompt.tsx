@@ -13,6 +13,15 @@ interface BeforeInstallPromptEvent extends Event {
 type Locale = "ar" | "fr" | "en";
 type Platform = "ios" | "android" | "other";
 
+// Lets another component (e.g. a landing-page button) open this prompt on
+// demand, bypassing the auto-show eligibility checks below.
+export const PWA_PROMPT_FORCE_SHOW_EVENT = "7sabek:pwa-prompt-force-show";
+
+export function triggerAddToHomeScreenPrompt() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(PWA_PROMPT_FORCE_SHOW_EVENT));
+}
+
 const NEVER_SHOW_KEY = "7sabek_pwa_prompt_never_show_v1";
 const DISMISSED_UNTIL_KEY = "7sabek_pwa_prompt_dismissed_until_v1";
 const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
@@ -184,6 +193,13 @@ export default function AddToHomeScreenPrompt() {
     saveDismissState(neverShowChecked);
     setVisible(false);
   }, [neverShowChecked, saveDismissState]);
+
+  useEffect(() => {
+    if (!mounted || isAdmin) return;
+    const onForceShow = () => setVisible(true);
+    window.addEventListener(PWA_PROMPT_FORCE_SHOW_EVENT, onForceShow);
+    return () => window.removeEventListener(PWA_PROMPT_FORCE_SHOW_EVENT, onForceShow);
+  }, [mounted, isAdmin]);
 
   const shouldRenderState = useMemo(() => {
     if (!mounted) return { shouldShow: false, reason: "not-mounted", forceShow: false };

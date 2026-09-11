@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Globe } from "lucide-react";
+import { Apple, Chrome, Globe } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
 import BrandLogo from "@/components/BrandLogo";
+import { triggerAddToHomeScreenPrompt } from "@/components/pwa/AddToHomeScreenPrompt";
 import {
   getBrowserLocalePreference,
   getLocaleBadgeLabel,
@@ -22,12 +23,31 @@ import {
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "900"] });
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice?: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+}
+
+type HeroInstallKind = "android" | "ios" | "chromium-desktop" | "none";
+
+function detectHeroInstallKind(ua: string): HeroInstallKind {
+  const lowerUA = ua.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(lowerUA);
+  const isAndroid = /android/.test(lowerUA);
+  if (isIOS) return "ios";
+  if (isAndroid) return "android";
+  // Chrome, Brave (which mirrors Chrome's UA) and other Chromium browsers
+  // (Edge, Opera…) all support the beforeinstallprompt install flow.
+  const isChromiumDesktop = /chrome|chromium|crios/.test(lowerUA) && !/firefox|fxios/.test(lowerUA);
+  return isChromiumDesktop ? "chromium-desktop" : "none";
+}
+
 type Duo = { t: string; d: string };
 type Feat = { k: string; t: string; d: string };
 
 type Copy = {
   nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
-  cta: { start: string; login: string; logout: string; dashboard: string; free: string; try: string };
+  cta: { start: string; login: string; logout: string; dashboard: string; free: string; installIOS: string; installChrome: string };
   hero: { taglineA: string; taglineB: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
@@ -45,7 +65,7 @@ type Copy = {
 const COPY: Record<FloussyLocale, Copy> = {
   fr: {
     nav: { sim: "Simulateur", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
-    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", try: "Essayer le simulateur" },
+    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer l'extension sur Chrome" },
     hero: {
       taglineA: "Ton budget,",
       taglineB: "entre tes mains.",
@@ -118,7 +138,7 @@ const COPY: Record<FloussyLocale, Copy> = {
 
   en: {
     nav: { sim: "Simulator", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
-    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", try: "Try the simulator" },
+    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installIOS: "Add to Home Screen", installChrome: "Install the extension on Chrome" },
     hero: {
       taglineA: "Your budget,",
       taglineB: "in your hands.",
@@ -191,7 +211,7 @@ const COPY: Record<FloussyLocale, Copy> = {
 
   ar: {
     nav: { sim: "المحاكاة", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
-    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", try: "جرب المحاكاة" },
+    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت الإضافة على Chrome" },
     hero: {
       taglineA: "حسابك",
       taglineB: "بيدك.",
@@ -307,6 +327,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [locale, setLocale] = useState<FloussyLocale>(initialLocale);
   const [showGooglePlayPopup, setShowGooglePlayPopup] = useState(false);
+  const [heroInstallKind, setHeroInstallKind] = useState<HeroInstallKind | null>(null);
+  const [chromeDeferredPrompt, setChromeDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   const [salary, setSalary] = useState(12400);
   const [introReady, setIntroReady] = useState(false);
@@ -319,6 +341,31 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   // It used to auto-open 1s after load on every visit, stacking on top of the
   // language modal and the cookie banner; the PWA prompt already covers the
   // "install the app" nudge automatically, with proper dismissal memory.
+
+  // The hero install CTA changes with the device: the Android popup on
+  // Android, the "Add to Home Screen" prompt on iOS, and a Chrome-install
+  // button on Chromium desktop browsers — nothing on other desktop browsers,
+  // since they have no install path we can trigger.
+  useEffect(() => {
+    setHeroInstallKind(detectHeroInstallKind(window.navigator.userAgent));
+  }, []);
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      const promptEvent = event as BeforeInstallPromptEvent;
+      promptEvent.preventDefault();
+      setChromeDeferredPrompt(promptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+  }, []);
+
+  const handleChromeInstall = useCallback(async () => {
+    if (!chromeDeferredPrompt) return;
+    await chromeDeferredPrompt.prompt();
+    await chromeDeferredPrompt.userChoice;
+    setChromeDeferredPrompt(null);
+  }, [chromeDeferredPrompt]);
 
   useEffect(() => {
     const load = async () => {
@@ -706,22 +753,52 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               </h1>
               <div className="lp-ctarow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
-                <a href="#simulateur" className="lp-btn lp-btn-ghost">{copy.cta.try}</a>
               </div>
 
-              {/* 📱 Google Play Android App Installer Badge */}
-              <div className="mt-3.5 mb-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShowGooglePlayPopup(true)}
-                  className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
-                >
-                  <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
-                  <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
-                    {isArabic ? "📱 حمّل التطبيق على أندرويد ←" : "📱 Télécharger l'app Android →"}
-                  </span>
-                </button>
-              </div>
+              {/* 📱 Device-aware install CTA: Android → Play/APK popup,
+                  iOS → the existing "Add to Home Screen" prompt, Chromium
+                  desktop → the browser's PWA install prompt. Nothing on
+                  other desktop browsers (no install path to trigger). */}
+              {heroInstallKind === "android" ? (
+                <div className="mt-3.5 mb-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowGooglePlayPopup(true)}
+                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                  >
+                    <GooglePlayIcon className="w-6 h-6 flex-shrink-0" />
+                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
+                      {isArabic ? "📱 حمّل التطبيق على أندرويد ←" : "📱 Télécharger l'app Android →"}
+                    </span>
+                  </button>
+                </div>
+              ) : heroInstallKind === "ios" ? (
+                <div className="mt-3.5 mb-1.5">
+                  <button
+                    type="button"
+                    onClick={() => triggerAddToHomeScreenPrompt()}
+                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                  >
+                    <Apple className="w-5 h-5 flex-shrink-0 text-white" />
+                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
+                      {copy.cta.installIOS}
+                    </span>
+                  </button>
+                </div>
+              ) : heroInstallKind === "chromium-desktop" && chromeDeferredPrompt ? (
+                <div className="mt-3.5 mb-1.5">
+                  <button
+                    type="button"
+                    onClick={handleChromeInstall}
+                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all shadow-lg hover:shadow-emerald-500/20 cursor-pointer group"
+                  >
+                    <Chrome className="w-5 h-5 flex-shrink-0 text-white" />
+                    <span className="text-[12.5px] text-neutral-200 font-semibold group-hover:text-white">
+                      {copy.cta.installChrome}
+                    </span>
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="lp-visual" onPointerMove={onPhoneMove} onPointerLeave={onPhoneLeave}>

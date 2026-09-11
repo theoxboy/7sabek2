@@ -48,6 +48,11 @@ export const CHANGELOG: Release[] = [
             en: "Lighter home page: several sections and clutter were removed to get to the point faster.",
             ar: "الصفحة الرئيسية ولات خفيفة: تحيدو منها بزاف ديال الأقسام والتفاصيل الزايدة باش توصل بسرعة للمهم.",
           },
+          {
+            fr: "Le bouton d'installation de la page d'accueil s'adapte maintenant à ton appareil : téléchargement direct sur Android, ajout à l'écran d'accueil sur iPhone, et installation en un clic sur Chrome (ordinateur).",
+            en: "The install button on the home page now adapts to your device: direct download on Android, add to home screen on iPhone, and one-click install on Chrome (computer).",
+            ar: "زر التثبيت فالصفحة الرئيسية ولا كيتأقلم مع الجهاز ديالك: تحميل مباشر فأندرويد، زيادة للشاشة الرئيسية فالآيفون، وتثبيت بضغطة وحدة فـ Chrome (كمبيوتر).",
+          },
         ],
       },
       {
