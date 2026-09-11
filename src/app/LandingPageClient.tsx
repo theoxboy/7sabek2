@@ -52,7 +52,7 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  ai: { title: string; desc: string };
+  ai: { badge: string; title: string; desc: string };
   why: { kicker: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
@@ -74,7 +74,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     ai: {
-      title: "👳 Ba Omar veille sur tes flouss",
+      badge: "✨ Assistant IA",
+      title: "Ba Omar veille sur tes flouss",
       desc: "Décris ta dépense, pose-lui une question — il connaît ton budget mieux que personne.",
     },
     why: {
@@ -137,7 +138,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     ai: {
-      title: "👳 Ba Omar’s got your money’s back",
+      badge: "✨ AI assistant",
+      title: "Ba Omar’s got your money’s back",
       desc: "Describe an expense or ask him anything — he knows your budget better than anyone.",
     },
     why: {
@@ -200,7 +202,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     ai: {
-      title: "👳 با عمر ساهر على الفلوس ديالك",
+      badge: "✨ مساعد ذكي",
+      title: "با عمر ساهر على الفلوس ديالك",
       desc: "وصف مصروفك، ولا سولو شي سؤال — كيعرف الميزانية ديالك أحسن من أي واحد.",
     },
     why: {
@@ -838,9 +841,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         {/* ============================ BA OMAR (AI) ============================ */}
         <section className="lp-aisection">
           <div className="lp-wrap">
-            <div className="lp-aibanner">
-              <Image src="/landing/ai/ba-omar-avatar.png" alt="Ba Omar" width={56} height={56} className="lp-aiicon" />
-              <div>
+            <div className="lp-aipanel">
+              <div className="lp-aiavatar">
+                <Image src="/landing/ai/ba-omar-avatar.png" alt="Ba Omar" width={220} height={220} className="lp-aiimg" />
+              </div>
+              <div className="lp-aitext">
+                <span className="lp-aibadge">{copy.ai.badge}</span>
                 <h3 className={headingClass}>{copy.ai.title}</h3>
                 <p>{copy.ai.desc}</p>
               </div>
@@ -1143,10 +1149,21 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-mqv.lp-up { color: var(--accent-deep); }
 
         .lp-aisection { padding: 40px 0 0; }
-        .lp-aibanner { display: flex; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px 22px; }
-        .lp-aiicon { flex: none; border-radius: 50%; }
-        .lp-aibanner h3 { margin: 0 0 3px; font-size: 1.02rem; font-weight: 800; line-height: 1.3; }
-        .lp-aibanner p { margin: 0; font-size: .86rem; line-height: 1.5; color: var(--ink-soft); }
+        .lp-aipanel { display: grid; grid-template-columns: auto 1fr; align-items: center; background: var(--accent-soft); border-radius: 28px; overflow: hidden; }
+        .lp-aiavatar { display: flex; align-self: stretch; align-items: flex-end; padding-inline-start: 28px; }
+        .lp-aiimg { width: 150px; height: 150px; object-fit: cover; object-position: top center; display: block; margin-bottom: -6px; }
+        .lp-aitext { padding: 30px 28px 30px 18px; }
+        .lp-aibadge { display: inline-flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-deep); background: var(--surface); padding: 5px 12px; border-radius: 999px; margin-bottom: 12px; }
+        .lp-ar .lp-aibadge { letter-spacing: 0; }
+        .lp-aitext h3 { margin: 0 0 6px; font-size: 1.28rem; font-weight: 800; line-height: 1.28; }
+        .lp-aitext p { margin: 0; font-size: .88rem; line-height: 1.55; color: var(--ink-soft); max-width: 42ch; }
+        @media (max-width: 640px) {
+          .lp-aipanel { grid-template-columns: 1fr; text-align: center; }
+          .lp-aiavatar { padding: 18px 0 0; justify-content: center; }
+          .lp-aiimg { width: 120px; height: 120px; margin-bottom: -4px; }
+          .lp-aitext { padding: 12px 20px 26px; }
+          .lp-aitext p { margin-inline: auto; }
+        }
 
         .lp-section { padding: 86px 0; }
         .lp-pt0 { padding-top: 0; }
