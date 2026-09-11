@@ -52,6 +52,7 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
+  ai: { title: string; desc: string };
   why: { kicker: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
@@ -72,6 +73,10 @@ const COPY: Record<FloussyLocale, Copy> = {
     chips: { rent: "Loyer", rentM: "Échéance 3j", sal: "Salaire", salM: "Mensuel", net: "Internet", netM: "Renouvellement", debt: "Crédit voiture", debtM: "Priorité 1", sav: "Épargne", savM: "Auto · reliquat" },
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
+    ai: {
+      title: "👳 Ba Omar veille sur tes flouss",
+      desc: "Décris ta dépense, pose-lui une question — il connaît ton budget mieux que personne.",
+    },
     why: {
       kicker: "Étape par étape",
       items: [
@@ -131,6 +136,10 @@ const COPY: Record<FloussyLocale, Copy> = {
     chips: { rent: "Rent", rentM: "Due in 3d", sal: "Salary", salM: "Monthly", net: "Internet", netM: "Renewal", debt: "Car loan", debtM: "Priority 1", sav: "Savings", savM: "Auto · leftover" },
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
+    ai: {
+      title: "👳 Ba Omar’s got your money’s back",
+      desc: "Describe an expense or ask him anything — he knows your budget better than anyone.",
+    },
     why: {
       kicker: "Step by step",
       items: [
@@ -190,6 +199,10 @@ const COPY: Record<FloussyLocale, Copy> = {
     chips: { rent: "الكراء", rentM: "باقي 3 أيام", sal: "السالير", salM: "شهري", net: "الأنترنيت", netM: "تجديد", debt: "كريدي الطوموبيل", debtM: "أولوية 1", sav: "الادخار", savM: "أوتوماتيكي · الباقي" },
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
+    ai: {
+      title: "👳 با عمر ساهر على الفلوس ديالك",
+      desc: "وصف مصروفك، ولا سولو شي سؤال — كيعرف الميزانية ديالك أحسن من أي واحد.",
+    },
     why: {
       kicker: "خطوة بخطوة",
       items: [
@@ -822,6 +835,19 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           </div>
         </div>
 
+        {/* ============================ BA OMAR (AI) ============================ */}
+        <section className="lp-aisection">
+          <div className="lp-wrap">
+            <div className="lp-aibanner">
+              <Image src="/landing/ai/ba-omar-logo.png" alt="7sabek AI" width={48} height={48} className="lp-aiicon" />
+              <div>
+                <h3 className={headingClass}>{copy.ai.title}</h3>
+                <p>{copy.ai.desc}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ============================ WHY 7SABEK ============================ */}
         <section id="pourquoi" className="lp-section">
           <div className="lp-wrap">
@@ -1115,6 +1141,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-mqdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
         .lp-mqv { font-variant-numeric: tabular-nums; font-weight: 800; }
         .lp-mqv.lp-up { color: var(--accent-deep); }
+
+        .lp-aisection { padding: 40px 0 0; }
+        .lp-aibanner { display: flex; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px 22px; }
+        .lp-aiicon { flex: none; border-radius: 50%; }
+        .lp-aibanner h3 { margin: 0 0 3px; font-size: 1.02rem; font-weight: 800; line-height: 1.3; }
+        .lp-aibanner p { margin: 0; font-size: .86rem; line-height: 1.5; color: var(--ink-soft); }
 
         .lp-section { padding: 86px 0; }
         .lp-pt0 { padding-top: 0; }

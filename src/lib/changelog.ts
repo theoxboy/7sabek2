@@ -39,6 +39,11 @@ export const CHANGELOG: Release[] = [
             ar: "قسم جديد « خطوة بخطوة » فالصفحة الرئيسية كيشرح فـ4 نقط كيفاش كيمشي معاك 7sabek: وضعيتك، التوزيع ديالك، تتبع المصاريف، ومن بعد الكريديات والأهداف.",
           },
           {
+            fr: "Ba Omar fait son apparition sur la page d'accueil : le visage de l'assistant qui comprend tes dépenses écrites en une phrase et répond à tes questions sur ton budget.",
+            en: "Meet Ba Omar on the home page: the face of the assistant that understands your expenses written in one sentence and answers your budget questions.",
+            ar: "با عمر بان فالصفحة الرئيسية: وجه المساعد اللي كيفهم مصاريفك مكتوبة فجملة وحدة وكيجاوبك على أسئلتك على الميزانية.",
+          },
+          {
             fr: "Page d'accueil encore allégée : les sections détaillées devenues redondantes avec la nouvelle présentation ont été retirées.",
             en: "Home page trimmed further: the detailed sections that had become redundant with the new presentation were removed.",
             ar: "الصفحة الرئيسية زادت خفت: تحيدو الأقسام المفصلة اللي ولات زايدة مع التقديم الجديد.",
