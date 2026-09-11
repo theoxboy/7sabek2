@@ -28,17 +28,17 @@ type Feat = { k: string; t: string; d: string };
 type Copy = {
   nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; try: string };
-  hero: { t1: string; t2: string; sub: string; micro: string };
+  hero: { t1: string; t2: string; sub: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  sim: { kicker: string; title: string; text: string; income: string; left: string; fixed: string };
+  sim: { kicker: string; income: string; left: string; fixed: string };
   how: { kicker: string; title: string; steps: Duo[] };
   ft: { kicker: string; title: string; items: Feat[] };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
   who: { kicker: string; title: string; items: Duo[] };
-  fin: { title: string; text: string; alt: string; micro: string };
+  fin: { title: string; alt: string; micro: string };
   foot: string;
 };
 
@@ -50,7 +50,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       t1: "Chaque dirham,",
       t2: "une mission claire.",
       sub: "7sabek répartit ton salaire dans des enveloppes et te dit ce qu’il te reste vraiment.",
-      micro: "Gratuit, faboooor · Aucune carte bancaire · Aucun tableur · FR · EN · الدارجة",
     },
     trust: ["Connexion par clé d’accès", "Simulation avant application", "Export de tes données", "Multilingue FR / EN / AR"],
     chips: { rent: "Loyer", rentM: "Échéance 3j", sal: "Salaire", salM: "Mensuel", net: "Internet", netM: "Renouvellement", debt: "Crédit voiture", debtM: "Priorité 1", sav: "Épargne", savM: "Auto · reliquat" },
@@ -58,8 +57,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     sim: {
       kicker: "Essaie maintenant",
-      title: "Bouge le curseur. Vois ton salaire se répartir.",
-      text: "C’est exactement la logique de 7sabek : les montants fixes d’abord, les pourcentages ensuite, et le reste part automatiquement vers l’épargne.",
       income: "Ton salaire mensuel",
       left: "Ce qui part à l’épargne",
       fixed: "Fixe",
@@ -114,7 +111,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     },
     fin: {
       title: "Prêt à donner une mission claire à ton argent ?",
-      text: "Construis ton plan, répartis ton salaire, suis tes objectifs — et prends des décisions plus simples avec un budget vivant.",
       alt: "Découvrir les fonctionnalités",
       micro: "Zéro dirham à sortir. Faboooor, vraiment.",
     },
@@ -128,7 +124,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       t1: "Every dirham,",
       t2: "a clear mission.",
       sub: "7sabek splits your salary into envelopes and tells you what you actually have left.",
-      micro: "Free, freeeee · No credit card · No spreadsheets · FR · EN · الدارجة",
     },
     trust: ["Passkey sign-in", "Simulate before applying", "Export your data", "Multilingual FR / EN / AR"],
     chips: { rent: "Rent", rentM: "Due in 3d", sal: "Salary", salM: "Monthly", net: "Internet", netM: "Renewal", debt: "Car loan", debtM: "Priority 1", sav: "Savings", savM: "Auto · leftover" },
@@ -136,8 +131,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     sim: {
       kicker: "Try it now",
-      title: "Move the slider. Watch your salary split itself.",
-      text: "This is exactly how 7sabek works: fixed amounts first, percentages next, and whatever is left goes straight to savings.",
       income: "Your monthly salary",
       left: "What goes to savings",
       fixed: "Fixed",
@@ -192,7 +185,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     },
     fin: {
       title: "Ready to give your money a clear mission?",
-      text: "Build your plan, split your salary, track your goals — and make simpler decisions with a living budget.",
       alt: "Explore the features",
       micro: "Not one dirham to pay. Freeeee, really.",
     },
@@ -206,7 +198,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       t1: "كل درهم،",
       t2: "عندو مهمة واضحة.",
       sub: "7sabek كيوزع السالير ديالك على الأظرفة وكيقول ليك شحال بقا ليك بالضبط.",
-      micro: "فابور · بلا كارط بانكية · بلا جداول · بالفرنسية، الإنجليزية والدارجة",
     },
     trust: ["دخول بمفتاح الأمان", "محاكاة قبل التطبيق", "تصدير البيانات ديالك", "بثلاث لغات"],
     chips: { rent: "الكراء", rentM: "باقي 3 أيام", sal: "السالير", salM: "شهري", net: "الأنترنيت", netM: "تجديد", debt: "كريدي الطوموبيل", debtM: "أولوية 1", sav: "الادخار", savM: "أوتوماتيكي · الباقي" },
@@ -214,8 +205,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     sim: {
       kicker: "جرب دابا",
-      title: "حرك المؤشر. شوف كيفاش كيتقسم السالير ديالك.",
-      text: "هادي بالضبط هي الطريقة ديال 7sabek: المبالغ الثابتة الأول، من بعد النسب المئوية، والباقي كيمشي أوتوماتيكياً للادخار.",
       income: "السالير ديالك فالشهر",
       left: "اللي كيمشي للادخار",
       fixed: "ثابت",
@@ -270,7 +259,6 @@ const COPY: Record<FloussyLocale, Copy> = {
     },
     fin: {
       title: "واجد تعطي لفلوسك مهمة واضحة؟",
-      text: "بني الخطة ديالك، وزع السالير، تتبع الأهداف — وخذ قرارات أسهل مع ميزانية حية.",
       alt: "اكتشف الخصائص",
       micro: "حتى درهم ما غادي تخلص. فابووووور بصح.",
     },
@@ -750,8 +738,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   </span>
                 </button>
               </div>
-
-              <p className="lp-micro">{copy.hero.micro}</p>
             </div>
 
             <div className="lp-visual" onPointerMove={onPhoneMove} onPointerLeave={onPhoneLeave}>
@@ -813,7 +799,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           <div className="lp-wrap">
             <div className="lp-head lp-center">
               <span className="lp-kicker">{copy.sim.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.sim.title}</h2>
             </div>
 
             <div className="lp-simcard">
@@ -959,7 +944,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           <div className="lp-wrap">
             <div className="lp-dark lp-final">
               <h2 className={`${headingClass} lp-white`}>{copy.fin.title}</h2>
-              <p className="lp-textdim">{copy.fin.text}</p>
               <div className="lp-ctarow lp-centerrow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
                 <a href="#fonctions" className="lp-btn lp-btn-ghostdark">{copy.fin.alt}</a>
@@ -1061,14 +1045,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-sq { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); flex: none; }
         .lp-h1 { font-size: clamp(2.5rem, 5.4vw, 4.35rem); line-height: 1; font-weight: 800; margin-top: 20px; }
         .lp-line { display: block; }
-        .lp-l2 { color: var(--accent-deep); }
+        .lp-l2 { color: var(--accent-deep); margin-top: .16em; }
         .lp-w { display: inline-block; margin-inline-end: .25em; }
         .lp-intro .lp-w { opacity: 0; transform: translateY(26px) rotate(2deg); animation: lpWord .62s cubic-bezier(.22,1,.36,1) forwards; animation-delay: var(--wd, 0s); }
         @keyframes lpWord { to { opacity: 1; transform: none; } }
         .lp-sub { margin-top: 20px; max-width: 47ch; font-size: 1.06rem; line-height: 1.62; color: var(--ink-soft); }
         .lp-ctarow { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
         .lp-centerrow { justify-content: center; }
-        .lp-micro { margin-top: 15px; font-size: .81rem; color: var(--ink-mute); }
         .lp-trust { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px 18px; max-width: 470px; }
         .lp-trustitem { display: flex; align-items: center; gap: 8px; font-size: .79rem; font-weight: 600; color: var(--ink-soft); }
         .lp-tick { width: 16px; height: 16px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); display: flex; align-items: center; justify-content: center; flex: none; }
@@ -1124,7 +1107,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-h2 { font-size: clamp(1.85rem, 3.3vw, 2.6rem); font-weight: 800; margin-top: 10px; line-height: 1.1; }
         .lp-text { margin-top: 15px; font-size: 1rem; line-height: 1.65; color: var(--ink-soft); max-width: 62ch; }
         .lp-white { color: #fff !important; }
-        .lp-textdim { color: #b9cfc5 !important; }
 
         .lp-simcard { margin-top: 38px; border: 1px solid var(--line); background: var(--surface); border-radius: 34px; padding: 26px; box-shadow: var(--shadow); }
         @media (min-width: 900px) { .lp-simcard { padding: 36px; } }
