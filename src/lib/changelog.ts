@@ -44,9 +44,9 @@ export const CHANGELOG: Release[] = [
             ar: "زيادة ظرف أثناء التقسيم كتحافظ على التوزيع ديالك بلا ما يرجع كلشي لصفر، و « تجاوز » كيسجل التقسيم اللي بان فالشاشة.",
           },
           {
-            fr: "Page d'accueil allégée : trois sections ont été retirées pour aller plus vite à l'essentiel.",
-            en: "Lighter home page: three sections were removed to get to the point faster.",
-            ar: "الصفحة الرئيسية ولات خفيفة: تحيدو منها ثلاث أقسام باش توصل بسرعة للمهم.",
+            fr: "Page d'accueil allégée : plusieurs sections et éléments superflus ont été retirés pour aller plus vite à l'essentiel.",
+            en: "Lighter home page: several sections and clutter were removed to get to the point faster.",
+            ar: "الصفحة الرئيسية ولات خفيفة: تحيدو منها بزاف ديال الأقسام والتفاصيل الزايدة باش توصل بسرعة للمهم.",
           },
         ],
       },

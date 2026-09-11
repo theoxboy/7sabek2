@@ -33,13 +33,12 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  sim: { kicker: string; title: string; text: string; income: string; left: string; note: string; fixed: string };
+  sim: { kicker: string; title: string; text: string; income: string; left: string; fixed: string };
   how: { kicker: string; title: string; steps: Duo[] };
   ft: { kicker: string; title: string; items: Feat[] };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
   who: { kicker: string; title: string; items: Duo[] };
   fin: { title: string; text: string; alt: string; micro: string };
-  fabor: string;
   foot: string;
 };
 
@@ -51,7 +50,7 @@ const COPY: Record<FloussyLocale, Copy> = {
       t1: "Chaque dirham,",
       t2: "une mission claire.",
       sub: "7sabek répartit ton salaire dans des enveloppes et te dit ce qu’il te reste vraiment.",
-      micro: "Aucune carte bancaire requise · Aucun tableur · FR · EN · الدارجة",
+      micro: "Gratuit, faboooor · Aucune carte bancaire · Aucun tableur · FR · EN · الدارجة",
     },
     trust: ["Connexion par clé d’accès", "Simulation avant application", "Export de tes données", "Multilingue FR / EN / AR"],
     chips: { rent: "Loyer", rentM: "Échéance 3j", sal: "Salaire", salM: "Mensuel", net: "Internet", netM: "Renouvellement", debt: "Crédit voiture", debtM: "Priorité 1", sav: "Épargne", savM: "Auto · reliquat" },
@@ -63,7 +62,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       text: "C’est exactement la logique de 7sabek : les montants fixes d’abord, les pourcentages ensuite, et le reste part automatiquement vers l’épargne.",
       income: "Ton salaire mensuel",
       left: "Ce qui part à l’épargne",
-      note: "Exemple illustratif. Dans l’app, tes enveloppes, tes montants et tes règles sont les tiens — et rien n’est appliqué avant que tu valides.",
       fixed: "Fixe",
     },
     how: {
@@ -120,7 +118,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       alt: "Découvrir les fonctionnalités",
       micro: "Zéro dirham à sortir. Faboooor, vraiment.",
     },
-    fabor: "c’est faboooor",
     foot: "© 2026 7sabek. Tous droits réservés.",
   },
 
@@ -131,7 +128,7 @@ const COPY: Record<FloussyLocale, Copy> = {
       t1: "Every dirham,",
       t2: "a clear mission.",
       sub: "7sabek splits your salary into envelopes and tells you what you actually have left.",
-      micro: "No credit card · No spreadsheets · FR · EN · الدارجة",
+      micro: "Free, freeeee · No credit card · No spreadsheets · FR · EN · الدارجة",
     },
     trust: ["Passkey sign-in", "Simulate before applying", "Export your data", "Multilingual FR / EN / AR"],
     chips: { rent: "Rent", rentM: "Due in 3d", sal: "Salary", salM: "Monthly", net: "Internet", netM: "Renewal", debt: "Car loan", debtM: "Priority 1", sav: "Savings", savM: "Auto · leftover" },
@@ -143,7 +140,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       text: "This is exactly how 7sabek works: fixed amounts first, percentages next, and whatever is left goes straight to savings.",
       income: "Your monthly salary",
       left: "What goes to savings",
-      note: "Illustrative example. In the app, your envelopes, amounts and rules are your own — and nothing is applied until you confirm.",
       fixed: "Fixed",
     },
     how: {
@@ -200,7 +196,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       alt: "Explore the features",
       micro: "Not one dirham to pay. Freeeee, really.",
     },
-    fabor: "it’s freeeee",
     foot: "© 2026 7sabek. All rights reserved.",
   },
 
@@ -211,7 +206,7 @@ const COPY: Record<FloussyLocale, Copy> = {
       t1: "كل درهم،",
       t2: "عندو مهمة واضحة.",
       sub: "7sabek كيوزع السالير ديالك على الأظرفة وكيقول ليك شحال بقا ليك بالضبط.",
-      micro: "بلا كارط بانكية · بلا جداول · بالفرنسية، الإنجليزية والدارجة",
+      micro: "فابور · بلا كارط بانكية · بلا جداول · بالفرنسية، الإنجليزية والدارجة",
     },
     trust: ["دخول بمفتاح الأمان", "محاكاة قبل التطبيق", "تصدير البيانات ديالك", "بثلاث لغات"],
     chips: { rent: "الكراء", rentM: "باقي 3 أيام", sal: "السالير", salM: "شهري", net: "الأنترنيت", netM: "تجديد", debt: "كريدي الطوموبيل", debtM: "أولوية 1", sav: "الادخار", savM: "أوتوماتيكي · الباقي" },
@@ -223,7 +218,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       text: "هادي بالضبط هي الطريقة ديال 7sabek: المبالغ الثابتة الأول، من بعد النسب المئوية، والباقي كيمشي أوتوماتيكياً للادخار.",
       income: "السالير ديالك فالشهر",
       left: "اللي كيمشي للادخار",
-      note: "هادا غير مثال توضيحي. فالتطبيق، الأظرفة والمبالغ والقواعد كلها ديالك — وحتى حاجة ما كتطبق حتى تأكد نتا.",
       fixed: "ثابت",
     },
     how: {
@@ -280,7 +274,6 @@ const COPY: Record<FloussyLocale, Copy> = {
       alt: "اكتشف الخصائص",
       micro: "حتى درهم ما غادي تخلص. فابووووور بصح.",
     },
-    fabor: "فابووووور",
     foot: "© 2026 7sabek. جميع الحقوق محفوظة.",
   },
 };
@@ -742,7 +735,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               <div className="lp-ctarow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
                 <a href="#simulateur" className="lp-btn lp-btn-ghost">{copy.cta.try}</a>
-                <span className="lp-sticker"><span aria-hidden="true">✦</span>{copy.fabor}</span>
               </div>
 
               {/* 📱 Google Play Android App Installer Badge */}
@@ -854,7 +846,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                       </button>
                     ))}
                   </div>
-                  <p className="lp-simnote">{copy.sim.note}</p>
                 </div>
 
                 <div>
@@ -1078,8 +1069,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-ctarow { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
         .lp-centerrow { justify-content: center; }
         .lp-micro { margin-top: 15px; font-size: .81rem; color: var(--ink-mute); }
-        .lp-sticker { display: inline-flex; align-items: center; gap: 6px; background: var(--amber); color: #3a2400; font-weight: 800; font-size: .78rem; padding: 7px 14px; border-radius: 999px; box-shadow: 0 8px 18px -8px rgba(242,169,59,.8); transform: rotate(-4deg); animation: lpWob 4.2s ease-in-out infinite; white-space: nowrap; }
-        @keyframes lpWob { 0%,100% { transform: rotate(-4deg) scale(1); } 50% { transform: rotate(3deg) scale(1.05); } }
         .lp-trust { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px 18px; max-width: 470px; }
         .lp-trustitem { display: flex; align-items: center; gap: 8px; font-size: .79rem; font-weight: 600; color: var(--ink-soft); }
         .lp-tick { width: 16px; height: 16px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); display: flex; align-items: center; justify-content: center; flex: none; }
@@ -1153,7 +1142,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-preset { font-family: inherit; font-size: .76rem; font-weight: 700; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer; transition: all .16s ease; }
         .lp-preset:hover { border-color: var(--accent); color: var(--accent-deep); }
         .lp-preset[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-        .lp-simnote { margin-top: 20px; font-size: .79rem; line-height: 1.55; color: var(--ink-mute); border-inline-start: 2px solid var(--accent); padding-inline-start: 12px; }
         .lp-alloc { display: flex; flex-direction: column; gap: 11px; }
         .lp-allocrow { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
         .lp-allocname { font-size: .87rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
@@ -1256,7 +1244,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         [data-landing-locale="ar"] svg, .lp-ar svg { font-family: initial !important; }
 
         @media (prefers-reduced-motion: reduce) {
-          .lp-blob, .lp-chip, .lp-sticker, .lp-mqtrack { animation: none !important; }
+          .lp-blob, .lp-chip, .lp-mqtrack { animation: none !important; }
           .lp-intro .lp-w, .lp-intro .lp-bar > span { animation: none !important; opacity: 1 !important; transform: none !important; }
           .lp-shot { animation: none; }
           .lp-btn-accent::after { display: none; }
