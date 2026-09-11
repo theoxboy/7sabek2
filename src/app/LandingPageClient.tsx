@@ -28,7 +28,7 @@ type Feat = { k: string; t: string; d: string };
 type Copy = {
   nav: { sim: string; feat: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; try: string };
-  hero: { sub: string };
+  hero: { tagline: string; sub: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
@@ -47,6 +47,7 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "Simulateur", feat: "Fonctionnalités", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
     cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", try: "Essayer le simulateur" },
     hero: {
+      tagline: "Ton budget, entre tes mains.",
       sub: "7sabek répartit ton salaire dans des enveloppes et te dit ce qu’il te reste vraiment.",
     },
     trust: ["Connexion par clé d’accès", "Simulation avant application", "Export de tes données", "Multilingue FR / EN / AR"],
@@ -119,6 +120,7 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "Simulator", feat: "Features", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
     cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", try: "Try the simulator" },
     hero: {
+      tagline: "Your budget, in your hands.",
       sub: "7sabek splits your salary into envelopes and tells you what you actually have left.",
     },
     trust: ["Passkey sign-in", "Simulate before applying", "Export your data", "Multilingual FR / EN / AR"],
@@ -191,6 +193,7 @@ const COPY: Record<FloussyLocale, Copy> = {
     nav: { sim: "المحاكاة", feat: "الخصائص", who: "لمن", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
     cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا مجاناً", try: "جرب المحاكاة" },
     hero: {
+      tagline: "حسابك بيدك.",
       sub: "7sabek كيوزع السالير ديالك على الأظرفة وكيقول ليك شحال بقا ليك بالضبط.",
     },
     trust: ["دخول بمفتاح الأمان", "محاكاة قبل التطبيق", "تصدير البيانات ديالك", "بثلاث لغات"],
@@ -697,7 +700,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
           <div className="lp-wrap lp-herogrid">
             <div>
-              <h1 className={`${headingClass} lp-sub`}>{copy.hero.sub}</h1>
+              <h1 className={`${headingClass} lp-h1`}>{copy.hero.tagline}</h1>
+              <p className="lp-sub">{copy.hero.sub}</p>
               <div className="lp-ctarow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
                 <a href="#simulateur" className="lp-btn lp-btn-ghost">{copy.cta.try}</a>
@@ -1021,7 +1025,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         @media (min-width: 980px) { .lp-herogrid { grid-template-columns: 1.02fr .98fr; gap: 24px; } }
         .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-deep); font-size: .79rem; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
         .lp-sq { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); flex: none; }
-        .lp-sub { margin-top: 16px; max-width: 34ch; font-size: clamp(1.45rem, 3.2vw, 2.4rem); line-height: 1.32; font-weight: 700; color: var(--ink); }
+        .lp-h1 { font-size: clamp(2.1rem, 4.4vw, 3.6rem); line-height: 1.08; font-weight: 800; margin-top: 20px; }
+        .lp-sub { margin-top: 16px; max-width: 34ch; font-size: clamp(1.15rem, 2.4vw, 1.6rem); line-height: 1.45; font-weight: 500; color: var(--ink-soft); }
         .lp-ctarow { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
         .lp-centerrow { justify-content: center; }
         .lp-trust { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px 18px; max-width: 470px; }
