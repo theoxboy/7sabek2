@@ -27,6 +27,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.5.0",
+    date: "2026-09-11",
+    groups: [
+      {
+        kind: "added",
+        items: [
+          {
+            fr: "Une nouvelle section « Pourquoi 7sabek » sur la page d'accueil résume en 4 points ce que l'app change pour toi : répartition automatique, alerte avant dépassement, objectifs protégés et dettes maîtrisées.",
+            en: "A new \"Why 7sabek\" section on the home page sums up what the app changes for you in 4 points: automatic splitting, warnings before overspending, protected goals, and debt under control.",
+            ar: "قسم جديد « علاش 7sabek » فالصفحة الرئيسية كيلخص فـ4 نقط شنو كيبدل ليك التطبيق: توزيع أوتوماتيكي، تنبيه قبل التجاوز، أهداف محمية، وديون تحت السيطرة.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.4.1",
     date: "2026-09-10",
     groups: [

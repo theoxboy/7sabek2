@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, Chrome, Globe } from "lucide-react";
+import { Apple, BellRing, Chrome, CreditCard, Globe, Target, Wallet } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
@@ -53,6 +53,7 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
+  why: { kicker: string; title: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   how: { kicker: string; title: string; steps: Duo[] };
   ft: { kicker: string; title: string; items: Feat[] };
@@ -74,6 +75,16 @@ const COPY: Record<FloussyLocale, Copy> = {
     chips: { rent: "Loyer", rentM: "Échéance 3j", sal: "Salaire", salM: "Mensuel", net: "Internet", netM: "Renouvellement", debt: "Crédit voiture", debtM: "Priorité 1", sav: "Épargne", savM: "Auto · reliquat" },
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
+    why: {
+      kicker: "Pourquoi 7sabek",
+      title: "Le budget, enfin sous contrôle",
+      items: [
+        { t: "Ton salaire, réparti tout seul", d: "Loyer, courses, épargne : chaque dirham part direct dans la bonne enveloppe dès que ton salaire arrive." },
+        { t: "On te prévient avant, pas après", d: "Une enveloppe qui commence à se vider te le dit tout de suite, pas à la fin du mois." },
+        { t: "Tes objectifs, jamais entamés", d: "Voyage, urgence, gros achat : chaque objectif garde sa propre enveloppe, à l’abri d’une dépense impulsive." },
+        { t: "Tes dettes, sous contrôle", d: "Isole tes remboursements avec une priorité claire, sans jamais casser ton budget du mois." },
+      ],
+    },
     sim: {
       kicker: "Essaie maintenant",
       income: "Ton salaire mensuel",
@@ -149,6 +160,16 @@ const COPY: Record<FloussyLocale, Copy> = {
     chips: { rent: "Rent", rentM: "Due in 3d", sal: "Salary", salM: "Monthly", net: "Internet", netM: "Renewal", debt: "Car loan", debtM: "Priority 1", sav: "Savings", savM: "Auto · leftover" },
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
+    why: {
+      kicker: "Why 7sabek",
+      title: "Your budget, finally under control",
+      items: [
+        { t: "Your salary, split for you", d: "Rent, groceries, savings: every dirham lands in the right envelope the moment your salary arrives." },
+        { t: "Warned before, not after", d: "An envelope running low tells you right away, not at the end of the month." },
+        { t: "Your goals, never touched", d: "Travel, emergencies, big purchases: each goal keeps its own envelope, safe from an impulse buy." },
+        { t: "Your debt, under control", d: "Keep repayments isolated with a clear priority, without ever breaking your monthly budget." },
+      ],
+    },
     sim: {
       kicker: "Try it now",
       income: "Your monthly salary",
@@ -224,6 +245,16 @@ const COPY: Record<FloussyLocale, Copy> = {
     chips: { rent: "الكراء", rentM: "باقي 3 أيام", sal: "السالير", salM: "شهري", net: "الأنترنيت", netM: "تجديد", debt: "كريدي الطوموبيل", debtM: "أولوية 1", sav: "الادخار", savM: "أوتوماتيكي · الباقي" },
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
+    why: {
+      kicker: "علاش 7sabek",
+      title: "الميزانية ديالك، تحت السيطرة بصح",
+      items: [
+        { t: "السالير ديالك، كيتقسم بروحو", d: "الكراء، التقضية، الادخار: كل درهم كيمشي مباشرة للظرف الصحيح دغيا ما يدخل السالير." },
+        { t: "كنعلموك قبل، ماشي من بعد", d: "الظرف اللي بدا يسالي كيقول ليك دغيا، ماشي فآخر الشهر." },
+        { t: "الأهداف ديالك، حتى حد ما كيمسها", d: "سفر، طوارئ، شرا كبير: كل هدف عندو الظرف ديالو، بعيد عن أي صرف طايش." },
+        { t: "الديون ديالك، تحت السيطرة", d: "افصل السداد ديالك بأولوية واضحة، بلا ما تخرب الميزانية ديال الشهر." },
+      ],
+    },
     sim: {
       kicker: "جرب دابا",
       income: "السالير ديالك فالشهر",
@@ -331,6 +362,10 @@ const MARQUEE: Array<{ key: keyof Copy["env"]; v: string; up: boolean; c: string
 ];
 
 const PRESETS = [6000, 12400, 20000, 32000];
+
+// One icon per copy.why.items entry, in order — kept out of the copy object
+// since components aren't per-locale content.
+const WHY_ICONS = [Wallet, BellRing, Target, CreditCard];
 
 function fmt(value: number) {
   return Math.round(value).toLocaleString("fr-FR").replace(/ | /g, " ");
@@ -864,6 +899,30 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           </div>
         </div>
 
+        {/* ============================ WHY 7SABEK ============================ */}
+        <section id="pourquoi" className="lp-section">
+          <div className="lp-wrap">
+            <div className="lp-head lp-center">
+              <span className="lp-kicker">{copy.why.kicker}</span>
+              <h2 className={`${headingClass} lp-h2`}>{copy.why.title}</h2>
+            </div>
+            <div className="lp-whygrid">
+              {copy.why.items.map((item, index) => {
+                const Icon = WHY_ICONS[index];
+                return (
+                  <div key={item.t} className="lp-whycard">
+                    <span className="lp-whyblob" aria-hidden="true">
+                      <Icon className="lp-whyicon" />
+                    </span>
+                    <h3>{item.t}</h3>
+                    <p>{item.d}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
         {/* ============================ SIMULATOR ============================ */}
         <section id="simulateur" className="lp-section lp-pt0">
           <div className="lp-wrap">
@@ -1275,6 +1334,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: var(--shadow); }
         .lp-card h3 { margin-top: 12px; font-size: 1.02rem; font-weight: 800; }
         .lp-card p { margin-top: 7px; font-size: .87rem; color: var(--ink-soft); line-height: 1.56; }
+        .lp-whygrid { margin-top: 44px; display: grid; gap: 32px 20px; grid-template-columns: 1fr; text-align: center; }
+        @media (min-width: 640px) { .lp-whygrid { grid-template-columns: repeat(2,1fr); } }
+        @media (min-width: 1060px) { .lp-whygrid { grid-template-columns: repeat(4,1fr); } }
+        .lp-whyblob { display: inline-flex; align-items: center; justify-content: center; width: 84px; height: 84px; border-radius: 50%; background: var(--accent-soft); margin-bottom: 18px; }
+        .lp-whyicon { width: 34px; height: 34px; color: var(--accent-deep); }
+        .lp-whycard h3 { font-size: 1.04rem; font-weight: 800; }
+        .lp-whycard p { margin-top: 8px; font-size: .87rem; line-height: 1.58; color: var(--ink-soft); }
         .lp-fttag { font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-deep); }
         .lp-ar .lp-fttag { letter-spacing: 0; }
         .lp-idx { font-size: 2rem; font-weight: 800; -webkit-text-stroke: 1.5px var(--accent); color: transparent; line-height: 1; }
