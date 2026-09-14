@@ -447,6 +447,19 @@ function DashboardContent() {
     loadData();
   }, [loadData]);
 
+  // The quick-add transaction modal (and other flows) broadcast this after a
+  // successful save so pages showing the same figures refresh in place —
+  // /transactions and /sweeps already listen for it. The dashboard is the
+  // page most likely to be open when a quick transaction is added, so its
+  // absence here left the KPIs showing stale zeros until a manual reload.
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      loadData(true);
+    };
+    window.addEventListener("floussy:data-updated", handleDataUpdated);
+    return () => window.removeEventListener("floussy:data-updated", handleDataUpdated);
+  }, [loadData]);
+
   useEffect(() => {
     return () => {
       if (deferredLoadTimerRef.current) {
@@ -730,10 +743,42 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!mounted) return;
-    if (searchParams.get("quick_tx_resume") === "income") {
-      openQuickTx("income");
+    if (searchParams.get("quick_tx_resume") !== "income") return;
+
+    let bootstrap: Record<string, unknown> = { type: "income" };
+    try {
+      const stored = sessionStorage.getItem("floussy.quickTx.incomeResume.v1");
+      if (stored) {
+        const parsed = JSON.parse(stored) as {
+          draft?: {
+            category_id?: string;
+            amount?: string;
+            occurred_on?: string;
+            description?: string;
+          };
+          reminderIdsToMark?: string[];
+        };
+        if (parsed?.draft) {
+          bootstrap = {
+            type: "income",
+            category_id: parsed.draft.category_id,
+            amount: parsed.draft.amount,
+            occurred_on: parsed.draft.occurred_on,
+            description: parsed.draft.description,
+            reminderIdsToMark: parsed.reminderIdsToMark,
+          };
+        }
+        sessionStorage.removeItem("floussy.quickTx.incomeResume.v1");
+      }
+    } catch {
+      /* ignore */
     }
-  }, [mounted, searchParams, openQuickTx]);
+    openQuickTx("income", bootstrap);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("quick_tx_resume");
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [mounted, searchParams, openQuickTx, router]);
 
   const { tour, intro: tourIntro } = usePageTour(
     "dashboard",

@@ -330,6 +330,10 @@ export function GuestClaimDialog({
 
   const submit = async () => {
     setError(null);
+    if (!email.trim()) {
+      setError(t.errGeneric);
+      return;
+    }
     if (password.length < 8) {
       setError(t.errWeakPassword);
       return;
@@ -433,6 +437,7 @@ export function GuestClaimDialog({
           {showEmail && (
             <form
               className="flex flex-col gap-3"
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 void submit();
@@ -440,14 +445,12 @@ export function GuestClaimDialog({
             >
               <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--muted)" }}>
                 {t.email}
-                <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </label>
               <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--muted)" }}>
                 {t.password}
                 <Input
                   type="password"
-                  required
-                  minLength={8}
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

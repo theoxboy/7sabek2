@@ -65,6 +65,10 @@ export function RecoveryCodeVault({
   const t = GUEST_PANEL_COPY[locale] ?? GUEST_PANEL_COPY.fr;
 
   const [copied, setCopied] = useState(false);
+  // Separate from `copied`, which self-resets after the checkmark blip below —
+  // gating the ack button on `copied` meant it silently re-locked itself if
+  // the guest took longer than 1.8s to click it after copying the code.
+  const [everCopied, setEverCopied] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [shared, setShared] = useState(false);
   const [busy, setBusy] = useState<"" | "download" | "share">("");
@@ -77,7 +81,7 @@ export function RecoveryCodeVault({
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
-  const savedSomehow = copied || downloaded || shared || emailState === "sent";
+  const savedSomehow = everCopied || downloaded || shared || emailState === "sent";
   const qr = useMemo(() => recoveryQrSvg(recoveryUrl(code)), [code]);
   const canShareFiles =
     typeof navigator !== "undefined" &&
@@ -101,6 +105,7 @@ export function RecoveryCodeVault({
     try {
       await navigator.clipboard.writeText(formatCode(code));
       setCopied(true);
+      setEverCopied(true);
       guestEvent("guest_recovery_action", { action: "copy", where });
       setTimeout(() => setCopied(false), 1800);
     } catch {

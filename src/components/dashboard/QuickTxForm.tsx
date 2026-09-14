@@ -116,7 +116,10 @@ type QuickTxFlowStep = "form" | "income_preview";
 
 const getNextMonthDatePreview = (dateStr: string): string => {
   try {
-    const d = new Date(dateStr);
+    // `new Date("YYYY-MM-DD")` parses as UTC midnight; reading it back with
+    // local getters then rolls the date back a day in any timezone behind
+    // UTC. Appending a local time-of-day forces local-time parsing instead.
+    const d = new Date(`${dateStr}T00:00:00`);
     if (isNaN(d.getTime())) return "";
     const year = d.getFullYear();
     const month = d.getMonth();
@@ -137,8 +140,9 @@ const getNextMonthDatePreview = (dateStr: string): string => {
 
 const computeCalendarMonthBounds = (anchorStr: string, occurredStr: string): [string, string] => {
   try {
-    const anchor = new Date(anchorStr);
-    const occurred = new Date(occurredStr);
+    // Same UTC-vs-local pitfall as getNextMonthDatePreview above.
+    const anchor = new Date(`${anchorStr}T00:00:00`);
+    const occurred = new Date(`${occurredStr}T00:00:00`);
     if (isNaN(anchor.getTime()) || isNaN(occurred.getTime())) return ["", ""];
     const anchorDay = anchor.getDate();
     const getMonthStartDate = (mIndex: number): Date => {
@@ -919,10 +923,14 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       } else {
         setQuickTxDraft({
           type: bootstrapOptions?.type ?? defaultType ?? "expense",
-          category_id: (bootstrapOptions?.type ?? defaultType ?? "expense") === "income" ? fallbackIncomeCategoryId : fallbackExpenseCategoryId,
-          amount: parsedBootstrapAmount ? parsedBootstrapAmount.toFixed(2) : "",
-          occurred_on: initialDate,
-          description: "",
+          category_id:
+            bootstrapOptions?.category_id ||
+            ((bootstrapOptions?.type ?? defaultType ?? "expense") === "income"
+              ? fallbackIncomeCategoryId
+              : fallbackExpenseCategoryId),
+          amount: bootstrapOptions?.amount || (parsedBootstrapAmount ? parsedBootstrapAmount.toFixed(2) : ""),
+          occurred_on: bootstrapOptions?.occurred_on || initialDate,
+          description: bootstrapOptions?.description ?? "",
         });
       }
 
@@ -1201,12 +1209,9 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       }
     }
 
-    // "Mode Découverte" guests set the split on the light /repartir page —
-    // /distribution is a locked preview for them.
-    if (isGuestUser) {
-      router.push("/repartir");
-      return;
-    }
+    // Either path interrupts the in-progress income entry to go configure the
+    // split first — stash the draft so it isn't lost, and so the dashboard can
+    // reopen "Add income" pre-filled once the split is set.
     try {
       sessionStorage.setItem(
         QUICK_TX_INCOME_RESUME_STORAGE_KEY,
@@ -1219,8 +1224,20 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
     } catch {
       // ignore
     }
+
+    // Close the modal before navigating — otherwise it stays mounted and
+    // open on top of the destination page, blocking it until the user
+    // notices and closes it manually.
+    onCancel?.();
+
+    // "Mode Découverte" guests set the split on the light /repartir page —
+    // /distribution is a locked preview for them.
+    if (isGuestUser) {
+      router.push("/repartir");
+      return;
+    }
     router.push("/distribution");
-  }, [quickTxDraft, quickTxReminderIdsToMark, router, quickTxDistributionPreview, isGuestUser]);
+  }, [quickTxDraft, quickTxReminderIdsToMark, router, quickTxDistributionPreview, isGuestUser, onCancel]);
 
   const handleMapCategoryInline = async (categoryId: string, envelopeId: string) => {
     if (!envelopeId) return;
@@ -2757,10 +2774,31 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                       );
                     })}
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-3 py-2 mt-3 text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                    <span>{locale === "ar" ? "💰 المجموع" : locale === "en" ? "💰 Total" : "💰 Total"}</span>
-                    <span>{formatMoney(Number(quickTxDraft.amount))} {data?.user.currency ?? "MAD"}</span>
-                  </div>
+                  {(() => {
+                    const itemsTotal = quickTxDistributionPreview.items.reduce(
+                      (sum, item) => sum + (Number(item.amount) || 0),
+                      0
+                    );
+                    const remainder = Math.max(0, (Number(quickTxDraft.amount) || 0) - itemsTotal);
+                    const currency = data?.user.currency ?? "MAD";
+                    return (
+                      <>
+                        <div className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-3 py-2 mt-3 text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                          <span>{locale === "ar" ? "💰 المجموع" : locale === "en" ? "💰 Total" : "💰 Total"}</span>
+                          <span>{formatMoney(itemsTotal)} {currency}</span>
+                        </div>
+                        {remainder > 0.004 ? (
+                          <p className="mt-1.5 text-[11px] text-[var(--muted)]">
+                            {locale === "ar"
+                              ? `الباقي ${formatMoney(remainder)} ${currency} غادي يبقى فالكاش.`
+                              : locale === "en"
+                              ? `The remaining ${formatMoney(remainder)} ${currency} stays in Cash.`
+                              : `Le reste, ${formatMoney(remainder)} ${currency}, reste dans Cash.`}
+                          </p>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </>
               ) : isGuestUser ? (
                 <p className="text-xs text-[var(--muted)]">

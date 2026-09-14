@@ -312,21 +312,53 @@ export async function claimGuestCreationLock<T>(fn: () => Promise<T>): Promise<T
   }
 }
 
+/** Per-tab id so we can tell our own lock write apart from a racing tab's. */
+const FALLBACK_LOCK_OWNER = newIdempotencyKey();
+
+function readFallbackLock(): { owner: string; until: number } | null {
+  try {
+    const raw = window.localStorage.getItem(LOCK_FALLBACK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { owner?: unknown; until?: unknown };
+    const until = Number(parsed.until);
+    if (typeof parsed.owner !== "string" || !Number.isFinite(until)) return null;
+    return { owner: parsed.owner, until };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * localStorage has no compare-and-swap, so two tabs can each see "unheld" in
+ * the same tick. We mitigate with a bakery-style doorway: write our owner id,
+ * wait a random jitter, then re-read — if a racing tab wrote after us it will
+ * have clobbered our entry and we back off instead of both proceeding to
+ * create a guest.
+ */
 async function spinForFallbackLock(): Promise<boolean> {
   if (!isBrowser) return false;
   const deadline = Date.now() + LOCK_FALLBACK_TTL_MS;
   while (Date.now() < deadline) {
     try {
-      const raw = window.localStorage.getItem(LOCK_FALLBACK_KEY);
-      const heldUntil = raw ? Number(raw) : 0;
-      if (!heldUntil || Number.isNaN(heldUntil) || heldUntil < Date.now()) {
-        window.localStorage.setItem(LOCK_FALLBACK_KEY, String(Date.now() + LOCK_FALLBACK_TTL_MS));
+      const held = readFallbackLock();
+      if (held && held.until >= Date.now() && held.owner !== FALLBACK_LOCK_OWNER) {
+        await sleep(120);
+        continue;
+      }
+      window.localStorage.setItem(
+        LOCK_FALLBACK_KEY,
+        JSON.stringify({ owner: FALLBACK_LOCK_OWNER, until: Date.now() + LOCK_FALLBACK_TTL_MS })
+      );
+      await sleep(30 + Math.random() * 40);
+      const after = readFallbackLock();
+      if (after && after.owner === FALLBACK_LOCK_OWNER) {
         return true;
       }
+      // A racing tab overwrote our entry in the doorway window — back off and retry.
+      await sleep(60 + Math.random() * 60);
     } catch {
       return false;
     }
-    await sleep(120);
   }
   return false;
 }
@@ -334,7 +366,10 @@ async function spinForFallbackLock(): Promise<boolean> {
 function releaseFallbackLock(): void {
   if (!isBrowser) return;
   try {
-    window.localStorage.removeItem(LOCK_FALLBACK_KEY);
+    const held = readFallbackLock();
+    if (!held || held.owner === FALLBACK_LOCK_OWNER) {
+      window.localStorage.removeItem(LOCK_FALLBACK_KEY);
+    }
   } catch {
     /* ignore */
   }

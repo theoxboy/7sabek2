@@ -117,15 +117,21 @@ function extractErrorMessage(payload: unknown, status?: number): string {
     }
 
     // Detect HTML responses (e.g., DigitalOcean App Platform, Cloudflare, Nginx, 502/503/504 pages)
-    if (
+    const looksLikeHtml =
       trimmed.startsWith("<!DOCTYPE") ||
       trimmed.startsWith("<html") ||
       trimmed.startsWith("<head") ||
       trimmed.startsWith("<body") ||
       trimmed.includes("via_upstream") ||
       trimmed.includes("App Platform failed") ||
-      /<[a-z][\s\S]*>/i.test(trimmed)
-    ) {
+      /<[a-z][\s\S]*>/i.test(trimmed);
+
+    // A 5xx body is server-internal by definition — a stock reason phrase
+    // like "Internal Server Error", a stack-trace fragment, whatever the
+    // framework happened to write — never something meant for an end user.
+    // Route it through the same friendly copy as the HTML gateway pages
+    // instead of ever showing it verbatim.
+    if (looksLikeHtml || (status !== undefined && status >= 500)) {
       if (
         trimmed.includes("503") ||
         status === 503 ||

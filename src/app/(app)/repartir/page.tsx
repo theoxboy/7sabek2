@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Lock } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
@@ -10,6 +11,7 @@ import { parseAmountInput } from "@/lib/parseAmount";
 import { fetchMe, type AuthUser } from "@/lib/auth";
 import { guestEvent } from "@/lib/guestAnchorApi";
 import { buildPresetSplit, type SplitPreset } from "@/lib/incomeSplit";
+import { GUEST_LIMITS } from "@/lib/guestQuota";
 import { getSplitPercentages, saveIncomeSplit } from "@/lib/distribution";
 import {
   IncomeSplitEditor,
@@ -108,7 +110,10 @@ const COPY: Record<
 
 const NOTICE_DISMISS_KEY = "7sabek.guest.repartir_notice.dismissed";
 
+const QUICK_TX_INCOME_RESUME_STORAGE_KEY = "floussy.quickTx.incomeResume.v1";
+
 export default function RepartirPage() {
+  const router = useRouter();
   const { locale, dir } = useAppLocale("fr");
   const t = COPY[locale] ?? COPY.fr;
 
@@ -204,6 +209,17 @@ export default function RepartirPage() {
       await saveIncomeSplit(envelopes, pct);
       setSaveState("saved");
       guestEvent("guest_cta_click", { cta: "repartir_saved", route: "/repartir" });
+      // If we got here from an in-progress income entry, go back and reopen
+      // it pre-filled instead of leaving the guest to retype it from scratch.
+      let hasPendingIncomeDraft = false;
+      try {
+        hasPendingIncomeDraft = Boolean(sessionStorage.getItem(QUICK_TX_INCOME_RESUME_STORAGE_KEY));
+      } catch {
+        /* ignore */
+      }
+      if (hasPendingIncomeDraft) {
+        router.push("/dashboard?quick_tx_resume=income");
+      }
     } catch (err) {
       setSaveState("error");
       setSaveErr(err instanceof Error ? err.message : t.saveError);
@@ -338,7 +354,7 @@ export default function RepartirPage() {
               income={incomeValue}
               locale={locale}
               dir={dir}
-
+              atEnvelopeCap={isGuest && envelopes.length >= GUEST_LIMITS.envelopes}
               activePreset={activePreset}
               onPresetChange={setActivePreset}
             />

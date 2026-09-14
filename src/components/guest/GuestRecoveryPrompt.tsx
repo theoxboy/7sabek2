@@ -85,16 +85,25 @@ export function GuestRecoveryPrompt({
 
   useEffect(() => {
     let cancelled = false;
-    // A scanned recovery QR lands here as ?rc=CODE — show the prompt straight
-    // away with the code filled in, no L2 gate.
+    // A scanned recovery QR lands here as #rc=CODE (fragment, never sent to
+    // the server or leaked via Referer) — show the prompt straight away with
+    // the code filled in, no L2 gate. `?rc=` is still read as a legacy
+    // fallback for links printed before the fragment switch.
     try {
-      const rc = new URLSearchParams(window.location.search).get("rc");
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const rc = hash.get("rc") || new URLSearchParams(window.location.search).get("rc");
       if (rc) {
         const clean = rc.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 8);
         if (clean) {
           setCode(clean);
           setVisible(true);
         }
+        // Scrub the code out of the address bar / history right away so it
+        // doesn't linger anywhere it could be read back or synced.
+        const url = new URL(window.location.href);
+        url.hash = "";
+        url.searchParams.delete("rc");
+        window.history.replaceState(null, "", url.toString());
       }
     } catch {
       /* ignore */

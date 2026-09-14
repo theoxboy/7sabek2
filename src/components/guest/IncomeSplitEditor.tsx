@@ -17,8 +17,10 @@ import { apiFetch } from "@/lib/api";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { GUEST_LIMITS } from "@/lib/guestQuota";
 import {
+  LOCKED_ENVELOPES_STORAGE_KEY,
   SPLIT_STEP as STEP,
   buildPresetSplit,
+  isRentName,
   roundToSplitStep,
   sumSplit,
   type SplitPreset,
@@ -26,6 +28,36 @@ import {
 import type { FloussyLocale } from "@/lib/localePreference";
 
 export type SplitEnvelope = { id: string; name: string };
+
+/**
+ * Which envelopes are "Fixe" (excluded from auto-balance) on this device.
+ * Not sent to the backend — it only steers the local auto-balance math — but
+ * still worth remembering across visits so the toggle behaves like the
+ * setting it looks like, instead of quietly reverting. Cleared on guest
+ * erase/claim alongside the other device-local guest state (see
+ * guestSession.ts) since it's keyed on envelope ids from one guest identity.
+ */
+function loadStoredLockedIds(): Set<string> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LOCKED_ENVELOPES_STORAGE_KEY);
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return new Set(parsed.filter((id): id is string => typeof id === "string"));
+  } catch {
+    return null;
+  }
+}
+
+function persistLockedIds(ids: Set<string>): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LOCKED_ENVELOPES_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    /* ignore */
+  }
+}
 
 /** Categorical palette for the stacked bar only — decorative, not theme chrome.
  *  16 hues so the guest envelope cap (20) rarely forces a repeat. */
@@ -213,12 +245,16 @@ export function IncomeSplitEditor({
   const [manualName, setManualName] = useState("");
   const [addExpanded, setAddExpanded] = useState(false);
 
-  // Default: lock rent/housing by default if found, as rent is almost universally fixed
+  // Default: lock rent/housing by default if found, as rent is almost universally
+  // fixed. Once the guest touches any lock, we remember the exact set on this
+  // device — otherwise every "Fixe" toggle other than rent silently reverted to
+  // "Flexible" on the next visit, with nothing telling the guest it hadn't saved.
   const [lockedIds, setLockedIds] = useState<Set<string>>(() => {
+    const stored = loadStoredLockedIds();
+    if (stored) return stored;
     const initial = new Set<string>();
     envelopes.forEach((e) => {
-      const n = e.name.trim().toLowerCase();
-      if (/(loyer|rent|كراء|logement|housing)/.test(n)) {
+      if (isRentName(e.name)) {
         initial.add(e.id);
       }
     });
@@ -241,6 +277,7 @@ export function IncomeSplitEditor({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      persistLockedIds(next);
       return next;
     });
   };
@@ -263,7 +300,9 @@ export function IncomeSplitEditor({
 
     if (unlockedEnvelopes.length === 0) {
       // If all are locked, unlock all and re-distribute
-      setLockedIds(new Set());
+      const cleared = new Set<string>();
+      persistLockedIds(cleared);
+      setLockedIds(cleared);
       return;
     }
 
@@ -706,9 +745,14 @@ export async function createSplitEnvelope(
     return { id: created.id, name: created.name };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
+    // Word-bounded on the actual limit, not a hardcoded "20" — matching a
+    // literal 20 would misclassify any unrelated error that happens to
+    // mention that number, and would silently stop matching at all if the
+    // guest envelope quota is ever changed.
+    const quotaPattern = new RegExp(`\\b${GUEST_LIMITS.envelopes}\\b`);
     return {
       error:
-        msg.includes("guest_quota") || /\b20\b/.test(msg)
+        msg.includes("guest_quota") || quotaPattern.test(msg)
           ? t.capReached
           : t.addError,
     };

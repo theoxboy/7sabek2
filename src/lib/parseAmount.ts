@@ -41,8 +41,17 @@ export const normalizeDigits = (value: string): string =>
   value.replace(/[٠-٩۰-۹]/g, (char) => EASTERN_ARABIC_DIGITS[char] ?? char);
 
 /**
+ * Ceiling for a single transaction amount. Well beyond any real household
+ * budget entry — exists so a mistyped or malicious amount is rejected here
+ * instead of reaching the backend, which has been observed to 500 (a numeric
+ * column overflow) and surface a raw, untranslated "Internal Server Error"
+ * straight to the user on an unrealistically large amount.
+ */
+export const MAX_TRANSACTION_AMOUNT = 99_999_999;
+
+/**
  * Parse a user-entered transaction amount. `null` when the value is empty,
- * unreadable, or not strictly positive.
+ * unreadable, not strictly positive, or beyond `MAX_TRANSACTION_AMOUNT`.
  */
 export const parseAmountInput = (value: string): number | null => {
   const digitsNormalized = normalizeDigits(value);
@@ -86,7 +95,7 @@ export const parseAmountInput = (value: string): number | null => {
   }
 
   const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > MAX_TRANSACTION_AMOUNT) return null;
   return parsed;
 };
 

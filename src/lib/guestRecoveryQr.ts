@@ -11,11 +11,18 @@ export function normalizeCode(raw: string): string {
   return (raw || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 }
 
-/** A scannable link that opens /login with the recovery code pre-filled. */
+/**
+ * A scannable link that opens /login with the recovery code pre-filled.
+ *
+ * The code lives in the URL fragment (`#rc=`), not the query string: a
+ * fragment is never sent to the server (so it can't land in access logs) and
+ * is stripped by browsers from the `Referer` header sent to any third-party
+ * script/image loaded on /login, unlike `?rc=`.
+ */
 export function recoveryUrl(code: string): string {
   const origin =
     typeof window !== "undefined" ? window.location.origin : "https://7sabek.ma";
-  return `${origin}/login?rc=${encodeURIComponent(normalizeCode(code))}`;
+  return `${origin}/login#rc=${encodeURIComponent(normalizeCode(code))}`;
 }
 
 type Qr = ReturnType<typeof qrcode>;

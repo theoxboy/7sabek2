@@ -8,6 +8,14 @@
 
 export const SPLIT_STEP = 5;
 
+/**
+ * localStorage key for the "Fixe" (locked) envelope ids remembered by
+ * IncomeSplitEditor on this device. Exported so guestSession's erase/claim
+ * cleanup can drop it too — it's keyed on envelope ids tied to one guest
+ * identity, and must not survive into a fresh guest's fresh envelopes.
+ */
+export const LOCKED_ENVELOPES_STORAGE_KEY = "7sabek.incomeSplit.lockedIds.v1";
+
 export const roundToSplitStep = (n: number) => Math.round(n / SPLIT_STEP) * SPLIT_STEP;
 
 export const sumSplit = (o: Record<string, number>) =>
@@ -48,10 +56,20 @@ export function splitByWeights(
   return out;
 }
 
+/**
+ * Whether an envelope name reads as rent/housing. Word-bounded on the Latin
+ * terms — a bare `rent` substring match also fires on unrelated envelopes
+ * like "Rentrée scolaire" (back-to-school) or "Parent(s)".
+ */
+export function isRentName(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return /\b(loyer|rent|logement|housing)\b/.test(n) || n.includes("كراء");
+}
+
 /** Rough "essential-ness" of an envelope from its raw name, for the presets. */
 export function essentialWeight(name: string): number {
   const n = name.trim().toLowerCase();
-  if (/(loyer|rent|كراء|logement|housing)/.test(n)) return 3;
+  if (isRentName(name)) return 3;
   if (/(course|food|nourriture|ماكلة|أكل|groc)/.test(n)) return 3;
   if (/(transport|تنقل|carburant|fuel|essence)/.test(n)) return 2;
   if (/(epargne|épargne|saving|ادخار|توفير)/.test(n)) return 2;

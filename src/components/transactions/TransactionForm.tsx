@@ -43,7 +43,10 @@ interface TransactionFormProps {
 
 const getNextMonthDatePreview = (dateStr: string): string => {
   try {
-    const d = new Date(dateStr);
+    // `new Date("YYYY-MM-DD")` parses as UTC midnight; reading it back with
+    // local getters then rolls the date back a day in any timezone behind
+    // UTC. Appending a local time-of-day forces local-time parsing instead.
+    const d = new Date(`${dateStr}T00:00:00`);
     if (isNaN(d.getTime())) return "";
     const year = d.getFullYear();
     const month = d.getMonth();
@@ -64,8 +67,9 @@ const getNextMonthDatePreview = (dateStr: string): string => {
 
 const computeCalendarMonthBounds = (anchorStr: string, occurredStr: string): [string, string] => {
   try {
-    const anchor = new Date(anchorStr);
-    const occurred = new Date(occurredStr);
+    // Same UTC-vs-local pitfall as getNextMonthDatePreview above.
+    const anchor = new Date(`${anchorStr}T00:00:00`);
+    const occurred = new Date(`${occurredStr}T00:00:00`);
     if (isNaN(anchor.getTime()) || isNaN(occurred.getTime())) return ["", ""];
     const anchorDay = anchor.getDate();
     const getMonthStartDate = (mIndex: number): Date => {

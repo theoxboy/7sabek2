@@ -27,6 +27,57 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.5.1",
+    date: "2026-09-14",
+    groups: [
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "En mode invité, si tu es interrompu·e pour régler ta répartition pendant que tu déclares un revenu, tu retrouves ton formulaire là où tu l'avais laissé au lieu de tout retaper.",
+            en: "In discovery mode, if you're sent to set up your split while logging income, you're brought right back to your form where you left it instead of retyping everything.",
+            ar: "فالوضع ديال « جرّب بلا حساب »، إلا تقطعت باش تصاوب التوزيع ديالك وأنت كتصرح بدخل، كترجع للفورمولير فين خليتيه بلا ما تعاود الكتابة.",
+          },
+          {
+            fr: "L'aperçu de répartition d'un revenu montre maintenant clairement ce qui part dans tes enveloppes et ce qui reste dans Cash.",
+            en: "The income split preview now clearly shows what goes to your envelopes and what stays in Cash.",
+            ar: "معاينة توزيع الدخل دابا كتبين بوضوح شحال غادي يمشي للأنفلوبات ديالك وشحال غادي يبقى فـ Cash.",
+          },
+          {
+            fr: "Le réglage « Fixe » d'une enveloppe (mode invité) est maintenant retenu d'une visite à l'autre.",
+            en: "The \"Fixed\" setting on an envelope (discovery mode) is now remembered between visits.",
+            ar: "الإعداد « ثابت » ديال أنفلوب (وضع الاكتشاف) دابا كيتحفظ من زيارة للأخرى.",
+          },
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          {
+            fr: "Corrigé un décalage possible d'un jour sur certaines dates affichées lors de la saisie d'une transaction.",
+            en: "Fixed a possible one-day shift on some dates shown while entering a transaction.",
+            ar: "تصليح تزحزح ممكن ديال نهار وحد فبعض التواريخ اللي كتبان مليتسجل عملية.",
+          },
+          {
+            fr: "Le tableau de bord se met maintenant à jour automatiquement juste après l'ajout rapide d'une transaction.",
+            en: "The dashboard now refreshes automatically right after a quick transaction is added.",
+            ar: "لوحة القيادة دابا كتجدد وحدها مباشرة بعد ما تزيد عملية بسرعة.",
+          },
+          {
+            fr: "Le bouton de confirmation du code de récupération (mode invité) ne se reverrouillait plus à tort après un court instant.",
+            en: "The recovery code confirmation button (discovery mode) no longer re-locked itself by mistake after a short delay.",
+            ar: "بوطون تأكيد كود الاسترجاع (وضع الاكتشاف) ماعادش كيترجع يتسكر بالغلط من بعد شوية.",
+          },
+          {
+            fr: "Messages d'erreur plus clairs affichés en cas de problème serveur temporaire ou de montant de transaction anormalement élevé.",
+            en: "Clearer error messages are now shown for a temporary server issue or an unusually large transaction amount.",
+            ar: "رسائل الخطأ ولات أوضح ملي كتوقع مشكلة مؤقتة فالسيرفر ولا مبلغ ديال عملية كبير بزاف.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.5.0",
     date: "2026-09-11",
     groups: [

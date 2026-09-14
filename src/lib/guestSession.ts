@@ -18,6 +18,7 @@ import {
   persistAnchorToken,
   resolveAnchorToken,
 } from "@/lib/guestAnchor";
+import { LOCKED_ENVELOPES_STORAGE_KEY } from "@/lib/incomeSplit";
 import {
   createGuest,
   deleteGuestData,
@@ -145,6 +146,7 @@ export async function eraseGuest(): Promise<void> {
   await clearAnchorToken();
   try {
     window.localStorage.removeItem(RECOVERY_CODE_KEY);
+    window.localStorage.removeItem(LOCKED_ENVELOPES_STORAGE_KEY);
   } catch {
     /* ignore */
   }
@@ -159,6 +161,7 @@ export async function clearGuestLocalState(): Promise<void> {
   await clearAnchorToken();
   try {
     window.localStorage.removeItem(RECOVERY_CODE_KEY);
+    window.localStorage.removeItem(LOCKED_ENVELOPES_STORAGE_KEY);
   } catch {
     /* ignore */
   }
