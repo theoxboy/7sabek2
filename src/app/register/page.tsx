@@ -205,7 +205,6 @@ const REGISTER_ONBOARDING_PREFILL_KEY = "floussy.register.prefill";
 const REGISTER_ONBOARDING_DRAFT_KEY = "floussy.register.onboarding_v2";
 const REGISTER_ONBOARDING_COMPLETED_KEY = "floussy.register.onboarding_v2.completed";
 const REGISTER_FORCE_ONBOARDING_KEY = "floussy.register.force_onboarding_v2";
-const REGISTER_ONBOARDING_MESSAGE_TYPE = "floussy.register.onboarding_v2.complete";
 const REGISTER_LEAD_ID_KEY = "floussy.register.lead_id";
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const MAX_PROFILE_PHOTO_SIZE_BYTES = 13 * 1024 * 1024;
@@ -536,11 +535,6 @@ const COUNTRY_LABELS: Record<FloussyLocale, Record<CountryName, string>> = {
   ar: { Maroc: "المغرب", Algérie: "الجزائر", Tunisie: "تونس", Égypte: "مصر" },
 };
 
-type RegisterOnboardingPayload = {
-  answers: Record<string, unknown>;
-  draft_objects: Record<string, unknown>;
-};
-
 type RegisterPrefillPayload = {
   first_name?: string;
   last_name?: string;
@@ -561,7 +555,11 @@ export default function RegisterPage() {
   const [introReady, setIntroReady] = useState(false);
 
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  // The wizard is 3 steps (profile / credentials / location). Submitting step 3
+  // creates the account and hands off to the authenticated onboarding
+  // (`handleRegisterAndStartOnboarding`). The old in-page guest-onboarding
+  // steps 4-5 are retired.
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const status = usePlatformStatus();
@@ -587,8 +585,6 @@ export default function RegisterPage() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null);
   const [currency, setCurrency] = useState<CurrencyCode | "">("");
-  const [registerOnboardingPayload, setRegisterOnboardingPayload] =
-    useState<RegisterOnboardingPayload | null>(null);
   const [registrationLeadId, setRegistrationLeadId] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -598,7 +594,10 @@ export default function RegisterPage() {
   const maintenanceActive = Boolean(status?.maintenance_mode);
   const registrationBlocked = maintenanceActive || Boolean(retryAfterSeconds);
   const supportEmail = status?.support_email || "elidryssi@gmail.com";
-  const isOnboardingStep = !user && step === 4;
+  // The in-page guest-onboarding step (old step 4) is retired; kept as a const
+  // so the layout still has a single switch for the "wide onboarding" chrome if
+  // it ever comes back. Always false today.
+  const isOnboardingStep = false;
   const copy = REGISTER_COPY[locale];
   // A tab opened in the background freezes CSS animations at frame 0, which would
   // leave the panel invisible. Only arm the one-shot intro when the page is on screen.
@@ -673,25 +672,10 @@ export default function RegisterPage() {
         if (prefill.city) setCity(prefill.city);
         if (prefill.currency) setCurrency(prefill.currency);
       }
-
-      const raw = window.localStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as RegisterOnboardingPayload;
-      if (parsed?.answers && parsed?.draft_objects) {
-        setRegisterOnboardingPayload(parsed);
-        if (
-          new URLSearchParams(window.location.search).get("resume") === "1" &&
-          window.localStorage.getItem(REGISTER_ONBOARDING_COMPLETED_KEY) === "1"
-        ) {
-          setStep(5);
-          setError(null);
-          router.replace("/register");
-        }
-      }
     } catch {
       return;
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -731,22 +715,6 @@ export default function RegisterPage() {
         URL.revokeObjectURL(profilePhotoBlobUrlRef.current);
       }
     };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const listener = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (!event.data || event.data.type !== REGISTER_ONBOARDING_MESSAGE_TYPE) return;
-      const payload = event.data.payload as RegisterOnboardingPayload | undefined;
-      if (!payload?.answers || !payload?.draft_objects) return;
-      window.localStorage.setItem(REGISTER_ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
-      setRegisterOnboardingPayload(payload);
-      setError(null);
-      setStep(5);
-    };
-    window.addEventListener("message", listener);
-    return () => window.removeEventListener("message", listener);
   }, []);
 
   useEffect(() => {
@@ -1020,20 +988,9 @@ export default function RegisterPage() {
         event: "step1_saved",
       });
     }
-    if (step === 3) {
-      persistRegisterOnboardingPrefill();
-      setError(null);
-      setStep(4);
-      router.push("/onboarding?register=1");
-      return;
-    }
-    if (step === 4 && !registerOnboardingPayload) {
-      persistRegisterOnboardingPrefill();
-      setError(null);
-      router.push("/onboarding?register=1");
-      return;
-    }
-    setStep((prev) => (prev < 5 ? ((prev + 1) as 1 | 2 | 3 | 4 | 5) : prev));
+    // Step 3 submit is handled by handleRegisterAndStartOnboarding (account
+    // creation + handoff to onboarding); handleNext only advances 1 -> 2 -> 3.
+    setStep((prev) => (prev < 3 ? ((prev + 1) as 1 | 2 | 3) : prev));
   };
 
   const handleRegisterAndStartOnboarding = async () => {
@@ -1126,7 +1083,7 @@ export default function RegisterPage() {
 
   const handlePrev = () => {
     setError(null);
-    setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4 | 5) : prev));
+    setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3) : prev));
   };
 
   const handleRegister = async (event: React.FormEvent) => {
@@ -1140,101 +1097,7 @@ export default function RegisterPage() {
       await handleRegisterAndStartOnboarding();
       return;
     }
-    if (step !== 5) {
-      handleNext();
-      return;
-    }
-    if (!validateProfileStep() || !validateCredentialsStep() || !validateLocationStep()) return;
-    if (!registerOnboardingPayload) {
-      setError(copy.onboardingRequired);
-      return;
-    }
-    if (!currency) {
-      setError(copy.currencyUnavailable);
-      return;
-    }
-    const currentRecaptchaToken2 = getRecaptchaToken();
-    if (!allowRecaptchaBypass && !currentRecaptchaToken2) {
-      return;
-    }
-    setLoading(true);
-    submitInFlightRef.current = true;
-    setRetryAfterSeconds(null);
-    setError(null);
-    try {
-      const normalizedEmail = email.trim().toLowerCase();
-      await apiFetch("/auth/register", {
-        method: "POST",
-        body: {
-          email: normalizedEmail,
-          password,
-          currency,
-          sweep_interval_days: DEFAULT_SWEEP_INTERVAL_DAYS,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone_number: phoneNumber.trim(),
-          birth_date: birthDate,
-          country: country.trim(),
-          city: city.trim(),
-          profile_photo_url: profilePhotoUrl,
-          mfa_consent: true,
-          onboarding_v2_answers: registerOnboardingPayload.answers,
-          onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects,
-          recaptcha_token: currentRecaptchaToken2,
-          lead_id: registrationLeadId || undefined,
-        },
-      });
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(REGISTER_LEAD_ID_KEY);
-        window.localStorage.removeItem(REGISTER_ONBOARDING_PREFILL_KEY);
-        window.localStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
-        window.localStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
-      }
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
-      }
-      await refreshAuthSession();
-      router.push("/dashboard");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.createAccountFailed;
-      const lower = message.toLowerCase();
-      if (lower.includes("too many") || lower.includes("trop de tentatives")) {
-        const retryAfter = parseRetryAfter(null, message);
-        if (retryAfter) setRetryAfterSeconds(retryAfter);
-        setError(copy.tooManyAttempts);
-        return;
-      }
-      if (
-        lower.includes("compte supprim") ||
-        lower.includes("récupération") ||
-        lower.includes("recuperation") ||
-        lower.includes("suppression définitive")
-      ) {
-        setError(message);
-      } else if (lower.includes("maintenance")) {
-        setError(message);
-      } else if (lower.includes("onboarding")) {
-        setError(copy.onboardingRequired);
-      } else if (lower.includes("recaptcha_required")) {
-        setError(copy.recaptchaRequired);
-      } else if (message.includes("أكد أنك ماشي روبوت")) {
-        setError(copy.recaptchaRequired);
-      } else if (lower.includes("recaptcha_failed")) {
-        setError(copy.recaptchaFailed);
-      } else if (message.includes("ما قدرناش نتحققو")) {
-        setError(copy.recaptchaFailed);
-      } else if (lower.includes("exists") || lower.includes("already")) {
-        setError(copy.accountExists);
-      } else if (lower.includes("password")) {
-        setError(copy.weakPassword);
-      } else {
-        setError(copy.createAccountFailed);
-      }
-    } finally {
-      setLoading(false);
-      submitInFlightRef.current = false;
-      resetRecaptcha();
-    }
+    handleNext();
   };
 
   const displayName = user
@@ -1750,7 +1613,7 @@ export default function RegisterPage() {
                     </a>
                   </div>
                 </>
-              ) : step === 3 ? (
+              ) : (
                 <>
                   <div className="space-y-2">
                     <Label>{copy.country}</Label>
@@ -1806,88 +1669,6 @@ export default function RegisterPage() {
                     </select>
                   </div>
                 </>
-              ) : step === 4 ? (
-                <>
-                  <div className="rounded-[28px] border border-emerald-100 bg-emerald-50/70 px-5 py-6 text-sm text-emerald-950">
-                    <p className="text-lg font-semibold">
-                      {copy.onboardingTitle}
-                    </p>
-                    <p className="mt-2">
-                      {copy.onboardingBody}
-                    </p>
-                    <div className="mt-4">
-                      <Button
-                        type="button"
-                        onClick={() => router.push("/onboarding?register=1")}
-                        className="bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
-                      >
-                        {copy.onboardingOpen}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-dashed border-gray-200 bg-[#fafaf8] px-4 py-4 text-sm text-gray-700">
-                    {registerOnboardingPayload ? (
-                      <p className="font-medium text-emerald-700">
-                        {copy.onboardingDone}
-                      </p>
-                    ) : (
-                      <p>
-                        {copy.onboardingWaiting}
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="rounded-2xl border border-gray-100 bg-[var(--surface)] px-4 py-4 text-sm text-gray-700">
-                    <p className="text-base font-semibold text-gray-900">{copy.summaryTitle}</p>
-                    <p className="mt-2">
-                      {copy.summaryBody}
-                    </p>
-                    <div className="mt-2 space-y-1">
-                      <p>1. {copy.profileLine}: <strong>{firstName} {lastName}</strong></p>
-                      <p>2. {copy.emailLine}: <strong>{email.trim().toLowerCase()}</strong></p>
-                      <p>3. {copy.countryCityLine}: <strong>{country ? countryLabels[country] : ""}</strong>{city ? ` · ${city}` : ""}</p>
-                      <p>4. {copy.onboardingLine}: <strong>{registerOnboardingPayload ? copy.completed : copy.missing}</strong></p>
-                    </div>
-                    <p className="mt-2">
-                      {copy.defaultEnvelopes} : <strong>Epargnes</strong> et <strong>Cash</strong>.
-                    </p>
-                    {currency ? (
-                      <p className="mt-2">
-                        {copy.selectedCurrency} : <strong>{currency}</strong>
-                      </p>
-                    ) : null}
-                    {country ? (
-                      <p className="mt-2">
-                        {copy.countryLine} : <strong>{countryLabels[country]}</strong>
-                        {city ? ` · ${copy.city} : ${city}` : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                  {recaptchaSiteKey ? (
-                    <div className="space-y-2">
-                      <Label>{copy.antiSpam}</Label>
-                      {recaptchaToken ? (
-                        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                          {copy.recaptchaChecking}
-                        </p>
-                      ) : (
-                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                          {copy.recaptchaRequired}
-                        </p>
-                      )}
-                    </div>
-                  ) : isDevEnvironment ? (
-                    <div className="space-y-2">
-                      <Label>{copy.antiSpam}</Label>
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        {copy.recaptchaDevBypass}
-                      </p>
-                    </div>
-                  ) : null}
-                </>
               )}
 
               {retryAfterSeconds ? (
@@ -1917,32 +1698,21 @@ export default function RegisterPage() {
                 ) : (
                   <span />
                 )}
-              {step < 5 ? (
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (step === 3) {
-                        void handleRegisterAndStartOnboarding();
-                        return;
-                      }
-                      handleNext();
-                    }}
-                    isLoading={loading && step === 3}
-                    disabled={registrationBlocked || loading}
-                    className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
-                  >
-                    {step === 3 ? copy.createAndStartOnboarding : step === 4 ? copy.onboardingOpen : copy.continue}
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    isLoading={loading}
-                    disabled={registrationBlocked || loading}
-                    className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
-                  >
-                    {copy.createFinalAccount}
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (step === 3) {
+                      void handleRegisterAndStartOnboarding();
+                      return;
+                    }
+                    handleNext();
+                  }}
+                  isLoading={loading && step === 3}
+                  disabled={registrationBlocked || loading}
+                  className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
+                >
+                  {step === 3 ? copy.createAndStartOnboarding : copy.continue}
+                </Button>
               </div>
 
               <div className={`flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A] ${isOnboardingStep ? "hidden" : ""}`}>
