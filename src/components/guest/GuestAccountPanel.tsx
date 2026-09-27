@@ -64,6 +64,7 @@ export function GuestAccountPanel({ user, locale, dir }: Props) {
   const intro = palier3 ?? (daysTracking >= 3 ? t.trackingDays(daysTracking) : t.panelIntro);
 
   const [claimOpen, setClaimOpen] = useState(false);
+  const [claimSource, setClaimSource] = useState<string>("panel_settings");
   const [eraseOpen, setEraseOpen] = useState(false);
   const [acking, setAcking] = useState(false);
   const [erasing, setErasing] = useState(false);
@@ -84,7 +85,10 @@ export function GuestAccountPanel({ user, locale, dir }: Props) {
     setAcking(true);
     try {
       await ackRecoveryCode();
-      window.location.reload();
+      setAcking(false);
+      setClaimSource("post_ack");
+      guestEvent("guest_post_ack_prompt_shown");
+      setClaimOpen(true);
     } catch {
       setAcking(false);
     }
@@ -195,7 +199,14 @@ export function GuestAccountPanel({ user, locale, dir }: Props) {
 
       {/* Claim */}
       <div className="flex flex-col gap-1">
-        <Button type="button" onClick={() => setClaimOpen(true)} className="w-full">
+        <Button
+          type="button"
+          onClick={() => {
+            setClaimSource("panel_settings");
+            setClaimOpen(true);
+          }}
+          className="w-full"
+        >
           {t.claimCta}
         </Button>
         <span className="text-center text-[11px]" style={{ color: "var(--muted)" }}>
@@ -228,10 +239,15 @@ export function GuestAccountPanel({ user, locale, dir }: Props) {
 
       <GuestClaimDialog
         open={claimOpen}
-        onOpenChange={setClaimOpen}
+        onOpenChange={(v) => {
+          setClaimOpen(v);
+          if (!v && claimSource === "post_ack") {
+            window.location.reload();
+          }
+        }}
         locale={locale}
         dir={dir}
-        source="panel_settings"
+        source={claimSource}
       />
 
       <Dialog open={eraseOpen} onOpenChange={setEraseOpen}>

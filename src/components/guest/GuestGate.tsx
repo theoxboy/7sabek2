@@ -290,6 +290,9 @@ export function GuestClaimDialog({
   const handleOpenChange = (v: boolean) => {
     if (!v && !succeededRef.current && openedEventSentRef.current) {
       guestEvent("claim_abandoned", { source });
+      if (source === "post_ack") {
+        guestEvent("guest_post_ack_prompt_dismissed");
+      }
     }
     onOpenChange(v);
   };

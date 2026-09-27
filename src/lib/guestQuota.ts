@@ -84,6 +84,8 @@ export const GUEST_FEATURE_ACCESS: Record<string, GuestFeatureAccess> = {
   salaf: "soft-wall",
   export: "soft-wall",
   "multi-device": "soft-wall",
+  "bulk-import": "soft-wall",
+  "history-past-months": "soft-wall",
 
   rules: "hidden",
   sweeps: "hidden", // reached via ROUTE_FEATURE ["/sweeps", "sweeps"]

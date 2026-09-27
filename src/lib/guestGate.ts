@@ -23,6 +23,7 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
   // The heavy money-plan / distribution flows stay a locked preview for guests
   // — they pull in the onboarding questionnaire. /repartir is the guest tool.
   ["/khatat-lflous", "money-plan"],
+  ["/onboarding", "money-plan"],
   ["/distribution", "distribution"],
   ["/settings", "theme"],
   ["/aide", "theme"],
@@ -43,6 +44,7 @@ const ROUTE_FEATURE: Array<[prefix: string, feature: string]> = [
   ["/shiftpilot", "reports"],
   ["/beta", "beta"],
   ["/logs", "logs"],
+  ["/transactions/bulk", "bulk-import"],
 ];
 
 export type GuestRouteState = "open" | "limited" | "locked";
@@ -75,6 +77,7 @@ export function guestWallForRoute(pathname: string | null | undefined): string |
     gamification: "gamification",
     beta: "beta",
     logs: "logs",
+    "bulk-import": "export",
   };
   return map[feature] ?? null;
 }
@@ -192,6 +195,11 @@ export const GUEST_FEATURE_PITCH: Partial<
     fr: "Le plan complet (revenu, dépenses, dettes, objectifs et enveloppes proposées automatiquement) se construit avec ton compte. Pour l'instant, tu peux régler ta répartition depuis « Répartir mon revenu ».",
     en: "The full plan (income, spending, debts, goals and envelopes suggested automatically) is built with your account. For now, you can set your split from “Split my income”.",
     ar: "الخطة الكاملة (الدخل، المصاريف، الديون، الأهداف والأظرفة المقترحة أوتوماتيك) كتتبنى مع حسابك. دابا، تقدر تعدّل التقسيم من « قسّم دخلي ».",
+  },
+  "bulk-import": {
+    fr: "Importe facilement tes relevés bancaires ou fichiers Excel en quelques secondes. Crée ton compte gratuit pour débloquer l’import en masse.",
+    en: "Easily import your bank statements or Excel spreadsheets in seconds. Create your free account to unlock bulk import.",
+    ar: "استورد كشوفات حسابك البنكي أو ملفات Excel بسهولة فثواني. صاوب حسابك المجاني باش تفتح الاستيراد الجماعي.",
   },
 };
 

@@ -147,6 +147,8 @@ export async function eraseGuest(): Promise<void> {
   try {
     window.localStorage.removeItem(RECOVERY_CODE_KEY);
     window.localStorage.removeItem(LOCKED_ENVELOPES_STORAGE_KEY);
+    window.localStorage.removeItem("7sabek.guest.decouverte_seen_at");
+    window.localStorage.removeItem("7sabek.guest.decouverte_step");
   } catch {
     /* ignore */
   }
@@ -162,6 +164,8 @@ export async function clearGuestLocalState(): Promise<void> {
   try {
     window.localStorage.removeItem(RECOVERY_CODE_KEY);
     window.localStorage.removeItem(LOCKED_ENVELOPES_STORAGE_KEY);
+    window.localStorage.removeItem("7sabek.guest.decouverte_seen_at");
+    window.localStorage.removeItem("7sabek.guest.decouverte_step");
   } catch {
     /* ignore */
   }

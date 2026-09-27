@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Eye, EyeOff, Fingerprint, Home } from "lucide-react";
-import { Cairo, Fraunces, Manrope } from "next/font/google";
+import { AlertCircle, Eye, EyeOff, Fingerprint, Home } from "lucide-react";
+import { Cairo } from "next/font/google";
 import { startAuthentication } from "@simplewebauthn/browser";
 
 import { API_BASE, apiFetch, resetAuthClientState } from "@/lib/api";
@@ -16,7 +16,6 @@ import { GuestRecoveryPrompt } from "@/components/guest/GuestRecoveryPrompt";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
-import { getAppVersionLabel } from "@/lib/app-version";
 import { getLoginOptions, verifyLogin } from "@/lib/passkeys";
 import BrandLogo from "@/components/BrandLogo";
 import { GuestModeButton, guestModeMessage } from "@/components/guest/GuestModeButton";
@@ -26,8 +25,6 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 
-const displayFont = Fraunces({ subsets: ["latin"], weight: ["600", "700"] });
-const bodyFont = Manrope({ subsets: ["latin"], weight: ["400", "500", "600"] });
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700"] });
 
 type LoginGeoPayload = {
@@ -50,7 +47,7 @@ const LOGIN_COPY = {
     geoRequired:
       "Connexion impossible : l’accès à la localisation GPS est obligatoire pour ce compte superadmin.",
     suspicious: (supportEmail: string) =>
-      `Connexion impossible : cette connexion est suspecte. Le système l’a bloquée automatiquement après détection d’une utilisation suspecte. Contacte le support (${supportEmail.toUpperCase()}).`,
+      `Connexion impossible : cette connexion est suspecte. Contacte le support (${supportEmail.toUpperCase()}).`,
     verifyEmail: "Veuillez vérifier votre email pour activer le compte.",
     loginFailed: "Impossible de se connecter. Réessaie.",
     validEmail: "Merci d’entrer un email valide.",
@@ -59,19 +56,15 @@ const LOGIN_COPY = {
     newPasswordLength: "Le nouveau mot de passe doit contenir au moins 8 caractères.",
     confirmMismatch: "La confirmation ne correspond pas.",
     welcomeBadge: "Bienvenue chez 7sabek",
-    heroTitle: "Reprends le contrôle de tes enveloppes, dès aujourd’hui.",
-    heroBody:
-      "Une vue claire sur ton budget, des alertes utiles, et une méthode simple pour mieux piloter tes dépenses.",
-    heroPoint1: "Suivi en temps réel de chaque enveloppe.",
-    heroPoint2: "Catégories personnalisées et rapports clairs.",
-    heroPoint3: "Automatisations simples pour gagner du temps.",
+    heroTitle: "Reprends le contrôle de tes enveloppes",
+    envelopeLabel: "Enveloppe active",
+    envelopeCategory: "Courses & Quotidien",
     mobileBrand: "7sabek",
     mobileTitle: "Reprends le contrôle de ton budget",
     mobileBody: "Connecte-toi pour retrouver tes enveloppes.",
     backHome: "Retour à l’accueil",
     pill: "7sabek • Finance personnelle",
     title: "Bon retour",
-    subtitle: "Connecte-toi pour gérer tes enveloppes et ton cash flow.",
     maintenanceSuffix: "Seuls les superadmins peuvent se connecter.",
     connectedAs: "Connecté en tant que",
     goDashboard: "Aller au dashboard",
@@ -80,7 +73,7 @@ const LOGIN_COPY = {
     password: "Mot de passe",
     hidePassword: "Masquer le mot de passe",
     showPassword: "Afficher le mot de passe",
-    forgotPassword: "Mot de passe oublie ? Reinitialiser.",
+    forgotPassword: "Mot de passe oublié ?",
     maintenanceActive: "Maintenance active",
     maintenanceOnlySuperadmins: "Seuls les superadmins peuvent se connecter.",
     iAmSuperadmin: "Je suis superadmin",
@@ -91,22 +84,19 @@ const LOGIN_COPY = {
     newPassword: "Nouveau mot de passe",
     confirmPassword: "Confirmer le mot de passe",
     update: "Mettre à jour",
-    noAccountYet: "Pas encore de compte ?",
-    createAccount: "Créer un compte",
-    tryWithoutAccount: "Essayer sans compte",
-    tryWithoutAccountHint: "Sans e-mail, sans mot de passe. Tes données restent, tu crées un compte quand tu veux.",
+    noAccountYet: "Nouveau ?",
+    createAccount: "Inscription",
+    tryWithoutAccount: "Continuer en invité",
     guestStartError: "Impossible de démarrer le mode découverte. Réessaie.",
-    quickSignInTitle: "الدخول السريع",
+    quickSignInTitle: "Empreinte",
     quickSignInMethod: "Face ID / empreinte",
-    quickSignIn: "Connexion rapide",
-    quickSignInVerifying: "Vérification...",
-    quickSignInDivider: "ou",
+    quickSignInVerifying: "...",
     quickSignInError:
-      "Connexion rapide impossible. Utilise ton email et mot de passe ou réessaie.",
+      "Connexion rapide impossible. Réessaie.",
     chipSalary: "Salaire",
     chipRent: "Loyer",
     chipDebt: "Crédit",
-    fabor: "c’est faboooor",
+    addExpenseQuick: "Dépense",
   },
   en: {
     invalidCredentials: "Incorrect email or password.",
@@ -118,7 +108,7 @@ const LOGIN_COPY = {
     geoRequired:
       "Login denied: GPS location access is required for this superadmin account.",
     suspicious: (supportEmail: string) =>
-      `Login denied: this connection looks suspicious. The system blocked it automatically after suspicious activity detection. Contact support (${supportEmail.toUpperCase()}).`,
+      `Login denied: this connection looks suspicious. Contact support (${supportEmail.toUpperCase()}).`,
     verifyEmail: "Please verify your email to activate the account.",
     loginFailed: "Unable to sign in. Try again.",
     validEmail: "Please enter a valid email.",
@@ -127,19 +117,15 @@ const LOGIN_COPY = {
     newPasswordLength: "The new password must contain at least 8 characters.",
     confirmMismatch: "Confirmation does not match.",
     welcomeBadge: "Welcome to 7sabek",
-    heroTitle: "Take control of your envelopes today.",
-    heroBody:
-      "A clear budget view, useful alerts, and a simple method to manage your spending better.",
-    heroPoint1: "Real-time tracking for every envelope.",
-    heroPoint2: "Custom categories and clear reports.",
-    heroPoint3: "Simple automations to save time.",
+    heroTitle: "Take control of your envelopes",
+    envelopeLabel: "Active envelope",
+    envelopeCategory: "Daily Expenses",
     mobileBrand: "7sabek",
     mobileTitle: "Take control of your budget",
     mobileBody: "Sign in to get back to your envelopes.",
     backHome: "Back to home",
     pill: "7sabek • Personal finance",
     title: "Welcome back",
-    subtitle: "Sign in to manage your envelopes and cash flow.",
     maintenanceSuffix: "Only superadmins can sign in.",
     connectedAs: "Signed in as",
     goDashboard: "Go to dashboard",
@@ -148,7 +134,7 @@ const LOGIN_COPY = {
     password: "Password",
     hidePassword: "Hide password",
     showPassword: "Show password",
-    forgotPassword: "Forgot password? Reset it.",
+    forgotPassword: "Forgot password?",
     maintenanceActive: "Maintenance active",
     maintenanceOnlySuperadmins: "Only superadmins can sign in.",
     iAmSuperadmin: "I am superadmin",
@@ -159,21 +145,18 @@ const LOGIN_COPY = {
     newPassword: "New password",
     confirmPassword: "Confirm password",
     update: "Update",
-    noAccountYet: "No account yet?",
-    createAccount: "Create an account",
-    tryWithoutAccount: "Try without an account",
-    tryWithoutAccountHint: "No email, no password. Your data stays; create an account whenever you want.",
+    noAccountYet: "New?",
+    createAccount: "Sign up",
+    tryWithoutAccount: "Continue as guest",
     guestStartError: "Could not start discovery mode. Try again.",
-    quickSignInTitle: "Quick sign-in",
+    quickSignInTitle: "Fingerprint",
     quickSignInMethod: "Face ID / fingerprint",
-    quickSignIn: "Quick sign-in",
-    quickSignInVerifying: "Verifying...",
-    quickSignInDivider: "or",
-    quickSignInError: "Quick sign-in failed. Use email and password or try again.",
+    quickSignInVerifying: "...",
+    quickSignInError: "Quick sign-in failed. Try again.",
     chipSalary: "Salary",
     chipRent: "Rent",
     chipDebt: "Loan",
-    fabor: "it’s freeeee",
+    addExpenseQuick: "Expense",
   },
   ar: {
     invalidCredentials: "الإيميل ولا كلمة السر ماشي صحيحة.",
@@ -184,7 +167,7 @@ const LOGIN_COPY = {
     geoRequired:
       "ما قدرناش ندخلوك: الولوج لموقع GPS ضروري لهاد حساب السوبر أدمن.",
     suspicious: (supportEmail: string) =>
-      `ما قدرناش ندخلوك: هاد الاتصال باين مشكوك فيه. السيستيم حبسو أوتوماتيكياً. تاصل بالدعم (${supportEmail.toUpperCase()}).`,
+      `ما قدرناش ندخلوك: هاد الاتصال باين مشكوك فيه. تاصل بالدعم (${supportEmail.toUpperCase()}).`,
     verifyEmail: "خصك تأكد الإيميل باش يتفعل الحساب.",
     loginFailed: "ما قدرناش ندخلوك دابا. عاود المحاولة.",
     validEmail: "دخل إيميل صحيح.",
@@ -193,19 +176,15 @@ const LOGIN_COPY = {
     newPasswordLength: "كلمة السر الجديدة خاصها تكون فيها على الأقل 8 حروف.",
     confirmMismatch: "التأكيد ما مطابقش.",
     welcomeBadge: "مرحبا بيك فـ 7sabek",
-    heroTitle: "رجّع التحكم فالميزانية ديالك من اليوم.",
-    heroBody:
-      "رؤية واضحة للميزانية، تنبيهات مفيدة، وطريقة بسيطة باش تنظّم المصاريف ديالك.",
-    heroPoint1: "تتبع مباشر لكل ظرف.",
-    heroPoint2: "أصناف مخصصة وتقارير واضحة.",
-    heroPoint3: "أتمتة بسيطة باش تربح الوقت.",
+    heroTitle: "رجّع التحكم فالأظرفة ديالك",
+    envelopeLabel: "ظرف نشط",
+    envelopeCategory: "المصاريف اليومية",
     mobileBrand: "حسابك",
     mobileTitle: "رجّع التحكم فالميزانية ديالك.",
     mobileBody: "دخل باش ترجع للأظرفة والكاش ديالك.",
     backHome: "رجع للرئيسية",
     pill: "7sabek • فلوسك الشخصية",
     title: "مرحبا برجوعك",
-    subtitle: "دخل باش تسير الأظرفة والكاش ديالك.",
     maintenanceSuffix: "غير السوبر أدمن يقدر يدخل مؤقتاً.",
     connectedAs: "داير الدخول بهاد الإيميل",
     goDashboard: "سير للوحة التحكم",
@@ -214,7 +193,7 @@ const LOGIN_COPY = {
     password: "كلمة السر",
     hidePassword: "خبي كلمة السر",
     showPassword: "بيّن كلمة السر",
-    forgotPassword: "نسيتي كلمة السر؟ رجّعها دابا.",
+    forgotPassword: "نسيتي كلمة السر؟",
     maintenanceActive: "كاينة صيانة دابا",
     maintenanceOnlySuperadmins: "غير السوبر أدمن يقدر يدخل مؤقتاً.",
     iAmSuperadmin: "أنا سوبر أدمن",
@@ -225,27 +204,22 @@ const LOGIN_COPY = {
     newPassword: "كلمة السر الجديدة",
     confirmPassword: "أكد كلمة السر",
     update: "حدّث كلمة السر",
-    noAccountYet: "مازال ما عندكش حساب؟",
-    createAccount: "صاوب حساب جديد",
-    tryWithoutAccount: "جرّب بلا حساب",
-    tryWithoutAccountHint: "بلا إيميل، بلا كلمة السر. البيانات ديالك تبقى، وتصاوب حساب فاش بغيتي.",
+    noAccountYet: "حساب جديد؟",
+    createAccount: "تسجيل",
+    tryWithoutAccount: "جرّب كضيف",
     guestStartError: "ما قدرناش نبداو وضع الاكتشاف. عاود المحاولة.",
-    quickSignInTitle: "الدخول السريع",
+    quickSignInTitle: "بصمة",
     quickSignInMethod: "Face ID / بصمة",
-    quickSignIn: "الدخول السريع",
-    quickSignInVerifying: "كنتحقق...",
-    quickSignInDivider: "أو",
-    quickSignInError:
-      "ما قدرناش ندخلوك بالدخول السريع. استعمل الإيميل وكلمة السر أو عاود حاول.",
+    quickSignInVerifying: "...",
+    quickSignInError: "ما قدرناش ندخلوك بالبصمة. عاود حاول.",
     chipSalary: "السالير",
     chipRent: "الكراء",
     chipDebt: "كريدي",
-    fabor: "فابووووور",
+    addExpenseQuick: "مصروف",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
 export default function LoginPage() {
-  const appVersionLabel = getAppVersionLabel();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const inputClass =
@@ -718,30 +692,48 @@ export default function LoginPage() {
             <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
           </div>
 
-          <div className="relative z-10">
-            <h2 className={`${headingClass} lg-rise text-[2rem] font-extrabold leading-[1.1] text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
+          <div className="relative z-10 space-y-6">
+            <h2 className={`${headingClass} lg-rise text-[2.1rem] font-extrabold leading-[1.15] text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
               {copy.heroTitle}
             </h2>
-            <p className="lg-rise mt-3.5 max-w-[38ch] text-[0.95rem] leading-relaxed text-[#B9CFC5]" style={{ "--d": ".3s" } as React.CSSProperties}>
-              {copy.heroBody}
-            </p>
-            <div className="mt-7 flex flex-col gap-3">
-              {[copy.heroPoint1, copy.heroPoint2, copy.heroPoint3].map((point, index) => (
-                <div
-                  key={point}
-                  className="lg-rise flex items-start gap-3 text-[0.87rem] font-semibold text-[#DCEAE3]"
-                  style={{ "--d": `${0.42 + index * 0.08}s` } as React.CSSProperties}
-                >
-                  <span className="mt-px flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full bg-[#17C777]/20 text-[#17C777]">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                  </span>
-                  <span>{point}</span>
+
+            {/* Micro-composant visuel interactif : Enveloppe dynamique avec jauge orange (80%) et ajout direct 0.00 DH */}
+            <div className="lg-rise w-full max-w-[340px] rounded-2xl border border-white/15 bg-white/[0.08] p-5 shadow-2xl backdrop-blur-md transition-transform hover:scale-[1.02]" style={{ "--d": ".32s" } as React.CSSProperties}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F59E0B]/20 text-[#F59E0B]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#B9CFC5]">{copy.envelopeLabel}</p>
+                    <p className="text-sm font-extrabold text-white">{copy.envelopeCategory}</p>
+                  </div>
                 </div>
-              ))}
+                {/* حالة الظرف : شريط بلون برتقالي مع نسبة 80% */}
+                <span className="rounded-full bg-[#F59E0B]/20 px-2.5 py-0.5 text-[0.74rem] font-extrabold text-[#F59E0B]">80%</span>
+              </div>
+              <div className="mt-3.5">
+                <div className="flex justify-between text-xs font-bold text-[#DCEAE3]">
+                  <span>4 000 DH</span>
+                  <span className="text-[#8FAEA0]">5 000 DH</span>
+                </div>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#F97316]" style={{ width: "80%" }} />
+                </div>
+              </div>
+
+              {/* إضافة مصروف : حقل برمز العملة 0.00 DH مباشرة */}
+              <div className="mt-3.5 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#17C777]/20 text-xs font-bold text-[#17C777]">+</span>
+                  <span className="text-[13px] font-extrabold tracking-wide text-white" dir="ltr">0.00 DH</span>
+                </div>
+                <span className="text-[0.72rem] font-bold text-[#8FAEA0]">{copy.addExpenseQuick}</span>
+              </div>
             </div>
           </div>
 
-          <div className="lg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".72s" } as React.CSSProperties}>
+          <div className="lg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".5s" } as React.CSSProperties}>
             {[
               { label: copy.chipSalary, value: "+12 400", dot: "#17C777", up: true },
               { label: copy.chipRent, value: "-3 200", dot: "#0A241D", up: false },
@@ -763,7 +755,7 @@ export default function LoginPage() {
 
         {/* ---------------- form panel ---------------- */}
         <main className={`flex flex-col px-5 pb-12 pt-6 sm:px-8 lg:px-14 lg:pt-8 ${copyClass}`}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between">
             <Link
               href="/"
               aria-label={copy.backHome}
@@ -771,32 +763,25 @@ export default function LoginPage() {
             >
               <Home className="h-4 w-4" />
             </Link>
-            <Link
-              href="/releases"
-              className="text-[0.7rem] font-semibold text-[#7C8D86] underline-offset-2 transition hover:text-[#0B8F53] hover:underline"
-            >
-              7sabek {appVersionLabel}
-            </Link>
           </div>
 
-          <div className="flex flex-1 items-center justify-center pt-8">
+          <div className="flex flex-1 items-center justify-center pt-4">
             <motion.div
-              className="w-full max-w-[470px]"
+              className="w-full max-w-[440px]"
               initial={reduceMotion ? undefined : { opacity: 0, y: 22 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="mb-7 flex flex-col items-center gap-3 text-center lg:hidden">
-                <BrandLogo locale={locale} className="h-20 w-auto object-contain" />
+              <div className="mb-6 flex flex-col items-center gap-3 text-center lg:hidden">
+                <BrandLogo locale={locale} className="h-16 w-auto object-contain" />
               </div>
 
               <h1 className={`${headingClass} text-[clamp(1.7rem,3vw,2.2rem)] font-extrabold tracking-tight text-[#0A241D]`}>
                 {copy.title}
               </h1>
-              <p className="mt-2.5 text-[0.96rem] leading-relaxed text-[#4E625A]">{copy.subtitle}</p>
 
               {showMaintenanceBanner ? (
-                <div className="mt-5">
+                <div className="mt-4">
                   <SystemMessageCard variant="maintenance" message={maintenanceMessage} suffix={copy.maintenanceSuffix} />
                 </div>
               ) : null}
@@ -835,7 +820,9 @@ export default function LoginPage() {
                 </div>
               ) : (
                 <>
-                  <GuestRecoveryPrompt locale={locale} dir={pageDir} />
+                  <div className="mt-4">
+                    <GuestRecoveryPrompt locale={locale} dir={pageDir} />
+                  </div>
                   <form
                     onSubmit={handleLogin}
                     onKeyDown={(event) => {
@@ -846,7 +833,7 @@ export default function LoginPage() {
                       event.preventDefault();
                       event.currentTarget.requestSubmit();
                     }}
-                    className="mt-6"
+                    className="mt-4"
                   >
                     <div className="lg-field">
                       <Label htmlFor="email" className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">
@@ -863,16 +850,21 @@ export default function LoginPage() {
                           autoComplete="email"
                           placeholder="nom@exemple.ma"
                           value={email}
-                          onChange={(event) => setEmail(event.target.value)}
-                          className={inputClass}
+                          onChange={(event) => { setEmail(event.target.value); setError(null); }}
+                          className={`${inputClass} ${error ? "border-[#F2686B] ring-2 ring-[#F2686B]/20" : ""}`}
                         />
                       </div>
                     </div>
 
-                    <div className="lg-field mt-4">
-                      <Label htmlFor="password" className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">
-                        {copy.password}
-                      </Label>
+                    <div className="lg-field mt-3.5">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <Label htmlFor="password" className="block text-[0.8rem] font-extrabold text-[#4E625A]">
+                          {copy.password}
+                        </Label>
+                        <Link href="/forgot-password" className="text-[0.8rem] font-bold text-[#0B8F53] hover:underline">
+                          {copy.forgotPassword}
+                        </Link>
+                      </div>
                       <div className="lg-control relative flex items-center">
                         <span className={ICON_WRAP}>
                           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
@@ -885,8 +877,8 @@ export default function LoginPage() {
                           data-clarity-mask="true"
                           placeholder="••••••••"
                           value={password}
-                          onChange={(event) => setPassword(event.target.value)}
-                          className={`${inputClass} pe-12`}
+                          onChange={(event) => { setPassword(event.target.value); setError(null); }}
+                          className={`${inputClass} pe-12 ${error ? "border-[#F2686B] ring-2 ring-[#F2686B]/20" : ""}`}
                         />
                         <Button
                           type="button"
@@ -899,21 +891,16 @@ export default function LoginPage() {
                           {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
-                      <div className="mt-2.5 flex justify-end">
-                        <Link href="/forgot-password" className="text-[0.83rem] font-bold text-[#0B8F53] hover:underline">
-                          {copy.forgotPassword}
-                        </Link>
-                      </div>
                     </div>
 
                     {maintenanceActive ? (
-                      <div className="mt-4 rounded-2xl border border-[#F2A93B]/40 bg-[#FDF2DF] px-4 py-3.5 text-sm text-[#8A5A0F]">
+                      <div className="mt-3.5 rounded-xl border border-[#F2A93B]/40 bg-[#FDF2DF] px-3.5 py-3 text-xs text-[#8A5A0F]">
                         <p className="font-extrabold">{copy.maintenanceActive}</p>
-                        <p className="mt-1 text-xs">{copy.maintenanceOnlySuperadmins}</p>
-                        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-bold">
+                        <p className="mt-0.5">{copy.maintenanceOnlySuperadmins}</p>
+                        <label className="mt-2 flex cursor-pointer items-center gap-2 font-bold">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-[#F2A93B]/60 text-[#B97913] focus:ring-[#F2A93B]"
+                            className="h-3.5 w-3.5 rounded border-[#F2A93B]/60 text-[#B97913] focus:ring-[#F2A93B]"
                             checked={maintenanceConfirm}
                             onChange={(event) => setMaintenanceConfirm(event.target.checked)}
                           />
@@ -923,60 +910,52 @@ export default function LoginPage() {
                     ) : null}
 
                     {retryAfterSeconds ? (
-                      <p className="mt-4 rounded-2xl border border-[#F2686B]/30 bg-[#FDECEC] px-4 py-3 text-sm font-semibold text-[#B33A3D]">
-                        {copy.retryIn} <span className="font-extrabold tabular-nums">{formatDuration(retryAfterSeconds)}</span>.
+                      <p className="mt-3 flex items-center gap-1.5 rounded-xl border border-[#F2686B]/30 bg-[#FDECEC] px-3.5 py-2.5 text-xs font-bold text-[#B33A3D]">
+                        <AlertCircle className="h-3.5 w-3.5 flex-none" />
+                        <span>{copy.retryIn} <span className="tabular-nums">{formatDuration(retryAfterSeconds)}</span>.</span>
                       </p>
                     ) : error ? (
-                      <p className="mt-4 rounded-2xl border border-[#F2686B]/30 bg-[#FDECEC] px-4 py-3 text-sm font-semibold text-[#B33A3D]">
-                        {error}
+                      <p className="mt-3 flex items-center gap-1.5 rounded-xl border border-[#F2686B]/30 bg-[#FDECEC] px-3.5 py-2.5 text-xs font-bold text-[#B33A3D]">
+                        <AlertCircle className="h-3.5 w-3.5 flex-none" />
+                        <span>{error}</span>
                       </p>
                     ) : null}
 
-                    <Button
-                      type="submit"
-                      isLoading={loading}
-                      disabled={loginDisabled}
-                      className="lg-cta mt-5 h-[52px] w-full rounded-xl bg-[#17C777] text-[0.95rem] font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
-                    >
-                      {copy.login}
-                    </Button>
-
-                    {showQuickSignIn ? (
-                      <div className="mt-5">
-                        <div className="flex items-center gap-3.5" aria-hidden="true">
-                          <span className="h-px flex-1 bg-[#E3E8DF]" />
-                          <span className="text-[0.76rem] font-bold uppercase tracking-wide text-[#7C8D86]">
-                            {copy.quickSignInDivider}
-                          </span>
-                          <span className="h-px flex-1 bg-[#E3E8DF]" />
-                        </div>
+                    <div className="mt-4 flex items-center gap-2">
+                      <Button
+                        type="submit"
+                        isLoading={loading}
+                        disabled={loginDisabled}
+                        className="lg-cta h-[50px] flex-1 rounded-xl bg-[#17C777] text-[0.95rem] font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
+                      >
+                        {copy.login}
+                      </Button>
+                      {showQuickSignIn ? (
                         <Button
                           type="button"
                           variant="secondary"
-                          aria-label={`${copy.quickSignInTitle} - ${copy.quickSignInMethod}`}
-                          className="mt-4 h-[52px] w-full rounded-xl border-[#E3E8DF] bg-white text-[0.92rem] font-bold text-[#0A241D] shadow-none transition hover:-translate-y-px hover:border-[#0A241D]"
+                          aria-label={copy.quickSignInTitle}
+                          title={`${copy.quickSignInTitle} - ${copy.quickSignInMethod}`}
+                          className="h-[50px] w-[50px] flex-none rounded-xl border border-[#E3E8DF] bg-white p-0 text-[#0A241D] shadow-none transition hover:border-[#17C777] hover:text-[#0B8F53]"
                           onClick={handleQuickSignIn}
                           disabled={quickSignInLoading || loading}
                         >
-                          <span className="inline-flex items-center gap-2">
-                            <Fingerprint className="h-4 w-4 text-[#0B8F53]" aria-hidden="true" />
-                            <span>{quickSignInLoading ? copy.quickSignInVerifying : copy.quickSignInTitle}</span>
-                            <span className="text-xs font-semibold text-[#7C8D86]">{copy.quickSignInMethod}</span>
-                          </span>
+                          <Fingerprint className={`h-5 w-5 ${quickSignInLoading ? "animate-pulse text-[#17C777]" : "text-[#0B8F53]"}`} />
                         </Button>
-                        {quickSignInError ? (
-                          <p className="mt-2 text-center text-xs font-semibold text-[#B33A3D]">{quickSignInError}</p>
-                        ) : null}
-                      </div>
+                      ) : null}
+                    </div>
+
+                    {quickSignInError ? (
+                      <p className="mt-2 text-center text-xs font-semibold text-[#B33A3D]">{quickSignInError}</p>
                     ) : null}
 
                     {forceReset ? (
-                      <div className="mt-5 rounded-2xl border border-[#17C777]/30 bg-[#E2F7EC] p-4">
+                      <div className="mt-4 rounded-xl border border-[#17C777]/30 bg-[#E2F7EC] p-3.5">
                         <p className="font-extrabold text-[#0A241D]">{copy.resetRequired}</p>
                         <p className="mt-1 text-xs text-[#4E625A]">{copy.resetRequiredBody}</p>
-                        <div className="mt-3.5 space-y-3">
+                        <div className="mt-3 space-y-2.5">
                           <div>
-                            <Label className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">{copy.newPassword}</Label>
+                            <Label className="mb-1 block text-[0.8rem] font-extrabold text-[#4E625A]">{copy.newPassword}</Label>
                             <Input
                               type="password"
                               autoComplete="new-password"
@@ -987,7 +966,7 @@ export default function LoginPage() {
                             />
                           </div>
                           <div>
-                            <Label className="mb-1.5 block text-[0.8rem] font-extrabold text-[#4E625A]">{copy.confirmPassword}</Label>
+                            <Label className="mb-1 block text-[0.8rem] font-extrabold text-[#4E625A]">{copy.confirmPassword}</Label>
                             <Input
                               type="password"
                               autoComplete="new-password"
@@ -1001,7 +980,7 @@ export default function LoginPage() {
                             type="button"
                             onClick={handleForceReset}
                             isLoading={loading}
-                            className="h-[50px] w-full rounded-xl bg-[#17C777] font-bold text-[#06301F] hover:bg-[#0B8F53] hover:text-white"
+                            className="h-[48px] w-full rounded-xl bg-[#17C777] font-bold text-[#06301F] hover:bg-[#0B8F53] hover:text-white"
                           >
                             {copy.update}
                           </Button>
@@ -1010,7 +989,7 @@ export default function LoginPage() {
                     ) : null}
                   </form>
 
-                  <div className="mt-6">
+                  <div className="mt-3">
                     <GuestModeButton
                       status={status}
                       locale={locale}
@@ -1019,21 +998,15 @@ export default function LoginPage() {
                       loading={guestLoading}
                       onStart={handleGuestStart}
                       label={copy.tryWithoutAccount}
-                      hint={copy.tryWithoutAccountHint}
-                      className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] hover:bg-[#0B8F53]/10"
-                      hintClassName="mt-2 text-center text-[0.78rem] font-medium text-[#4E625A]"
+                      className="h-[46px] w-full rounded-xl border border-[#E3E8DF] bg-white text-[0.88rem] font-bold text-[#4E625A] transition hover:border-[#17C777] hover:text-[#0B8F53]"
                     />
                   </div>
 
-                  <p className="mt-4 flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">
+                  <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[0.87rem] font-semibold text-[#4E625A]">
                     <span>{copy.noAccountYet}</span>
                     <Link href="/register" className="font-extrabold text-[#0B8F53] hover:underline">
                       {copy.createAccount}
                     </Link>
-                    <span className="lg-sticker inline-flex items-center gap-1.5 rounded-full bg-[#F2A93B] px-3 py-1.5 text-[0.78rem] font-extrabold text-[#3A2400] shadow-[0_8px_18px_-8px_rgba(242,169,59,0.8)]">
-                      <span aria-hidden="true">✦</span>
-                      {copy.fabor}
-                    </span>
                   </p>
                 </>
               )}

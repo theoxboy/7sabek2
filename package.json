@@ -1,9 +1,9 @@
 {
   "name": "floussy-web",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_DISABLE_TURBOPACK=1 next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

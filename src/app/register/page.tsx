@@ -7,11 +7,14 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Camera, Eye, EyeOff, Home } from "lucide-react";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
 
-import { apiFetch } from "@/lib/api";
-import { fetchMe, logout, refreshAuthSession, type AuthUser } from "@/lib/auth";
+import { apiFetch, resetAuthClientState } from "@/lib/api";
+import { fetchMe, logout, refreshAuthSession, markAuthSessionHint, type AuthUser } from "@/lib/auth";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
+import { GuestModeButton } from "@/components/guest/GuestModeButton";
+import { startGuestSession } from "@/lib/guestSession";
+import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import BrandLogo from "@/components/BrandLogo";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { Button } from "@/components/ui/Button";
@@ -331,6 +334,9 @@ const REGISTER_COPY = {
     acceptTermsAnd: " et la ",
     acceptTermsPrivacyLink: "Politique de Confidentialité",
     acceptTermsSuffix: " de 7sabek.ma.",
+    tryWithoutAccount: "Essayer sans compte",
+    tryWithoutAccountHint: "Sans e-mail, sans mot de passe. Tes données restent, tu crées un compte quand tu veux.",
+    guestStartError: "Impossible de démarrer le mode découverte. Réessaie.",
   },
   en: {
     photoMustBeImage: "The file must be an image.",
@@ -429,6 +435,9 @@ const REGISTER_COPY = {
     acceptTermsAnd: " and the ",
     acceptTermsPrivacyLink: "Privacy Policy",
     acceptTermsSuffix: " of 7sabek.ma.",
+    tryWithoutAccount: "Try without an account",
+    tryWithoutAccountHint: "No email, no password. Your data stays; create an account whenever you want.",
+    guestStartError: "Unable to start discovery mode. Please try again.",
   },
   ar: {
     photoMustBeImage: "الملف خاصو يكون صورة.",
@@ -527,6 +536,9 @@ const REGISTER_COPY = {
     acceptTermsAnd: " و ",
     acceptTermsPrivacyLink: "سياسة الخصوصية",
     acceptTermsSuffix: " لـ 7sabek.ma.",
+    tryWithoutAccount: "جرّب بلا حساب",
+    tryWithoutAccountHint: "بلا إيميل، بلا كلمة السر. البيانات ديالك تبقى، وتصاوب حساب فاش بغيتي.",
+    guestStartError: "ما قدرناش نبداو وضع الاكتشاف. عاود المحاولة.",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
@@ -600,6 +612,22 @@ export default function RegisterPage() {
   const supportEmail = status?.support_email || "elidryssi@gmail.com";
   const isOnboardingStep = !user && step === 4;
   const copy = REGISTER_COPY[locale];
+
+  const [guestLoading, setGuestLoading] = useState(false);
+  const handleGuestStart = async () => {
+    setError(null);
+    setGuestLoading(true);
+    try {
+      resetAuthClientState();
+      const guest = await startGuestSession();
+      markAuthSessionHint();
+      router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
+    } catch {
+      setError(copy.guestStartError);
+    } finally {
+      setGuestLoading(false);
+    }
+  };
   // A tab opened in the background freezes CSS animations at frame 0, which would
   // leave the panel invisible. Only arm the one-shot intro when the page is on screen.
   useEffect(() => {
@@ -1954,6 +1982,21 @@ export default function RegisterPage() {
                   <span aria-hidden="true">✦</span>
                   {copy.fabor}
                 </span>
+              </div>
+
+              <div className={`mt-4 ${isOnboardingStep ? "hidden" : ""}`}>
+                <GuestModeButton
+                  status={status}
+                  locale={locale}
+                  dir={pageDir}
+                  placement="register"
+                  loading={guestLoading}
+                  onStart={handleGuestStart}
+                  label={copy.tryWithoutAccount}
+                  hint={copy.tryWithoutAccountHint}
+                  className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] hover:bg-[#0B8F53]/10"
+                  hintClassName="mt-2 text-center text-[0.78rem] font-medium text-[#4E625A]"
+                />
               </div>
             </motion.form>
           )}

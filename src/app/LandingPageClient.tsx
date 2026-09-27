@@ -7,7 +7,13 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Apple, Chrome, Globe } from "lucide-react";
 import { Cairo } from "next/font/google";
 
-import { fetchMe, hasAuthSessionHint, logout, type AuthUser } from "@/lib/auth";
+import { apiFetch, resetAuthClientState } from "@/lib/api";
+import { fetchMe, hasAuthSessionHint, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { usePlatformStatus } from "@/lib/usePlatformStatus";
+import { GuestModeButton } from "@/components/guest/GuestModeButton";
+import { startGuestSession } from "@/lib/guestSession";
+import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import BrandLogo from "@/components/BrandLogo";
 import { triggerAddToHomeScreenPrompt } from "@/components/pwa/AddToHomeScreenPrompt";
 import {
@@ -46,7 +52,7 @@ function detectHeroInstallKind(ua: string): HeroInstallKind {
 type Duo = { t: string; d: string };
 type Copy = {
   nav: { sim: string; who: string; cgu: string; priv: string; contact: string };
-  cta: { start: string; login: string; logout: string; dashboard: string; free: string; installAndroid: string; installIOS: string; installChrome: string };
+  cta: { start: string; login: string; logout: string; dashboard: string; free: string; installAndroid: string; installIOS: string; installChrome: string; tryWithoutAccount: string };
   hero: { taglineA: string; taglineB: string };
   trust: string[];
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
@@ -64,7 +70,7 @@ type Copy = {
 const COPY: Record<FloussyLocale, Copy> = {
   fr: {
     nav: { sim: "Simulateur", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
-    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installAndroid: "App Android", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer sur Chrome" },
+    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installAndroid: "App Android", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer sur Chrome", tryWithoutAccount: "Essayer sans compte" },
     hero: {
       taglineA: "Ton budget,",
       taglineB: "entre tes mains.",
@@ -128,7 +134,7 @@ const COPY: Record<FloussyLocale, Copy> = {
 
   en: {
     nav: { sim: "Simulator", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
-    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installAndroid: "Android app", installIOS: "Add to Home Screen", installChrome: "Install on Chrome" },
+    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installAndroid: "Android app", installIOS: "Add to Home Screen", installChrome: "Install on Chrome", tryWithoutAccount: "Try without an account" },
     hero: {
       taglineA: "Your budget,",
       taglineB: "in your hands.",
@@ -192,7 +198,7 @@ const COPY: Record<FloussyLocale, Copy> = {
 
   ar: {
     nav: { sim: "سيميلاسيون", who: "لشكون", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
-    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا فابور", installAndroid: "تطبيق أندرويد", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت على Chrome" },
+    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا فابور", installAndroid: "تطبيق أندرويد", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت على Chrome", tryWithoutAccount: "جرّب بلا حساب" },
     hero: {
       taglineA: "حسابك",
       taglineB: "بيدك.",
@@ -455,6 +461,23 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const effectiveLocale: FloussyLocale = locale;
   const copy = COPY[effectiveLocale];
   const direction = getLocaleDirection(effectiveLocale);
+  const router = useRouter();
+  const status = usePlatformStatus();
+  const [guestLoading, setGuestLoading] = useState(false);
+
+  const handleGuestStart = async () => {
+    setGuestLoading(true);
+    try {
+      resetAuthClientState();
+      const guest = await startGuestSession();
+      markAuthSessionHint();
+      router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
+    } catch {
+      router.push("/login");
+    } finally {
+      setGuestLoading(false);
+    }
+  };
   const isArabic = effectiveLocale === "ar";
   const pageFontClass = `${arabicFont.className} ${isArabic ? "lp-ar" : ""}`;
   const headingClass = arabicFont.className;
@@ -746,6 +769,17 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               </h1>
               <div className="lp-ctarow">
                 <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
+
+                <GuestModeButton
+                  status={status}
+                  locale={effectiveLocale}
+                  dir={direction}
+                  placement="landing"
+                  loading={guestLoading}
+                  onStart={handleGuestStart}
+                  label={copy.cta.tryWithoutAccount}
+                  className="lp-btn lp-btn-ghost"
+                />
 
                 {/* Device-aware install CTA: Android → Play/APK popup, iOS →
                     the existing "Add to Home Screen" prompt, Chromium desktop

@@ -27,6 +27,37 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.6.0",
+    date: "2026-09-27",
+    groups: [
+      {
+        kind: "added",
+        items: [
+          {
+            fr: "Le bouton « Essayer sans compte » est maintenant proposé dès la page d'accueil et la page d'inscription, pas seulement à la connexion.",
+            en: "The \"Try without an account\" option is now offered right on the home page and the sign-up page, not just at login.",
+            ar: "الخيار « جرّب بلا حساب » دابا موجود من الصفحة الرئيسية ومن صفحة التسجيل، ماشي غير فالدخول.",
+          },
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "Page de connexion revue pour être plus claire et plus rapide à utiliser.",
+            en: "Login page redesigned to be clearer and quicker to use.",
+            ar: "صفحة الدخول تبدلت باش تبان أوضح وأسهل.",
+          },
+          {
+            fr: "En mode découverte, une fois ton code de récupération noté, on te propose tout de suite de créer ton compte pour garder tes données en sécurité.",
+            en: "In discovery mode, right after you've noted your recovery code, you're now offered to create your account to keep your data safe.",
+            ar: "فوضع الاكتشاف، مباشرة من بعد ما تكتب كود الاسترجاع ديالك، كنعرضو عليك تصاوب حسابك باش تحفظ بياناتك.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.5.1",
     date: "2026-09-14",
     groups: [
