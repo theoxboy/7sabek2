@@ -3163,15 +3163,18 @@ function getHousingProposalEntries(
     }
 
     if (!simpleMode && (!includesCosts || !includedItems.has("syndic"))) {
-      entries.push({
-        name: "Charges",
-        group_key: "housing",
-        kind: "spend",
-        source: "suggested",
-        fallback_tier: "recommended",
-        reason: "مصاريف الدار بقات ظاهرة بوحدها حيث كاينين مصاريف ماشي داخلين كاملين فالكراء.",
-        objective_bias_effect: "فصلناها باش يبان شنو سكن وشنو مصروف تابع للسكن.",
-      });
+      const syndicKnownAmount = getKnownProposalAmount("Charges", answers);
+      if (typeof syndicKnownAmount === "number" && syndicKnownAmount > 0) {
+        entries.push({
+          name: "Charges",
+          group_key: "housing",
+          kind: "spend",
+          source: "suggested",
+          fallback_tier: "recommended",
+          reason: "مصاريف الدار بقات ظاهرة بوحدها حيث كاينين مصاريف ماشي داخلين كاملين فالكراء.",
+          objective_bias_effect: "فصلناها باش يبان شنو سكن وشنو مصروف تابع للسكن.",
+        });
+      }
     }
 
     return entries;
@@ -4318,19 +4321,30 @@ function buildEnvelopeProposalCandidates(
     reasons
   );
 
-  addProposalCandidate(
-    candidates,
-    withSmartRollover({
-      name: "Factures",
-      group_key: "bills",
-      tier: getProposalTierForDomain(objectivePolicy, "bills", "core"),
-      default_included: shouldIncludeKnownFixedProposal(
+  const hasSpecificBills = fixedItemEntries.some(
+    (e) => e.group_key === "bills" && e.name !== "Factures"
+  );
+  const facturesKnownAmount = getKnownProposalAmount("Factures", answers);
+  const hasFacturesKnownAmount = typeof facturesKnownAmount === "number" && facturesKnownAmount > 0;
+  const includeFacturesDefault = hasSpecificBills
+    ? hasFacturesKnownAmount
+    : shouldIncludeKnownFixedProposal(
         "Factures",
         shouldDefaultIncludeProposal(
           objectivePolicy,
           getProposalTierForDomain(objectivePolicy, "bills", "core")
         )
-      ),
+      );
+
+  addProposalCandidate(
+    candidates,
+    withSmartRollover({
+      name: "Factures",
+      group_key: "bills",
+      tier: hasSpecificBills && !hasFacturesKnownAmount
+        ? "optional"
+        : getProposalTierForDomain(objectivePolicy, "bills", "core"),
+      default_included: includeFacturesDefault,
       reason: salaryTight
         ? "كيجمع المصاريف الشهرية الثابتة فبلاصة واضحة حيث الثابت واخد حصة مهمة من الدخل."
         : "كيجمع المصاريف الشهرية الثابتة فبلاصة واضحة.",
@@ -4495,16 +4509,17 @@ function buildEnvelopeProposalCandidates(
     reasons
   );
 
+  const plannedFreeBuffer = guidanceSnapshot?.planned_free ?? 0;
+  const balanceBufferEligible =
+    (objectivePolicy.mode === "balanced" || guidancePrioritizesSafety) && plannedFreeBuffer > 0;
+
   addProposalCandidate(
     candidates,
     withSmartRollover({
       name: "التوازن",
       group_key: "buffer",
-      tier:
-        objectivePolicy.mode === "balanced" || guidancePrioritizesSafety
-          ? "recommended"
-          : "optional",
-      default_included: objectivePolicy.mode === "balanced" || guidancePrioritizesSafety,
+      tier: balanceBufferEligible ? "recommended" : "optional",
+      default_included: balanceBufferEligible,
       reason: "كيشد الفروقات الصغيرة بين الشهور باش الخطة تبقى مستقرة وما يطيحش الضغط على ظرف واحد.",
       objective_bias_effect:
         guidancePrioritizesSafety
