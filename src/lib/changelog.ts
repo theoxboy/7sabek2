@@ -27,6 +27,42 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.6.1",
+    date: "2026-09-29",
+    groups: [
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "La configuration de départ est plus courte : une seule question pour ton jour de paie, moins de questions sur ton foyer, ton logement et tes transports, et une introduction plus rapide qu'on peut passer.",
+            en: "Getting started is shorter: one question for your payday, fewer questions about your household, housing and transport, and a quicker intro you can skip.",
+            ar: "البداية ولات أقصر: سؤال واحد على نهار الخلصة، أسئلة أقل على الدار والسكن والتنقل، ومقدمة أسرع تقدر تدوزها.",
+          },
+          {
+            fr: "Tes objectifs se déclarent maintenant sur un seul écran, avec un bouton « Pas maintenant » si tu n'en as pas encore.",
+            en: "Your goals are now entered on a single screen, with a \"Not now\" button if you don't have one yet.",
+            ar: "الأهداف ديالك دابا كتدخلهم فصفحة وحدة، ومعاها زر « ماشي دابا » إلا مازال ما عندكش.",
+          },
+          {
+            fr: "Au moment de construire ton plan, ce qui arrive à l'argent non dépensé est déjà réglé selon nos recommandations ; tu peux le modifier en un clic.",
+            en: "When building your plan, what happens to unspent money is already set to our recommendation; you can change it in one click.",
+            ar: "ملي كتبني الخطة، شنو يوقع للفلوس اللي بقات مضبوط ديجا على حساب النصيحة ديالنا، وتقدر تبدلو بكليكة.",
+          },
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          {
+            fr: "Ton crédit logement, ton crédit voiture et les charges déjà incluses dans ton loyer ne risquent plus d'être comptés deux fois.",
+            en: "Your home loan, car loan and the bills already included in your rent can no longer be counted twice.",
+            ar: "قرض الدار، قرض الطوموبيل والمصاريف اللي داخلة فالكراء ما بقاوش يتحسبو جوج مرات.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-09-27",
     groups: [

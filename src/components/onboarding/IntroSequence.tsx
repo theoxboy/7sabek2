@@ -44,11 +44,8 @@ export function IntroSequence({
   const firstName = user.firstName.trim();
   const messages = useMemo(
     () => [
-      `مرحبا بك ${firstName} فـ 7سابك`,
-      "أنا المساعد المالي الذكي ديالك",
-      "وغادي نعاونك تنظّم فلوسك خطوة بخطوة",
-      "قبل ما نبدأو…",
-      "غادي نطرح عليك شوية ديال الأسئلة باش نفهم وضعيتك المالية.",
+      firstName ? `مرحبا بك ${firstName} فـ 7سابك` : "مرحبا بك فـ 7سابك",
+      "شي أسئلة قصيرة على الدخل والمصاريف، ومن بعد نوجدو ليك خطة الأظرفة.",
     ],
     [firstName]
   );
@@ -89,11 +86,11 @@ export function IntroSequence({
             type="button"
             onClick={() => {
               clearTimers();
-              setCurrentStepIndex(startStepIndex);
+              onStart();
             }}
-            className="absolute right-6 top-8 text-[14px] font-medium text-[var(--muted)] transition hover:text-[var(--ink)] sm:right-10"
+            className="absolute right-6 top-8 inline-flex min-h-11 items-center rounded-full border border-[var(--border)] px-4 text-[14px] font-semibold text-[var(--ink)] transition hover:bg-[var(--bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:right-10"
           >
-            ديرها من بعد
+            دوز
           </button>
         ) : null}
 

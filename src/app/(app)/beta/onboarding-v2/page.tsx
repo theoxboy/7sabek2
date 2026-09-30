@@ -9,7 +9,6 @@ import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { GUEST_LIMITS } from "@/lib/guestQuota";
 import {
-  Camera,
   Check,
   ChevronDown,
   ChevronUp,
@@ -87,6 +86,14 @@ import {
   getSalaryEntryFrequencyLabel,
   type SalaryScheduleProfile,
 } from "@/lib/salaryNotifications";
+import {
+  applyPayTimingAnswer,
+  getPayTimingLegacyQuestionAliases,
+  getPayTimingOptions,
+  getPayTimingSpec,
+  getPayTimingValueFromLegacyAnswers,
+  withPayTimingAnswersFromLegacy,
+} from "@/lib/onboardingPayTiming";
 
 type AnswerValue =
   | string
@@ -478,61 +485,35 @@ const FIXED_ITEMS: QuestionOption[] = [
   { value: "other", label: "أخرى" },
 ];
 
-const DAY_OPTIONS: QuestionOption[] = [
-  { value: "20", label: "20" },
-  { value: "25", label: "25" },
-  { value: "28", label: "28" },
-  { value: "30", label: "30" },
-  { value: "1", label: "1" },
-];
+// Former screens now asked by another screen. Edit links and saved progress
+// that still point at them land on the screen that asks the same thing.
+const MERGED_QUESTION_ID_ALIASES: Record<string, string> = {
+  G0_has_goal: "G1_goal_builder",
+  D0_intro_message: "E5_has_debt",
+  FX0_fixed_now: "FX1_fixed_items",
+  ...getPayTimingLegacyQuestionAliases(),
+};
 
-const RANGE_OPTIONS: QuestionOption[] = [
-  { value: "20-24", label: "بين 20 و24" },
-  { value: "25-30", label: "بين 25 و30" },
-  { value: "1-5", label: "بين 1 و5" },
-];
-
-const WEEKDAY_OPTIONS: QuestionOption[] = [
-  { value: "mon", label: "الإثنين" },
-  { value: "tue", label: "الثلاثاء" },
-  { value: "wed", label: "الأربعاء" },
-  { value: "thu", label: "الخميس" },
-  { value: "fri", label: "الجمعة" },
-  { value: "sat", label: "السبت" },
-  { value: "sun", label: "الأحد" },
-];
-
-const BIWEEKLY_MONTH_DATES_OPTIONS: QuestionOption[] = [
-  { value: "1-15", label: "1 و15" },
-  { value: "5-20", label: "5 و20" },
-  { value: "10-25", label: "10 و25" },
-  { value: "15-30", label: "15 و30" },
-];
-
-const BIWEEKLY_RANGE_OPTIONS: QuestionOption[] = [
-  { value: "1-5_16-20", label: "بين 1-5 و16-20" },
-  { value: "5-10_20-25", label: "بين 5-10 و20-25" },
-  { value: "10-15_25-30", label: "بين 10-15 و25-30" },
-];
-
-const WEEKLY_WEEKEND_OPTIONS: QuestionOption[] = [
-  { value: "thu", label: "الخميس" },
-  { value: "fri", label: "الجمعة" },
-  { value: "sat", label: "السبت" },
-  { value: "sun", label: "الأحد" },
-];
-
-const WEEKLY_RANGE_OPTIONS: QuestionOption[] = [
-  { value: "mon-tue", label: "بين الإثنين والثلاثاء" },
-  { value: "wed-thu", label: "بين الأربعاء والخميس" },
-  { value: "fri-sat", label: "بين الجمعة والسبت" },
-];
+function findQuestionIndexById(questions: QuestionSpec[], questionId: string | null | undefined): number {
+  if (!questionId) return -1;
+  const directIndex = questions.findIndex((question) => question.id === questionId);
+  if (directIndex >= 0) return directIndex;
+  const alias = MERGED_QUESTION_ID_ALIASES[questionId];
+  return alias ? questions.findIndex((question) => question.id === alias) : -1;
+}
 
 const HOUSEHOLD_OPTIONS: QuestionOption[] = [
   { value: "single", label: "👤 بوحدي" },
   { value: "couple", label: "💑 مزوّج/زوجة" },
   { value: "family_kids", label: "👨‍👩‍👧‍👦 عائلة مع الأولاد" },
   { value: "extended_family", label: "🏠 كولّوك / سكن مشترك" },
+];
+
+const EXPENSE_SHARE_OPTIONS: QuestionOption[] = [
+  { value: "all", label: "كلشي تقريباً" },
+  { value: "most", label: "الجزء الكبير" },
+  { value: "half", label: "النص" },
+  { value: "small", label: "جزء صغير" },
 ];
 
 const HOUSING_STATUS_OPTIONS: QuestionOption[] = [
@@ -1425,7 +1406,7 @@ function readRegisterOnboardingDraft(): { answers: Answers; draft_objects?: unkn
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { answers?: Answers; draft_objects?: unknown };
     if (!parsed.answers || typeof parsed.answers !== "object") return null;
-    const answers = normalizeCompatOnboardingAnswers(parsed.answers);
+    const answers = withPayTimingAnswersFromLegacy(normalizeCompatOnboardingAnswers(parsed.answers));
     return {
       answers,
       draft_objects: normalizeCompatOnboardingDraftObjects(parsed.draft_objects, {
@@ -1450,7 +1431,7 @@ function toAnswersRecord(value: unknown): Answers {
   if (typeof answers.R2_last_name === "string") {
     answers.R2_last_name = getArabicDisplayName(answers.R2_last_name);
   }
-  return answers;
+  return withPayTimingAnswersFromLegacy(answers);
 }
 
 function readOnboardingProgressSnapshot(
@@ -1614,12 +1595,15 @@ function resolveResumeStateForJourney(
     journeyMode === "money_plan"
       ? resolveMoneyPlanResumeQuestionId(progress)
       : progress?.step_id ?? progress?.current_question_id ?? null;
-  const mappedQuestionIndex = mappedQuestionId
-    ? questions.findIndex((question) => question.id === mappedQuestionId)
-    : -1;
-  const stepIndex = mappedQuestionIndex >= 0 ? mappedQuestionIndex : indexedStep;
+  const mappedQuestionIndex = findQuestionIndexById(questions, mappedQuestionId);
+  // Progress saved on a screen that no longer exists: its numeric index now
+  // points at another screen, so resume at the first unanswered one instead.
+  const savedOnRemovedScreen =
+    journeyMode !== "money_plan" && Boolean(mappedQuestionId) && mappedQuestionIndex < 0;
+  const stepIndex =
+    mappedQuestionIndex >= 0 ? mappedQuestionIndex : savedOnRemovedScreen ? fallbackStepIndex : indexedStep;
   const resumeQuestionId =
-    mappedQuestionIndex >= 0 ? mappedQuestionId : questions[stepIndex]?.id ?? null;
+    mappedQuestionIndex >= 0 ? questions[mappedQuestionIndex]?.id ?? null : questions[stepIndex]?.id ?? null;
   const baseState: ResolvedResumeState = {
     stepIndex,
     isReadyScreen: false,
@@ -3112,6 +3096,68 @@ function getCoupleSharedItems(answers: Answers): Set<string> {
   if (getString(answers, "E0_household_type") !== "couple") return new Set<string>();
   if (getString(answers, "E0c_budget_mode") !== "mixed") return new Set<string>();
   return new Set(getList(answers, "E0c_shared_items"));
+}
+
+const RENT_INCLUDED_ITEM_LABELS: Record<string, string> = {
+  water: "الماء",
+  electricity: "الضو",
+  syndic: "السنديك",
+  furniture: "الأثاث",
+  internet: "الانترنيت",
+};
+
+// FX1 is the single place where bills are entered. What the rent already
+// covers is named in its subtitle so the same bill is not entered twice. No
+// option is hidden: the utilities line also covers gas, never part of a rent.
+function getRentIncludedCostsNote(answers: Answers): string | null {
+  if (
+    getString(answers, "E3_housing_status") !== "rent" ||
+    getString(answers, "RNT1_rent_includes_costs") !== "yes"
+  ) {
+    return null;
+  }
+  const included = getList(answers, "RNT1a_rent_included_items").filter((item) => item in RENT_INCLUDED_ITEM_LABELS);
+  if (included.length === 0) return null;
+  const labels = included.map((item) => RENT_INCLUDED_ITEM_LABELS[item]).join("، ");
+  return `${labels} داخلين فالكراء، ما تعاودش تدخلهم هنا.`;
+}
+
+// Loans whose monthly payment is already counted in housing or transport.
+// They are named on the debt screens so they are not entered a second time.
+function getLoansAlreadyCountedOutsideDebts(answers: Answers): string[] {
+  const loans: string[] = [];
+  if (
+    getString(answers, "E3_housing_status") === "owner_loan" &&
+    toNumber(getString(answers, "HSN1_loan_monthly_amount")) > 0
+  ) {
+    loans.push("قرض الدار");
+  }
+  const transportMode = getString(answers, "E4_transport_mode");
+  const carCostsCounted =
+    transportMode === "car" ||
+    (transportMode === "mixed" && getString(answers, "TRX3_detail_mode") === "detailed");
+  if (
+    carCostsCounted &&
+    getCarTransportPrefixes(answers).some((prefix) => getString(answers, `${prefix}car_loan`) === "yes")
+  ) {
+    loans.push("قرض الطوموبيل");
+  }
+  return loans;
+}
+
+const OWN_SHARE_AMOUNT_QUESTION_IDS = new Set([
+  "RNT0_rent_amount",
+  "HSN1_loan_monthly_amount",
+  "HSN5a_with_family_amount",
+]);
+
+// Couples who split costs and flat-sharers enter their own share only.
+function shouldAskOwnShareOnly(answers: Answers): boolean {
+  const household = getString(answers, "E0_household_type");
+  if (household === "extended_family") return true;
+  if (household !== "couple") return false;
+  const share = getString(answers, "E0_expense_share");
+  return Boolean(share) && share !== "all";
 }
 
 function getExtendedSharedFixedItems(answers: Answers): Set<string> {
@@ -8916,12 +8962,11 @@ function getPriorityProfileSelectedPresetMode(answers: Answers): string | null {
   return exactMatches ?? null;
 }
 
+// Only the first name personalises the journey. Last name, phone, birth date
+// and photo are collected at sign-up (or on the profile page) and prefilled
+// into the answers, so the onboarding no longer asks for them again.
 function hasCollectedUserInfo(answers: Answers): boolean {
-  const firstName = getString(answers, "R1_first_name").trim();
-  const lastName = getString(answers, "R2_last_name").trim();
-  const phone = getString(answers, "R3_phone_number").trim();
-  const birthDate = getString(answers, "R4_birth_date").trim();
-  return Boolean(firstName) && Boolean(lastName) && phone.length >= 6 && Boolean(birthDate);
+  return Boolean(getString(answers, "R1_first_name").trim());
 }
 
 function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding"): QuestionSpec[] {
@@ -8951,16 +8996,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
         kind: "input",
         inputType: "number",
         placeholder: "0",
-      },
-      {
-        id: `${prefix}public_payment_mode`,
-        title: "كتستعمل اشتراك ولا تذاكر؟",
-        kind: "single",
-        options: [
-          { value: "subscription", label: "اشتراك شهري" },
-          { value: "tickets", label: "تذاكر" },
-          { value: "mixed", label: "مختلط" },
-        ],
       },
       {
         id: `${prefix}taxi_usage`,
@@ -9200,128 +9235,32 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     );
 
     const salaryFrequency = getString(answers, "S3_frequency");
-
-    if (salaryFrequency === "monthly") {
+    const salaryPayTimingSpec =
+      salaryFrequency === "monthly"
+        ? getPayTimingSpec("S4_pay_timing_monthly")
+        : salaryFrequency === "biweekly"
+          ? getPayTimingSpec("S4_pay_timing_biweekly")
+          : salaryFrequency === "weekly"
+            ? getPayTimingSpec("S4_pay_timing_weekly")
+            : undefined;
+    if (salaryPayTimingSpec) {
       questions.push({
-        id: "S4_date_mode",
-        title: "إمتى كتشد الراتب عادة؟",
+        id: salaryPayTimingSpec.questionId,
+        title:
+          salaryFrequency === "monthly"
+            ? "إمتى كتشد الراتب عادة؟"
+            : salaryFrequency === "biweekly"
+              ? "إمتى كتشد الراتب ديال كل 15 يوم غالباً؟"
+              : "إمتى كتشد الراتب الأسبوعي غالباً؟",
+        subtitle: "اختار النهار. إلا كان كيبدّل، اختار المجال اللي كيجي فيه غالباً.",
         kind: "single",
-        options: [
-          { value: "fixed_day", label: "📅 نهار ثابت" },
-          { value: "range", label: "⏱️ مجال زمني" },
-        ],
+        ...getPayTimingOptions(salaryPayTimingSpec),
       });
-
-      if (getString(answers, "S4_date_mode") === "fixed_day") {
-        questions.push({
-          id: "S4a_fixed_day",
-          title: "اختار نهار الأداء",
-          kind: "single",
-          options: DAY_OPTIONS,
-        });
-      }
-
-      if (getString(answers, "S4_date_mode") === "range") {
-        questions.push({
-          id: "S4b_range",
-          title: "اختار المجال الزمني ديال الوصول",
-          kind: "single",
-          options: RANGE_OPTIONS,
-        });
-      }
-    }
-
-    if (salaryFrequency === "biweekly") {
-      questions.push({
-        id: "S4c_biweekly_mode",
-        title: "إمتى كتشد الراتب ديال كل 15 يوم غالباً؟",
-        kind: "single",
-        options: [
-          { value: "fixed_weekday", label: "نهار ثابت فالأسبوع (كل 15 يوم)" },
-          { value: "month_dates", label: "جوج تواريخ ثابتين فالشهر" },
-          { value: "range", label: "كيبدّل شوية (مجال زمني)" },
-        ],
-      });
-
-      const biweeklyMode = getString(answers, "S4c_biweekly_mode");
-      if (biweeklyMode === "fixed_weekday") {
-        questions.push({
-          id: "S4c1_biweekly_weekday",
-          title: "اختار نهار الأداء",
-          kind: "single",
-          options: WEEKDAY_OPTIONS,
-        });
-      }
-      if (biweeklyMode === "month_dates") {
-        questions.push({
-          id: "S4c2_biweekly_month_dates",
-          title: "اختار جوج التواريخ الثابتين",
-          kind: "single",
-          options: BIWEEKLY_MONTH_DATES_OPTIONS,
-        });
-      }
-      if (biweeklyMode === "range") {
-        questions.push({
-          id: "S4c3_biweekly_range",
-          title: "اختار المجال الزمني",
-          kind: "single",
-          options: BIWEEKLY_RANGE_OPTIONS,
-        });
-      }
-    }
-
-    if (salaryFrequency === "weekly") {
-      questions.push({
-        id: "S4d_weekly_mode",
-        title: "إمتى كتشد الراتب الأسبوعي غالباً؟",
-        kind: "single",
-        options: [
-          { value: "fixed_weekday", label: "نهار ثابت من الأسبوع" },
-          { value: "weekend", label: "آخر الأسبوع" },
-          { value: "range", label: "كيبدّل بيوم ولا جوج (مجال زمني)" },
-        ],
-      });
-
-      const weeklyMode = getString(answers, "S4d_weekly_mode");
-      if (weeklyMode === "fixed_weekday") {
-        questions.push({
-          id: "S4d1_weekly_weekday",
-          title: "اختار نهار الأداء",
-          kind: "single",
-          options: WEEKDAY_OPTIONS,
-        });
-      }
-      if (weeklyMode === "weekend") {
-        questions.push({
-          id: "S4d2_weekly_weekend_day",
-          title: "اختار نهار آخر الأسبوع",
-          kind: "single",
-          options: WEEKLY_WEEKEND_OPTIONS,
-        });
-      }
-      if (weeklyMode === "range") {
-        questions.push({
-          id: "S4d3_weekly_range",
-          title: "اختار المجال الزمني",
-          kind: "single",
-          options: WEEKLY_RANGE_OPTIONS,
-        });
-      }
     }
   }
 
   if (incomeType === "hirafi") {
     questions.push(
-      {
-        id: "H1_income_mode",
-        title: "الدخل ديالك كيجـي كيفاش؟",
-        kind: "single",
-        options: [
-          { value: "daily", label: "🗓️ يومي" },
-          { value: "service_orders", label: "📦 بالطلبات/الخدمات" },
-          { value: "projects", label: "🏗️ مشاريع" },
-        ],
-      },
       {
         id: "H2_collection_cycle",
         title: "الدخل كيتجمع فاش؟",
@@ -9379,61 +9318,24 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
           ],
         },
         {
-          id: "F3_retainer_day_mode",
+          id: "F3_retainer_pay_timing",
           title: "نهار الأداء ديال retainer؟",
+          subtitle: "اختار النهار. إلا كان كيبدّل، اختار المجال اللي كيجي فيه غالباً.",
           kind: "single",
-          options: [
-            { value: "fixed_day", label: "نهار ثابت" },
-            { value: "range", label: "range بين X و Y" },
-          ],
+          ...getPayTimingOptions(getPayTimingSpec("F3_retainer_pay_timing")!),
         }
       );
-
-      if (getString(answers, "F3_retainer_day_mode") === "fixed_day") {
-        questions.push({
-          id: "F3a_retainer_fixed_day",
-          title: "اختار النهار",
-          kind: "single",
-          options: DAY_OPTIONS,
-        });
-      }
-
-      if (getString(answers, "F3_retainer_day_mode") === "range") {
-        questions.push({
-          id: "F3b_retainer_range",
-          title: "اختار الـ range",
-          kind: "single",
-          options: RANGE_OPTIONS,
-        });
-      }
     }
 
-    if (paymentMode === "invoices" || paymentMode === "mixed") {
-      questions.push({
-        id: "F5_invoice_delay",
-        title: "شحال كيتأخر الأداء ديال invoice عادة؟",
-        kind: "single",
-        options: [
-          { value: "0-7", label: "0–7 أيام" },
-          { value: "7-15", label: "7–15" },
-          { value: "15+", label: "أكثر" },
-        ],
-      });
-    }
-
+    // The envelope plan is budgeted on the guaranteed floor, so the minimum
+    // income is the only amount asked here.
     questions.push({
       id: "F7_min_income",
       title: "شحال هو minimum دخل مضمون فالشهر؟",
+      subtitle: "الخطة كتبنى على هاد الرقم. داكشي اللي زايد عليه كيتوزع ملي يدخل.",
       kind: "input",
       inputType: "number",
       placeholder: "مثلاً 5000",
-    });
-
-    questions.push({
-      id: "F8_income_variation",
-      title: "شحال كيدير شهر ضعيف وشهر مزيان؟",
-      subtitle: "دخل جوج أرقام: شهر ضعيف + شهر مزيان.",
-      kind: "income_variation",
     });
   }
 
@@ -9462,99 +9364,20 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     );
 
     const mixedCycle = getString(answers, "M2_primary_cycle");
-    if (mixedCycle === "monthly") {
+    const mixedPayTimingSpec =
+      mixedCycle === "monthly"
+        ? getPayTimingSpec("M2_pay_timing_monthly")
+        : mixedCycle === "weekly"
+          ? getPayTimingSpec("M2_pay_timing_weekly")
+          : undefined;
+    if (mixedPayTimingSpec) {
       questions.push({
-        id: "M2a_monthly_mode",
-        title: "إمتى كيدخل غالباً؟",
+        id: mixedPayTimingSpec.questionId,
+        title: "إمتى كيدخل الدخل الرئيسي غالباً؟",
+        subtitle: "اختار النهار. إلا كان كيبدّل، اختار المجال اللي كيجي فيه غالباً.",
         kind: "single",
-        options: [
-          { value: "fixed_day", label: "نهار ثابت" },
-          { value: "range", label: "مجال زمني" },
-        ],
+        ...getPayTimingOptions(mixedPayTimingSpec),
       });
-
-      if (getString(answers, "M2a_monthly_mode") === "fixed_day") {
-        questions.push({
-          id: "M2b_monthly_fixed_day",
-          title: "اختار النهار",
-          kind: "single",
-          options: DAY_OPTIONS,
-        });
-      }
-
-      if (getString(answers, "M2a_monthly_mode") === "range") {
-        questions.push({
-          id: "M2b_monthly_range",
-          title: "اختار المجال",
-          kind: "single",
-          options: RANGE_OPTIONS,
-        });
-      }
-    }
-
-    if (mixedCycle === "weekly") {
-      questions.push({
-        id: "M2c_weekly_mode",
-        title: "نهار شحال كيدخل غالباً؟",
-        kind: "single",
-        options: [
-          { value: "fixed_weekday", label: "نهار ثابت من الأسبوع" },
-          { value: "weekend", label: "آخر الأسبوع" },
-          { value: "range", label: "كيبدّل بيوم ولا جوج (مجال زمني)" },
-        ],
-      });
-
-      const mode = getString(answers, "M2c_weekly_mode");
-      if (mode === "fixed_weekday") {
-        questions.push({
-          id: "M2d_weekly_fixed_day",
-          title: "اختار النهار",
-          kind: "single",
-          options: WEEKDAY_OPTIONS,
-        });
-      }
-      if (mode === "weekend") {
-        questions.push({
-          id: "M2d_weekly_weekend_day",
-          title: "اختار نهار آخر الأسبوع",
-          kind: "single",
-          options: WEEKLY_WEEKEND_OPTIONS,
-        });
-      }
-      if (mode === "range") {
-        questions.push({
-          id: "M2d_weekly_range",
-          title: "اختار المجال",
-          kind: "single",
-          options: WEEKLY_RANGE_OPTIONS,
-        });
-      }
-    }
-
-    if (mixedCycle === "project_based") {
-      questions.push(
-        {
-          id: "M2e_project_income_pattern",
-          title: "كيفاش كيجيلك الدخل ديال المشاريع غالباً؟",
-          kind: "single",
-          options: [
-            { value: "one_shot", label: "كيجي مرة وحدة" },
-            { value: "milestones", label: "كيجيلك على دفعات" },
-            { value: "highly_variable", label: "كيبدّل بزاف" },
-          ],
-        },
-        {
-          id: "M2f_project_delay",
-          title: "تقريباً شحال كيتأخر الأداء؟",
-          kind: "single",
-          options: [
-            { value: "0-7", label: "0–7 أيام" },
-            { value: "7-15", label: "7–15" },
-            { value: "15+", label: "أكثر" },
-          ],
-        }
-      );
-
     }
 
     if (mixedCycle === "project_based" || mixedCycle === "monthly" || mixedCycle === "weekly") {
@@ -9578,44 +9401,15 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
 
   const household = getString(answers, "E0_household_type");
   if (household === "couple") {
-    questions.push(
-      {
-        id: "E0c_budget_mode",
-        title: "واش كتديرو الميزانية مشتركة ولا كل واحد بوحدو؟",
-        kind: "single",
-        options: [
-          { value: "shared", label: "مشتركة" },
-          { value: "separate", label: "منفصلة" },
-          { value: "mixed", label: "خليط" },
-        ],
-      },
-      {
-        id: "E0c_major_expense_owner",
-        title: "شكون كيتكلف غالباً بالمصاريف الكبيرة؟",
-        kind: "single",
-        options: [
-          { value: "me", label: "أنا" },
-          { value: "partner", label: "الطرف الآخر" },
-          { value: "both", label: "بجوج" },
-        ],
-      }
-    );
-
-    if (getString(answers, "E0c_budget_mode") === "mixed") {
-      questions.push({
-        id: "E0c_shared_items",
-        title: "شنو اللي مشترك بيناتكم؟",
-        kind: "multi",
-        options: [
-          { value: "rent_or_loan", label: "كراء/قرض" },
-          { value: "bills", label: "فواتير" },
-          { value: "food", label: "ماكلة" },
-          { value: "transport", label: "تنقل" },
-          { value: "kids", label: "أطفال" },
-          { value: "other", label: "أخرى" },
-        ],
-      });
-    }
+    // One question instead of budget mode + owner + shared items: the amounts
+    // asked next are the user's own share, which is what the plan needs.
+    questions.push({
+      id: "E0_expense_share",
+      title: "شحال من المصاريف ديال الدار كتخلص نتا؟",
+      subtitle: "من هنا لقدام، دخل غير الجزء اللي كتخلص نتا.",
+      kind: "single",
+      options: EXPENSE_SHARE_OPTIONS,
+    });
   }
 
   if (household === "family_kids") {
@@ -9626,18 +9420,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
         kind: "input",
         inputType: "number",
         placeholder: "0",
-      },
-      {
-        id: "E0f_kids_age_groups",
-        title: "شنو الفئة العمرية ديال الأولاد؟",
-        kind: "multi",
-        options: [
-          { value: "0_3", label: "0–3" },
-          { value: "4_6", label: "4–6" },
-          { value: "7_12", label: "7–12" },
-          { value: "13_18", label: "13–18" },
-          { value: "18_plus", label: "+18" },
-        ],
       },
       {
         id: "E0f_school_costs",
@@ -9656,52 +9438,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
           { value: "monthly", label: "شهري" },
           { value: "quarterly", label: "كل 3 شهور" },
           { value: "annual", label: "سنوي" },
-        ],
-      });
-    }
-  }
-
-  if (household === "extended_family") {
-    questions.push(
-      {
-        id: "E0sh_people_count",
-        title: "شحال من واحد كيتقاسم معاك المصاريف؟",
-        kind: "single",
-        options: [
-          { value: "2", label: "2" },
-          { value: "3", label: "3" },
-          { value: "4_plus", label: "4+" },
-        ],
-      },
-      {
-        id: "E0sh_split_mode",
-        title: "كيفاش كتقسمو المصاريف؟",
-        kind: "single",
-        options: [
-          { value: "half", label: "بالنص" },
-          { value: "separate", label: "كل واحد كيخلص على راسو" },
-          { value: "mixed", label: "نظام مختلط" },
-        ],
-      },
-      {
-        id: "E0sh_has_shared_fixed",
-        title: "كاين شي مصاريف مشتركة ثابتة؟",
-        kind: "single",
-        options: yesNoOptions,
-      }
-    );
-
-    if (getString(answers, "E0sh_has_shared_fixed") === "yes") {
-      questions.push({
-        id: "E0sh_shared_fixed_items",
-        title: "شنو هما؟",
-        kind: "multi",
-        options: [
-          { value: "rent", label: "كراء" },
-          { value: "internet", label: "أنترنت" },
-          { value: "utilities", label: "ضو/ما" },
-          { value: "cleaning_house", label: "منظفات/دار" },
-          { value: "other", label: "أخرى" },
         ],
       });
     }
@@ -9775,26 +9511,14 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   }
 
   if (housingStatus === "owner_loan") {
-    questions.push(
-      {
-        id: "HSN1_loan_monthly_amount",
-        title: "شحال كتخلص فالقرض فالشهر؟",
-        kind: "input",
-        inputType: "number",
-        placeholder: "0",
-      },
-      {
-        id: "HSN2_loan_remaining_duration",
-        title: "القرض باقي فيه تقريباً شحال؟",
-        kind: "single",
-        options: [
-          { value: "lt_1_year", label: "أقل من عام" },
-          { value: "1_3_years", label: "1–3 سنين" },
-          { value: "3_7_years", label: "3–7" },
-          { value: "gt_7_years", label: "أكثر" },
-        ],
-      }
-    );
+    questions.push({
+      id: "HSN1_loan_monthly_amount",
+      title: "شحال كتخلص فالقرض ديال الدار فالشهر؟",
+      subtitle: "هاد القرض غادي يتحسب هنا، وما تعاودش تدخلو مع الديون.",
+      kind: "input",
+      inputType: "number",
+      placeholder: "0",
+    });
   }
 
   if (housingStatus === "owner_no_loan") {
@@ -9812,27 +9536,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
         ],
       }
     );
-
-    const ownerFixedItems = getList(answers, "HSN3_owner_fixed_items");
-    const isNoneOnly = ownerFixedItems.length === 1 && ownerFixedItems.includes("none");
-    if (!isNoneOnly) {
-      questions.push({
-        id: "HSN4_maintenance_saving",
-        title: "كتجمع للصيانة/الإصلاحات؟",
-        kind: "single",
-        options: yesNoOptions,
-      });
-
-      if (getString(answers, "HSN4_maintenance_saving") === "yes") {
-        questions.push({
-          id: "HSN4a_maintenance_saving_amount",
-          title: "تقريباً شحال فالشهر؟",
-          kind: "input",
-          inputType: "number",
-          placeholder: "0",
-        });
-      }
-    }
   }
 
   if (housingStatus === "with_family") {
@@ -9845,25 +9548,13 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
 
     const hasFamilyContribution = getString(answers, "HSN5_with_family_contribution") === "yes";
     if (hasFamilyContribution) {
-      questions.push(
-        {
-          id: "HSN5a_with_family_amount",
-          title: "تقريباً شحال فالشهر؟",
-          kind: "input",
-          inputType: "number",
-          placeholder: "0",
-        },
-        {
-          id: "HSN6_with_family_contribution_types",
-          title: "كتساهم فـ…؟",
-          kind: "multi",
-          options: [
-            { value: "food", label: "ماكلة" },
-            { value: "bills", label: "فواتير" },
-            { value: "other", label: "مصاريف أخرى" },
-          ],
-        }
-      );
+      questions.push({
+        id: "HSN5a_with_family_amount",
+        title: "تقريباً شحال فالشهر؟",
+        kind: "input",
+        inputType: "number",
+        placeholder: "0",
+      });
     }
   }
 
@@ -9954,8 +9645,9 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     }
   }
   if (transportMode === "mixed") {
-    questions.push(
-      {
+    const hasLegacyMixedDetail = getString(answers, "TRX3_detail_mode") === "detailed";
+    if (hasLegacyMixedDetail) {
+      questions.push({
         id: "TRX1_primary_mode",
         title: "شنو اللي كتستعمل أكثر؟",
         kind: "single",
@@ -9965,15 +9657,20 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
           { value: "bike_more", label: "موتور أكثر" },
           { value: "equal", label: "متساويين" },
         ],
-      },
-      {
-        id: "TRX2_total_monthly_amount",
-        title: "تقريباً شحال كتخصص للتنقل كامل فالشهر؟",
-        kind: "input",
-        inputType: "number",
-        placeholder: "0",
-      },
-      {
+      });
+    }
+
+    questions.push({
+      id: "TRX2_total_monthly_amount",
+      title: "تقريباً شحال كتخصص للتنقل كامل فالشهر؟",
+      subtitle: "رقم واحد كيكفي: البنزين، الطاكسي، الطوبيس… كلشي مجموع.",
+      kind: "input",
+      inputType: "number",
+      placeholder: "0",
+    });
+
+    if (hasLegacyMixedDetail) {
+      questions.push({
         id: "TRX3_detail_mode",
         title: "بغيتي نفصّلوه ولا نخليه رقم واحد؟",
         kind: "single",
@@ -9981,10 +9678,8 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
           { value: "detailed", label: "نفصّلو" },
           { value: "single_total", label: "نخليه رقم واحد" },
         ],
-      }
-    );
+      });
 
-    if (getString(answers, "TRX3_detail_mode") === "detailed") {
       let detailMode = getString(answers, "TRX1_primary_mode");
       if (detailMode === "equal") {
         questions.push({
@@ -10016,6 +9711,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   questions.push({
     id: "FX1_fixed_items",
     title: "شنو المصاريف الثابتة الأخرى اللي عندك؟",
+    subtitle: getRentIncludedCostsNote(answers) ?? undefined,
     kind: "multi",
     options: FIXED_ITEMS,
     optional: true,
@@ -10035,17 +9731,15 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   });
 
   // 6) Debt Section (دائماً كيبان)
-  questions.push({
-    id: "D0_intro_message",
-    title: "دابا نرتّبو الديون اللي عندك باش نبنيو خطة واقعية.",
-    subtitle: "ما محتاجينش تفاصيل معقدة، غير المعلومات اللي تعاوننا نعرفو شحال خاص يتخصّص ليهم.",
-    kind: "message",
-  });
-
+  const alreadyCountedLoans = getLoansAlreadyCountedOutsideDebts(answers);
+  const alreadyCountedLoansNote =
+    alreadyCountedLoans.length > 0
+      ? ` ${alreadyCountedLoans.join(" و")} ديجا تحسب، ما تعاودش تدخلو هنا.`
+      : "";
   questions.push({
     id: "E5_has_debt",
     title: "واش عندك دابا ديون ولا قروض كتخلّصهم؟",
-    subtitle: "بحال كريدي، سلف، قرض، ولا أي التزام شهري.",
+    subtitle: `بحال كريدي، سلف، قرض، ولا أي التزام شهري. غير المعلومات اللي كتعاوننا نعرفو شحال خاص يتخصّص ليهم.${alreadyCountedLoansNote}`,
     kind: "single",
     options: yesNoOptions,
   });
@@ -10055,31 +9749,18 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     questions.push({
       id: "D1_debt_builder",
       title: "دخل الديون اللي بغيتي نرتبوهم",
-      subtitle: `قدر تزيد الديون ديالك دابا، وحدة بوحدة. حالياً حتى ${DEBT_MAX_COUNT} ديون فهاد المرحلة.`,
+      subtitle: `قدر تزيد الديون ديالك دابا، وحدة بوحدة. حالياً حتى ${DEBT_MAX_COUNT} ديون فهاد المرحلة.${alreadyCountedLoansNote}`,
       kind: "debt_builder",
     });
   }
 
   // 7) Goals
   questions.push({
-    id: "G0_has_goal",
-    title: "عندك شي هدف مالي دابا؟",
-    subtitle: "حتى فكرة بسيطة كافية، وغادي نعاونك تبنيها.",
-    kind: "single",
-    options: [
-      { value: "yes", label: "اه" },
-      { value: "no", label: "لا" },
-    ],
+    id: "G1_goal_builder",
+    title: "الأهداف ديالك",
+    subtitle: `بحال صندوق الطوارئ، سفر، شراء حاجة، مشروع… حتى ${GOAL_MAX_COUNT} أهداف. إلا ما عندكش دابا، دوز.`,
+    kind: "goal_builder",
   });
-
-  if (getString(answers, "G0_has_goal") === "yes") {
-    questions.push({
-      id: "G1_goal_builder",
-      title: "الأهداف ديالك",
-      subtitle: `قدر تزيد هدف واحد أو أكثر. حالياً حتى ${GOAL_MAX_COUNT} أهداف فهاد المرحلة.`,
-      kind: "goal_builder",
-    });
-  }
 
   questions.push({
     id: "F0_financial_summary",
@@ -10119,6 +9800,17 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     kind: "smart_settings",
   });
 
+  if (shouldAskOwnShareOnly(answers)) {
+    const ownShareNote = "دخل غير الجزء اللي كتخلص نتا.";
+    questions.forEach((question, index) => {
+      if (!OWN_SHARE_AMOUNT_QUESTION_IDS.has(question.id) && !question.id.startsWith("FX2_amount_")) return;
+      questions[index] = {
+        ...question,
+        subtitle: question.subtitle ? `${question.subtitle} ${ownShareNote}` : ownShareNote,
+      };
+    });
+  }
+
   const firstName = getArabicDisplayName(getString(answers, "R1_first_name"));
   const filteredQuestions = questions.filter((question) => {
     if (journeyMode === "money_plan") {
@@ -10140,7 +9832,9 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
 
 function isQuestionAnswered(question: QuestionSpec, answers: Answers): boolean {
   if (question.kind === "single") {
-    return getString(answers, question.id).trim().length > 0;
+    if (getString(answers, question.id).trim().length > 0) return true;
+    const payTimingSpec = getPayTimingSpec(question.id);
+    return payTimingSpec ? Boolean(getPayTimingValueFromLegacyAnswers(answers, payTimingSpec)) : false;
   }
 
   if (question.kind === "multi") {
@@ -10169,6 +9863,9 @@ function isQuestionAnswered(question: QuestionSpec, answers: Answers): boolean {
   }
 
   if (question.kind === "goal_builder") {
+    const hasGoal = getString(answers, "G0_has_goal");
+    if (hasGoal === "no") return true;
+    if (hasGoal !== "yes") return false;
     return isGoalBuilderComplete(answers);
   }
 
@@ -11235,6 +10932,7 @@ function buildDraftObjects(
     },
     household_profile: {
       household_type: getString(answers, "E0_household_type"),
+      expense_share: getString(answers, "E0_expense_share") || null,
       adults_count: getResolvedAdultsCount(answers),
       kids_count: getResolvedKidsCount(answers),
       housing_status: getString(answers, "E3_housing_status"),
@@ -11545,6 +11243,7 @@ export function BetaOnboardingV2PageContent({
   const [isSweepSetupScreen, setIsSweepSetupScreen] = useState(
     initialRegisterResumeState?.isSweepSetupScreen ?? false
   );
+  const [showRolloverDetails, setShowRolloverDetails] = useState(false);
   const [isCompletionScreen, setIsCompletionScreen] = useState(
     initialRegisterResumeState?.isCompletionScreen ?? false
   );
@@ -11552,7 +11251,6 @@ export function BetaOnboardingV2PageContent({
   const [packSearch, setPackSearch] = useState("");
   const [collapsedPackGroups, setCollapsedPackGroups] = useState<Record<string, boolean>>({});
   const [collapsedGoalCards, setCollapsedGoalCards] = useState<Record<number, boolean>>({});
-  const [profilePhotoError, setProfilePhotoError] = useState("");
   const [assistantBubbleText, setAssistantBubbleText] = useState<string | null>(null);
   const [assistantTyping, setAssistantTyping] = useState(false);
   const [assistantBubbleMode, setAssistantBubbleMode] = useState<AssistantBubbleMode>("pre");
@@ -11632,6 +11330,7 @@ export function BetaOnboardingV2PageContent({
   const [guidanceKeepFlexEnvelope, setGuidanceKeepFlexEnvelope] = useState(true);
   const [guidanceConstraintNotice, setGuidanceConstraintNotice] = useState<string>("");
   const [guidanceScenarioDetailId, setGuidanceScenarioDetailId] = useState<string | null>(null);
+  const [showGuidanceAlternatives, setShowGuidanceAlternatives] = useState(false);
   const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
   const [guidanceModalCategory] = useState<GuidanceEditCategory>("expenses");
   const [guidanceModalDraftValues, setGuidanceModalDraftValues] = useState<Record<string, string>>({});
@@ -11649,7 +11348,6 @@ export function BetaOnboardingV2PageContent({
     isRegisterGuestMode
   );
   const inputRef = useRef<HTMLInputElement>(null);
-  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assistantTypingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assistantPostRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -13127,7 +12825,16 @@ export function BetaOnboardingV2PageContent({
       resolveGuidanceScenarioOutcome,
     ]
   );
-  const guidanceRecommendedScenarioId =
+  const guidanceHasDebt = getString(answers, "E5_has_debt") === "yes";
+  const guidanceHasGoal = getString(answers, "G0_has_goal") === "yes";
+  // Share of the (floor) income already going to debt repayments. From 35 %
+  // (or with a late payment) debt relief is recommended even when the plan
+  // engine would stay balanced.
+  const guidanceDebtRatio =
+    guidanceHasDebt && overviewIncomeValue > 0 ? debtSummaryMetrics.current_monthly / overviewIncomeValue : 0;
+  const guidanceDebtIsHeavy =
+    guidanceHasDebt && (guidanceDebtRatio >= 0.35 || debtSummaryMetrics.late_count > 0);
+  const guidanceEngineScenarioId =
     arbitragePreview.recommended_mode === "debt_first"
       ? "relief"
       : arbitragePreview.recommended_mode === "safe"
@@ -13135,6 +12842,33 @@ export function BetaOnboardingV2PageContent({
       : arbitragePreview.recommended_mode === "goal_first"
       ? "goals"
       : "balanced";
+  const isGuidanceScenarioRelevant = (scenarioId: string): boolean =>
+    (scenarioId !== "relief" || guidanceHasDebt) && (scenarioId !== "goals" || guidanceHasGoal);
+  const guidanceRecommendedScenarioId = !isGuidanceScenarioRelevant(guidanceEngineScenarioId)
+    ? "balanced"
+    : guidanceEngineScenarioId === "balanced" && guidanceDebtIsHeavy
+    ? "relief"
+    : guidanceEngineScenarioId;
+  const guidanceRecommendationReason =
+    guidanceRecommendedScenarioId === "relief"
+      ? guidanceDebtIsHeavy
+        ? `الديون كتاكل ${Math.round(guidanceDebtRatio * 100)}% من الدخل ديالك (${formatMad(
+            debtSummaryMetrics.current_monthly
+          )} فالشهر)${debtSummaryMetrics.late_count > 0 ? " وكاين تأخير فالأداء" : ""}. نخففو الضغط ديالها أولاً كيحرر ليك الهامش بسرعة.`
+        : `عندك ${debtsCount} ديون كتخلص فيهم ${formatMad(debtSummaryMetrics.current_monthly)} فالشهر، لذلك كنبداو بتخفيف الضغط ديالهم.`
+      : guidanceRecommendedScenarioId === "reserve"
+      ? "كنبداو بظرف الأمان باش أي مفاجأة ما ترجعكش للدين ولا تكسّر الميزانية ديال الشهر."
+      : guidanceRecommendedScenarioId === "goals"
+      ? `عندك ${goalsCount} أهداف، لذلك كنعطيوهم دفعة أكبر من الهامش اللي كيبقى من بعد المعيشة والثابت.`
+      : guidanceHasDebt
+      ? `الديون ديالك تحت السيطرة (${Math.round(guidanceDebtRatio * 100)}% من الدخل)، لذلك كنقسمو الهامش بين الديون والأمان والأهداف حسب الحاجة.`
+      : "ما كاينش ضغط واحد كيغلب، لذلك كنقسمو الهامش بين الأمان والأهداف حسب الحاجة.";
+  // Only the directions that apply to this profile are offered (no "debts
+  // first" without debt, no "goals first" without a goal). A direction saved
+  // earlier stays visible so the current choice is never hidden.
+  const guidanceVisibleScenarios = guidanceScenarios.filter(
+    (scenario) => isGuidanceScenarioRelevant(scenario.id) || scenario.id === guidanceActiveScenarioId
+  );
   useEffect(() => {
     if (guidanceActiveScenarioId) return;
     const scenario =
@@ -14890,7 +14624,7 @@ export function BetaOnboardingV2PageContent({
   const jumpToQuestionById = useCallback(
     (questionId: string) => {
       const nextQuestions = buildQuestions(answers, resolvedJourneyMode);
-      const nextIndex = nextQuestions.findIndex((question) => question.id === questionId);
+      const nextIndex = findQuestionIndexById(nextQuestions, questionId);
       if (nextIndex < 0) return;
       clearAutoAdvance();
       clearAssistantTimers();
@@ -14960,7 +14694,7 @@ export function BetaOnboardingV2PageContent({
       }
 
       const nextQuestions = buildQuestions(answers, resolvedJourneyMode);
-      const nextIndex = nextQuestions.findIndex((question) => question.id === questionId);
+      const nextIndex = findQuestionIndexById(nextQuestions, questionId);
       if (nextIndex < 0) return;
       setTransitionDirection(1);
       setFlowStage("questions");
@@ -16174,8 +15908,11 @@ export function BetaOnboardingV2PageContent({
     setIsReadyScreen(false);
     setIsRolloverConfigScreen(false);
     setIsSweepSetupScreen(false);
+    const payTimingSpec = getPayTimingSpec(question.id);
     const nextAnswers =
-      question.id === "E0_household_type"
+      payTimingSpec
+        ? applyPayTimingAnswer(answers, payTimingSpec, value)
+        : question.id === "E0_household_type"
         ? applyHouseholdSelectionDefaults(answers, value)
         : question.id === "G0_has_goal"
         ? applyGoalSelectionDefaults(answers, value)
@@ -16337,6 +16074,21 @@ export function BetaOnboardingV2PageContent({
       delete next[fieldId];
       return next;
     });
+  };
+
+  // The goal builder replaces the former "do you have a goal?" screen:
+  // G0_has_goal is still written, from these two actions.
+  const startGoalBuilder = () => {
+    clearValidationState();
+    setAnswers((prev) => applyGoalSelectionDefaults(prev, "yes"));
+  };
+
+  const skipGoalBuilder = (question: QuestionSpec) => {
+    const nextAnswers = applyGoalSelectionDefaults(answers, "no");
+    clearValidationState();
+    setCollapsedGoalCards({});
+    setAnswers(nextAnswers);
+    proceedWithAssistantReaction(question.id, nextAnswers, "no", 280);
   };
 
   const addGoalBuilderCard = () => {
@@ -17132,81 +16884,28 @@ export function BetaOnboardingV2PageContent({
     proceedWithAssistantReaction(question.id, answers, undefined, 300);
   };
 
-  const handleProfilePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setProfilePhotoError("Le fichier doit être une image.");
-      event.target.value = "";
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setProfilePhotoError("La photo ne doit pas dépasser 2 Mo.");
-      event.target.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const value = typeof reader.result === "string" ? reader.result : "";
-      setInputAnswer("R0_profile_photo_url", value);
-      setProfilePhotoError("");
-    };
-    reader.readAsDataURL(file);
-  };
-
   const submitStep0CollectUserInfo = () => {
     const firstName = String(normalizeAnswer("R1_first_name", getString(answers, "R1_first_name")));
-    const lastName = String(normalizeAnswer("R2_last_name", getString(answers, "R2_last_name")));
-    const phone = String(normalizeAnswer("R3_phone_number", getString(answers, "R3_phone_number")));
-    const birthDateRaw = String(normalizeAnswer("R4_birth_date", getString(answers, "R4_birth_date")));
 
     const nextAnswers: Answers = {
       ...answers,
       R1_first_name: firstName,
-      R2_last_name: lastName,
-      R3_phone_number: phone,
-      R4_birth_date: birthDateRaw,
     };
     setAnswers(nextAnswers);
 
-    const requiredFields: Array<[string, string]> = [
-      ["R1_first_name", firstName],
-      ["R2_last_name", lastName],
-      ["R3_phone_number", phone],
-      ["R4_birth_date", birthDateRaw],
-    ];
-
-    for (const [fieldId, fieldValue] of requiredFields) {
-      if (!fieldValue) {
-        const labels: Record<string, string> = {
-          R1_first_name: "دخل الاسم الشخصي",
-          R2_last_name: "دخل الاسم العائلي",
-          R3_phone_number: "دخل رقم الهاتف",
-          R4_birth_date: "اختار تاريخ الازدياد",
-        };
-        setValidationFeedback("سمح ليا {الاسم}… خاصك تكمل المعلومات كاملة ✅", undefined, {
-          [fieldId]: labels[fieldId] ?? "هاد الخانة ضرورية",
-        });
-        return;
-      }
+    if (!firstName) {
+      setValidationFeedback("دخل السمية ديالك باش نبداو.", undefined, {
+        R1_first_name: "دخل الاسم الشخصي",
+      });
+      return;
     }
 
-    const profileValidations = [
-      { id: "R1_first_name", result: validateAnswer("R1_first_name", firstName, nextAnswers) },
-      { id: "R2_last_name", result: validateAnswer("R2_last_name", lastName, nextAnswers) },
-      { id: "R3_phone_number", result: validateAnswer("R3_phone_number", phone, nextAnswers) },
-      { id: "R4_birth_date", result: validateAnswer("R4_birth_date", birthDateRaw, nextAnswers) },
-    ];
-
-    for (const item of profileValidations) {
-      if (!item.result.ok) {
-        setValidationFeedback(item.result.message, item.result.helper, {
-          [item.id]: item.result.helper ?? "راجع هاد الخانة",
-        });
-        return;
-      }
+    const firstNameValidation = validateAnswer("R1_first_name", firstName, nextAnswers);
+    if (!firstNameValidation.ok) {
+      setValidationFeedback(firstNameValidation.message, firstNameValidation.helper, {
+        R1_first_name: firstNameValidation.helper ?? "راجع هاد الخانة",
+      });
+      return;
     }
 
     clearValidationState();
@@ -18242,7 +17941,7 @@ export function BetaOnboardingV2PageContent({
                 المعلومات الأساسية
               </h1>
               <p className="text-[15px] leading-7 text-[#6e6e73]">
-                دخل المعلومات الأساسية باش نوجدو ليك تجربة مناسبة من البداية.
+                غير السمية ديالك باش نهضرو معاك بيها. الباقي تقدر تبدلو من البروفايل.
               </p>
               {isForcedReviewMode ? (
                 <div className="rounded-[22px] border border-[#fde68a] bg-[#fffbeb] px-4 py-4 text-right shadow-[0_14px_34px_-28px_rgba(217,119,6,0.35)]">
@@ -18264,88 +17963,28 @@ export function BetaOnboardingV2PageContent({
                 submitStep0CollectUserInfo();
               }}
             >
-              <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-              <div className="flex flex-col items-center gap-3 rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5">
-                <button
-                  type="button"
-                  onClick={() => profilePhotoInputRef.current?.click()}
-                  className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-dashed border-[#d1d1d6] bg-[#f5f5f7] text-[#6e6e73]"
-                >
-                  {getString(answers, "R0_profile_photo_url") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={getString(answers, "R0_profile_photo_url")}
-                      alt="الصورة الشخصية"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <Camera className="h-8 w-8" />
-                  )}
-                </button>
-                <input
-                  ref={profilePhotoInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleProfilePhotoChange}
-                />
-                <p className="text-[13px] text-[#8e8e93]">الصورة الشخصية اختيارية</p>
-                {profilePhotoError ? <p className="text-[13px] text-[#d70015]">{profilePhotoError}</p> : null}
-              </div>
-
               <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="الاسم الشخصي"
-                    value={getString(answers, "R1_first_name")}
-                    onChange={(event) => setInputAnswer("R1_first_name", event.target.value)}
-                    className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
-                      fieldErrors.R1_first_name ? "border-[#ff3b30]" : "border-[#d1d1d6]"
-                    }`}
-                  />
-                  {fieldErrors.R1_first_name ? <p className="mt-1 text-[12px] text-[#d70015]">{fieldErrors.R1_first_name}</p> : null}
-                </div>
-                <div>
-                  <Input
-                    type="text"
-                    placeholder="النسب"
-                    value={getString(answers, "R2_last_name")}
-                    onChange={(event) => setInputAnswer("R2_last_name", event.target.value)}
-                    className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
-                      fieldErrors.R2_last_name ? "border-[#ff3b30]" : "border-[#d1d1d6]"
-                    }`}
-                  />
-                  {fieldErrors.R2_last_name ? <p className="mt-1 text-[12px] text-[#d70015]">{fieldErrors.R2_last_name}</p> : null}
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Input
-                    type="tel"
-                    placeholder="رقم الهاتف"
-                    value={getString(answers, "R3_phone_number")}
-                    onChange={(event) => setInputAnswer("R3_phone_number", event.target.value)}
-                    className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
-                      fieldErrors.R3_phone_number ? "border-[#ff3b30]" : "border-[#d1d1d6]"
-                    }`}
-                  />
-                  {fieldErrors.R3_phone_number ? <p className="mt-1 text-[12px] text-[#d70015]">{fieldErrors.R3_phone_number}</p> : null}
-                </div>
-                <div>
-                  <Input
-                    type="date"
-                    value={getString(answers, "R4_birth_date")}
-                    onChange={(event) => setInputAnswer("R4_birth_date", event.target.value)}
-                    className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
-                      fieldErrors.R4_birth_date ? "border-[#ff3b30]" : "border-[#d1d1d6]"
-                    }`}
-                  />
-                  {fieldErrors.R4_birth_date ? <p className="mt-1 text-[12px] text-[#d70015]">{fieldErrors.R4_birth_date}</p> : null}
-                </div>
+              <div>
+                <label
+                  htmlFor="onboarding-first-name"
+                  className="mb-2 block text-[14px] font-medium text-[#3c3c43]"
+                >
+                  شنو سميتك؟
+                </label>
+                <Input
+                  id="onboarding-first-name"
+                  ref={inputRef}
+                  type="text"
+                  autoComplete="given-name"
+                  placeholder="الاسم الشخصي"
+                  value={getString(answers, "R1_first_name")}
+                  onChange={(event) => setInputAnswer("R1_first_name", event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.R1_first_name)}
+                  className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
+                    fieldErrors.R1_first_name ? "border-[#ff3b30]" : "border-[#d1d1d6]"
+                  }`}
+                />
+                {fieldErrors.R1_first_name ? <p className="mt-1 text-[12px] text-[#d70015]">{fieldErrors.R1_first_name}</p> : null}
               </div>
 
               <button
@@ -18359,7 +17998,6 @@ export function BetaOnboardingV2PageContent({
               {uiError ? (
                 <p className="rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-[14px] text-[#d70015]">{uiError}</p>
               ) : null}
-              </div>
               </div>
             </form>
           </div>
@@ -19195,53 +18833,17 @@ export function BetaOnboardingV2PageContent({
               transition={onboardingTransition}
               className="grid min-h-[560px] grid-rows-[1fr_auto]"
             >
-              <div className="py-6">
-                <div className="w-full rounded-[32px] border border-[#e5e5ea] bg-[var(--surface)] p-6 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.28)] sm:p-8 xl:p-10">
-                  <div className="mx-auto max-w-4xl text-center">
-                    <p className="inline-flex rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
-                      من بعد هاد الخطوة
-                    </p>
-                    <h1 className="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[38px]">
-                      شنو هو الاحتفاظ بالباقي؟
-                    </h1>
-                    <p className="mt-3 text-[16px] leading-7 text-[#6e6e73]">
-                      إلى بقا شي مبلغ فظرف، عندك جوج اختيارات.
-                    </p>
+              <div className="flex items-center py-6">
+                <div className="mx-auto w-full max-w-2xl rounded-[32px] border border-[#e5e5ea] bg-[var(--surface)] p-6 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.28)] sm:p-10">
+                  <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#16a34a] text-white">
+                    <Check className="h-5 w-5" aria-hidden />
                   </div>
-
-                  <div className="mx-auto mt-8 grid max-w-5xl gap-4 lg:grid-cols-2">
-                    <div className="rounded-[28px] border border-[#b8f0cf] bg-[#edfff4] p-5 text-right shadow-[0_24px_60px_-44px_rgba(22,163,74,0.3)]">
-                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#16a34a] text-white">
-                        <Check className="h-5 w-5" />
-                      </div>
-                      <h2 className="mt-4 text-[20px] font-semibold text-[#111111]">إلى كان مفعّل</h2>
-                      <p className="mt-2 text-[15px] leading-7 text-[#166534]">
-                        الباقي كيبقى فنفس الظرف حتى الدفعة الجاية ديالك.
-                      </p>
-                      <div className="mt-4 rounded-2xl bg-[var(--surface)]/80 px-4 py-3 text-[14px] leading-7 text-[#166534]">
-                        مثلاً: إلا كان فظرف الماكلة 500 MAD وبقى فيه 120 MAD، هاد 120 MAD كيبقاو فنفس الظرف.
-                      </div>
-                    </div>
-
-                    <div className="rounded-[28px] border border-[#e5e5ea] bg-[#fafafc] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.2)]">
-                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#111111] text-white">
-                        <HandCoins className="h-5 w-5" />
-                      </div>
-                      <h2 className="mt-4 text-[20px] font-semibold text-[#111111]">إلى كان مطفّي</h2>
-                      <p className="mt-2 text-[15px] leading-7 text-[#3c3c43]">
-                        الباقي ما كيبقاش فنفس الظرف، وكيمشي لظرف اسميتو الادخار.
-                      </p>
-                      <div className="mt-4 rounded-2xl border border-[#e5e5ea] bg-[var(--surface)] px-4 py-3 text-[14px] leading-7 text-[#3c3c43]">
-                        الادخار هو ظرف كاين بشكل افتراضي، وتقدر من بعد تستعمل اللي تجمع فيه أو توزعو على أظرفة أخرى.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mx-auto mt-6 max-w-3xl rounded-[24px] border border-[#e5e5ea] bg-[#fcfcfd] px-5 py-4 text-center">
-                    <p className="text-[14px] leading-7 text-[#6e6e73]">
-                      من بعد غادي تختار فاش بغيتي تفعّل الاحتفاظ بالباقي، وشنو اللي بغيتي يبقى كيتجمع حتى الدفعة الجاية.
-                    </p>
-                  </div>
+                  <h1 className="mt-5 text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[38px]">
+                    نبنيو الخطة ديالك
+                  </h1>
+                  <p className="mt-3 text-[16px] leading-7 text-[#6e6e73]">
+                    عندنا الصورة كاملة. من الأجوبة ديالك غادي نقترحو عليك الأظرفة والمبالغ، وتقدر تبدل أي حاجة.
+                  </p>
                 </div>
               </div>
 
@@ -19252,7 +18854,7 @@ export function BetaOnboardingV2PageContent({
                   className={`h-14 w-full ${onboardingPrimaryTallButtonClass}`}
                   style={onboardingPrimaryTallButtonStyle}
                 >
-                  صافي فهمت
+                  يلا نبنيو الخطة
                 </button>
               </div>
             </motion.section>
@@ -19345,6 +18947,38 @@ export function BetaOnboardingV2PageContent({
                           بحال صندوق الطوارئ، سفر، شراء حاجة، مشروع...
                         </p>
                       ) : null}
+                    </div>
+                  ) : currentQuestion.groupedOptions && currentQuestion.groupedOptions.length > 0 ? (
+                    <div className="mx-auto w-full max-w-3xl space-y-4">
+                      {currentQuestion.groupedOptions.map((group) => (
+                        <section
+                          key={group.id}
+                          aria-label={group.title}
+                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right"
+                        >
+                          <p className="mb-3 text-[13px] font-semibold text-[#6e6e73]">{group.title}</p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {group.options.map((option) => {
+                              const active = getString(answers, currentQuestion.id) === option.value;
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  aria-pressed={active}
+                                  onClick={() => answerSingle(currentQuestion, option.value)}
+                                  className={`flex min-h-12 min-w-0 items-center justify-center rounded-[16px] border px-3 py-2 text-center text-[16px] font-semibold text-[#111111] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74] focus-visible:ring-offset-2 ${
+                                    active
+                                      ? "border-[#111111] bg-[#f8fafc] shadow-[0_10px_24px_-20px_rgba(15,23,42,0.22)]"
+                                      : "border-[#d1d5db] bg-[var(--surface)] hover:border-[#9ca3af]"
+                                  }`}
+                                >
+                                  <span className="[overflow-wrap:anywhere]">{option.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
                     </div>
                   ) : (
                     <div
@@ -20711,7 +20345,34 @@ export function BetaOnboardingV2PageContent({
                   </div>
                 ) : null}
 
-                {currentQuestion.kind === "goal_builder" ? (
+                {currentQuestion.kind === "goal_builder" && getString(answers, "G0_has_goal") !== "yes" ? (
+                  <div className="mx-auto max-w-[720px] rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-center shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <p className="text-[16px] font-semibold text-[#111111]">عندك شي هدف مالي دابا؟</p>
+                    <p className="mt-2 text-[14px] leading-7 text-[#6e6e73]">
+                      حتى فكرة بسيطة كافية، وغادي نعاونك تبنيها. تقدر تزيد الأهداف حتى من بعد.
+                    </p>
+                    <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={startGoalBuilder}
+                        className={`h-12 px-6 ${onboardingPrimaryButtonClass}`}
+                        style={onboardingPrimaryButtonStyle}
+                      >
+                        زيد هدف
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => skipGoalBuilder(currentQuestion)}
+                        className={`h-12 px-6 ${onboardingSecondaryButtonClass}`}
+                        style={onboardingSecondaryButtonStyle}
+                      >
+                        ماشي دابا
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {currentQuestion.kind === "goal_builder" && getString(answers, "G0_has_goal") === "yes" ? (
                   <div className="mx-auto max-w-[720px] space-y-4">
                     <div className="space-y-3">
                       {Array.from({ length: getGoalCount(answers) }).map((_, index) => {
@@ -20963,6 +20624,18 @@ export function BetaOnboardingV2PageContent({
                       >
                         + زيد هدف آخر
                       </button>
+                      {getGoalCount(answers) <= 1 &&
+                      !getString(answers, "G1_goal_name_1").trim() &&
+                      !getString(answers, "G1_goal_target_amount_1").trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => skipGoalBuilder(currentQuestion)}
+                          className={`h-12 ${onboardingSecondaryButtonClass}`}
+                          style={onboardingSecondaryButtonStyle}
+                        >
+                          ماشي دابا
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => submitGoalBuilderQuestion(currentQuestion)}
@@ -21854,21 +21527,28 @@ export function BetaOnboardingV2PageContent({
 
                     <section className="rounded-[28px] border border-[#dbeafe] bg-gradient-to-b from-[#eff6ff] to-[var(--surface)] px-5 py-5 text-right shadow-[0_24px_60px_-40px_rgba(37,99,235,0.22)]">
                       <div className="space-y-2">
-                        <h2 className="text-[24px] font-semibold text-[#0f172a]">كيف بغيتي نوجهو الفلوس ديالك؟</h2>
+                        <h2 className="text-[24px] font-semibold text-[#0f172a]">الاقتراح ديالنا</h2>
+                        <p className="text-[14px] leading-7 text-[#1e3a8a]">{guidanceRecommendationReason}</p>
                         {guidanceIsConstrained ? (
-                          <p className="text-[14px] leading-7 text-[#1e3a8a]">
-                            اختار الأولوية اللي بغيتي نثبتوها دابا. التوزيع الفعلي غادي يبان منين يرجع المتاح موجب.
+                          <p className="text-[13px] leading-6 text-[#1e3a8a]">
+                            التوزيع الفعلي غادي يبان منين يرجع المتاح موجب.
                           </p>
-                        ) : (
-                          <p className="text-[14px] leading-7 text-[#1e3a8a]">
-                            فطريقة الأظرفة، المعيشة والثابت تسدو أولاً. هاد الاختيارات غير كتقرر شكون ياخذ الأولوية من الباقي: ظرف الدين، ظرف الأمان، ظرف الأهداف، ولا توزيع حسب الحاجة الحالية.
-                          </p>
-                        )}
+                        ) : null}
                       </div>
 
-                      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
-                        {guidanceScenarios.map((scenario) => {
+                      <div
+                        className={`mt-5 grid gap-3 ${
+                          showGuidanceAlternatives ? "md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4" : ""
+                        }`}
+                      >
+                        {(showGuidanceAlternatives
+                          ? guidanceVisibleScenarios
+                          : guidanceVisibleScenarios.filter(
+                              (scenario) => scenario.id === (guidanceActiveScenarioId ?? guidanceRecommendedScenarioId)
+                            )
+                        ).map((scenario) => {
                           const selected = guidanceActiveScenarioId === scenario.id;
+                          const isRecommendation = scenario.id === guidanceRecommendedScenarioId;
                           return (
                             <div
                               key={scenario.id}
@@ -21886,6 +21566,11 @@ export function BetaOnboardingV2PageContent({
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <p className="min-w-0 flex-1 text-[15px] font-semibold">{scenario.label}</p>
+                                    {isRecommendation ? (
+                                      <span className="rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
+                                        مقترح
+                                      </span>
+                                    ) : null}
                                     {selected ? (
                                       <span className="rounded-full border border-[#bfdbfe] bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold text-[#1d4ed8]">
                                         مختار
@@ -21929,6 +21614,18 @@ export function BetaOnboardingV2PageContent({
                           );
                         })}
                       </div>
+
+                      {guidanceVisibleScenarios.length > 1 ? (
+                        <button
+                          type="button"
+                          aria-expanded={showGuidanceAlternatives}
+                          onClick={() => setShowGuidanceAlternatives((prev) => !prev)}
+                          className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#bfdbfe] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#1d4ed8] transition hover:border-[#2563eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]"
+                        >
+                          {showGuidanceAlternatives ? "خبّي الاختيارات الأخرى" : "اختار اتجاه آخر"}
+                          {showGuidanceAlternatives ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+                        </button>
+                      ) : null}
 
                       {guidanceConstraintNotice ? (
                         <div className="mt-5 rounded-[14px] border border-[#fde68a] bg-[#fffbeb] px-3 py-2 text-[12px] font-semibold text-[#92400e]">
@@ -22973,6 +22670,27 @@ export function BetaOnboardingV2PageContent({
                           </p>
                         </div>
 
+                        <div className="flex flex-col gap-3 rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-[14px] leading-7 text-[#3c3c43]">
+                            {Object.keys(proposalEditedRollover).length === 0
+                              ? "طبّقنا الإعداد الموصى به:"
+                              : "الإعداد ديالك:"}{" "}
+                            {rolloverSelectedCount} من {proposalPreview.selected_envelopes.length} أظرفة كتحتفظ بالباقي. تقدر تبدلو حتى من بعد من صفحة الأظرفة.
+                          </p>
+                          <button
+                            type="button"
+                            aria-expanded={showRolloverDetails}
+                            aria-controls="smart-settings-rollover-details"
+                            onClick={() => setShowRolloverDetails((prev) => !prev)}
+                            className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-full border border-[#d1d1d6] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#f2f2f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74]"
+                          >
+                            {showRolloverDetails ? "خبّي التفاصيل" : "بدّل"}
+                            {showRolloverDetails ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+                          </button>
+                        </div>
+
+                        {showRolloverDetails ? (
+                        <div id="smart-settings-rollover-details" className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
@@ -23046,6 +22764,8 @@ export function BetaOnboardingV2PageContent({
                             </section>
                           ))}
                         </div>
+                        </div>
+                        ) : null}
 
                         <div className="rounded-[22px] border border-[#dbeafe] bg-[#eff6ff] px-4 py-4 text-right shadow-[0_18px_40px_-30px_rgba(59,130,246,0.22)]">
                           <p className="text-[14px] font-semibold text-[#0f172a]">الادخار</p>
