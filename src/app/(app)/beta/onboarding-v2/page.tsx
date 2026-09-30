@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Cairo } from "next/font/google";
@@ -10,27 +10,43 @@ import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreference
 import { GUEST_LIMITS } from "@/lib/guestQuota";
 import {
   ArrowDown,
+  Baby,
+  Bike,
+  Briefcase,
+  Building2,
+  Bus,
+  Car,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
   CircleDashed,
   CircleHelp,
+  FileText,
   HandCoins,
   HeartHandshake,
   Home,
+  House,
   Info,
+  KeyRound,
   Landmark,
+  Laptop,
   Lock,
   PiggyBank,
+  Plus,
   RefreshCcw,
   Scale,
   ShieldCheck,
+  Shuffle,
   Sparkles,
   Target,
   Ticket,
   TrainFront,
   TriangleAlert,
+  User,
+  Users,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import {
   Dialog,
@@ -100,6 +116,11 @@ import {
   getPayTimingValueFromLegacyAnswers,
   withPayTimingAnswersFromLegacy,
 } from "@/lib/onboardingPayTiming";
+import {
+  findScreenIndexForQuestionId,
+  getOnboardingCardSection,
+  groupOnboardingQuestionsIntoCards,
+} from "@/lib/onboardingCards";
 
 type AnswerValue =
   | string
@@ -154,12 +175,14 @@ type QuestionKind =
   | "smart_settings"
   | "debt_plan_preview"
   | "income_variation"
-  | "message";
+  | "message"
+  | "group";
 
 type QuestionOption = {
   value: string;
   label: string;
   hint?: string;
+  icon?: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 };
 
 type QuestionOptionGroup = {
@@ -186,6 +209,9 @@ type QuestionSpec = {
   step?: number;
   unit?: string;
   debtIndex?: number;
+  /** "group" cards: the regular questions shown together on one screen. */
+  fields?: QuestionSpec[];
+  section?: OnboardingSectionKey;
 };
 
 type DistributionSetupItemKind =
@@ -449,10 +475,10 @@ const FINANCIAL_SEMANTIC_THEMES: Record<FinancialSemanticDomain, FinancialSemant
 };
 
 const INCOME_TYPE_OPTIONS: QuestionOption[] = [
-  { value: "salaried", label: "👔 موظف (راتب)" },
-  { value: "hirafi", label: "🛠️ حِرافي / خدمة يومية" },
-  { value: "freelancer", label: "💻 عمل حر" },
-  { value: "mixed", label: "🔄 مختلط" },
+  { value: "salaried", label: "موظف (راتب)", icon: Briefcase },
+  { value: "hirafi", label: "حِرافي / خدمة يومية", icon: Wrench },
+  { value: "freelancer", label: "عمل حر", icon: Laptop },
+  { value: "mixed", label: "مختلط", icon: Shuffle },
 ];
 
 const FIXED_OTHER_ROWS_KEY = "FX3_other_fixed_rows";
@@ -505,14 +531,19 @@ function findQuestionIndexById(questions: QuestionSpec[], questionId: string | n
   const directIndex = questions.findIndex((question) => question.id === questionId);
   if (directIndex >= 0) return directIndex;
   const alias = MERGED_QUESTION_ID_ALIASES[questionId];
-  return alias ? questions.findIndex((question) => question.id === alias) : -1;
+  const targetId = alias ?? questionId;
+  if (alias) {
+    const aliasIndex = questions.findIndex((question) => question.id === alias);
+    if (aliasIndex >= 0) return aliasIndex;
+  }
+  return findScreenIndexForQuestionId(questions, targetId);
 }
 
 const HOUSEHOLD_OPTIONS: QuestionOption[] = [
-  { value: "single", label: "👤 بوحدي" },
-  { value: "couple", label: "💑 مزوّج/زوجة" },
-  { value: "family_kids", label: "👨‍👩‍👧‍👦 عائلة مع الأولاد" },
-  { value: "extended_family", label: "🏠 كولّوك / سكن مشترك" },
+  { value: "single", label: "بوحدي", icon: User },
+  { value: "couple", label: "مزوّج/زوجة", icon: Users },
+  { value: "family_kids", label: "عائلة مع الأولاد", icon: Baby },
+  { value: "extended_family", label: "كولّوك / سكن مشترك", icon: Home },
 ];
 
 const EXPENSE_SHARE_OPTIONS: QuestionOption[] = [
@@ -523,10 +554,10 @@ const EXPENSE_SHARE_OPTIONS: QuestionOption[] = [
 ];
 
 const HOUSING_STATUS_OPTIONS: QuestionOption[] = [
-  { value: "rent", label: "🏢 كاري" },
-  { value: "owner_loan", label: "🏠 شاري بقرض" },
-  { value: "owner_no_loan", label: "🏡 شاري بلا قرض" },
-  { value: "with_family", label: "👪 ساكن مع العائلة" },
+  { value: "rent", label: "كاري", icon: Building2 },
+  { value: "owner_loan", label: "شاري بقرض", icon: KeyRound },
+  { value: "owner_no_loan", label: "شاري بلا قرض", icon: House },
+  { value: "with_family", label: "ساكن مع العائلة", icon: HeartHandshake },
 ];
 
 const DEBT_MAX_COUNT = 3;
@@ -624,10 +655,10 @@ const GOAL_FLEXIBILITY_OPTIONS: QuestionOption[] = [
 ];
 
 const TRANSPORT_MODE_OPTIONS: QuestionOption[] = [
-  { value: "public", label: "🚌 نقل عمومي" },
-  { value: "car", label: "🚗 طوموبيل" },
-  { value: "motorbike", label: "🏍️ موتور" },
-  { value: "mixed", label: "🔀 مختلط" },
+  { value: "public", label: "نقل عمومي", icon: Bus },
+  { value: "car", label: "طوموبيل", icon: Car },
+  { value: "motorbike", label: "موتور", icon: Bike },
+  { value: "mixed", label: "مختلط", icon: Shuffle },
 ];
 
 const PRIMARY_OBJECTIVE_OPTIONS: QuestionOption[] = [
@@ -802,7 +833,7 @@ const MESSAGE_STEP_AUTO_PER_CHAR_MS = 34;
 const ASSISTANT_TYPING_MS = 420;
 const ASSISTANT_POST_REACTION_MS = 560;
 
-const ASSISTANT_POST_FALLBACKS = ["فهمت ✅", "مزيان…", "تمام 👌"] as const;
+const ASSISTANT_POST_FALLBACKS = ["فهمت", "مزيان…", "تمام"] as const;
 
 const ASSISTANT_PRE_BY_QUESTION_ID: Record<string, string> = {
   Q0_income_type: "أول حاجة: منين كاتدخل الفلوس باش نبنيو عليه كلشي.",
@@ -825,16 +856,16 @@ const ASSISTANT_PRE_BY_QUESTION_ID: Record<string, string> = {
   E11b_distribution_setup: "دابا نضبطو قواعد توزيع الدخل لنفس الأظرفة اللي ماشي ثابتة.",
   E12_smart_settings: "بقاو غير الإعدادات الذكية باش نخليو التطبيق يخدم بطريقة مناسبة ليك.",
   E8_envelope_granularity: "آخر لمسة قبل الاقتراحات: بغيتهم مبسطين ولا مفصلين؟",
-  E10_keep_suggestions: "صافي… غادي نعطيك أظرفة مقترحة، حيّد غير اللي ما بغيتيش ✅",
+  E10_keep_suggestions: "صافي… غادي نعطيك أظرفة مقترحة، حيّد غير اللي ما بغيتيش.",
   C1_custom_envelopes: "إلا حسيتي شي ظرف مازال ناقص، زيدو هنا باسم بسيط وواضح.",
 };
 
 const ASSISTANT_POST_BY_QUESTION_ID: Record<string, string> = {
   Q0b_primary_objective: "وصلات… كنبدأو نخدمو عليه خطوة بخطوة.",
-  E0_household_type: "واضح ✅",
-  E3_housing_status: "تمام 👌",
+  E0_household_type: "واضح.",
+  E3_housing_status: "تمام.",
   E4_transport_mode: "مزيان… نكملو.",
-  FX0_fixed_now: "هاكا كملنا المصاريف الثابتة الأخرى ✅",
+  FX0_fixed_now: "هاكا كملنا المصاريف الثابتة الأخرى.",
   G0_has_goal: "واضح… نكمّلو على هاد الأساس.",
   G1_goal_builder: "دابا بان لينا شنو باغي توصل ليه.",
   G2_goal_preferences: "واضح… غادي نوازنوهم من بعد مع الديون والمعيشة.",
@@ -845,20 +876,20 @@ const ASSISTANT_POST_BY_QUESTION_ID: Record<string, string> = {
   E11b_distribution_setup: "مزيان، قواعد التوزيع ولات واضحة.",
   E12_smart_settings: "كلشي واجد باش تبدأ دابا.",
   E8_envelope_granularity: "دابا نعطيك الاقتراحات على نفس المستوى اللي اخترتي.",
-  E10_keep_suggestions: "هاكا… زوين بزاف 👌",
-  C1_custom_envelopes: "ممتاز ✅",
+  E10_keep_suggestions: "هاكا… زوين بزاف.",
+  C1_custom_envelopes: "ممتاز.",
 };
 
 const ASSISTANT_POST_BY_QUESTION_ID_AND_ANSWER: Record<string, Record<string, string>> = {
   Q0_income_type: {
-    salaried: "دخل ثابت… هادي غادي تسهّل علينا بزاف ✅",
-    hirafi: "مرونة… غادي ندير ليك plan ضد الشهر الضعيف 🛡️",
-    freelancer: "خدمة حرّة… نخليوها مرنة 🔄",
-    mixed: "مزيج… غادي نرتّبوها بلا صداع 👌",
+    salaried: "دخل ثابت… هادي غادي تسهّل علينا بزاف.",
+    hirafi: "مرونة… غادي ندير ليك plan ضد الشهر الضعيف.",
+    freelancer: "خدمة حرّة… نخليوها مرنة.",
+    mixed: "مزيج… غادي نرتّبوها بلا صداع.",
   },
   E5_has_debt: {
-    no: "مزيان 👌 هكا نركزو أكثر على التنظيم، الاحتياط، والأهداف.",
-    yes: "متقلقش… وحدة بوحدة 💪",
+    no: "مزيان، هكا نركزو أكثر على التنظيم، الاحتياط، والأهداف.",
+    yes: "متقلقش… وحدة بوحدة.",
   },
   G0_has_goal: {
     yes: "مزيان… دخل غير الأهداف اللي باغيهم دابا.",
@@ -2333,7 +2364,7 @@ function validateAnswer(questionId: string, normalizedValue: string | string[], 
       return {
         ok: false,
         severity: "hard",
-        message: "سمح ليا {الاسم}… هاد النص ما مناسبش. كتب اسم عادي بلا روابط/كلمات خايبة ✅",
+        message: "سمح ليا {الاسم}… هاد النص ما مناسبش. كتب اسم عادي بلا روابط/كلمات خايبة.",
       };
     }
   }
@@ -5972,6 +6003,8 @@ function getFinancialDomainLabel(domain: FinancialSemanticDomain): string {
 
 function getOnboardingQuestionDomain(questionId: string | null | undefined): FinancialSemanticDomain {
   const id = questionId ?? "";
+  if (id === "card_income") return "income";
+  if (id.startsWith("card_")) return "expenses";
   if (/^(E0_|E1_|E2_|E3_|E4_|E6_|E7_|E8_|FX|RNT|HSN|TR|CAR|BIK|C1_)/.test(id)) return "expenses";
   if (/^(Q0_|S|H|F|M|SWP)/.test(id)) return "income";
   if (/^(D)/.test(id)) return "debts";
@@ -5981,6 +6014,8 @@ function getOnboardingQuestionDomain(questionId: string | null | undefined): Fin
 
 function getOnboardingSectionForQuestionId(questionId: string | null | undefined): OnboardingSectionKey {
   const id = questionId ?? "";
+  const cardSection = getOnboardingCardSection(id);
+  if (cardSection) return cardSection;
   if (/^R\d_/.test(id)) return "profile";
   if (/^(Q0_|S|H|M)/.test(id)) return "income";
   if (/^(E0_|E1_|E2_|E6_)/.test(id)) return "household";
@@ -8977,7 +9012,7 @@ function hasCollectedUserInfo(answers: Answers): boolean {
 
 function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding"): QuestionSpec[] {
   const yesNoOptions: QuestionOption[] = [
-    { value: "yes", label: "✅ نعم" },
+    { value: "yes", label: "نعم" },
     { value: "no", label: "لا" },
   ];
 
@@ -9215,8 +9250,8 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
         title: "واش الراتب ديالك غالباً ثابت؟",
         kind: "single",
         options: [
-          { value: "fixed", label: "✅ ثابت" },
-          { value: "variable", label: "🔄 كيبدّل شوية (bonus/prime)" },
+          { value: "fixed", label: "ثابت" },
+          { value: "variable", label: "كيبدّل شوية (bonus/prime)" },
         ],
       },
       {
@@ -9293,7 +9328,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
       title: "كيفاش كيتخلصوك؟",
       kind: "single",
       options: [
-        { value: "invoices", label: "📄 Invoices" },
+        { value: "invoices", label: "Invoices", icon: FileText },
         { value: "retainer", label: "Retainer شهري" },
         { value: "mixed", label: "مختلط" },
       ],
@@ -9821,9 +9856,12 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     return question.id !== "F0_financial_summary" && !MONEY_PLAN_QUESTION_IDS.has(question.id);
   });
 
-  if (!firstName) return filteredQuestions;
+  const screens =
+    journeyMode === "money_plan" ? filteredQuestions : groupOnboardingQuestionsIntoCards(filteredQuestions);
 
-  return filteredQuestions.map((question) => {
+  if (!firstName) return screens;
+
+  return screens.map((question) => {
     if (question.kind === "message") return question;
     return {
       ...question,
@@ -9833,6 +9871,10 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
 }
 
 function isQuestionAnswered(question: QuestionSpec, answers: Answers): boolean {
+  if (question.kind === "group") {
+    return (question.fields ?? []).every((field) => isQuestionAnswered(field, answers));
+  }
+
   if (question.kind === "single") {
     if (getString(answers, question.id).trim().length > 0) return true;
     const payTimingSpec = getPayTimingSpec(question.id);
@@ -15574,10 +15616,109 @@ export function BetaOnboardingV2PageContent({
     (item: EnvelopeProposalResolved) => item.final_rollover_enabled
   ).length;
 
+  // The side effects a single choice has on other answers (pay timing keys,
+  // household defaults…), shared by one-question screens and cards.
+  const computeSingleAnswerUpdate = (question: QuestionSpec, value: string, base: Answers): Answers => {
+    const payTimingSpec = getPayTimingSpec(question.id);
+    return payTimingSpec
+      ? applyPayTimingAnswer(base, payTimingSpec, value)
+      : question.id === "E0_household_type"
+      ? applyHouseholdSelectionDefaults(base, value)
+      : question.id === "G0_has_goal"
+      ? applyGoalSelectionDefaults(base, value)
+      : question.id === "D1_debt_count"
+      ? applyDebtCountSelectionDefaults(base, value)
+      : question.id === "E7_lifestyle"
+      ? setCompatOnboardingAnswerString(base, question.id, value)
+      : { ...base, [question.id]: value };
+  };
+
+  // A choice inside a card: same answer update, no auto-advance.
+  const answerCardSingle = (field: QuestionSpec, value: string) => {
+    const optionValues = new Set((field.options ?? []).map((option) => option.value));
+    if (optionValues.size > 0 && !optionValues.has(value)) return;
+    clearValidationState();
+    clearSoftWarning(field.id);
+    setIsReadyScreen(false);
+    setAnswers((prev) => computeSingleAnswerUpdate(field, value, prev));
+  };
+
+  const focusCardField = (fieldId: string) => {
+    if (typeof document === "undefined") return;
+    const element = document.getElementById(`onboarding-field-${fieldId}`);
+    if (!element) return;
+    element.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    const control = element.querySelector<HTMLElement>("input, button");
+    control?.focus({ preventScroll: true });
+  };
+
+  // Validates every field of a card with the rules of its one-question screen.
+  const submitGroupQuestion = (question: QuestionSpec) => {
+    let nextAnswers = answers;
+    const fail = (fieldId: string, message: string, helper?: string) => {
+      setValidationFeedback(message, helper, { [fieldId]: helper ?? message });
+      focusCardField(fieldId);
+    };
+
+    for (const field of question.fields ?? []) {
+      if (field.kind === "single" || field.kind === "slider") {
+        if (!isQuestionAnswered(field, nextAnswers)) {
+          fail(field.id, "اختار جواب هنا.");
+          return;
+        }
+        continue;
+      }
+
+      if (field.kind === "multi") {
+        const selected = getList(nextAnswers, field.id);
+        if (field.id === "HSN3_owner_fixed_items" && selected.includes("none") && selected.length > 1) {
+          fail(field.id, "إلا اخترتي (والو)، ما تختارش معاه مصاريف أخرى.");
+          return;
+        }
+        if (field.id === "FX1_fixed_items" && selected.includes("other") && getFixedOtherRows(nextAnswers).length === 0) {
+          fail(field.id, "إلى اخترتي (أخرى)، زيد على الأقل سطر واحد: الاسم + المبلغ + الفترة.");
+          return;
+        }
+        if (!field.optional && selected.length === 0) {
+          fail(field.id, "اختار على الأقل عنصر واحد.");
+          return;
+        }
+        continue;
+      }
+
+      if (field.kind === "input") {
+        const raw = getString(nextAnswers, field.id);
+        const normalized = normalizeAnswer(field.id, raw);
+        const value = typeof normalized === "string" ? normalized : raw;
+        if (!field.optional && !value.trim()) {
+          fail(field.id, "عمّر هاد الخانة باش نكملو.", "هاد الخانة ضرورية");
+          return;
+        }
+        if (value !== raw) nextAnswers = { ...nextAnswers, [field.id]: value };
+        const validation = validateAnswer(field.id, value, nextAnswers);
+        if (!validation.ok) {
+          if (validation.severity === "soft") {
+            if (!consumeSoftWarning(validation.warningKey ?? field.id)) {
+              fail(field.id, validation.message, validation.helper ?? "تحقق من هاد القيمة");
+              return;
+            }
+          } else {
+            fail(field.id, validation.message, validation.helper ?? "قيمة غير صالحة");
+            return;
+          }
+        }
+      }
+    }
+
+    clearValidationState();
+    if (nextAnswers !== answers) setAnswers(nextAnswers);
+    proceedWithAssistantReaction(question.id, nextAnswers, undefined, 200);
+  };
+
   const answerSingle = (question: QuestionSpec, value: string) => {
     const optionValues = new Set((question.options ?? []).map((option) => option.value));
     if (optionValues.size > 0 && !optionValues.has(value)) {
-      setValidationFeedback("اختار الجواب من الخيارات اللي قدامك 🙏");
+      setValidationFeedback("اختار الجواب من الخيارات اللي قدامك.");
       return;
     }
     clearValidationState();
@@ -15585,19 +15726,7 @@ export function BetaOnboardingV2PageContent({
     setIsReadyScreen(false);
     setIsRolloverConfigScreen(false);
     setIsSweepSetupScreen(false);
-    const payTimingSpec = getPayTimingSpec(question.id);
-    const nextAnswers =
-      payTimingSpec
-        ? applyPayTimingAnswer(answers, payTimingSpec, value)
-        : question.id === "E0_household_type"
-        ? applyHouseholdSelectionDefaults(answers, value)
-        : question.id === "G0_has_goal"
-        ? applyGoalSelectionDefaults(answers, value)
-        : question.id === "D1_debt_count"
-        ? applyDebtCountSelectionDefaults(answers, value)
-        : question.id === "E7_lifestyle"
-        ? setCompatOnboardingAnswerString(answers, question.id, value)
-        : { ...answers, [question.id]: value };
+    const nextAnswers = computeSingleAnswerUpdate(question, value, answers);
     setAnswers(nextAnswers);
     if (question.id === "G0_has_goal" && value === "no") {
       setCollapsedGoalCards({});
@@ -16169,7 +16298,7 @@ export function BetaOnboardingV2PageContent({
     }
 
     if (!question.optional && !value.trim()) {
-      setValidationFeedback("سمح ليا {الاسم}… خاصك تعمر هاد الخانة باش نكملو ✅", undefined, {
+      setValidationFeedback("سمح ليا {الاسم}… خاصك تعمر هاد الخانة باش نكملو.", undefined, {
         [question.id]: "هاد الخانة ضرورية",
       });
       return;
@@ -16642,7 +16771,7 @@ export function BetaOnboardingV2PageContent({
     setIsSweepSetupScreen(false);
     const optionValues = new Set((question.options ?? []).map((option) => option.value));
     if (optionValues.size > 0 && !optionValues.has(value)) {
-      setValidationFeedback("اختار من اللائحة الموجودة باش نكملو ✅");
+      setValidationFeedback("اختار من اللائحة الموجودة باش نكملو.");
       return;
     }
 
@@ -16798,7 +16927,7 @@ export function BetaOnboardingV2PageContent({
     }
 
     if (question.id === "HSN3_owner_fixed_items" && selected.includes("none") && selected.length > 1) {
-      setValidationFeedback("إلا اخترتي (والو)، ما تختارش معاه مصاريف أخرى 🙏");
+      setValidationFeedback("إلا اخترتي (والو)، ما تختارش معاه مصاريف أخرى.");
       return;
     }
 
@@ -17525,6 +17654,211 @@ export function BetaOnboardingV2PageContent({
     );
   }
 
+  const renderFixedOtherRowsEditor = () => (
+                        <div className="mx-auto w-full max-w-6xl rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] p-4 text-right">
+                          <p className="text-[14px] font-semibold text-[#111111]">مصاريف أخرى (جدول)</p>
+                          <p className="mt-1 text-[12px] text-[#6e6e73]">
+                            زيد الاسم، المبلغ، والفترة. تقدر تزيد أكثر من سطر.
+                          </p>
+
+                          <div className="mt-3 hidden grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto] gap-2 text-[12px] font-semibold text-[#6e6e73] md:grid">
+                            <span>الاسم</span>
+                            <span>المبلغ</span>
+                            <span>الفترة</span>
+                            <span></span>
+                          </div>
+
+                          <div className="mt-2 space-y-2">
+                            {getFixedOtherRows(answers).map((row) => (
+                              <div
+                                key={row.id}
+                                className="grid grid-cols-1 gap-2 rounded-xl border border-[#e5e7eb] bg-[var(--surface)] p-2 md:grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto]"
+                              >
+                                <div className="h-11 rounded-lg border border-[#e5e7eb] px-3 py-2 text-[14px] text-[#111111]">
+                                  {row.name}
+                                </div>
+                                <div className="h-11 rounded-lg border border-[#e5e7eb] px-3 py-2 text-[14px] text-[#111111]">
+                                  {formatMad(row.amount)}
+                                </div>
+                                <div className="h-11 rounded-lg border border-[#e5e7eb] px-3 py-2 text-[14px] text-[#111111]">
+                                  {FIXED_OTHER_CADENCE_OPTIONS.find((option) => option.value === row.cadence)?.label ?? "—"}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeFixedOtherRow(row.id)}
+                                  className="h-11 rounded-lg border border-[#fecaca] bg-[#fff1f2] px-3 text-[12px] font-semibold text-[#b91c1c]"
+                                >
+                                  حذف
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto]">
+                            <Input
+                              type="text"
+                              placeholder="مثلاً: اشتراك نادي"
+                              value={fixedOtherDraftName}
+                              onChange={(event) => setFixedOtherDraftName(event.target.value)}
+                              className="h-11 rounded-lg border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] shadow-none focus-visible:ring-[#111111]"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={fixedOtherDraftAmount}
+                              onChange={(event) => setFixedOtherDraftAmount(event.target.value)}
+                              className="h-11 rounded-lg border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] shadow-none focus-visible:ring-[#111111]"
+                            />
+                            <select
+                              value={fixedOtherDraftCadence}
+                              onChange={(event) => setFixedOtherDraftCadence(event.target.value as FixedOtherRow["cadence"])}
+                              className="h-11 rounded-lg border border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] text-[#111111] shadow-none focus:outline-none focus:ring-2 focus:ring-[#111111]"
+                            >
+                              {FIXED_OTHER_CADENCE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={addFixedOtherRow}
+                              className="h-11 rounded-lg border border-[#0c8a67] bg-[#0f9d74] px-4 text-[13px] font-semibold text-white"
+                            >
+                              + إضافة
+                            </button>
+                          </div>
+                        </div>
+  );
+
+  const cardChipClass = (active: boolean) =>
+    `inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-[14px] border px-3 py-2 text-center text-[15px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74] focus-visible:ring-offset-2 ${
+      active
+        ? "border-[#0f9d74] bg-[#ecfdf5] text-[#065f46]"
+        : "border-[#d1d5db] bg-[var(--surface)] text-[#111111] hover:border-[#9ca3af]"
+    }`;
+
+  const renderCardOptionLabel = (option: QuestionOption) => {
+    const OptionIcon = option.icon;
+    return (
+      <>
+        {OptionIcon ? <OptionIcon className="h-4 w-4 shrink-0" aria-hidden /> : null}
+        <span className="[overflow-wrap:anywhere]">{option.label}</span>
+      </>
+    );
+  };
+
+  const renderCardFieldControl = (field: QuestionSpec, labelId: string) => {
+    if (field.kind === "single") {
+      const selected = getString(answers, field.id);
+      if (field.groupedOptions && field.groupedOptions.length > 0) {
+        return (
+          <div className="space-y-3">
+            {field.groupedOptions.map((group) => (
+              <div key={group.id} role="group" aria-label={group.title}>
+                <p className="mb-2 text-[12px] font-semibold text-[#6e6e73]">{group.title}</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {group.options.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={selected === option.value}
+                      onClick={() => answerCardSingle(field, option.value)}
+                      className={cardChipClass(selected === option.value)}
+                    >
+                      {renderCardOptionLabel(option)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      return (
+        <div role="group" aria-labelledby={labelId} className="flex flex-wrap gap-2">
+          {(field.options ?? []).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected === option.value}
+              onClick={() => answerCardSingle(field, option.value)}
+              className={cardChipClass(selected === option.value)}
+            >
+              {renderCardOptionLabel(option)}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (field.kind === "multi") {
+      const selectedValues = getList(answers, field.id);
+      return (
+        <div className="space-y-3">
+          <div role="group" aria-labelledby={labelId} className="flex flex-wrap gap-2">
+            {(field.options ?? []).map((option) => {
+              const active = selectedValues.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleMultiAnswer(field, option.value)}
+                  className={cardChipClass(active)}
+                >
+                  {active ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
+                  {renderCardOptionLabel(option)}
+                </button>
+              );
+            })}
+          </div>
+          {field.id === "FX1_fixed_items" && selectedValues.includes("other") ? renderFixedOtherRowsEditor() : null}
+        </div>
+      );
+    }
+
+    if (field.kind === "input") {
+      const isMoney = field.inputType === "number" && isMoneyLikeQuestion(field.id);
+      return (
+        <div className="relative">
+          <Input
+            id={`onboarding-input-${field.id}`}
+            aria-labelledby={labelId}
+            aria-invalid={Boolean(fieldErrors[field.id])}
+            type={field.inputType ?? "text"}
+            inputMode={field.inputType === "number" ? "decimal" : undefined}
+            enterKeyHint="next"
+            placeholder={field.placeholder}
+            value={getString(answers, field.id)}
+            onChange={(event) => setInputAnswer(field.id, event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              // Enter moves to the next amount of the card; the last one submits it.
+              const form = event.currentTarget.form;
+              const inputs = form ? Array.from(form.querySelectorAll<HTMLInputElement>("input[id^='onboarding-input-']")) : [];
+              const nextInput = inputs[inputs.indexOf(event.currentTarget) + 1];
+              if (nextInput) {
+                event.preventDefault();
+                nextInput.focus();
+              }
+            }}
+            className={`h-12 w-full min-w-0 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
+              isMoney ? "pl-16" : ""
+            } ${fieldErrors[field.id] ? "border-[#ff3b30]" : "border-[#d1d1d6]"}`}
+          />
+          {isMoney ? (
+            <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[13px] font-semibold text-[#6e6e73]" dir="ltr">
+              MAD
+            </span>
+          ) : null}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   if (effectiveFlowStage === "collect_user") {
     return (
       <div
@@ -17651,21 +17985,64 @@ export function BetaOnboardingV2PageContent({
               </button>
               {!isInteractiveGuidanceScreen && !isMoneyPlanJourney && !isCompactChoiceQuestion ? (
                 <span className="rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
-                  {currentVisibleStep}/{totalSteps}
+                  {sectionPosition}/{totalSections}
                 </span>
               ) : null}
             </div>
+            {!isInteractiveGuidanceScreen && !isMoneyPlanJourney ? (
+              // Fixed steps instead of a question counter whose total grows as
+              // answers open follow-up questions. Reached steps can be reopened.
+              <nav aria-label="مراحل الإعداد">
+                <ol className="flex flex-wrap gap-2">
+                  {orderedSections.map((sectionKey, index) => {
+                    const firstIndex = questions.findIndex(
+                      (question) => getOnboardingSectionForQuestionId(question.id) === sectionKey
+                    );
+                    const isCurrent = sectionKey === currentSectionKey;
+                    const isReached = firstIndex >= 0 && firstIndex <= safeStepIndex;
+                    const isDone = isReached && !isCurrent && index < sectionPosition - 1;
+                    return (
+                      <li key={sectionKey}>
+                        <button
+                          type="button"
+                          disabled={!isReached || isCurrent}
+                          aria-current={isCurrent ? "step" : undefined}
+                          onClick={() => {
+                            const target = questions[firstIndex];
+                            if (target) jumpToQuestionById(target.id);
+                          }}
+                          className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-semibold transition ${
+                            isCurrent
+                              ? "border-[#111111] bg-[#111111] text-white"
+                              : isDone
+                              ? "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534] hover:border-[#16a34a]"
+                              : "border-[#e5e5ea] bg-[var(--surface)] text-[#8e8e93]"
+                          } disabled:cursor-default`}
+                        >
+                          {isDone ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
+                          {getOnboardingSectionMeta(sectionKey).label}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
+            ) : null}
             {!isInteractiveGuidanceScreen ? (
               <>
                 <div className="h-[4px] w-full overflow-hidden rounded-full bg-[#f2f2f7]">
                   <motion.div
                     className="h-full rounded-full bg-[#111111]"
-                    animate={{ width: `${progress}%` }}
+                    animate={{ width: `${isMoneyPlanJourney ? progress : Math.round((sectionPosition / totalSections) * 100)}%` }}
                     transition={onboardingTransition}
                   />
                 </div>
                 <div className="flex items-center justify-between text-[12px] text-[#6e6e73]">
-                  <span>{currentVisibleStep}/{totalSteps}</span>
+                  <span>
+                    {isMoneyPlanJourney
+                      ? `${currentVisibleStep}/${totalSteps}`
+                      : getOnboardingSectionMeta(currentSectionKey).label}
+                  </span>
                   {!isCompactChoiceQuestion ? (
                     <span>
                       {onboardingRecordStatus === "saving"
@@ -18621,7 +18998,8 @@ export function BetaOnboardingV2PageContent({
                             }
                           >
                             <div className={`flex items-center justify-between gap-3 ${isPayoutDayQuestion ? "w-full justify-center" : ""}`}>
-                              <div>
+                              <div className="flex items-center gap-3">
+                                {option.icon ? <option.icon className="h-5 w-5 shrink-0 text-[#3c3c43]" aria-hidden /> : null}
                                 <p className="text-[17px] font-medium text-[#111111]">{option.label}</p>
                                 {option.hint ? (
                                   <p className={`mt-1 text-[14px] ${currentQuestionTheme.accentText}`}>{option.hint}</p>
@@ -18634,7 +19012,7 @@ export function BetaOnboardingV2PageContent({
                                     active
                                   )}`}
                                 >
-                                  {active ? "✓" : "›"}
+                                  {active ? <Check className="h-3.5 w-3.5" aria-hidden /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden />}
                                 </span>
                               ) : null}
                             </div>
@@ -19173,7 +19551,7 @@ export function BetaOnboardingV2PageContent({
                                             active
                                           )}`}
                                         >
-                                          {active ? "✓" : "+"}
+                                          {active ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Plus className="h-3.5 w-3.5" aria-hidden />}
                                         </span>
                                       </span>
                                     </button>
@@ -19205,7 +19583,7 @@ export function BetaOnboardingV2PageContent({
                                       active
                                     )}`}
                                   >
-                                    {active ? "✓" : "+"}
+                                    {active ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Plus className="h-3.5 w-3.5" aria-hidden />}
                                   </span>
                                 </span>
                               </button>
@@ -19215,82 +19593,9 @@ export function BetaOnboardingV2PageContent({
                       )}
 
                       {currentQuestion.id === "FX1_fixed_items" &&
-                      getList(answers, "FX1_fixed_items").includes("other") ? (
-                        <div className="mx-auto w-full max-w-6xl rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] p-4 text-right">
-                          <p className="text-[14px] font-semibold text-[#111111]">مصاريف أخرى (جدول)</p>
-                          <p className="mt-1 text-[12px] text-[#6e6e73]">
-                            زيد الاسم، المبلغ، والفترة. تقدر تزيد أكثر من سطر.
-                          </p>
-
-                          <div className="mt-3 hidden grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto] gap-2 text-[12px] font-semibold text-[#6e6e73] md:grid">
-                            <span>الاسم</span>
-                            <span>المبلغ</span>
-                            <span>الفترة</span>
-                            <span></span>
-                          </div>
-
-                          <div className="mt-2 space-y-2">
-                            {getFixedOtherRows(answers).map((row) => (
-                              <div
-                                key={row.id}
-                                className="grid grid-cols-1 gap-2 rounded-xl border border-[#e5e7eb] bg-[var(--surface)] p-2 md:grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto]"
-                              >
-                                <div className="h-11 rounded-lg border border-[#e5e7eb] px-3 py-2 text-[14px] text-[#111111]">
-                                  {row.name}
-                                </div>
-                                <div className="h-11 rounded-lg border border-[#e5e7eb] px-3 py-2 text-[14px] text-[#111111]">
-                                  {formatMad(row.amount)}
-                                </div>
-                                <div className="h-11 rounded-lg border border-[#e5e7eb] px-3 py-2 text-[14px] text-[#111111]">
-                                  {FIXED_OTHER_CADENCE_OPTIONS.find((option) => option.value === row.cadence)?.label ?? "—"}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeFixedOtherRow(row.id)}
-                                  className="h-11 rounded-lg border border-[#fecaca] bg-[#fff1f2] px-3 text-[12px] font-semibold text-[#b91c1c]"
-                                >
-                                  حذف
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto]">
-                            <Input
-                              type="text"
-                              placeholder="مثلاً: اشتراك نادي"
-                              value={fixedOtherDraftName}
-                              onChange={(event) => setFixedOtherDraftName(event.target.value)}
-                              className="h-11 rounded-lg border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] shadow-none focus-visible:ring-[#111111]"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="0"
-                              value={fixedOtherDraftAmount}
-                              onChange={(event) => setFixedOtherDraftAmount(event.target.value)}
-                              className="h-11 rounded-lg border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] shadow-none focus-visible:ring-[#111111]"
-                            />
-                            <select
-                              value={fixedOtherDraftCadence}
-                              onChange={(event) => setFixedOtherDraftCadence(event.target.value as FixedOtherRow["cadence"])}
-                              className="h-11 rounded-lg border border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] text-[#111111] shadow-none focus:outline-none focus:ring-2 focus:ring-[#111111]"
-                            >
-                              {FIXED_OTHER_CADENCE_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={addFixedOtherRow}
-                              className="h-11 rounded-lg border border-[#0c8a67] bg-[#0f9d74] px-4 text-[13px] font-semibold text-white"
-                            >
-                              + إضافة
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
+                      getList(answers, "FX1_fixed_items").includes("other")
+                        ? renderFixedOtherRowsEditor()
+                        : null}
 
                       <div className="flex flex-wrap justify-center gap-3">
                                           {currentQuestion.optional ? (
@@ -19314,6 +19619,79 @@ export function BetaOnboardingV2PageContent({
                       </div>
                     </div>
                   )
+                ) : null}
+
+                {currentQuestion.kind === "group" ? (
+                  <form
+                    noValidate
+                    className="mx-auto w-full max-w-3xl space-y-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      submitGroupQuestion(currentQuestion);
+                    }}
+                  >
+                    {(currentQuestion.fields ?? []).map((field) => {
+                      const labelId = `onboarding-field-label-${field.id}`;
+                      const fieldError = fieldErrors[field.id];
+                      return (
+                        <div
+                          key={field.id}
+                          id={`onboarding-field-${field.id}`}
+                          className={`rounded-[20px] border bg-[var(--surface)] px-4 py-4 text-right ${
+                            fieldError ? "border-[#ff3b30]" : "border-[#e5e5ea]"
+                          }`}
+                        >
+                          <p id={labelId} className="text-[15px] font-semibold leading-7 text-[#111111]">
+                            {field.title}
+                          </p>
+                          {field.subtitle ? (
+                            <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">{field.subtitle}</p>
+                          ) : null}
+                          <div className="mt-3">{renderCardFieldControl(field, labelId)}</div>
+                          {fieldError ? (
+                            <p role="alert" className="mt-2 text-[12px] text-[#d70015]">
+                              {fieldError}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+
+                    {uiError ? (
+                      <p role="alert" className="rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-center text-[14px] text-[#d70015]">
+                        {uiError}
+                      </p>
+                    ) : null}
+
+                    <div className="sticky bottom-3 z-20 rounded-[24px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-3 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        {typeof financialSanity.incomeEstimate === "number" &&
+                        financialSanity.incomeEstimate > 0 &&
+                        typeof financialSanity.remaining === "number" ? (
+                          <p
+                            aria-live="polite"
+                            className={`inline-flex items-center gap-2 text-[13px] font-semibold ${
+                              financialSanity.remaining < 0 ? "text-[#b91c1c]" : "text-[#166534]"
+                            }`}
+                          >
+                            <HandCoins className="h-4 w-4" aria-hidden />
+                            {financialSanity.remaining < 0
+                              ? `عجز تقديري: ${formatMad(Math.abs(financialSanity.remaining))}`
+                              : `الباقي تقديرياً: ${formatMad(financialSanity.remaining)}`}
+                          </p>
+                        ) : (
+                          <span />
+                        )}
+                        <button
+                          type="submit"
+                          className={`h-12 min-w-[150px] ${onboardingPrimaryButtonClass}`}
+                          style={onboardingPrimaryButtonStyle}
+                        >
+                          كمل
+                        </button>
+                      </div>
+                    </div>
+                  </form>
                 ) : null}
 
                 {currentQuestion.kind === "input" ? (
@@ -20146,7 +20524,7 @@ export function BetaOnboardingV2PageContent({
                                 <div className="grid gap-3">
                                   <div className="space-y-2 rounded-[18px] border border-[#ececf1] bg-[#fbfbfc] p-3">
                                     <div className="flex items-center justify-between gap-3">
-                                      <p className="text-[12px] font-medium text-[#111111]">📅 عندك تاريخ؟</p>
+                                      <p className="text-[12px] font-medium text-[#111111]">عندك تاريخ؟</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         {[
                                           { value: "yes", label: "اه" },

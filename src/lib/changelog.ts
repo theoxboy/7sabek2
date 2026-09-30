@@ -39,6 +39,11 @@ export const CHANGELOG: Release[] = [
             ar: "البداية ولات أقصر: سؤال واحد على نهار الخلصة، أسئلة أقل على الدار والسكن والتنقل، ومقدمة أسرع تقدر تدوزها.",
           },
           {
+            fr: "La configuration de départ se fait par thème : ton revenu, ton foyer, ton logement, ta voiture et tes charges tiennent chacun sur un seul écran, avec des étapes toujours visibles en haut et le reste estimé qui se met à jour pendant que tu remplis.",
+            en: "Getting started now goes topic by topic: your income, household, housing, car and bills each fit on one screen, with steps always shown at the top and your estimated remaining money updating as you fill it in.",
+            ar: "البداية ولات بالمواضيع: الدخل، العائلة، السكن، الطوموبيل والمصاريف، كل واحد فصفحة وحدة، والمراحل باينين الفوق، والباقي التقديري كيتحدّث وانت كتعمّر.",
+          },
+          {
             fr: "Tes objectifs se déclarent maintenant sur un seul écran, avec un bouton « Pas maintenant » si tu n'en as pas encore.",
             en: "Your goals are now entered on a single screen, with a \"Not now\" button if you don't have one yet.",
             ar: "الأهداف ديالك دابا كتدخلهم فصفحة وحدة، ومعاها زر « ماشي دابا » إلا مازال ما عندكش.",
