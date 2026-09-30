@@ -8,11 +8,10 @@ import {
   getOnboardingTransition,
   ONBOARDING_ANIMATE,
 } from "@/components/onboarding/onboardingMotion";
+import { getOnboardingLocale, t } from "@/lib/onboardingI18n";
 
 export const MESSAGE_INTERVAL_MS = 2000;
 export const FADE_MS = 300;
-const PRIVACY_NOTE =
-  "معلوماتك المالية خاصة وآمنة. كنستعملوها غير باش نعطيوك خطة تناسب وضعيتك، وتقدر تبدلها فـ أي وقت.";
 
 export type IntroSequenceUser = {
   firstName: string;
@@ -24,7 +23,7 @@ export type IntroSequenceUser = {
 type IntroSequenceProps = {
   user: IntroSequenceUser;
   onStart: () => void;
-  startLabel?: "يلا نبدأو";
+  startLabel?: string;
   messageIntervalMs?: number;
   showSkip?: boolean;
 };
@@ -32,7 +31,7 @@ type IntroSequenceProps = {
 export function IntroSequence({
   user,
   onStart,
-  startLabel = "يلا نبدأو",
+  startLabel,
   messageIntervalMs = MESSAGE_INTERVAL_MS,
   showSkip = true,
 }: IntroSequenceProps) {
@@ -42,12 +41,28 @@ export function IntroSequence({
   const transitionDirection: 1 | -1 = 1;
 
   const firstName = user.firstName.trim();
+  // The page sets the language chosen at sign-up before rendering this screen.
+  const locale = getOnboardingLocale();
+  const textDir = locale === "ar" ? "rtl" : "ltr";
   const messages = useMemo(
     () => [
-      firstName ? `مرحبا بك ${firstName} فـ 7سابك` : "مرحبا بك فـ 7سابك",
-      "شي أسئلة قصيرة على الدخل والمصاريف، ومن بعد نوجدو ليك خطة الأظرفة.",
+      firstName
+        ? t(`مرحبا بك ${firstName} فـ 7سابك`, `Bienvenue ${firstName} sur 7sabek`, `Welcome to 7sabek, ${firstName}`)
+        : t("مرحبا بك فـ 7سابك", "Bienvenue sur 7sabek", "Welcome to 7sabek"),
+      t(
+        "شي أسئلة قصيرة على الدخل والمصاريف، ومن بعد نوجدو ليك خطة الأظرفة.",
+        "Quelques questions courtes sur tes revenus et dépenses, puis on prépare ton plan d'enveloppes.",
+        "A few short questions about your income and spending, then we prepare your envelope plan."
+      ),
     ],
-    [firstName]
+    // locale: the messages follow the chosen language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [firstName, locale]
+  );
+  const privacyNote = t(
+    "معلوماتك المالية خاصة وآمنة. كنستعملوها غير باش نعطيوك خطة تناسب وضعيتك، وتقدر تبدلها فـ أي وقت.",
+    "Tes informations financières restent privées et sécurisées. Elles servent uniquement à te proposer un plan adapté, modifiable à tout moment.",
+    "Your financial information stays private and secure. It's only used to suggest a plan that fits you, and you can change it anytime."
   );
 
   const lastMessageIndex = messages.length - 1;
@@ -90,7 +105,7 @@ export function IntroSequence({
             }}
             className="absolute right-6 top-8 inline-flex min-h-11 items-center rounded-full border border-[var(--border)] px-4 text-[14px] font-semibold text-[var(--ink)] transition hover:bg-[var(--bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:right-10"
           >
-            دوز
+            {t("دوز", "Passer", "Skip")}
           </button>
         ) : null}
 
@@ -108,7 +123,7 @@ export function IntroSequence({
                   transition={onboardingTransition}
                   className="inline-flex h-14 items-center justify-center rounded-2xl bg-[var(--ink)] px-8 text-[18px] font-semibold text-[var(--bg)] shadow-[0_16px_30px_-18px_rgba(0,0,0,0.5)] transition hover:opacity-90"
                 >
-                  {startLabel}
+                  {startLabel ?? t("يلا نبدأو", "C'est parti", "Let's go")}
                 </motion.button>
               ) : (
                 <motion.p
@@ -118,7 +133,7 @@ export function IntroSequence({
                   exit={getOnboardingExit(reduceMotion, transitionDirection)}
                   transition={onboardingTransition}
                   className="text-[31px] font-semibold leading-[1.22] tracking-[-0.02em] sm:text-[38px]"
-                  dir="rtl"
+                  dir={textDir}
                 >
                   {messages[currentStepIndex]}
                 </motion.p>
@@ -133,9 +148,9 @@ export function IntroSequence({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduceMotion ? 0.05 : 0.25 }}
             className="mx-auto max-w-2xl text-center text-[13px] leading-6 text-[var(--muted)]"
-            dir="rtl"
+            dir={textDir}
           >
-            {PRIVACY_NOTE}
+            {privacyNote}
           </motion.p>
         ) : null}
       </div>

@@ -31,6 +31,16 @@ export const CHANGELOG: Release[] = [
     date: "2026-09-29",
     groups: [
       {
+        kind: "added",
+        items: [
+          {
+            fr: "La configuration de départ et la construction de ton plan s'affichent maintenant dans la langue choisie à ton inscription : français, anglais ou darija.",
+            en: "Getting started and building your plan now appear in the language you chose when signing up: French, English or Darija.",
+            ar: "البداية وبناء الخطة دابا كيبانو باللغة اللي اخترتي ملي تسجلتي: الفرنسية، الإنجليزية ولا الدارجة.",
+          },
+        ],
+      },
+      {
         kind: "improved",
         items: [
           {

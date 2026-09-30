@@ -116,6 +116,7 @@ import {
   getPayTimingValueFromLegacyAnswers,
   withPayTimingAnswersFromLegacy,
 } from "@/lib/onboardingPayTiming";
+import { getOnboardingLocale, setOnboardingLocale, t, tx } from "@/lib/onboardingI18n";
 import {
   findScreenIndexForQuestionId,
   getOnboardingCardSection,
@@ -1144,13 +1145,14 @@ function getIncomeCadenceForRecurringCosts(answers: Answers): IncomeCadence {
 
 function getRecurringCostPromptByIncomeCadence(answers: Answers, label: string): string {
   const cadence = getIncomeCadenceForRecurringCosts(answers);
+  const shown = tx(label);
   if (cadence === "weekly") {
-    return `شحال كتخسر تقريباً فـ ${label} فكل أسبوع؟`;
+    return t(`شحال كتخسر تقريباً فـ ${label} فكل أسبوع؟`, `Combien dépenses-tu pour ${shown} par semaine ?`, `How much do you spend on ${shown} per week?`);
   }
   if (cadence === "biweekly") {
-    return `شحال كتخسر تقريباً فـ ${label} فكل 15 يوم؟`;
+    return t(`شحال كتخسر تقريباً فـ ${label} فكل 15 يوم؟`, `Combien dépenses-tu pour ${shown} tous les 15 jours ?`, `How much do you spend on ${shown} every 15 days?`);
   }
-  return `شحال كتخسر تقريباً فـ ${label} فكل شهر؟`;
+  return t(`شحال كتخسر تقريباً فـ ${label} فكل شهر؟`, `Combien dépenses-tu pour ${shown} par mois ?`, `How much do you spend on ${shown} per month?`);
 }
 
 function getSweepIntervalDaysForAnswers(answers: Answers): number {
@@ -2313,7 +2315,8 @@ function normalizeAnswer(questionId: string, rawValue: string | string[]): strin
     return rawValue.map((item) => normalizeTextInput(String(item)));
   }
   if (questionId === "R1_first_name" || questionId === "R2_last_name") {
-    return getArabicDisplayName(rawValue);
+    // Names are written in Arabic script only for Darija users.
+    return getOnboardingLocale() === "ar" ? getArabicDisplayName(rawValue) : normalizeTextInput(rawValue);
   }
   if (questionId === "R3_phone_number") return normalizePhoneInput(rawValue);
   if (questionId === "C1_custom_envelopes") return normalizeEnvelopeText(rawValue);
@@ -2355,9 +2358,9 @@ function validateAnswer(questionId: string, normalizedValue: string | string[], 
         ok: false,
         severity: "hard",
         message: questionId === "R1_first_name"
-          ? "سمح ليا {الاسم}… كتب غير سميتك بطريقة عادية (غير الحروف)."
-          : "مزيان، دابا كتب النسب ديالك بلا روابط ولا رموز.",
-        helper: questionId === "R1_first_name" ? "مثال: يوسف" : "مثال: الإدريسي",
+          ? t("سمح ليا {الاسم}… كتب غير سميتك بطريقة عادية (غير الحروف).", "Écris ton prénom avec des lettres uniquement (2 à 30).", "Write your first name using letters only (2 to 30).")
+          : t("مزيان، دابا كتب النسب ديالك بلا روابط ولا رموز.", "Écris ton nom sans lien ni symbole.", "Write your last name with no links or symbols."),
+        helper: questionId === "R1_first_name" ? t("مثال: يوسف", "ex. Youssef", "e.g. Youssef") : t("مثال: الإدريسي", "ex. El Idrissi", "e.g. El Idrissi"),
       };
     }
     if (containsUnsafeText(value) || containsProfanity(value)) {
@@ -2431,7 +2434,7 @@ function validateAnswer(questionId: string, normalizedValue: string | string[], 
         warningKey: "G3_goal_date_missing_for_large_goal",
         message:
           yearsNeeded && yearsNeeded > 0
-            ? `هاد الهدف كبير بزاف مقارنة مع الوضعية الحالية. تقريبياً غادي يحتاج حوالي ${yearsNeeded} سنين باش يكون واقعي، لذلك الأحسن تحدد التاريخ ديالو.`
+            ? t(`هاد الهدف كبير بزاف مقارنة مع الوضعية الحالية. تقريبياً غادي يحتاج حوالي ${yearsNeeded} سنين باش يكون واقعي، لذلك الأحسن تحدد التاريخ ديالو.`, `Objectif très élevé pour ta situation : environ ${yearsNeeded} ans seraient nécessaires. Indique une date.`, `A very big goal for your situation: about ${yearsNeeded} years would be needed. Set a date.`)
             : "هاد الهدف كبير بزاف مقارنة مع الوضعية الحالية. الأحسن تحدد التاريخ ديالو باش نعرفو واش واقعي ولا لا.",
         helper: "حدد تاريخ تقريبي للهدف",
       };
@@ -2442,9 +2445,11 @@ function validateAnswer(questionId: string, normalizedValue: string | string[], 
         ok: false,
         severity: "soft",
         warningKey: "G_goal_ambitious",
-        message: `باش توصل لهاد الهدف، خاص تقريباً ${formatMad(
-          goalReality.required_monthly
-        )} فالشهر. الإمكانية المريحة دابا أقرب لـ ${formatMad(goalReality.realistic_monthly_cap)}.`,
+        message: t(
+          `باش توصل لهاد الهدف، خاص تقريباً ${formatMad(goalReality.required_monthly)} فالشهر. الإمكانية المريحة دابا أقرب لـ ${formatMad(goalReality.realistic_monthly_cap)}.`,
+          `Il faut environ ${formatMad(goalReality.required_monthly)} par mois pour cet objectif ; le confortable aujourd'hui est plutôt ${formatMad(goalReality.realistic_monthly_cap)}.`,
+          `This goal needs about ${formatMad(goalReality.required_monthly)} a month; what's comfortable now is closer to ${formatMad(goalReality.realistic_monthly_cap)}.`
+        ),
         helper: "تقدر تكمل أو تخفف الهدف شوية",
       };
     }
@@ -2454,14 +2459,14 @@ function validateAnswer(questionId: string, normalizedValue: string | string[], 
         ok: false,
         severity: "soft",
         warningKey: "G_goal_unrealistic",
-        message: `باش توصل لهاد الهدف فهاد المدة، خاص تقريباً ${formatMad(
-          goalReality.required_monthly
-        )} فالشهر، بينما الواقعي دابا أقرب لـ ${formatMad(
-          goalReality.realistic_monthly_cap
-        )}. إلى بغيتي، نقص المبلغ أو زيد المدة.`,
+        message: t(
+          `باش توصل لهاد الهدف فهاد المدة، خاص تقريباً ${formatMad(goalReality.required_monthly)} فالشهر، بينما الواقعي دابا أقرب لـ ${formatMad(goalReality.realistic_monthly_cap)}. إلى بغيتي، نقص المبلغ أو زيد المدة.`,
+          `Dans ce délai, il faut environ ${formatMad(goalReality.required_monthly)} par mois, alors que le réaliste est plutôt ${formatMad(goalReality.realistic_monthly_cap)}. Réduis le montant ou allonge le délai.`,
+          `In this timeframe it needs about ${formatMad(goalReality.required_monthly)} a month, while realistic is closer to ${formatMad(goalReality.realistic_monthly_cap)}. Lower the amount or extend the time.`
+        ),
         helper:
           goalReality.suggested_amount_by_date && goalReality.months_to_goal
-            ? `المبلغ الأقرب للواقع فهاد المدة هو تقريباً ${formatMad(goalReality.suggested_amount_by_date)}`
+            ? t(`المبلغ الأقرب للواقع فهاد المدة هو تقريباً ${formatMad(goalReality.suggested_amount_by_date)}`, `Montant réaliste dans ce délai : environ ${formatMad(goalReality.suggested_amount_by_date)}`, `Realistic amount in this time: about ${formatMad(goalReality.suggested_amount_by_date)}`)
             : "راجع المبلغ أو التاريخ",
       };
     }
@@ -2470,12 +2475,14 @@ function validateAnswer(questionId: string, normalizedValue: string | string[], 
       return {
         ok: false,
         severity: "hard",
-        message: `هاد الهدف ماشي واقعي دابا بهاد الدخل وفهاد المدة. باش توصل ليه، خاص تقريباً ${formatMad(
-          goalReality.required_monthly
-        )} فالشهر، بينما الإمكانية الحالية أقرب لـ ${formatMad(goalReality.realistic_monthly_cap)}.`,
+        message: t(
+          `هاد الهدف ماشي واقعي دابا بهاد الدخل وفهاد المدة. باش توصل ليه، خاص تقريباً ${formatMad(goalReality.required_monthly)} فالشهر، بينما الإمكانية الحالية أقرب لـ ${formatMad(goalReality.realistic_monthly_cap)}.`,
+          `Cet objectif n'est pas réaliste avec ce revenu et ce délai : il faudrait environ ${formatMad(goalReality.required_monthly)} par mois, contre ${formatMad(goalReality.realistic_monthly_cap)} possibles.`,
+          `This goal isn't realistic with this income and timeframe: it would need about ${formatMad(goalReality.required_monthly)} a month, against ${formatMad(goalReality.realistic_monthly_cap)} possible.`
+        ),
         helper:
           goalReality.suggested_amount_by_date && goalReality.months_to_goal
-            ? `إما خليه تقريباً ${formatMad(goalReality.suggested_amount_by_date)} فهاد المدة، أو زيد المدة.`
+            ? t(`إما خليه تقريباً ${formatMad(goalReality.suggested_amount_by_date)} فهاد المدة، أو زيد المدة.`, `Vise environ ${formatMad(goalReality.suggested_amount_by_date)} dans ce délai, ou allonge-le.`, `Aim for about ${formatMad(goalReality.suggested_amount_by_date)} in this time, or extend it.`)
             : "راجع الهدف أو التاريخ",
       };
     }
@@ -3155,8 +3162,8 @@ function getRentIncludedCostsNote(answers: Answers): string | null {
   }
   const included = getList(answers, "RNT1a_rent_included_items").filter((item) => item in RENT_INCLUDED_ITEM_LABELS);
   if (included.length === 0) return null;
-  const labels = included.map((item) => RENT_INCLUDED_ITEM_LABELS[item]).join("، ");
-  return `${labels} داخلين فالكراء، ما تعاودش تدخلهم هنا.`;
+  const labels = included.map((item) => tx(RENT_INCLUDED_ITEM_LABELS[item])).join(t("، ", ", ", ", "));
+  return t(`${labels} داخلين فالكراء، ما تعاودش تدخلهم هنا.`, `${labels} : inclus dans le loyer, ne les ressaisis pas ici.`, `${labels}: included in the rent, don't enter them again here.`);
 }
 
 // Loans whose monthly payment is already counted in housing or transport.
@@ -3167,7 +3174,7 @@ function getLoansAlreadyCountedOutsideDebts(answers: Answers): string[] {
     getString(answers, "E3_housing_status") === "owner_loan" &&
     toNumber(getString(answers, "HSN1_loan_monthly_amount")) > 0
   ) {
-    loans.push("قرض الدار");
+    loans.push(t("قرض الدار", "Crédit immobilier", "Home loan"));
   }
   const transportMode = getString(answers, "E4_transport_mode");
   const carCostsCounted =
@@ -3177,7 +3184,7 @@ function getLoansAlreadyCountedOutsideDebts(answers: Answers): string[] {
     carCostsCounted &&
     getCarTransportPrefixes(answers).some((prefix) => getString(answers, `${prefix}car_loan`) === "yes")
   ) {
-    loans.push("قرض الطوموبيل");
+    loans.push(t("قرض الطوموبيل", "Crédit voiture", "Car loan"));
   }
   return loans;
 }
@@ -4798,6 +4805,7 @@ function getProposalReasonForUi(reason: string): string {
 }
 
 function localizeProposalEnvelopeNameForUi(name: string): string {
+  if (getOnboardingLocale() !== "ar") return getEnvelopeDisplayNameForLocale(name);
   const normalized = normalizeTextInput(name);
   if (normalized === "التسوق" || normalized === "shopping" || normalized === "الشوبينغ") {
     return "الشوبينغ";
@@ -5526,10 +5534,14 @@ function removeDebtCardAtIndex(answers: Answers, removeIndex: number): Answers {
 }
 
 function buildDebtBuilderSummaryLine(answers: Answers, index: number): string {
-  const name = getString(answers, `D2_debt_name_${index}`) || `دين ${index}`;
+  const name = getString(answers, `D2_debt_name_${index}`) || t(`دين ${index}`, `Dette ${index}`, `Debt ${index}`);
   const remaining = toNumber(getString(answers, `D3_debt_remaining_amount_${index}`));
   const payment = getDebtPaymentSnapshot(answers, index);
-  return `${name} — باقي ${formatMad(remaining)} — أداء ${formatMad(payment.monthly_equivalent)}/شهر`;
+  return t(
+    `${name} — باقي ${formatMad(remaining)} — أداء ${formatMad(payment.monthly_equivalent)}/شهر`,
+    `${name} — reste ${formatMad(remaining)} — ${formatMad(payment.monthly_equivalent)}/mois`,
+    `${name} — ${formatMad(remaining)} left — ${formatMad(payment.monthly_equivalent)}/month`
+  );
 }
 
 function buildDebtSummaryMetrics(answers: Answers): {
@@ -5699,7 +5711,7 @@ function removeGoalCardAtIndex(answers: Answers, removeIndex: number): Answers {
 }
 
 function buildGoalBuilderSummaryLine(answers: Answers, index: number): string {
-  const name = getString(answers, `G1_goal_name_${index}`) || `هدف ${index}`;
+  const name = getString(answers, `G1_goal_name_${index}`) || t(`هدف ${index}`, `Objectif ${index}`, `Goal ${index}`);
   const targetAmount = toNumber(getString(answers, `G1_goal_target_amount_${index}`));
   return `${name} — ${formatMad(targetAmount)}`;
 }
@@ -6195,9 +6207,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   if (housingStatus === "rent" || toNumber(getString(answers, "RNT0_rent_amount")) > 0) {
     pushRow({
       key: "rent_auto",
-      label: "الكراء",
+      label: t("الكراء", "Loyer", "Rent"),
       group_key: "housing",
-      group_label: "السكن",
+      group_label: t("السكن", "Logement", "Housing"),
       answer_key: "RNT0_rent_amount",
       monthly_amount: toNumber(getString(answers, "RNT0_rent_amount")),
     }, { showWhen: housingStatus === "rent" || toNumber(getString(answers, "RNT0_rent_amount")) > 0 });
@@ -6206,9 +6218,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   if (housingStatus === "owner_loan" || toNumber(getString(answers, "HSN1_loan_monthly_amount")) > 0) {
     pushRow({
       key: "housing_loan_auto",
-      label: "قرض السكن",
+      label: t("قرض السكن", "Crédit immobilier", "Home loan"),
       group_key: "housing",
-      group_label: "السكن",
+      group_label: t("السكن", "Logement", "Housing"),
       answer_key: "HSN1_loan_monthly_amount",
       monthly_amount: toNumber(getString(answers, "HSN1_loan_monthly_amount")),
     }, { showWhen: housingStatus === "owner_loan" || toNumber(getString(answers, "HSN1_loan_monthly_amount")) > 0 });
@@ -6220,9 +6232,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   ) {
     pushRow({
       key: "housing_maintenance_auto",
-      label: "صيانة الدار",
+      label: t("صيانة الدار", "Entretien maison", "Home maintenance"),
       group_key: "housing",
-      group_label: "السكن",
+      group_label: t("السكن", "Logement", "Housing"),
       answer_key: "HSN4a_maintenance_saving_amount",
       monthly_amount: toNumber(getString(answers, "HSN4a_maintenance_saving_amount")),
     }, { showWhen: true });
@@ -6234,9 +6246,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   ) {
     pushRow({
       key: "housing_family_contribution_auto",
-      label: "مساهمة فالدار",
+      label: t("مساهمة فالدار", "Participation au foyer", "Household contribution"),
       group_key: "housing",
-      group_label: "السكن",
+      group_label: t("السكن", "Logement", "Housing"),
       answer_key: "HSN5a_with_family_amount",
       monthly_amount: toNumber(getString(answers, "HSN5a_with_family_amount")),
     }, { showWhen: true });
@@ -6246,15 +6258,15 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   if (familySupportMonthly > 0) {
     pushRow({
       key: "family_support_auto",
-      label: "مساعدة العائلة",
+      label: t("مساعدة العائلة", "Aide famille", "Family support"),
       group_key: "fixed",
-      group_label: "المصاريف الثابتة",
+      group_label: t("المصاريف الثابتة", "Charges fixes", "Fixed costs"),
       answer_key: "E6a_support_family_amount",
       monthly_amount: familySupportMonthly,
       helper:
         getString(answers, "E6b_support_family_cadence") === "monthly"
           ? null
-          : "محوّل لشهري باش يبقى واضح.",
+          : t("محوّل لشهري باش يبقى واضح.", "Converti en mensuel pour plus de clarté.", "Converted to monthly for clarity."),
     }, { showWhen: true });
   }
 
@@ -6266,7 +6278,7 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
       key: item.value,
       label: item.label,
       group_key: "fixed",
-      group_label: "المصاريف الثابتة",
+      group_label: t("المصاريف الثابتة", "Charges fixes", "Fixed costs"),
       answer_key: `FX2_amount_${item.value}`,
       monthly_amount: amount,
     }, { showWhen: fixedItems.has(item.value) || amount > 0 });
@@ -6280,10 +6292,10 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
         key: `fixed_other_${row.id}_${index}`,
         label: row.name,
         group_key: "fixed",
-        group_label: "المصاريف الثابتة",
+        group_label: t("المصاريف الثابتة", "Charges fixes", "Fixed costs"),
         answer_key: `${FIXED_OTHER_ROWS_KEY}.${index}.amount`,
         monthly_amount: monthly,
-        helper: row.cadence === "monthly" ? null : "محوّل لشهري باش يبقى واضح.",
+        helper: row.cadence === "monthly" ? null : t("محوّل لشهري باش يبقى واضح.", "Converti en mensuel pour plus de clarté.", "Converted to monthly for clarity."),
       }, { showWhen: monthly > 0 });
     });
   }
@@ -6291,9 +6303,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   if (transportMode === "public" || toNumber(getString(answers, "TRP1_public_monthly_amount")) > 0) {
     pushRow({
       key: "public_transport_auto",
-      label: "النقل العمومي",
+      label: t("النقل العمومي", "Transports en commun", "Public transport"),
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: "TRP1_public_monthly_amount",
       monthly_amount: toNumber(getString(answers, "TRP1_public_monthly_amount")),
     }, { showWhen: true });
@@ -6305,9 +6317,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   ) {
     pushRow({
       key: "taxi_auto",
-      label: "طاكسي / إندرايف",
+      label: t("طاكسي / إندرايف", "Taxi / VTC", "Taxi / ride-hailing"),
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: "TRP1_taxi_monthly_amount",
       monthly_amount: toNumber(getString(answers, "TRP1_taxi_monthly_amount")),
     }, { showWhen: true });
@@ -6315,35 +6327,35 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
 
   const carPrefixes = getCarTransportPrefixes(answers);
   carPrefixes.forEach((prefix, index) => {
-    const labelSuffix = carPrefixes.length > 1 ? ` (مركبة ${index + 1})` : "";
+    const labelSuffix = carPrefixes.length > 1 ? t(` (مركبة ${index + 1})`, ` (véhicule ${index + 1})`, ` (vehicle ${index + 1})`) : "";
 
     pushRow({
       key: `car_fuel_auto::${prefix}`,
-      label: `المازوط / البنزين${labelSuffix}`,
+      label: `${t("المازوط / البنزين", "Carburant", "Fuel")}${labelSuffix}`,
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: `${prefix}car_fuel_amount`,
       monthly_amount: getCarTransportMonthlyFieldAmount(answers, prefix, "car_fuel_amount"),
     }, { showWhen: transportMode === "car" || toNumber(getString(answers, `${prefix}car_fuel_amount`)) > 0 });
 
     pushRow({
       key: `car_maintenance_auto::${prefix}`,
-      label: `صيانة الطوموبيل${labelSuffix}`,
+      label: `${t("صيانة الطوموبيل", "Entretien voiture", "Car maintenance")}${labelSuffix}`,
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: `${prefix}car_maintenance_amount`,
       monthly_amount: getCarMaintenanceMonthlyAmount(answers, prefix),
-      helper: `كتتحسب على ${getCycleContributionLabel(answers)}.`,
+      helper: t(`كتتحسب على ${getCycleContributionLabel(answers)}.`, `Calculé ${tx(getCycleContributionLabel(answers))}.`, `Counted ${tx(getCycleContributionLabel(answers))}.`),
     }, { showWhen: transportMode === "car" || getString(answers, `${prefix}car_maintenance_amount`) !== "" });
 
     pushRow({
       key: `car_insurance_auto::${prefix}`,
-      label: `تأمين الطوموبيل${labelSuffix}`,
+      label: `${t("تأمين الطوموبيل", "Assurance voiture", "Car insurance")}${labelSuffix}`,
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: `${prefix}car_insurance_amount`,
       monthly_amount: getCarTransportMonthlyFieldAmount(answers, prefix, "car_insurance_amount"),
-      helper: "محوّل لشهري باش يبقى واضح.",
+      helper: t("محوّل لشهري باش يبقى واضح.", "Converti en mensuel pour plus de clarté.", "Converted to monthly for clarity."),
     }, {
       showWhen:
         transportMode === "car" ||
@@ -6357,9 +6369,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
     ) {
       pushRow({
         key: `car_parking_auto::${prefix}`,
-        label: `الباركينغ${labelSuffix}`,
+        label: `${t("الباركينغ", "Parking", "Parking")}${labelSuffix}`,
         group_key: "transport",
-        group_label: "التنقل",
+        group_label: t("التنقل", "Transport", "Transport"),
         answer_key: `${prefix}car_parking_amount`,
         monthly_amount: getCarTransportMonthlyFieldAmount(answers, prefix, "car_parking_amount"),
       }, { showWhen: true });
@@ -6371,9 +6383,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
     ) {
       pushRow({
         key: `car_loan_auto::${prefix}`,
-        label: `قرض الطوموبيل${labelSuffix}`,
+        label: `${t("قرض الطوموبيل", "Crédit voiture", "Car loan")}${labelSuffix}`,
         group_key: "transport",
-        group_label: "التنقل",
+        group_label: t("التنقل", "Transport", "Transport"),
         answer_key: `${prefix}car_loan_amount`,
         monthly_amount: getCarTransportMonthlyFieldAmount(answers, prefix, "car_loan_amount"),
       }, { showWhen: true });
@@ -6385,12 +6397,12 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
     ) {
       pushRow({
         key: `car_inspection_auto::${prefix}`,
-        label: `الفحص التقني${labelSuffix}`,
+        label: `${t("الفحص التقني", "Contrôle technique", "Vehicle inspection")}${labelSuffix}`,
         group_key: "transport",
-        group_label: "التنقل",
+        group_label: t("التنقل", "Transport", "Transport"),
         answer_key: `${prefix}car_inspection_amount`,
         monthly_amount: getCarTransportMonthlyFieldAmount(answers, prefix, "car_inspection_amount"),
-        helper: "محوّل لشهري باش يبقى ساهل.",
+        helper: t("محوّل لشهري باش يبقى ساهل.", "Converti en mensuel pour simplifier.", "Converted to monthly to keep it simple."),
       }, { showWhen: true });
     }
 
@@ -6400,25 +6412,25 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
     ) {
       pushRow({
         key: `car_tax_auto::${prefix}`,
-        label: `ضريبة الطوموبيل${labelSuffix}`,
+        label: `${t("ضريبة الطوموبيل", "Vignette", "Vehicle tax")}${labelSuffix}`,
         group_key: "transport",
-        group_label: "التنقل",
+        group_label: t("التنقل", "Transport", "Transport"),
         answer_key: `${prefix}car_tax_annual_amount`,
         monthly_amount: getCarTransportMonthlyFieldAmount(answers, prefix, "car_tax_annual_amount"),
-        helper: "مقسومة على 12 باش تبان شهرياً.",
+        helper: t("مقسومة على 12 باش تبان شهرياً.", "Divisé par 12 pour un montant mensuel.", "Divided by 12 for a monthly amount."),
       }, { showWhen: true });
     }
   });
 
   const bikePrefixes = getBikeTransportPrefixes(answers);
   bikePrefixes.forEach((prefix, index) => {
-    const labelSuffix = bikePrefixes.length > 1 ? ` (مركبة ${index + 1})` : "";
+    const labelSuffix = bikePrefixes.length > 1 ? t(` (مركبة ${index + 1})`, ` (véhicule ${index + 1})`, ` (vehicle ${index + 1})`) : "";
 
     pushRow({
       key: `bike_fuel_auto::${prefix}`,
-      label: `بنزين الموتور${labelSuffix}`,
+      label: `${t("بنزين الموتور", "Essence moto", "Motorbike fuel")}${labelSuffix}`,
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: `${prefix}bike_fuel_amount`,
       monthly_amount: normalizeAmountToMonthly(
         toNumber(getString(answers, `${prefix}bike_fuel_amount`)),
@@ -6429,9 +6441,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
 
     pushRow({
       key: `bike_insurance_auto::${prefix}`,
-      label: `تأمين الموتور${labelSuffix}`,
+      label: `${t("تأمين الموتور", "Assurance moto", "Motorbike insurance")}${labelSuffix}`,
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: `${prefix}bike_insurance_amount`,
       monthly_amount: normalizeAmountToMonthly(
         toNumber(getString(answers, `${prefix}bike_insurance_amount`)),
@@ -6439,7 +6451,7 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
         "insurance_cycle",
         getString(answers, `${prefix}bike_insurance_cycle`)
       ),
-      helper: "محوّل لشهري باش يبقى واضح.",
+      helper: t("محوّل لشهري باش يبقى واضح.", "Converti en mensuel pour plus de clarté.", "Converted to monthly for clarity."),
     }, {
       showWhen:
         transportMode === "motorbike" ||
@@ -6449,9 +6461,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
 
     pushRow({
       key: `bike_maintenance_auto::${prefix}`,
-      label: `صيانة الموتور${labelSuffix}`,
+      label: `${t("صيانة الموتور", "Entretien moto", "Motorbike maintenance")}${labelSuffix}`,
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: `${prefix}bike_maintenance_amount`,
       monthly_amount: normalizeAmountToMonthly(
         toNumber(getString(answers, `${prefix}bike_maintenance_amount`)),
@@ -6469,9 +6481,9 @@ function buildExpenseReviewRows(answers: Answers): ExpenseReviewRow[] {
   ) {
     pushRow({
       key: "mixed_transport_auto",
-      label: "مجموع التنقل المختلط",
+      label: t("مجموع التنقل المختلط", "Transport total (mixte)", "Total transport (mixed)"),
       group_key: "transport",
-      group_label: "التنقل",
+      group_label: t("التنقل", "Transport", "Transport"),
       answer_key: "TRX2_total_monthly_amount",
       monthly_amount: toNumber(getString(answers, "TRX2_total_monthly_amount")),
     }, { showWhen: true });
@@ -6930,7 +6942,7 @@ function getGoalSemanticButtonClass(
   const palette = getGoalChoicePalette(group, value);
     const base =
       variant === "card"
-        ? "rounded-[18px] border px-3 py-3 text-right transition"
+        ? "rounded-[18px] border px-3 py-3 text-start transition"
         : "rounded-full border px-3 py-1.5 text-[12px] font-semibold transition";
   return `${base} ${selected ? palette.selected : palette.idle}`;
 }
@@ -7504,6 +7516,20 @@ function filterGroupNamesByContext(groupKey: string, names: string[], answers: A
   return names;
 }
 
+// Envelope name shown on screen, in the chosen language. Never persist it:
+// getEnvelopeLabelForUi stays the saved label the backend matches names on.
+function getEnvelopeDisplayNameForLocale(name: string): string {
+  const locale = getOnboardingLocale();
+  if (locale === "ar") return getEnvelopeLabelForUi(name);
+  if (name.startsWith("Objectif — ")) {
+    return locale === "fr" ? name : `Goal — ${name.replace("Objectif — ", "").trim()}`;
+  }
+  if (name.startsWith("Dettes — ")) {
+    return locale === "fr" ? name : `Debts — ${name.replace("Dettes — ", "").trim()}`;
+  }
+  return tx(localizeEnvelopeLabel(name, locale));
+}
+
 function getEnvelopeLabelForUi(name: string): string {
   if (name.startsWith("Objectif — ")) {
     return `الهدف — ${name.replace("Objectif — ", "").trim()}`;
@@ -7539,12 +7565,12 @@ function getEnvelopeSetupShownAmount(params: {
 }
 
 function getGuidanceAmountCopyForGroup(groupKey: EnvelopeProposalDomain, amount: number, label: string | null): string {
-  if (groupKey === "buffer") return `غلاف الأمان: ${formatMad(amount)}`;
-  if (groupKey === "lifestyle") return `غلاف المرونة: ${formatMad(amount)}`;
-  if (groupKey === "saving" && label === "الباقي الحر") return `الباقي اللي مازال حر: ${formatMad(amount)}`;
-  if (groupKey === "debts") return `التمويل الشهري الموجّه للديون: ${formatMad(amount)}`;
-  if (groupKey === "goals") return `التمويل الشهري الموجّه للأهداف: ${formatMad(amount)}`;
-  return `المبلغ اللي غادي نخدمو به هنا: ${formatMad(amount)}`;
+  if (groupKey === "buffer") return t(`غلاف الأمان: ${formatMad(amount)}`, `Enveloppe sécurité : ${formatMad(amount)}`, `Safety envelope: ${formatMad(amount)}`);
+  if (groupKey === "lifestyle") return t(`غلاف المرونة: ${formatMad(amount)}`, `Enveloppe souplesse : ${formatMad(amount)}`, `Flexible envelope: ${formatMad(amount)}`);
+  if (groupKey === "saving" && label === "الباقي الحر") return t(`الباقي اللي مازال حر: ${formatMad(amount)}`, `Reste libre : ${formatMad(amount)}`, `Still free: ${formatMad(amount)}`);
+  if (groupKey === "debts") return t(`التمويل الشهري الموجّه للديون: ${formatMad(amount)}`, `Financement mensuel des dettes : ${formatMad(amount)}`, `Monthly funding for debts: ${formatMad(amount)}`);
+  if (groupKey === "goals") return t(`التمويل الشهري الموجّه للأهداف: ${formatMad(amount)}`, `Financement mensuel des objectifs : ${formatMad(amount)}`, `Monthly funding for goals: ${formatMad(amount)}`);
+  return t(`المبلغ اللي غادي نخدمو به هنا: ${formatMad(amount)}`, `Montant utilisé ici : ${formatMad(amount)}`, `Amount used here: ${formatMad(amount)}`);
 }
 
 function getKnownAmountCopyForGroup(groupKey: EnvelopeProposalDomain, amount: number): string {
@@ -7565,12 +7591,12 @@ function getGoalRealityHintForUi(answers: Answers): string | null {
   if (goals.length === 1) {
     const reality = buildGoalRealityCheckForEntry(goals[0], answers);
     if (reality.status === "realistic" || reality.status === "unknown") {
-      return `الواقعي دابا: حتى ${formatMad(realisticMonthlyCap)} فالشهر.`;
+      return t(`الواقعي دابا: حتى ${formatMad(realisticMonthlyCap)} فالشهر.`, `Réaliste aujourd'hui : jusqu'à ${formatMad(realisticMonthlyCap)} par mois.`, `Realistic now: up to ${formatMad(realisticMonthlyCap)} a month.`);
     }
   }
   return goals.length > 1
-    ? `الواقعي دابا للأهداف كاملين أقرب لـ ${formatMad(realisticMonthlyCap)} فالشهر.`
-    : `الواقعي دابا أقرب لـ ${formatMad(realisticMonthlyCap)} فالشهر.`;
+    ? t(`الواقعي دابا للأهداف كاملين أقرب لـ ${formatMad(realisticMonthlyCap)} فالشهر.`, `Réaliste pour l'ensemble des objectifs : environ ${formatMad(realisticMonthlyCap)} par mois.`, `Realistic for all goals together: about ${formatMad(realisticMonthlyCap)} a month.`)
+    : t(`الواقعي دابا أقرب لـ ${formatMad(realisticMonthlyCap)} فالشهر.`, `Réaliste aujourd'hui : environ ${formatMad(realisticMonthlyCap)} par mois.`, `Realistic now: about ${formatMad(realisticMonthlyCap)} a month.`);
 }
 
 function getKnownProposalAmount(name: string, answers: Answers): number | null {
@@ -9010,6 +9036,30 @@ function hasCollectedUserInfo(answers: Answers): boolean {
   return Boolean(getString(answers, "R1_first_name").trim());
 }
 
+// Display texts in the chosen language. Ids and option values never change.
+function localizeQuestionTitle(title: string): string {
+  const numbered = title.match(/^(.*) #(\d+)$/);
+  return numbered ? `${tx(numbered[1])} #${numbered[2]}` : tx(title);
+}
+
+function localizeQuestionSpec(question: QuestionSpec): QuestionSpec {
+  if (getOnboardingLocale() === "ar") return question;
+  return {
+    ...question,
+    title: localizeQuestionTitle(question.title),
+    subtitle: tx(question.subtitle),
+    placeholder: tx(question.placeholder),
+    continueLabel: tx(question.continueLabel),
+    options: question.options?.map((option) => ({ ...option, label: tx(option.label) })),
+    groupedOptions: question.groupedOptions?.map((group) => ({
+      ...group,
+      title: tx(group.title),
+      options: group.options.map((option) => ({ ...option, label: tx(option.label) })),
+    })),
+    fields: question.fields?.map(localizeQuestionSpec),
+  };
+}
+
 function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding"): QuestionSpec[] {
   const yesNoOptions: QuestionOption[] = [
     { value: "yes", label: "نعم" },
@@ -9638,7 +9688,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
         if (count > 1) {
           questions.push({
             id: `TRV${i}_vehicle_intro_message`,
-            title: `تفاصيل المركبة #${i}`,
+            title: t(`تفاصيل المركبة #${i}`, `Véhicule #${i}`, `Vehicle #${i}`),
             kind: "message",
           });
         }
@@ -9675,7 +9725,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
         if (count > 1) {
           questions.push({
             id: `TRV${i}_vehicle_intro_message`,
-            title: `تفاصيل المركبة #${i}`,
+            title: t(`تفاصيل المركبة #${i}`, `Véhicule #${i}`, `Vehicle #${i}`),
             kind: "message",
           });
         }
@@ -9764,7 +9814,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     const label = option?.label ?? item;
     questions.push({
       id: `FX2_amount_${item}`,
-      title: `دخل المبلغ ديال ${label}`,
+      title: t(`دخل المبلغ ديال ${label}`, `Montant : ${tx(label)}`, `Amount: ${tx(label)}`),
       kind: "input",
       inputType: "number",
       placeholder: "0",
@@ -9775,12 +9825,16 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   const alreadyCountedLoans = getLoansAlreadyCountedOutsideDebts(answers);
   const alreadyCountedLoansNote =
     alreadyCountedLoans.length > 0
-      ? ` ${alreadyCountedLoans.join(" و")} ديجا تحسب، ما تعاودش تدخلو هنا.`
+      ? ` ${t(
+          `${alreadyCountedLoans.join(" و")} ديجا تحسب، ما تعاودش تدخلو هنا.`,
+          `${alreadyCountedLoans.join(" et ")} : déjà compté, ne le ressaisis pas ici.`,
+          `${alreadyCountedLoans.join(" and ")}: already counted, don't enter it again here.`
+        )}`
       : "";
   questions.push({
     id: "E5_has_debt",
     title: "واش عندك دابا ديون ولا قروض كتخلّصهم؟",
-    subtitle: `بحال كريدي، سلف، قرض، ولا أي التزام شهري. غير المعلومات اللي كتعاوننا نعرفو شحال خاص يتخصّص ليهم.${alreadyCountedLoansNote}`,
+    subtitle: `${t("بحال كريدي، سلف، قرض، ولا أي التزام شهري. غير المعلومات اللي كتعاوننا نعرفو شحال خاص يتخصّص ليهم.", "Crédit, prêt d'un proche, ou tout remboursement mensuel. Juste ce qu'il faut pour savoir combien leur réserver.", "Credit, a loan from someone, or any monthly repayment. Just enough to know how much to set aside.")}${alreadyCountedLoansNote}`,
     kind: "single",
     options: yesNoOptions,
   });
@@ -9790,7 +9844,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     questions.push({
       id: "D1_debt_builder",
       title: "دخل الديون اللي بغيتي نرتبوهم",
-      subtitle: `قدر تزيد الديون ديالك دابا، وحدة بوحدة. حالياً حتى ${DEBT_MAX_COUNT} ديون فهاد المرحلة.${alreadyCountedLoansNote}`,
+      subtitle: `${t(`قدر تزيد الديون ديالك دابا، وحدة بوحدة. حالياً حتى ${DEBT_MAX_COUNT} ديون فهاد المرحلة.`, `Ajoute tes dettes une par une, jusqu'à ${DEBT_MAX_COUNT} pour l'instant.`, `Add your debts one by one, up to ${DEBT_MAX_COUNT} for now.`)}${alreadyCountedLoansNote}`,
       kind: "debt_builder",
     });
   }
@@ -9799,7 +9853,7 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   questions.push({
     id: "G1_goal_builder",
     title: "الأهداف ديالك",
-    subtitle: `بحال صندوق الطوارئ، سفر، شراء حاجة، مشروع… حتى ${GOAL_MAX_COUNT} أهداف. إلا ما عندكش دابا، دوز.`,
+    subtitle: t(`بحال صندوق الطوارئ، سفر، شراء حاجة، مشروع… حتى ${GOAL_MAX_COUNT} أهداف. إلا ما عندكش دابا، دوز.`, `Fonds d'urgence, voyage, achat, projet… jusqu'à ${GOAL_MAX_COUNT} objectifs. Si tu n'en as pas, passe.`, `Emergency fund, travel, a purchase, a project… up to ${GOAL_MAX_COUNT} goals. If you have none yet, skip.`),
     kind: "goal_builder",
   });
 
@@ -9837,8 +9891,12 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     kind: "smart_settings",
   });
 
+  questions.forEach((question, index) => {
+    questions[index] = localizeQuestionSpec(question);
+  });
+
   if (shouldAskOwnShareOnly(answers)) {
-    const ownShareNote = "دخل غير الجزء اللي كتخلص نتا.";
+    const ownShareNote = t("دخل غير الجزء اللي كتخلص نتا.", "Indique seulement ta part.", "Enter only your share.");
     questions.forEach((question, index) => {
       if (!OWN_SHARE_AMOUNT_QUESTION_IDS.has(question.id) && !question.id.startsWith("FX2_amount_")) return;
       questions[index] = {
@@ -9856,10 +9914,12 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
     return question.id !== "F0_financial_summary" && !MONEY_PLAN_QUESTION_IDS.has(question.id);
   });
 
-  const screens =
-    journeyMode === "money_plan" ? filteredQuestions : groupOnboardingQuestionsIntoCards(filteredQuestions);
+  const screens = (
+    journeyMode === "money_plan" ? filteredQuestions : groupOnboardingQuestionsIntoCards(filteredQuestions)
+  ).map(localizeQuestionSpec);
 
-  if (!firstName) return screens;
+  // Prefixing the first name to each question reads naturally in Darija only.
+  if (!firstName || getOnboardingLocale() !== "ar") return screens;
 
   return screens.map((question) => {
     if (question.kind === "message") return question;
@@ -11164,8 +11224,9 @@ export function BetaOnboardingV2PageContent({
   // Keep SSR and first client render identical to avoid hydration mismatch.
   // Then sync to browser preference after mount (same pattern as login/register).
   const [locale, setLocale] = useState<FloussyLocale>("fr");
+  setOnboardingLocale(locale);
   const pageDir = getLocaleDirection(locale);
-  const pageAlign = pageDir === "rtl" ? "text-right" : "text-left";
+  const pageAlign = "text-start";
   const isStandaloneDistributionRoute =
     pathname === DISTRIBUTION_ROUTE || pathname?.startsWith(`${DISTRIBUTION_ROUTE}/`);
   const resolvedJourneyMode: JourneyMode =
@@ -11452,12 +11513,13 @@ export function BetaOnboardingV2PageContent({
   }, [isStandaloneDistributionRoute]);
 
   const questions = useMemo(() => {
+    setOnboardingLocale(locale);
     const nextQuestions = buildQuestions(answers, resolvedJourneyMode);
     if (!isStandaloneDistributionRoute) {
       return nextQuestions;
     }
     return nextQuestions.filter((question) => question.id === "E11b_distribution_setup");
-  }, [answers, isStandaloneDistributionRoute, resolvedJourneyMode]);
+  }, [answers, isStandaloneDistributionRoute, locale, resolvedJourneyMode]);
   const maxStepIndex = Math.max(questions.length - 1, 0);
   const safeStepIndex = Math.min(stepIndex, maxStepIndex);
   const currentQuestion = questions[safeStepIndex];
@@ -11771,7 +11833,7 @@ export function BetaOnboardingV2PageContent({
   }, [distributionEligibleEnvelopeNames]);
   const moronaDistributionPreviewNames = useMemo(
     () =>
-      distributionEligibleEnvelopeNames.map((name) => getEnvelopeLabelForUi(name)),
+      distributionEligibleEnvelopeNames.map((name) => getEnvelopeDisplayNameForLocale(name)),
     [distributionEligibleEnvelopeNames]
   );
   const distributionBaselineFixedSimulationItems = useMemo(() => {
@@ -12091,7 +12153,7 @@ export function BetaOnboardingV2PageContent({
     boxShadow: "0 12px 28px -22px rgba(15, 23, 42, 0.26)",
   };
   const onboardingOptionCardBase =
-    "w-full rounded-[22px] border px-5 py-4 text-right transition duration-200 hover:-translate-y-[1px]";
+    "w-full rounded-[22px] border px-5 py-4 text-start transition duration-200 hover:-translate-y-[1px]";
   const proposalGranularity = getEnvelopeGranularity(answers);
   const proposalPreviewSearchEnabled =
     proposalGranularity === "detailed" || (proposalPreview?.candidates?.length ?? 0) > 8;
@@ -12345,6 +12407,7 @@ export function BetaOnboardingV2PageContent({
     };
   }, [arbitragePreview.allocations, arbitragePreview.discretionary_after_core, arbitragePreview.recommended_mode]);
   const guidanceSimulation = useMemo(() => {
+    setOnboardingLocale(locale);
     const total = Math.max(0, roundAmount(arbitragePreview.discretionary_after_core));
     const before = {
       reserve: Math.max(0, roundAmount(guidanceBaseAllocation.reserve)),
@@ -12399,11 +12462,11 @@ export function BetaOnboardingV2PageContent({
     const primaryChangeText = noChange
       ? "ما بدلناش القاعدة الأساسية ديال التوزيع: المعيشة والثابت بقاو أولاً، واللي تبدل غير هو توزيع الهامش الزايد."
       : mainDirection === "debt"
-      ? `من بعد ما تسدّات المعيشة، وجّهنا تقريباً ${formatMad(Math.max(0, debtDelta))} زيادة للدين باش يخف الضغط الشهري.`
+      ? t(`من بعد ما تسدّات المعيشة، وجّهنا تقريباً ${formatMad(Math.max(0, debtDelta))} زيادة للدين باش يخف الضغط الشهري.`, `Une fois le quotidien couvert, environ ${formatMad(Math.max(0, debtDelta))} de plus vont aux dettes.`, `Once living costs are covered, about ${formatMad(Math.max(0, debtDelta))} more goes to debts.`)
       : mainDirection === "reserve"
-      ? `من بعد ما تسدّات المعيشة، زدنا تقريباً ${formatMad(Math.max(0, reserveDelta))} لظرف الأمان باش نبنيو قاعدة ضد الطوارئ.`
+      ? t(`من بعد ما تسدّات المعيشة، زدنا تقريباً ${formatMad(Math.max(0, reserveDelta))} لظرف الأمان باش نبنيو قاعدة ضد الطوارئ.`, `Une fois le quotidien couvert, environ ${formatMad(Math.max(0, reserveDelta))} de plus vont à la sécurité.`, `Once living costs are covered, about ${formatMad(Math.max(0, reserveDelta))} more goes to safety.`)
       : mainDirection === "goals"
-      ? `ثبتنا القاعدة أولاً، ومن بعد وجّهنا تقريباً ${formatMad(Math.max(0, goalsDelta))} زيادة للأهداف باش يتحركو أسرع.`
+      ? t(`ثبتنا القاعدة أولاً، ومن بعد وجّهنا تقريباً ${formatMad(Math.max(0, goalsDelta))} زيادة للأهداف باش يتحركو أسرع.`, `La base d'abord, puis environ ${formatMad(Math.max(0, goalsDelta))} de plus vont aux objectifs.`, `Base first, then about ${formatMad(Math.max(0, goalsDelta))} more goes to goals.`)
       : debtDelta > 0 && reserveDelta > 0 && goalsDelta >= 0
       ? "قسمنا الهامش الزايد بين الدين والأمان والأهداف بلا ما نخليو ظرف واحد ياخذ كلشي."
       : "بدلنا التوزيع بشكل خفيف ولكن بقا نفس منطق الأظرفة.";
@@ -12421,13 +12484,13 @@ export function BetaOnboardingV2PageContent({
       after.goals <= 0 && before.goals > 0
         ? "المقابل: تمويل الأهداف توقف مؤقتاً حتى تقوى الأولوية الحالية."
       : afterGoalsPace < beforeGoalsPace
-        ? `المقابل: ظرف الأهداف نقص تقريباً بـ ${formatMad(Math.abs(goalsDelta))} دابا.`
+        ? t(`المقابل: ظرف الأهداف نقص تقريباً بـ ${formatMad(Math.abs(goalsDelta))} دابا.`, `En contrepartie : environ ${formatMad(Math.abs(goalsDelta))} de moins pour les objectifs.`, `Trade-off: about ${formatMad(Math.abs(goalsDelta))} less for goals.`)
       : afterSafety < beforeSafety
-        ? `المقابل: ظرف الأمان نقص تقريباً بـ ${formatMad(Math.abs(reserveDelta))}.`
+        ? t(`المقابل: ظرف الأمان نقص تقريباً بـ ${formatMad(Math.abs(reserveDelta))}.`, `En contrepartie : environ ${formatMad(Math.abs(reserveDelta))} de moins pour la sécurité.`, `Trade-off: about ${formatMad(Math.abs(reserveDelta))} less for safety.`)
       : afterDebtPressure > beforeDebtPressure
         ? "المقابل: ضغط الدين باقي حاضر وما غاديش يخف دفعة وحدة."
       : "المقابل: ما كاينش تنازل كبير فهاد الدورة.";
-    const aiSummary = `${primaryChangeText} ${effectText} ${tradeoffText}`;
+    const aiSummary = `${tx(primaryChangeText)} ${tx(effectText)} ${tx(tradeoffText)}`;
     const shortDirection =
       mainDirection === "debt"
         ? "مقاربة تقليل ضغط الدين"
@@ -12450,6 +12513,7 @@ export function BetaOnboardingV2PageContent({
       shortDirection,
     };
   }, [
+    locale,
     arbitragePreview.debt_minimum,
     arbitragePreview.discretionary_after_core,
     arbitragePreview.starter_reserve_seed,
@@ -12629,7 +12693,7 @@ export function BetaOnboardingV2PageContent({
     const clamped = Math.max(guidanceBounds.debt.min, Math.min(guidanceBounds.debt.max, requested));
     if (clamped !== requested) {
       setGuidanceConstraintNotice(
-        `تقدر تزيد غير حتى لـ ${formatMad(Math.max(0, guidanceBounds.debt.max))}. الشرح: هاد هو الحد الأقصى اللي ما يكسرش التوازن.`
+        t(`تقدر تزيد غير حتى لـ ${formatMad(Math.max(0, guidanceBounds.debt.max))}. الشرح: هاد هو الحد الأقصى اللي ما يكسرش التوازن.`, `Maximum possible : ${formatMad(Math.max(0, guidanceBounds.debt.max))}, pour garder l'équilibre.`, `The most you can add is ${formatMad(Math.max(0, guidanceBounds.debt.max))}, to keep the balance.`)
       );
     } else {
       setGuidanceConstraintNotice("");
@@ -12645,7 +12709,7 @@ export function BetaOnboardingV2PageContent({
     const clamped = Math.max(guidanceBounds.reserve.min, Math.min(guidanceBounds.reserve.max, requested));
     if (clamped !== requested) {
       setGuidanceConstraintNotice(
-        `ما نقدرش نطبّق هاد القيمة كاملة، ولكن نقدر نطبّق الجزء الممكن منها. الشرح: النظام كيختار أقصى قيمة ممكنة بلا ما يخرق الحدود.`
+        t("ما نقدرش نطبّق هاد القيمة كاملة، ولكن نقدر نطبّق الجزء الممكن منها. الشرح: النظام كيختار أقصى قيمة ممكنة بلا ما يخرق الحدود.", "Valeur appliquée en partie : le maximum possible dans les limites.", "Applied partly: the most possible within the limits.")
       );
     } else {
       setGuidanceConstraintNotice("");
@@ -12670,7 +12734,7 @@ export function BetaOnboardingV2PageContent({
     const clamped = Math.max(0, Math.min(guidanceFlexibleCutCeiling, requested));
     if (clamped !== requested) {
       setGuidanceConstraintNotice(
-        `فالمصاريف المرنة، أقصى تنقيص مسموح هو ${guidanceFlexibleCutCeiling}%. الشرح: باش الخطة تبقى واقعية وقابلة للاستمرار.`
+        t(`فالمصاريف المرنة، أقصى تنقيص مسموح هو ${guidanceFlexibleCutCeiling}%. الشرح: باش الخطة تبقى واقعية وقابلة للاستمرار.`, `Réduction maximale des dépenses variables : ${guidanceFlexibleCutCeiling} %, pour un plan tenable.`, `Variable costs can be cut by ${guidanceFlexibleCutCeiling}% at most, to keep the plan realistic.`)
       );
     } else {
       setGuidanceConstraintNotice("");
@@ -12803,17 +12867,19 @@ export function BetaOnboardingV2PageContent({
   const guidanceRecommendationReason =
     guidanceRecommendedScenarioId === "relief"
       ? guidanceDebtIsHeavy
-        ? `الديون كتاكل ${Math.round(guidanceDebtRatio * 100)}% من الدخل ديالك (${formatMad(
-            debtSummaryMetrics.current_monthly
-          )} فالشهر)${debtSummaryMetrics.late_count > 0 ? " وكاين تأخير فالأداء" : ""}. نخففو الضغط ديالها أولاً كيحرر ليك الهامش بسرعة.`
-        : `عندك ${debtsCount} ديون كتخلص فيهم ${formatMad(debtSummaryMetrics.current_monthly)} فالشهر، لذلك كنبداو بتخفيف الضغط ديالهم.`
+        ? t(
+            `الديون كتاكل ${Math.round(guidanceDebtRatio * 100)}% من الدخل ديالك (${formatMad(debtSummaryMetrics.current_monthly)} فالشهر)${debtSummaryMetrics.late_count > 0 ? " وكاين تأخير فالأداء" : ""}. نخففو الضغط ديالها أولاً كيحرر ليك الهامش بسرعة.`,
+            `Tes dettes prennent ${Math.round(guidanceDebtRatio * 100)} % de ton revenu (${formatMad(debtSummaryMetrics.current_monthly)} par mois)${debtSummaryMetrics.late_count > 0 ? ", avec un paiement en retard" : ""}. Les alléger d'abord libère vite de la marge.`,
+            `Your debts take ${Math.round(guidanceDebtRatio * 100)}% of your income (${formatMad(debtSummaryMetrics.current_monthly)} a month)${debtSummaryMetrics.late_count > 0 ? ", with a late payment" : ""}. Easing them first frees up margin quickly.`
+          )
+        : t(`عندك ${debtsCount} ديون كتخلص فيهم ${formatMad(debtSummaryMetrics.current_monthly)} فالشهر، لذلك كنبداو بتخفيف الضغط ديالهم.`, `Tu rembourses ${debtsCount} dettes pour ${formatMad(debtSummaryMetrics.current_monthly)} par mois : on commence par les alléger.`, `You're repaying ${debtsCount} debts at ${formatMad(debtSummaryMetrics.current_monthly)} a month, so we start by easing them.`)
       : guidanceRecommendedScenarioId === "reserve"
-      ? "كنبداو بظرف الأمان باش أي مفاجأة ما ترجعكش للدين ولا تكسّر الميزانية ديال الشهر."
+      ? t("كنبداو بظرف الأمان باش أي مفاجأة ما ترجعكش للدين ولا تكسّر الميزانية ديال الشهر.", "On commence par la sécurité, pour qu'un imprévu ne casse pas ton budget.", "We start with safety, so a surprise doesn't break your budget.")
       : guidanceRecommendedScenarioId === "goals"
-      ? `عندك ${goalsCount} أهداف، لذلك كنعطيوهم دفعة أكبر من الهامش اللي كيبقى من بعد المعيشة والثابت.`
+      ? t(`عندك ${goalsCount} أهداف، لذلك كنعطيوهم دفعة أكبر من الهامش اللي كيبقى من بعد المعيشة والثابت.`, `Tu as ${goalsCount} objectifs : ils reçoivent une plus grande part de la marge.`, `You have ${goalsCount} goals, so they get a bigger share of the margin.`)
       : guidanceHasDebt
-      ? `الديون ديالك تحت السيطرة (${Math.round(guidanceDebtRatio * 100)}% من الدخل)، لذلك كنقسمو الهامش بين الديون والأمان والأهداف حسب الحاجة.`
-      : "ما كاينش ضغط واحد كيغلب، لذلك كنقسمو الهامش بين الأمان والأهداف حسب الحاجة.";
+      ? t(`الديون ديالك تحت السيطرة (${Math.round(guidanceDebtRatio * 100)}% من الدخل)، لذلك كنقسمو الهامش بين الديون والأمان والأهداف حسب الحاجة.`, `Tes dettes restent maîtrisées (${Math.round(guidanceDebtRatio * 100)} % du revenu) : la marge est répartie selon les besoins.`, `Your debts are under control (${Math.round(guidanceDebtRatio * 100)}% of income), so the margin is split by need.`)
+      : t("ما كاينش ضغط واحد كيغلب، لذلك كنقسمو الهامش بين الأمان والأهداف حسب الحاجة.", "Aucune pression ne domine : la marge est partagée entre sécurité et objectifs.", "No single pressure dominates, so the margin is shared between safety and goals.");
   // Only the directions that apply to this profile are offered (no "debts
   // first" without debt, no "goals first" without a goal). A direction saved
   // earlier stays visible so the current choice is never hidden.
@@ -12946,7 +13012,10 @@ export function BetaOnboardingV2PageContent({
     if (requiredFromGoals > 0) return requiredFromGoals;
     return goalReviewMonthlyAmount > 0 ? goalReviewMonthlyAmount : 0;
   }, [answers, goalReviewMonthlyAmount]);
-  const expenseReviewRows = useMemo(() => buildExpenseReviewRows(answers), [answers]);
+  const expenseReviewRows = useMemo(() => {
+    setOnboardingLocale(locale);
+    return buildExpenseReviewRows(answers);
+  }, [answers, locale]);
   const expenseReviewTotal = useMemo(
     () => roundAmount(expenseReviewRows.reduce((sum, row) => sum + row.monthly_amount, 0)),
     [expenseReviewRows]
@@ -13002,6 +13071,7 @@ export function BetaOnboardingV2PageContent({
       return roundAmount(Math.min(guidancePoolAmount, fallback));
   }, [guidancePoolAmount, variableExpensesTotal]);
   const guidanceScenarioDetailPreview = useMemo(() => {
+    setOnboardingLocale(locale);
     if (!guidanceScenarioDetail) return null;
     const before = {
       reserve: Math.max(0, roundAmount(guidancePreviewBaselineAllocation.reserve)),
@@ -13037,7 +13107,7 @@ export function BetaOnboardingV2PageContent({
         : null;
 
     const primaryGoal = guidanceGoalEntries[0] ?? null;
-    const primaryGoalName = primaryGoal?.name || (goalSummaryMetrics.count > 1 ? "الأهداف" : "الهدف");
+    const primaryGoalName = primaryGoal?.name || (goalSummaryMetrics.count > 1 ? t("الأهداف", "Objectifs", "Goals") : t("الهدف", "Objectif", "Goal"));
     const primaryGoalRemaining = primaryGoal
       ? Math.max(0, roundAmount(primaryGoal.target_amount - primaryGoal.current_amount))
       : 0;
@@ -13057,51 +13127,51 @@ export function BetaOnboardingV2PageContent({
 
     const debtFact =
       debtSummaryMetrics.count === 0 || debtSummaryMetrics.total_remaining <= 0
-        ? "الدين: ما كاينش دين مفتوح دابا باش يبدل هاد الاختيار الأجل ديالو."
+        ? t("الدين: ما كاينش دين مفتوح دابا باش يبدل هاد الاختيار الأجل ديالو.", "Dettes : aucune dette en cours, pas d'échéance à changer.", "Debts: no open debt, so no payoff date changes.")
         : after.debt <= 0
-        ? "الدين: ما غاديش ياخذ تمويل إضافي فهاد الاختيار."
+        ? t("الدين: ما غاديش ياخذ تمويل إضافي فهاد الاختيار.", "Dettes : pas de financement supplémentaire avec ce choix.", "Debts: no extra funding with this choice.")
         : debtAfterDate &&
           debtBeforeDate &&
           debtAfterMonths !== null &&
           debtBeforeMonths !== null &&
           debtAfterMonths !== debtBeforeMonths
         ? debtAfterMonths < debtBeforeMonths
-          ? `الدين: إلى ثبتنا ${formatMad(after.debt)} فالشهر، التصفية كتقرب لـ ${debtAfterDate} بدل ${debtBeforeDate}.`
-          : `الدين: إلى ثبتنا ${formatMad(after.debt)} فالشهر، التصفية كتولي تقريباً ${debtAfterDate} بدل ${debtBeforeDate}.`
+          ? t(`الدين: إلى ثبتنا ${formatMad(after.debt)} فالشهر، التصفية كتقرب لـ ${debtAfterDate} بدل ${debtBeforeDate}.`, `Dettes : avec ${formatMad(after.debt)} par mois, remboursées vers ${debtAfterDate} au lieu de ${debtBeforeDate}.`, `Debts: at ${formatMad(after.debt)} a month, paid off around ${debtAfterDate} instead of ${debtBeforeDate}.`)
+          : t(`الدين: إلى ثبتنا ${formatMad(after.debt)} فالشهر، التصفية كتولي تقريباً ${debtAfterDate} بدل ${debtBeforeDate}.`, `Dettes : avec ${formatMad(after.debt)} par mois, remboursées vers ${debtAfterDate} au lieu de ${debtBeforeDate}.`, `Debts: at ${formatMad(after.debt)} a month, paid off around ${debtAfterDate} instead of ${debtBeforeDate}.`)
         : debtAfterDate
-        ? `الدين: إلى بقى نفس الإيقاع، التصفية التقريبية كتكون فـ ${debtAfterDate}.`
-        : `الدين: التخصيص كيوصل لـ ${formatMad(after.debt)} فالشهر.`;
+        ? t(`الدين: إلى بقى نفس الإيقاع، التصفية التقريبية كتكون فـ ${debtAfterDate}.`, `Dettes : à ce rythme, remboursées vers ${debtAfterDate}.`, `Debts: at this pace, paid off around ${debtAfterDate}.`)
+        : t(`الدين: التخصيص كيوصل لـ ${formatMad(after.debt)} فالشهر.`, `Dettes : ${formatMad(after.debt)} par mois.`, `Debts: ${formatMad(after.debt)} a month.`);
 
     const safetyFact =
       safetyAfterCoverage === null
-        ? "الأمان: ما كايناش معطيات كافية باش نحسبو التغطية بدقة."
+        ? t("الأمان: ما كايناش معطيات كافية باش نحسبو التغطية بدقة.", "Sécurité : pas assez de données pour calculer la couverture.", "Safety: not enough data to calculate coverage.")
         : safetyBeforeCoverage !== null && Math.abs(safetyAfterCoverage - safetyBeforeCoverage) > 0.05
-        ? `الأمان: الاحتياط كيغطي تقريباً ${formatCoverageMonths(safetyAfterCoverage)} من المصاريف الأساسية بدل ${formatCoverageMonths(safetyBeforeCoverage)}.`
-        : `الأمان: الاحتياط كيغطي تقريباً ${formatCoverageMonths(safetyAfterCoverage)} من المصاريف الأساسية.`;
+        ? t(`الأمان: الاحتياط كيغطي تقريباً ${formatCoverageMonths(safetyAfterCoverage)} من المصاريف الأساسية بدل ${formatCoverageMonths(safetyBeforeCoverage)}.`, `Sécurité : la réserve couvre environ ${formatCoverageMonths(safetyAfterCoverage)} de dépenses essentielles au lieu de ${formatCoverageMonths(safetyBeforeCoverage)}.`, `Safety: the reserve covers about ${formatCoverageMonths(safetyAfterCoverage)} of essential costs instead of ${formatCoverageMonths(safetyBeforeCoverage)}.`)
+        : t(`الأمان: الاحتياط كيغطي تقريباً ${formatCoverageMonths(safetyAfterCoverage)} من المصاريف الأساسية.`, `Sécurité : la réserve couvre environ ${formatCoverageMonths(safetyAfterCoverage)} de dépenses essentielles.`, `Safety: the reserve covers about ${formatCoverageMonths(safetyAfterCoverage)} of essential costs.`);
 
     const goalFact =
       goalSummaryMetrics.count === 0 || primaryGoalRemaining <= 0
-        ? "الأهداف: ما كاينش هدف واضح دابا باش نبينو التاريخ التقريبي."
+        ? t("الأهداف: ما كاينش هدف واضح دابا باش نبينو التاريخ التقريبي.", "Objectifs : pas d'objectif défini pour estimer une date.", "Goals: no clear goal to estimate a date.")
         : after.goals <= 0
-        ? `${primaryGoalName}: التمويل كيتوقف مؤقتاً حتى تترتب الأولوية الحالية.`
+        ? t(`${primaryGoalName}: التمويل كيتوقف مؤقتاً حتى تترتب الأولوية الحالية.`, `${primaryGoalName} : financement en pause le temps de la priorité actuelle.`, `${primaryGoalName}: funding paused while the current priority comes first.`)
         : goalAfterDate &&
           goalBeforeDate &&
           goalAfterMonths !== null &&
           goalBeforeMonths !== null &&
           goalAfterMonths !== goalBeforeMonths
         ? goalAfterMonths < goalBeforeMonths
-          ? `${primaryGoalName}: بهاذ الإيقاع، كيقرب تقريباً لـ ${goalAfterDate} بدل ${goalBeforeDate}.`
-          : `${primaryGoalName}: بهاذ الإيقاع، كيتأخر تقريباً لـ ${goalAfterDate} بدل ${goalBeforeDate}.`
+          ? t(`${primaryGoalName}: بهاذ الإيقاع، كيقرب تقريباً لـ ${goalAfterDate} بدل ${goalBeforeDate}.`, `${primaryGoalName} : à ce rythme, atteint vers ${goalAfterDate} au lieu de ${goalBeforeDate}.`, `${primaryGoalName}: at this pace, reached around ${goalAfterDate} instead of ${goalBeforeDate}.`)
+          : t(`${primaryGoalName}: بهاذ الإيقاع، كيتأخر تقريباً لـ ${goalAfterDate} بدل ${goalBeforeDate}.`, `${primaryGoalName} : à ce rythme, repoussé vers ${goalAfterDate} au lieu de ${goalBeforeDate}.`, `${primaryGoalName}: at this pace, pushed back to around ${goalAfterDate} instead of ${goalBeforeDate}.`)
         : goalAfterDate
-        ? `${primaryGoalName}: بهاذ الإيقاع، التقدم التقريبي كيوصل لـ ${goalAfterDate}.`
-        : `${primaryGoalName}: التمويل كيوصل لـ ${formatMad(after.goals)} فالشهر.`;
+        ? t(`${primaryGoalName}: بهاذ الإيقاع، التقدم التقريبي كيوصل لـ ${goalAfterDate}.`, `${primaryGoalName} : à ce rythme, atteint vers ${goalAfterDate}.`, `${primaryGoalName}: at this pace, reached around ${goalAfterDate}.`)
+        : t(`${primaryGoalName}: التمويل كيوصل لـ ${formatMad(after.goals)} فالشهر.`, `${primaryGoalName} : ${formatMad(after.goals)} par mois.`, `${primaryGoalName}: ${formatMad(after.goals)} a month.`);
 
     const flexFact =
       after.flex <= 0
-        ? "المرونة: ما غاديش يبقى هامش واضح لليومي والمتغيّر."
+        ? t("المرونة: ما غاديش يبقى هامش واضح لليومي والمتغيّر.", "Souplesse : pas de marge nette pour le quotidien.", "Flexible: no clear margin left for daily spending.")
         : variableExpensesTotal > 0
-        ? `المرونة: كيبقى ${formatMad(after.flex)} لليومي، يعني تقريباً ${flexCoveragePct}% من المصاريف المتغيّرة المعتادة.`
-        : `المرونة: كيبقى ${formatMad(after.flex)} فالشهر لليومي.`;
+        ? t(`المرونة: كيبقى ${formatMad(after.flex)} لليومي، يعني تقريباً ${flexCoveragePct}% من المصاريف المتغيّرة المعتادة.`, `Souplesse : ${formatMad(after.flex)} pour le quotidien, soit environ ${flexCoveragePct} % des dépenses variables habituelles.`, `Flexible: ${formatMad(after.flex)} for daily spending, about ${flexCoveragePct}% of usual variable costs.`)
+        : t(`المرونة: كيبقى ${formatMad(after.flex)} فالشهر لليومي.`, `Souplesse : ${formatMad(after.flex)} par mois pour le quotidien.`, `Flexible: ${formatMad(after.flex)} a month for daily spending.`);
 
     const factOrder =
       guidanceScenarioDetail.id === "relief"
@@ -13119,6 +13189,7 @@ export function BetaOnboardingV2PageContent({
       facts: factOrder,
     };
   }, [
+    locale,
     currentCashAvailable,
     debtSummaryMetrics.count,
     debtSummaryMetrics.total_remaining,
@@ -13449,10 +13520,10 @@ export function BetaOnboardingV2PageContent({
   ]);
   const goalOverviewHelper =
     goalSummaryMetrics.count === 0
-      ? "ما كايناش أهداف دابا"
+      ? t("ما كايناش أهداف دابا", "Aucun objectif pour l'instant", "No goals yet")
       : goalReviewMonthlyAmount > 0
-      ? `مطلوب للوصول للهدف؛ التوزيع الحالي للأهداف دابا ${formatMad(goalReviewMonthlyAmount)}. المتاح: ${formatMad(goalOverviewAvailableNow)}`
-      : `الهدف مسجّل ولكن غير ممول فهاد الدورة. المتاح: ${formatMad(goalOverviewAvailableNow)}`;
+      ? t(`مطلوب للوصول للهدف؛ التوزيع الحالي للأهداف دابا ${formatMad(goalReviewMonthlyAmount)}. المتاح: ${formatMad(goalOverviewAvailableNow)}`, `Nécessaire pour l'objectif ; actuellement ${formatMad(goalReviewMonthlyAmount)}. Disponible : ${formatMad(goalOverviewAvailableNow)}`, `Needed for the goal; currently ${formatMad(goalReviewMonthlyAmount)}. Available: ${formatMad(goalOverviewAvailableNow)}`)
+      : t(`الهدف مسجّل ولكن غير ممول فهاد الدورة. المتاح: ${formatMad(goalOverviewAvailableNow)}`, `Objectif enregistré mais non financé ce cycle. Disponible : ${formatMad(goalOverviewAvailableNow)}`, `Goal saved but not funded this cycle. Available: ${formatMad(goalOverviewAvailableNow)}`);
   const incomeDistributionSummary = useMemo(() => {
     const fixed = Math.max(0, roundAmount(fixedExpensesTotal));
     const variable = Math.max(0, roundAmount(variableExpensesTotal));
@@ -13771,6 +13842,7 @@ export function BetaOnboardingV2PageContent({
     return `${incomeTypeLabel} • ${cadenceLabel}`;
   }, [answers]);
   const financialReviewCards = useMemo(() => {
+    setOnboardingLocale(locale);
     const safeIncome = overviewIncomeValue > 0 ? overviewIncomeValue : null;
     return [
       {
@@ -13786,7 +13858,7 @@ export function BetaOnboardingV2PageContent({
         title: "المصاريف",
         amount: overviewExpenseValue,
         percent: safeIncome ? overviewExpenseValue / safeIncome : null,
-        summary: `${expenseReviewRows.length} عناصر داخلين فالحساب`,
+        summary: t(`${expenseReviewRows.length} عناصر داخلين فالحساب`, `${expenseReviewRows.length} éléments pris en compte`, `${expenseReviewRows.length} items counted`),
         actionLabel: "بدل المصاريف",
       },
       {
@@ -13796,7 +13868,7 @@ export function BetaOnboardingV2PageContent({
         percent: safeIncome ? debtSummaryMetrics.current_monthly / safeIncome : null,
         summary:
           debtSummaryMetrics.count > 0
-            ? `${debtSummaryMetrics.count} ديون • ${debtSummaryMetrics.late_count} فيهم خطر`
+            ? t(`${debtSummaryMetrics.count} ديون • ${debtSummaryMetrics.late_count} فيهم خطر`, `${debtSummaryMetrics.count} dettes • ${debtSummaryMetrics.late_count} à risque`, `${debtSummaryMetrics.count} debts • ${debtSummaryMetrics.late_count} at risk`)
             : "ما كايناش ديون دابا",
         actionLabel: "بدل الديون",
       },
@@ -13807,12 +13879,13 @@ export function BetaOnboardingV2PageContent({
         percent: safeIncome ? goalOverviewMonthlyAmount / safeIncome : null,
         summary:
           goalSummaryMetrics.count > 0
-            ? `${goalSummaryMetrics.count} أهداف • ${goalSummaryMetrics.with_date_count} مربوطين بتاريخ`
+            ? t(`${goalSummaryMetrics.count} أهداف • ${goalSummaryMetrics.with_date_count} مربوطين بتاريخ`, `${goalSummaryMetrics.count} objectifs • ${goalSummaryMetrics.with_date_count} avec une date`, `${goalSummaryMetrics.count} goals • ${goalSummaryMetrics.with_date_count} with a date`)
             : "ما كايناش أهداف دابا",
         actionLabel: "بدل الأهداف",
       },
     ] as const;
   }, [
+    locale,
     debtSummaryMetrics.count,
     debtSummaryMetrics.current_monthly,
     debtSummaryMetrics.late_count,
@@ -13830,8 +13903,9 @@ export function BetaOnboardingV2PageContent({
     [expenseReviewRows]
   );
   const moneyPlanQuickCards = useMemo(
-    () =>
-      [
+    () => {
+      setOnboardingLocale(locale);
+      return [
         {
           key: "income",
           title: "الدخل",
@@ -13842,7 +13916,7 @@ export function BetaOnboardingV2PageContent({
           key: "expenses",
           title: "المصاريف",
           amount: expenseReviewTotal,
-          helper: `${expenseReviewRows.length} عناصر داخلين فالحساب`,
+          helper: t(`${expenseReviewRows.length} عناصر داخلين فالحساب`, `${expenseReviewRows.length} éléments pris en compte`, `${expenseReviewRows.length} items counted`),
         },
         {
           key: "debts",
@@ -13850,7 +13924,7 @@ export function BetaOnboardingV2PageContent({
           amount: debtSummaryMetrics.current_monthly,
           helper:
             debtSummaryMetrics.count > 0
-              ? `${debtSummaryMetrics.count} ديون داخلين فالحساب`
+              ? t(`${debtSummaryMetrics.count} ديون داخلين فالحساب`, `${debtSummaryMetrics.count} dettes prises en compte`, `${debtSummaryMetrics.count} debts counted`)
               : "ما كايناش ديون دابا",
         },
         {
@@ -13859,8 +13933,10 @@ export function BetaOnboardingV2PageContent({
           amount: goalOverviewRequired,
           helper: goalOverviewHelper,
         },
-      ] as const,
+      ] as const;
+    },
     [
+      locale,
       debtSummaryMetrics.count,
       debtSummaryMetrics.current_monthly,
       expenseReviewRows.length,
@@ -13879,6 +13955,7 @@ export function BetaOnboardingV2PageContent({
     return "الهامش الحر ضيق دابا، وهادشي كيخلي اختيار الاتجاه مهم أكثر.";
   }, [moneyPlanRemainingValue, overviewIncomeValue]);
   const moneyPlanSummaryInsights = useMemo(() => {
+    setOnboardingLocale(locale);
     const pressureCandidates = [
       {
         label: moneyPlanTopExpenseRow?.label ?? "المصاريف اليومية",
@@ -13889,21 +13966,24 @@ export function BetaOnboardingV2PageContent({
     const strongest = pressureCandidates[0];
     const goalGap =
       goalSummaryMetrics.count > 0 && goalOverviewRequired > moneyPlanRemainingValue
-        ? `الأهداف طموحة مقارنة بالهامش: المحتاج ${formatMad(goalOverviewRequired)} والمتاح دابا ${formatMad(
-            moneyPlanRemainingValue
-          )}.`
+        ? t(
+            `الأهداف طموحة مقارنة بالهامش: المحتاج ${formatMad(goalOverviewRequired)} والمتاح دابا ${formatMad(moneyPlanRemainingValue)}.`,
+            `Objectifs ambitieux par rapport à la marge : ${formatMad(goalOverviewRequired)} nécessaires, ${formatMad(moneyPlanRemainingValue)} disponibles.`,
+            `Ambitious goals for the margin: ${formatMad(goalOverviewRequired)} needed, ${formatMad(moneyPlanRemainingValue)} available.`
+          )
         : null;
     return [
       strongest.amount > 0
-        ? `أكبر ضغط دابا جاي من ${strongest.label}.`
+        ? t(`أكبر ضغط دابا جاي من ${strongest.label}.`, `La plus grosse pression vient de : ${tx(strongest.label)}.`, `The biggest pressure comes from: ${tx(strongest.label)}.`)
         : "ما باين حتى ضغط مالي كبير دابا، ولكن خاصنا نحدد الاتجاه اللي بغيتي نمشيو به.",
       overviewIncomeValue > 0
-        ? `من كل ${formatMad(overviewIncomeValue)} دخل، كيبقى ليك تقريباً ${formatMad(moneyPlanRemainingValue)} نقدر نوجهوه بوعي.`
+        ? t(`من كل ${formatMad(overviewIncomeValue)} دخل، كيبقى ليك تقريباً ${formatMad(moneyPlanRemainingValue)} نقدر نوجهوه بوعي.`, `Sur ${formatMad(overviewIncomeValue)} de revenu, il te reste environ ${formatMad(moneyPlanRemainingValue)} à orienter.`, `Out of ${formatMad(overviewIncomeValue)} of income, about ${formatMad(moneyPlanRemainingValue)} is left to direct.`)
         : "إلى شي رقم ما باينش مزيان، تقدر تراجع التفاصيل قبل ما تكمل.",
       ...(goalGap ? [goalGap] : []),
       "فالمرحلة الجاية غادي نختارو شكون ياخذ النفس الأول: الدين، الأمان، ولا الأهداف.",
     ];
   }, [
+    locale,
     debtSummaryMetrics.current_monthly,
     goalOverviewRequired,
     goalSummaryMetrics.count,
@@ -15292,7 +15372,7 @@ export function BetaOnboardingV2PageContent({
         const cap = GUEST_LIMITS.envelopes;
         setUiError(
           locale === "ar"
-            ? `ف وضع الاكتشاف تقدر تصاوب حتى ${cap} ظرف. صاوب حسابك المجاني باش يكونو عندك بلا حدود — الأظرفة اللي عندك دابا كتبقى محفوظة.`
+            ? t(`ف وضع الاكتشاف تقدر تصاوب حتى ${cap} ظرف. صاوب حسابك المجاني باش يكونو عندك بلا حدود — الأظرفة اللي عندك دابا كتبقى محفوظة.`, `En mode découverte, tu peux créer jusqu'à ${cap} enveloppes. Crée ton compte gratuit pour ne plus avoir de limite ; tes enveloppes sont conservées.`, `In discovery mode you can create up to ${cap} envelopes. Create your free account for no limit; your envelopes are kept.`)
             : locale === "en"
               ? `In discovery mode you can create up to ${cap} envelopes. Create your free account for as many as you want — your current envelopes are kept.`
               : `En mode découverte, tu peux créer jusqu'à ${cap} enveloppes. Crée ton compte gratuit pour en avoir autant que tu veux — tes enveloppes actuelles sont gardées.`
@@ -16829,7 +16909,7 @@ export function BetaOnboardingV2PageContent({
     });
 
     if (blocked) {
-      setValidationFeedback(`يمكن تختار غير ${getMultiMaxSelections(question.id)} عناصر هنا.`);
+      setValidationFeedback(t(`يمكن تختار غير ${getMultiMaxSelections(question.id)} عناصر هنا.`, `${getMultiMaxSelections(question.id)} choix maximum ici.`, `Up to ${getMultiMaxSelections(question.id)} choices here.`));
       return;
     }
 
@@ -16922,7 +17002,7 @@ export function BetaOnboardingV2PageContent({
 
     const maxSelections = getMultiMaxSelections(question.id);
     if (question.id !== "E10_keep_suggestions" && selected.length > maxSelections) {
-      setValidationFeedback(`اختار حتى ${maxSelections} عناصر كحد أقصى.`);
+      setValidationFeedback(t(`اختار حتى ${maxSelections} عناصر كحد أقصى.`, `${maxSelections} choix maximum.`, `Up to ${maxSelections} choices.`));
       return;
     }
 
@@ -17034,7 +17114,10 @@ export function BetaOnboardingV2PageContent({
   };
 
   const collectedUser = {
-    firstName: getArabicDisplayName(getString(answers, "R1_first_name")),
+    firstName:
+      locale === "ar"
+        ? getArabicDisplayName(getString(answers, "R1_first_name"))
+        : authUser?.first_name?.trim() || getString(answers, "R1_first_name"),
     fullName:
       [getString(answers, "R1_first_name"), getString(answers, "R2_last_name")]
         .map((part) => getArabicDisplayName(part))
@@ -17265,22 +17348,23 @@ export function BetaOnboardingV2PageContent({
       if (!distributionReady) {
         const missingList =
           latestVisibleMissing.length
-            ? ` (${latestVisibleMissing.join("، ")})`
+            ? ` (${latestVisibleMissing.map((name) => localizeProposalEnvelopeNameForUi(name)).join(t("، ", ", ", ", "))})`
             : "";
         throw new Error(
-          latestDistributionStatus?.message
+          // The server message is written in Darija: other languages get the generic text.
+          latestDistributionStatus?.message && getOnboardingLocale() === "ar"
             ? `${latestDistributionStatus.message}${missingList}`
-            : "إعداد التوزيع الحالي ناقص، خاصك تكمل تغطية الأظرفة المرنة."
+            : `${t("إعداد التوزيع الحالي ناقص، خاصك تكمل تغطية الأظرفة المرنة.", "Répartition incomplète : toutes les enveloppes flexibles doivent être couvertes.", "The split is incomplete: every flexible envelope must be covered.")}${missingList}`
         );
       }
       if (latestVisibleUnresolved.length > 0) {
         throw new Error(
-          `بعض الأظرفة مازال ما تزامنوش: ${latestVisibleUnresolved.join("، ")}`
+          t(`بعض الأظرفة مازال ما تزامنوش: ${latestVisibleUnresolved.join("، ")}`, `Enveloppes pas encore synchronisées : ${latestVisibleUnresolved.map((name) => localizeProposalEnvelopeNameForUi(name)).join(", ")}`, `Envelopes not synced yet: ${latestVisibleUnresolved.map((name) => localizeProposalEnvelopeNameForUi(name)).join(", ")}`)
         );
       }
       if (latestVisibleMissing.length > 0) {
         throw new Error(
-          `خاصك تكمل إعداد التوزيع لهاد الأظرفة: ${latestVisibleMissing.join("، ")}`
+          t(`خاصك تكمل إعداد التوزيع لهاد الأظرفة: ${latestVisibleMissing.join("، ")}`, `Termine la répartition pour : ${latestVisibleMissing.map((name) => localizeProposalEnvelopeNameForUi(name)).join(", ")}`, `Finish the split for: ${latestVisibleMissing.map((name) => localizeProposalEnvelopeNameForUi(name)).join(", ")}`)
         );
       }
       await apiFetch("/users/me/onboarding-v2-records/latest/apply", {
@@ -17530,7 +17614,7 @@ export function BetaOnboardingV2PageContent({
                 {betaStageSummaryItems.length} مراحل
               </span>
             </div>
-            <div className="rounded-[28px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-5 text-right shadow-[0_24px_60px_-44px_rgba(59,130,246,0.22)]">
+            <div className="rounded-[28px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-5 text-start shadow-[0_24px_60px_-44px_rgba(59,130,246,0.22)]">
               <h1 className="text-[32px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111]">
                 خريطة الإعداد كاملة
               </h1>
@@ -17560,7 +17644,7 @@ export function BetaOnboardingV2PageContent({
                   return (
                     <div
                       key={item.key}
-                      className={`rounded-[26px] border p-5 text-right shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)] ${stateClasses}`}
+                      className={`rounded-[26px] border p-5 text-start shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)] ${stateClasses}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -17601,7 +17685,7 @@ export function BetaOnboardingV2PageContent({
               </div>
 
               <aside className="space-y-4">
-                <div className="rounded-[26px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]">
+                <div className="rounded-[26px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]">
                   <p className="text-[14px] font-semibold text-[#111111]">كيفاش تستعملها؟</p>
                   <ul className="mt-3 space-y-2 text-[13px] leading-7 text-[#6e6e73]">
                     <li>1. شوف المراحل كاملين قبل ما تبدا.</li>
@@ -17610,7 +17694,7 @@ export function BetaOnboardingV2PageContent({
                   </ul>
                 </div>
 
-                <div className="rounded-[26px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]">
+                <div className="rounded-[26px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]">
                   <p className="text-[14px] font-semibold text-[#111111]">إلى بغيتي تمشي عادي</p>
                   <p className="mt-2 text-[13px] leading-7 text-[#6e6e73]">
                     تقدر تبدا من الأول وتخلي الإعداد يمشي معاك بالترتيب المعتاد.
@@ -17646,7 +17730,7 @@ export function BetaOnboardingV2PageContent({
           <div className="w-full max-w-xl rounded-[28px] border border-[#e5e5ea] bg-[#fcfcfd] p-8 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.28)]">
             <p className="text-[14px] font-medium text-[#6e6e73]">كنوجد التقدم ديالك…</p>
             <h1 className="mt-3 text-[28px] font-semibold tracking-[-0.02em] text-[#111111]">
-              كنرجعو بك لآخر سؤال وقفتي فيه
+              {t("كنرجعو بك لآخر سؤال وقفتي فيه", "On reprend là où tu t'étais arrêté·e", "Taking you back to where you left off")}
             </h1>
           </div>
         </div>
@@ -17655,16 +17739,16 @@ export function BetaOnboardingV2PageContent({
   }
 
   const renderFixedOtherRowsEditor = () => (
-                        <div className="mx-auto w-full max-w-6xl rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] p-4 text-right">
-                          <p className="text-[14px] font-semibold text-[#111111]">مصاريف أخرى (جدول)</p>
+                        <div className="mx-auto w-full max-w-6xl rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] p-4 text-start">
+                          <p className="text-[14px] font-semibold text-[#111111]">{t("مصاريف أخرى (جدول)", "Autres dépenses", "Other costs")}</p>
                           <p className="mt-1 text-[12px] text-[#6e6e73]">
-                            زيد الاسم، المبلغ، والفترة. تقدر تزيد أكثر من سطر.
+                            {t("زيد الاسم، المبلغ، والفترة. تقدر تزيد أكثر من سطر.", "Ajoute le nom, le montant et la fréquence. Tu peux ajouter plusieurs lignes.", "Add the name, amount and frequency. You can add several rows.")}
                           </p>
 
                           <div className="mt-3 hidden grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto] gap-2 text-[12px] font-semibold text-[#6e6e73] md:grid">
-                            <span>الاسم</span>
-                            <span>المبلغ</span>
-                            <span>الفترة</span>
+                            <span>{t("الاسم", "Nom", "Name")}</span>
+                            <span>{t("المبلغ", "Montant", "Amount")}</span>
+                            <span>{t("الفترة", "Fréquence", "Frequency")}</span>
                             <span></span>
                           </div>
 
@@ -17688,7 +17772,7 @@ export function BetaOnboardingV2PageContent({
                                   onClick={() => removeFixedOtherRow(row.id)}
                                   className="h-11 rounded-lg border border-[#fecaca] bg-[#fff1f2] px-3 text-[12px] font-semibold text-[#b91c1c]"
                                 >
-                                  حذف
+                                  {t("حذف", "Supprimer", "Delete")}
                                 </button>
                               </div>
                             ))}
@@ -17697,7 +17781,7 @@ export function BetaOnboardingV2PageContent({
                           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(110px,0.8fr)_minmax(150px,1fr)_auto]">
                             <Input
                               type="text"
-                              placeholder="مثلاً: اشتراك نادي"
+                              placeholder={t("مثلاً: اشتراك نادي", "ex. abonnement salle de sport", "e.g. gym membership")}
                               value={fixedOtherDraftName}
                               onChange={(event) => setFixedOtherDraftName(event.target.value)}
                               className="h-11 rounded-lg border-[#d1d1d6] bg-[var(--surface)] px-3 text-[14px] shadow-none focus-visible:ring-[#111111]"
@@ -17716,7 +17800,7 @@ export function BetaOnboardingV2PageContent({
                             >
                               {FIXED_OTHER_CADENCE_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
-                                  {option.label}
+                                  {tx(option.label)}
                                 </option>
                               ))}
                             </select>
@@ -17725,7 +17809,7 @@ export function BetaOnboardingV2PageContent({
                               onClick={addFixedOtherRow}
                               className="h-11 rounded-lg border border-[#0c8a67] bg-[#0f9d74] px-4 text-[13px] font-semibold text-white"
                             >
-                              + إضافة
+                              {t("+ إضافة", "+ Ajouter", "+ Add")}
                             </button>
                           </div>
                         </div>
@@ -17743,7 +17827,7 @@ export function BetaOnboardingV2PageContent({
     return (
       <>
         {OptionIcon ? <OptionIcon className="h-4 w-4 shrink-0" aria-hidden /> : null}
-        <span className="[overflow-wrap:anywhere]">{option.label}</span>
+        <span className="[overflow-wrap:anywhere]">{tx(option.label)}</span>
       </>
     );
   };
@@ -17755,8 +17839,8 @@ export function BetaOnboardingV2PageContent({
         return (
           <div className="space-y-3">
             {field.groupedOptions.map((group) => (
-              <div key={group.id} role="group" aria-label={group.title}>
-                <p className="mb-2 text-[12px] font-semibold text-[#6e6e73]">{group.title}</p>
+              <div key={group.id} role="group" aria-label={tx(group.title)}>
+                <p className="mb-2 text-[12px] font-semibold text-[#6e6e73]">{tx(group.title)}</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {group.options.map((option) => (
                     <button
@@ -17844,11 +17928,11 @@ export function BetaOnboardingV2PageContent({
               }
             }}
             className={`h-12 w-full min-w-0 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
-              isMoney ? "pl-16" : ""
+              isMoney ? "pe-16" : ""
             } ${fieldErrors[field.id] ? "border-[#ff3b30]" : "border-[#d1d1d6]"}`}
           />
           {isMoney ? (
-            <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[13px] font-semibold text-[#6e6e73]" dir="ltr">
+            <span className="pointer-events-none absolute inset-y-0 end-4 flex items-center text-[13px] font-semibold text-[#6e6e73]" dir="ltr">
               MAD
             </span>
           ) : null}
@@ -17873,21 +17957,21 @@ export function BetaOnboardingV2PageContent({
           <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
             <header className="space-y-3 lg:sticky lg:top-8">
               <span className="inline-flex items-center rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
-                الخطوة الأولى
+                {t("الخطوة الأولى", "Première étape", "First step")}
               </span>
               <h1 className="text-[32px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111]">
-                المعلومات الأساسية
+                {t("المعلومات الأساسية", "Faisons connaissance", "Let's get started")}
               </h1>
               <p className="text-[15px] leading-7 text-[#6e6e73]">
-                غير السمية ديالك باش نهضرو معاك بيها. الباقي تقدر تبدلو من البروفايل.
+                {t("غير السمية ديالك باش نهضرو معاك بيها. الباقي تقدر تبدلو من البروفايل.", "Juste ton prénom, pour t'appeler par ton nom. Le reste se modifie dans ton profil.", "Just your first name, so we can call you by it. The rest can be changed in your profile.")}
               </p>
               {isForcedReviewMode ? (
-                <div className="rounded-[22px] border border-[#fde68a] bg-[#fffbeb] px-4 py-4 text-right shadow-[0_14px_34px_-28px_rgba(217,119,6,0.35)]">
+                <div className="rounded-[22px] border border-[#fde68a] bg-[#fffbeb] px-4 py-4 text-start shadow-[0_14px_34px_-28px_rgba(217,119,6,0.35)]">
                   <p className="text-[14px] font-semibold text-[#92400e]">
-                    فريق الدعم طلب منك تراجع الإعداد ديالك من جديد.
+                    {t("فريق الدعم طلب منك تراجع الإعداد ديالك من جديد.", "L'équipe support te demande de revoir ta configuration.", "The support team asked you to review your setup.")}
                   </p>
                   <p className="mt-1 text-[14px] leading-7 text-[#78350f]">
-                    المعلومات القديمة باقية، وقدر تبدل غير اللي بغيتي.
+                    {t("المعلومات القديمة باقية، وقدر تبدل غير اللي بغيتي.", "Tes réponses sont conservées : change seulement ce que tu veux.", "Your answers are kept: change only what you want.")}
                   </p>
                 </div>
               ) : null}
@@ -17907,14 +17991,14 @@ export function BetaOnboardingV2PageContent({
                   htmlFor="onboarding-first-name"
                   className="mb-2 block text-[14px] font-medium text-[#3c3c43]"
                 >
-                  شنو سميتك؟
+                  {t("شنو سميتك؟", "Quel est ton prénom ?", "What's your first name?")}
                 </label>
                 <Input
                   id="onboarding-first-name"
                   ref={inputRef}
                   type="text"
                   autoComplete="given-name"
-                  placeholder="الاسم الشخصي"
+                  placeholder={t("الاسم الشخصي", "Prénom", "First name")}
                   value={getString(answers, "R1_first_name")}
                   onChange={(event) => setInputAnswer("R1_first_name", event.target.value)}
                   aria-invalid={Boolean(fieldErrors.R1_first_name)}
@@ -17922,7 +18006,7 @@ export function BetaOnboardingV2PageContent({
                     fieldErrors.R1_first_name ? "border-[#ff3b30]" : "border-[#d1d1d6]"
                   }`}
                 />
-                {fieldErrors.R1_first_name ? <p className="mt-1 text-[12px] text-[#d70015]">{fieldErrors.R1_first_name}</p> : null}
+                {fieldErrors.R1_first_name ? <p className="mt-1 text-[12px] text-[#d70015]">{tx(fieldErrors.R1_first_name)}</p> : null}
               </div>
 
               <button
@@ -17930,11 +18014,11 @@ export function BetaOnboardingV2PageContent({
                 className={`h-12 ${onboardingPrimaryButtonClass}`}
                 style={onboardingPrimaryButtonStyle}
               >
-                تابع
+                {t("تابع", "Continuer", "Continue")}
               </button>
 
               {uiError ? (
-                <p className="rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-[14px] text-[#d70015]">{uiError}</p>
+                <p className="rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-[14px] text-[#d70015]">{tx(uiError)}</p>
               ) : null}
               </div>
             </form>
@@ -17981,7 +18065,7 @@ export function BetaOnboardingV2PageContent({
                 style={onboardingBackButtonStyle}
               >
                 <span aria-hidden>←</span>
-                رجوع
+                {t("رجوع", "Retour", "Back")}
               </button>
               {!isInteractiveGuidanceScreen && !isMoneyPlanJourney && !isCompactChoiceQuestion ? (
                 <span className="rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
@@ -17992,7 +18076,7 @@ export function BetaOnboardingV2PageContent({
             {!isInteractiveGuidanceScreen && !isMoneyPlanJourney ? (
               // Fixed steps instead of a question counter whose total grows as
               // answers open follow-up questions. Reached steps can be reopened.
-              <nav aria-label="مراحل الإعداد">
+              <nav aria-label={t("مراحل الإعداد", "Étapes de la configuration", "Setup steps")}>
                 <ol className="flex flex-wrap gap-2">
                   {orderedSections.map((sectionKey, index) => {
                     const firstIndex = questions.findIndex(
@@ -18020,7 +18104,7 @@ export function BetaOnboardingV2PageContent({
                           } disabled:cursor-default`}
                         >
                           {isDone ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
-                          {getOnboardingSectionMeta(sectionKey).label}
+                          {tx(getOnboardingSectionMeta(sectionKey).label)}
                         </button>
                       </li>
                     );
@@ -18041,15 +18125,15 @@ export function BetaOnboardingV2PageContent({
                   <span>
                     {isMoneyPlanJourney
                       ? `${currentVisibleStep}/${totalSteps}`
-                      : getOnboardingSectionMeta(currentSectionKey).label}
+                      : tx(getOnboardingSectionMeta(currentSectionKey).label)}
                   </span>
                   {!isCompactChoiceQuestion ? (
                     <span>
                       {onboardingRecordStatus === "saving"
-                        ? "جاري الحفظ..."
+                        ? t("جاري الحفظ...", "Enregistrement…", "Saving…")
                         : onboardingRecordStatus === "error"
-                        ? "خطأ فالحفظ"
-                        : "محفوظ"}
+                        ? t("خطأ فالحفظ", "Erreur d'enregistrement", "Save failed")
+                        : t("محفوظ", "Enregistré", "Saved")}
                     </span>
                   ) : null}
                 </div>
@@ -18070,52 +18154,52 @@ export function BetaOnboardingV2PageContent({
             >
               <div className="py-6">
                 <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-                  <div className="rounded-[28px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-5 text-right shadow-[0_24px_60px_-44px_rgba(59,130,246,0.22)]">
+                  <div className="rounded-[28px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-5 text-start shadow-[0_24px_60px_-44px_rgba(59,130,246,0.22)]">
                     <p className="text-[15px] font-semibold text-[#0f172a]">
-                      هنا غادي تلقى جميع المصاريف اللي دخلات فالحساب.
+                      {t("هنا غادي تلقى جميع المصاريف اللي دخلات فالحساب.", "Voici toutes les dépenses prises en compte.", "Here are all the costs taken into account.")}
                     </p>
                     <p className="mt-1 text-[14px] leading-7 text-[#1e3a8a]">
-                      بدل اللي بغيتي هنا مباشرة، وغادي تتحدّث الأرقام والبورسانتاج من دابا.
+                      {t("بدل اللي بغيتي هنا مباشرة، وغادي تتحدّث الأرقام والبورسانتاج من دابا.", "Modifie directement ici : les montants et pourcentages se mettent à jour.", "Edit directly here: amounts and percentages update right away.")}
                     </p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-3">
                     <div
-                      className={`rounded-[24px] border p-4 text-right shadow-[0_18px_40px_-34px_rgba(217,119,6,0.14)] ${getFinancialSemanticTheme("expenses").metricCard}`}
+                      className={`rounded-[24px] border p-4 text-start shadow-[0_18px_40px_-34px_rgba(217,119,6,0.14)] ${getFinancialSemanticTheme("expenses").metricCard}`}
                     >
                       <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("expenses").label}`}>
-                        مجموع المصاريف
+                        {t("مجموع المصاريف", "Total des dépenses", "Total costs")}
                       </p>
                       <p className="mt-2 text-[24px] font-semibold text-[#111111]">{formatMad(expenseReviewTotal)}</p>
                       <p className={`mt-1 text-[13px] ${getFinancialSemanticTheme("expenses").accentText}`}>
                         {overviewIncomeValue > 0
-                          ? `${formatPercent(expenseReviewTotal / overviewIncomeValue)} من الدخل`
-                          : "ما قدرناش نحسبو النسبة بلا دخل واضح"}
+                          ? t(`${formatPercent(expenseReviewTotal / overviewIncomeValue)} من الدخل`, `${formatPercent(expenseReviewTotal / overviewIncomeValue)} du revenu`, `${formatPercent(expenseReviewTotal / overviewIncomeValue)} of income`)
+                          : t("ما قدرناش نحسبو النسبة بلا دخل واضح", "Pourcentage impossible sans revenu", "No percentage without an income")}
                       </p>
                     </div>
                     <div
-                      className={`rounded-[24px] border p-4 text-right shadow-[0_18px_40px_-34px_rgba(217,119,6,0.12)] ${getFinancialSemanticTheme("expenses").metricCard}`}
+                      className={`rounded-[24px] border p-4 text-start shadow-[0_18px_40px_-34px_rgba(217,119,6,0.12)] ${getFinancialSemanticTheme("expenses").metricCard}`}
                     >
                       <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("expenses").label}`}>
-                        عدد العناصر
+                        {t("عدد العناصر", "Nombre d'éléments", "Number of items")}
                       </p>
                       <p className="mt-2 text-[24px] font-semibold text-[#111111]">{expenseReviewRows.length}</p>
                       <p className={`mt-1 text-[13px] ${getFinancialSemanticTheme("expenses").accentText}`}>
-                        مجموعين فصفحة وحدة باش تبقى المراجعة سريعة.
+                        {t("مجموعين فصفحة وحدة باش تبقى المراجعة سريعة.", "Regroupés sur une seule page pour aller vite.", "Grouped on one page to keep it quick.")}
                       </p>
                     </div>
-                    <div className="rounded-[24px] border border-[#fee2e2] bg-[#fff5f5] p-4 text-right shadow-[0_18px_40px_-34px_rgba(185,28,28,0.18)]">
-                      <p className="text-[12px] font-semibold tracking-[0.08em] text-[#b91c1c]">العناصر الثقيلة</p>
+                    <div className="rounded-[24px] border border-[#fee2e2] bg-[#fff5f5] p-4 text-start shadow-[0_18px_40px_-34px_rgba(185,28,28,0.18)]">
+                      <p className="text-[12px] font-semibold tracking-[0.08em] text-[#b91c1c]">{t("العناصر الثقيلة", "Postes lourds", "Heavy items")}</p>
                       <p className="mt-2 text-[24px] font-semibold text-[#111111]">{expenseReviewHeavyCount}</p>
-                      <p className="mt-1 text-[13px] text-[#7f1d1d]">اللي كياخدو حصة كبيرة من الدخل باينين بالأحمر.</p>
+                      <p className="mt-1 text-[13px] text-[#7f1d1d]">{t("اللي كياخدو حصة كبيرة من الدخل باينين بالأحمر.", "Ceux qui pèsent lourd sur le revenu sont en rouge.", "Items taking a big share of income are shown in red.")}</p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     {[
-                      { groupKey: "housing" as const, label: "السكن", total: expenseReviewGroupTotals.housing },
-                      { groupKey: "transport" as const, label: "التنقل", total: expenseReviewGroupTotals.transport },
-                      { groupKey: "fixed" as const, label: "المصاريف الثابتة", total: expenseReviewGroupTotals.fixed },
+                      { groupKey: "housing" as const, label: t("السكن", "Logement", "Housing"), total: expenseReviewGroupTotals.housing },
+                      { groupKey: "transport" as const, label: t("التنقل", "Transport", "Transport"), total: expenseReviewGroupTotals.transport },
+                      { groupKey: "fixed" as const, label: t("المصاريف الثابتة", "Charges fixes", "Fixed costs"), total: expenseReviewGroupTotals.fixed },
                     ]
                       .filter((group) => expenseReviewRows.some((row) => row.group_key === group.groupKey))
                       .map(({ groupKey, label, total }) => {
@@ -18126,7 +18210,7 @@ export function BetaOnboardingV2PageContent({
                         return (
                           <section
                             key={groupKey}
-                            className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]"
+                            className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]"
                           >
                             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div>
@@ -18134,7 +18218,7 @@ export function BetaOnboardingV2PageContent({
                                   {label}
                                 </h2>
                                 <p className={`mt-1 text-[13px] ${getFinancialSemanticTheme("expenses").accentText}`}>
-                                  {formatMad(total)} • {expenseReviewTotal > 0 ? formatPercent(groupShare) : "—"} من مجموع المصاريف
+                                  {formatMad(total)} • {expenseReviewTotal > 0 ? formatPercent(groupShare) : "—"} {t("من مجموع المصاريف", "du total des dépenses", "of total costs")}
                                 </p>
                               </div>
                               <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#eef1f5] sm:max-w-[220px]">
@@ -18166,17 +18250,17 @@ export function BetaOnboardingV2PageContent({
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                       <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                          <p className="text-[17px] font-semibold text-[#111111]">{row.label}</p>
+                                          <p className="text-[17px] font-semibold text-[#111111]">{tx(row.label)}</p>
                                           <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${toneClasses.pill}`}>
                                             {overviewIncomeValue > 0 ? formatPercent(incomePercent) : formatPercent(groupPercent)}
                                           </span>
                                         </div>
                                         <p className={`mt-1 text-[13px] ${toneClasses.text}`}>
-                                          {overviewIncomeValue > 0 ? `${formatPercent(incomePercent)} من الدخل` : "—"} •{" "}
-                                          {total > 0 ? `${formatPercent(groupPercent)} من ${label}` : "—"}
+                                          {overviewIncomeValue > 0 ? t(`${formatPercent(incomePercent)} من الدخل`, `${formatPercent(incomePercent)} du revenu`, `${formatPercent(incomePercent)} of income`) : "—"} •{" "}
+                                          {total > 0 ? t(`${formatPercent(groupPercent)} من ${label}`, `${formatPercent(groupPercent)} de ${label}`, `${formatPercent(groupPercent)} of ${label}`) : "—"}
                                         </p>
                                         {row.helper ? (
-                                          <p className="mt-1 text-[12px] text-[#6e6e73]">{row.helper}</p>
+                                          <p className="mt-1 text-[12px] text-[#6e6e73]">{tx(row.helper)}</p>
                                         ) : null}
                                       </div>
                                       <div className="w-full lg:w-[210px]">
@@ -18188,7 +18272,7 @@ export function BetaOnboardingV2PageContent({
                                           className="h-12 rounded-2xl border-[#d1d1d6] bg-[var(--surface)] px-4 text-[16px] text-[#111111] shadow-none focus-visible:ring-[#111111]"
                                           placeholder="0"
                                         />
-                                        <p className="mt-2 text-[12px] text-[#6e6e73]">المبلغ الشهري اللي داخل فالحساب.</p>
+                                        <p className="mt-2 text-[12px] text-[#6e6e73]">{t("المبلغ الشهري اللي داخل فالحساب.", "Montant mensuel pris en compte.", "Monthly amount counted.")}</p>
                                       </div>
                                     </div>
 
@@ -18222,7 +18306,7 @@ export function BetaOnboardingV2PageContent({
                       className={`h-12 flex-1 ${onboardingSecondaryButtonClass}`}
                       style={onboardingSecondaryButtonStyle}
                     >
-                      رجوع للمراجعة
+                      {t("رجوع للمراجعة", "Retour à la révision", "Back to review")}
                     </button>
                     <button
                       type="button"
@@ -18234,7 +18318,7 @@ export function BetaOnboardingV2PageContent({
                       className={`h-12 flex-1 ${onboardingPrimaryButtonClass}`}
                       style={onboardingPrimaryButtonStyle}
                     >
-                      رجوع للصورة المالية
+                      {t("رجوع للصورة المالية", "Retour à la vue d'ensemble", "Back to the overview")}
                     </button>
                   </div>
                 </div>
@@ -18251,27 +18335,27 @@ export function BetaOnboardingV2PageContent({
             >
               <div className="py-6">
                 <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-                  <div className="rounded-[28px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-5 text-right shadow-[0_24px_60px_-44px_rgba(59,130,246,0.22)]">
+                  <div className="rounded-[28px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-5 text-start shadow-[0_24px_60px_-44px_rgba(59,130,246,0.22)]">
                     <p className="text-[15px] font-semibold text-[#0f172a]">
-                      هادي مراجعة مختصرة قبل ما نوجدو الخطة.
+                      {t("هادي مراجعة مختصرة قبل ما نوجدو الخطة.", "Une révision rapide avant de préparer le plan.", "A quick review before we prepare the plan.")}
                     </p>
                     <p className="mt-1 text-[14px] leading-7 text-[#1e3a8a]">
-                      اختار غير الجزء اللي بغيتي تبدلو، وغادي نهبطوك مباشرة ليه.
+                      {t("اختار غير الجزء اللي بغيتي تبدلو، وغادي نهبطوك مباشرة ليه.", "Choisis la partie à modifier, on t'y emmène directement.", "Pick the part to change and we'll take you straight there.")}
                     </p>
                   </div>
 
-                  <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]">
+                  <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_22px_54px_-42px_rgba(15,23,42,0.18)]">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-[22px] font-semibold text-[#111111]">شنو بغيتي تبدل؟</h2>
+                        <h2 className="text-[22px] font-semibold text-[#111111]">{t("شنو بغيتي تبدل؟", "Que veux-tu modifier ?", "What do you want to change?")}</h2>
                         <p className="mt-1 text-[13px] text-[#6e6e73]">
-                          كل card فيها الملخص وشنو كتاخد تقريباً من الدخل ديالك.
+                          {t("كل card فيها الملخص وشنو كتاخد تقريباً من الدخل ديالك.", "Chaque carte résume la partie et sa part approximative du revenu.", "Each card sums up the part and its rough share of income.")}
                         </p>
                       </div>
                       <div
                         className={`rounded-full border px-3 py-1 text-[12px] font-semibold ${getFinancialSemanticTheme("income").chip}`}
                       >
-                        الدخل: {formatMad(overviewIncomeValue)}
+                        {t("الدخل:", "Revenu :", "Income:")} {formatMad(overviewIncomeValue)}
                       </div>
                     </div>
 
@@ -18291,9 +18375,9 @@ export function BetaOnboardingV2PageContent({
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className={`h-3 w-3 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.55)] ${theme.swatch}`} />
-                                  <p className={`text-[18px] font-semibold ${theme.label}`}>{card.title}</p>
+                                  <p className={`text-[18px] font-semibold ${tx(theme.label)}`}>{tx(card.title)}</p>
                                 </div>
-                                <p className={`mt-1 text-[13px] ${theme.accentText}`}>{card.summary}</p>
+                                <p className={`mt-1 text-[13px] ${theme.accentText}`}>{tx(card.summary)}</p>
                               </div>
                               <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${theme.badge}`}>
                                 {card.percent !== null ? formatPercent(card.percent) : "—"}
@@ -18301,7 +18385,7 @@ export function BetaOnboardingV2PageContent({
                             </div>
                             <p className={`mt-4 text-[24px] font-semibold ${theme.amountText}`}>{formatMad(card.amount)}</p>
                             <p className={`mt-1 text-[13px] ${theme.accentText}`}>
-                              {card.percent !== null ? `${formatPercent(card.percent)} من الدخل` : "النسبة ما بايناش بلا دخل واضح"}
+                              {card.percent !== null ? t(`${formatPercent(card.percent)} من الدخل`, `${formatPercent(card.percent)} du revenu`, `${formatPercent(card.percent)} of income`) : t("النسبة ما بايناش بلا دخل واضح", "Pourcentage indisponible sans revenu", "No percentage without an income")}
                             </p>
                             <div className={`mt-3 h-2.5 overflow-hidden rounded-full ${theme.track}`}>
                               <div
@@ -18331,7 +18415,7 @@ export function BetaOnboardingV2PageContent({
                                 disabled ? "cursor-not-allowed opacity-60" : ""
                               } ${theme.solidButton}`}
                             >
-                              {card.actionLabel}
+                              {tx(card.actionLabel)}
                             </button>
                           </div>
                         );
@@ -18353,7 +18437,7 @@ export function BetaOnboardingV2PageContent({
                       className={`h-12 flex-1 ${onboardingSecondaryButtonClass}`}
                       style={onboardingSecondaryButtonStyle}
                     >
-                      رجوع للصورة المالية
+                      {t("رجوع للصورة المالية", "Retour à la vue d'ensemble", "Back to the overview")}
                     </button>
                     <button
                       type="button"
@@ -18365,7 +18449,7 @@ export function BetaOnboardingV2PageContent({
                       className={`h-12 flex-1 ${onboardingPrimaryButtonClass}`}
                       style={onboardingPrimaryButtonStyle}
                     >
-                      كمل للخطة
+                      {t("كمل للخطة", "Continuer vers le plan", "Continue to the plan")}
                     </button>
                   </div>
                 </div>
@@ -18383,30 +18467,30 @@ export function BetaOnboardingV2PageContent({
               <div className="flex items-center py-6">
                 <div className="w-full rounded-[32px] border border-[#e5e5ea] bg-[var(--surface)] p-6 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.28)] sm:p-8 xl:p-10">
                   <p className="inline-flex rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
-                    تم إعداد الحساب بنجاح
+                    {t("تم إعداد الحساب بنجاح", "Compte prêt", "Account ready")}
                   </p>
                   <h1 className="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[38px]">
-                    كلشي واجد باش تبدأ
+                    {t("كلشي واجد باش تبدأ", "Tout est prêt pour commencer", "Everything is ready to start")}
                   </h1>
                   <p className="mt-3 text-[16px] leading-7 text-[#6e6e73]">
-                    وجدنا ليك البداية ديال الميزانية ديالك، مع الأظرفة والاختيارات اللي درتي.
+                    {t("وجدنا ليك البداية ديال الميزانية ديالك، مع الأظرفة والاختيارات اللي درتي.", "Ton budget de départ est prêt, avec tes enveloppes et tes choix.", "Your starting budget is ready, with your envelopes and choices.")}
                   </p>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                      <p className="text-[13px] text-[#8e8e93]">عدد الأظرفة</p>
+                      <p className="text-[13px] text-[#8e8e93]">{t("عدد الأظرفة", "Nombre d'enveloppes", "Number of envelopes")}</p>
                       <p className="mt-1 text-[24px] font-semibold text-[#111111]">
                         {proposalPreview.selected_envelopes.length}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                      <p className="text-[13px] text-[#8e8e93]">الاحتفاظ بالباقي مفعّل</p>
+                      <p className="text-[13px] text-[#8e8e93]">{t("الاحتفاظ بالباقي مفعّل", "Report du reste activé", "Carry-over on")}</p>
                       <p className="mt-1 text-[24px] font-semibold text-[#111111]">
                         {rolloverSelectedCount}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                      <p className="text-[13px] text-[#8e8e93]">الأهداف / الديون</p>
+                      <p className="text-[13px] text-[#8e8e93]">{t("الأهداف / الديون", "Objectifs / dettes", "Goals / debts")}</p>
                       <p className="mt-1 text-[24px] font-semibold text-[#111111]">
                         {goalsCount + debtsCount}
                       </p>
@@ -18414,7 +18498,7 @@ export function BetaOnboardingV2PageContent({
                   </div>
 
                   <p className="mt-6 text-[15px] leading-7 text-[#6e6e73]">
-                    تقدر تبدل من بعد الأظرفة أو الاحتفاظ بالباقي من داخل التطبيق.
+                    {t("تقدر تبدل من بعد الأظرفة أو الاحتفاظ بالباقي من داخل التطبيق.", "Tu pourras modifier les enveloppes et le report dans l'app.", "You can change envelopes and carry-over later in the app.")}
                   </p>
                 </div>
               </div>
@@ -18430,23 +18514,23 @@ export function BetaOnboardingV2PageContent({
                   disabled={isApplyingPlan || onboardingRecordStatus === "saving"}
                 >
                   {isApplyingPlan
-                    ? "كنفعّلو الخطة..."
+                    ? t("كنفعّلو الخطة...", "Activation du plan…", "Activating the plan…")
                     : isRegisterGuestMode || isPostRegisterMode
-                    ? "كمل إنشاء الحساب"
-                    : "دخول للوحة الرئيسية"}
+                    ? t("كمل إنشاء الحساب", "Terminer l'inscription", "Finish creating the account")
+                    : t("دخول للوحة الرئيسية", "Aller au tableau de bord", "Go to the dashboard")}
                 </button>
                 {isRegisterGuestMode || isPostRegisterMode ? (
                   <p className="mt-2 text-center text-[12px] text-[#6e6e73]">
-                    منين تضغط هنا غادي نكملو إنشاء الحساب.
+                    {t("منين تضغط هنا غادي نكملو إنشاء الحساب.", "En cliquant ici, on termine la création du compte.", "Clicking here finishes creating the account.")}
                   </p>
                 ) : onboardingRecordStatus === "saving" || isApplyingPlan ? (
                   <p className="mt-2 text-center text-[12px] text-[#6e6e73]">
-                    كنسجلو المعلومات ديالك…
+                    {t("كنسجلو المعلومات ديالك…", "Enregistrement de tes informations…", "Saving your information…")}
                   </p>
                 ) : null}
                 {!isRegisterGuestMode && !isPostRegisterMode && onboardingRecordStatus === "error" ? (
                   <p className="mt-2 text-center text-[12px] text-[#d70015]">
-                    {onboardingRecordError || "وقع مشكل فحفظ المعلومات ديالك."}
+                    {onboardingRecordError || t("وقع مشكل فحفظ المعلومات ديالك.", "Tes informations n'ont pas pu être enregistrées.", "Your information couldn't be saved.")}
                   </p>
                 ) : null}
               </div>
@@ -18464,36 +18548,36 @@ export function BetaOnboardingV2PageContent({
                 <div className="w-full rounded-[32px] border border-[#e5e5ea] bg-[var(--surface)] p-6 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.28)] sm:p-8 xl:p-10">
                   <div className="mx-auto max-w-4xl text-center">
                     <p className="inline-flex rounded-full border border-[#e5e5ea] px-3 py-1 text-[12px] font-medium text-[#6e6e73]">
-                      بداية الدورة المالية
+                      {t("بداية الدورة المالية", "Début du cycle", "Cycle start")}
                     </p>
                     <h1 className="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[38px]">
-                      باش نحددو بداية كل دورة مالية بشكل صحيح
+                      {t("باش نحددو بداية كل دورة مالية بشكل صحيح", "Pour caler le début de chaque cycle", "To set the start of each cycle")}
                     </h1>
                     <p className="mt-3 text-[16px] leading-7 text-[#6e6e73]">
-                      هاد المعطيات غير باش نوجدّو أول دورة بشكل صحيح. منين تصرّح بأول دخل من داخل التطبيق، هو اللي غادي يثبت الانطلاقة الرسمية ديال التتبع.
+                      {t("هاد المعطيات غير باش نوجدّو أول دورة بشكل صحيح. منين تصرّح بأول دخل من داخل التطبيق، هو اللي غادي يثبت الانطلاقة الرسمية ديال التتبع.", "Ces données préparent le premier cycle. Le suivi démarre officiellement quand tu déclares ton premier revenu dans l'app.", "This prepares your first cycle. Tracking officially starts when you log your first income in the app.")}
                     </p>
                   </div>
 
                   <div className="mx-auto mt-8 grid max-w-5xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[#fcfcfd] p-5 text-right">
+                    <div className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[#fcfcfd] p-5 text-start">
                       <div className="rounded-[22px] border border-[#dbeafe] bg-[#eff6ff] p-4">
                         <p className="text-[14px] font-semibold text-[#0f172a]">
-                          الدورة ديالك غادي تكون: {sweepCadenceLabel}
+                          {t("الدورة ديالك غادي تكون:", "Ton cycle :", "Your cycle:")} {tx(sweepCadenceLabel)}
                         </p>
                         <p className="mt-1 text-[14px] leading-7 text-[#1d4ed8]">
-                          يعني تقريباً كل {sweepIntervalDays} يوم غادي كتسالي دورة وتبدا اللي من بعدها.
+                          {t(`يعني تقريباً كل ${sweepIntervalDays} يوم غادي كتسالي دورة وتبدا اللي من بعدها.`, `Soit un nouveau cycle environ tous les ${sweepIntervalDays} jours.`, `That's a new cycle about every ${sweepIntervalDays} days.`)}
                         </p>
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="rounded-[22px] border border-[#e5e7eb] bg-[var(--surface)] p-4 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.18)]">
                           <label className="mb-2 block text-[14px] font-semibold text-[#111111]">
-                            آخر مرة توصلتي بالدخل إمتى؟
+                            {t("آخر مرة توصلتي بالدخل إمتى؟", "Quand as-tu reçu ton dernier revenu ?", "When did you last get paid?")}
                           </label>
                           <p className="mb-3 text-[12px] leading-6 text-[#475569]">
                             {sweepCurrentIncomeDate
-                              ? `التاريخ الحالي: ${formatIsoDateLabel(sweepCurrentIncomeDate)}`
-                              : "مازال ما تختارش التاريخ. ضغط على الخانة اللي لتحت واختار آخر نهار توصّلتي فيه بالدخل."}
+                              ? t(`التاريخ الحالي: ${formatIsoDateLabel(sweepCurrentIncomeDate)}`, `Date actuelle : ${formatIsoDateLabel(sweepCurrentIncomeDate)}`, `Current date: ${formatIsoDateLabel(sweepCurrentIncomeDate)}`)
+                              : t("مازال ما تختارش التاريخ. ضغط على الخانة اللي لتحت واختار آخر نهار توصّلتي فيه بالدخل.", "Pas encore de date : choisis le jour de ton dernier revenu.", "No date yet: pick the day of your last income.")}
                           </p>
                           <Input
                             type="date"
@@ -18509,21 +18593,21 @@ export function BetaOnboardingV2PageContent({
                               onClick={applySuggestedSweepIncomeDate}
                               className="rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1.5 text-[12px] font-semibold text-[#1d4ed8]"
                             >
-                              عمّر بالتاريخ المقترح: {formatIsoDateLabel(sweepSuggestedIncomeDate)}
+                              {t("عمّر بالتاريخ المقترح:", "Utiliser la date proposée :", "Use the suggested date:")} {formatIsoDateLabel(sweepSuggestedIncomeDate)}
                             </button>
                           </div>
                           <p className="mt-2 text-[12px] leading-6 text-[#8e8e93]">
-                            خاص هاد التاريخ يكون اليوم ولا شي نهار فات.
+                            {t("خاص هاد التاريخ يكون اليوم ولا شي نهار فات.", "Cette date doit être aujourd'hui ou passée.", "This date must be today or in the past.")}
                           </p>
                         </div>
                         <div className="rounded-[22px] border border-[#e5e7eb] bg-[var(--surface)] p-4 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.18)]">
                           <label className="mb-2 block text-[14px] font-semibold text-[#111111]">
-                            شحال كان هداك الدخل؟
+                            {t("شحال كان هداك الدخل؟", "De combien était-il ?", "How much was it?")}
                           </label>
                           <p className="mb-3 text-[12px] leading-6 text-[#475569]">
                             {sweepCurrentIncomeAmount > 0
-                              ? `المبلغ الحالي: ${formatMad(sweepCurrentIncomeAmount)}`
-                              : "مازال ما دخلتي حتى مبلغ. تقدر تعمّرو من الاقتراح اللي لتحت ولا تبدلو بيدك."}
+                              ? t(`المبلغ الحالي: ${formatMad(sweepCurrentIncomeAmount)}`, `Montant actuel : ${formatMad(sweepCurrentIncomeAmount)}`, `Current amount: ${formatMad(sweepCurrentIncomeAmount)}`)
+                              : t("مازال ما دخلتي حتى مبلغ. تقدر تعمّرو من الاقتراح اللي لتحت ولا تبدلو بيدك.", "Pas encore de montant : utilise la suggestion ou saisis-le.", "No amount yet: use the suggestion or type it in.")}
                           </p>
                           <Input
                             type="text"
@@ -18540,34 +18624,34 @@ export function BetaOnboardingV2PageContent({
                                 onClick={applySuggestedSweepIncomeAmount}
                                 className="rounded-full border border-[#dcfce7] bg-[#f0fdf4] px-3 py-1.5 text-[12px] font-semibold text-[#15803d]"
                               >
-                                عمّر بالمبلغ المقترح: {formatMad(sweepSuggestedIncomeAmount)}
+                                {t("عمّر بالمبلغ المقترح:", "Utiliser le montant proposé :", "Use the suggested amount:")} {formatMad(sweepSuggestedIncomeAmount)}
                               </button>
                             ) : null}
                             {sweepAmountLooksSuspicious ? (
                               <span className="rounded-full border border-[#fde68a] bg-[#fffbeb] px-3 py-1.5 text-[12px] font-semibold text-[#92400e]">
-                                المبلغ الحالي باين أقل بزاف من التقدير. راجعو قبل التفعيل.
+                                {t("المبلغ الحالي باين أقل بزاف من التقدير. راجعو قبل التفعيل.", "Ce montant semble bien inférieur à l'estimation. Vérifie avant d'activer.", "This amount looks much lower than the estimate. Check before activating.")}
                               </span>
                             ) : null}
                           </div>
                           <p className="mt-2 text-[12px] leading-6 text-[#8e8e93]">
-                            لقيناه تقريباً من الجوابات ديالك: {sweepSuggestedIncomeAmount > 0 ? formatMad(sweepSuggestedIncomeAmount) : "—"}.
-                            بدلو إلا كان تبدل.
+                            {t("لقيناه تقريباً من الجوابات ديالك:", "Estimé d'après tes réponses :", "Estimated from your answers:")} {sweepSuggestedIncomeAmount > 0 ? formatMad(sweepSuggestedIncomeAmount) : "—"}.
+                            {t("بدلو إلا كان تبدل.", "Modifie-le s'il a changé.", "Change it if it's different.")}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[#fafafc] p-5 text-right">
+                    <div className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[#fafafc] p-5 text-start">
                       <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#111111] text-white">
                         <RefreshCcw className="h-5 w-5" />
                       </div>
                       <h2 className="text-[20px] font-semibold text-[#111111]">
-                        شنو غادي يوقع من بعد؟
+                        {t("شنو غادي يوقع من بعد؟", "Et ensuite ?", "What happens next?")}
                       </h2>
                       <ul className="space-y-3 text-[14px] leading-7 text-[#3c3c43]">
-                        <li>1. التاريخ والمبلغ اللي دخلتي هنا غير مرجع باش نوجدّو البداية.</li>
-                        <li>2. منين تدخل للداشبورد وتصرّح بأول دخل، هاديك هي البداية الرسمية ديال التتبع.</li>
-                        <li>3. من بعد، تتبع الدورات المالية غادي يبقى خدام على نفس الوتيرة اللي اخترناها من الدخل ديالك.</li>
+                        <li>{t("1. التاريخ والمبلغ اللي دخلتي هنا غير مرجع باش نوجدّو البداية.", "1. La date et le montant servent de repère pour démarrer.", "1. The date and amount are a reference to get started.")}</li>
+                        <li>{t("2. منين تدخل للداشبورد وتصرّح بأول دخل، هاديك هي البداية الرسمية ديال التتبع.", "2. Le suivi démarre quand tu déclares ton premier revenu sur le tableau de bord.", "2. Tracking starts when you log your first income on the dashboard.")}</li>
+                        <li>{t("3. من بعد، تتبع الدورات المالية غادي يبقى خدام على نفس الوتيرة اللي اخترناها من الدخل ديالك.", "3. Ensuite, les cycles suivent le rythme de ton revenu.", "3. After that, cycles follow your income rhythm.")}</li>
                       </ul>
                     </div>
                   </div>
@@ -18581,7 +18665,7 @@ export function BetaOnboardingV2PageContent({
                   className={`h-14 w-full ${onboardingPrimaryTallButtonClass}`}
                   style={onboardingPrimaryTallButtonStyle}
                 >
-                  كمل
+                  {t("كمل", "Continuer", "Continue")}
                 </button>
               </div>
             </motion.section>
@@ -18598,34 +18682,34 @@ export function BetaOnboardingV2PageContent({
                 <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 text-center">
                   <div>
                     <h1 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[38px]">
-                      اختار فين يبقى الباقي
+                      {t("اختار فين يبقى الباقي", "Choisis où va le reste", "Choose where leftovers go")}
                     </h1>
                     <p className="mx-auto mt-3 max-w-3xl text-[16px] leading-7 text-[#6e6e73]">
-                      إلى كان مفعّل، الباقي كيبقى فنفس الظرف حتى الدفعة الجاية.
+                      {t("إلى كان مفعّل، الباقي كيبقى فنفس الظرف حتى الدفعة الجاية.", "Activé : le reste reste dans l'enveloppe jusqu'au prochain revenu.", "On: leftovers stay in the envelope until the next income.")}
                     </p>
                     <p className="mx-auto mt-2 max-w-3xl text-[14px] leading-7 text-[#8e8e93]">
-                      الطوارئ والأهداف غالباً خليهوم مفعّلين، والمصاريف اليومية غالباً خليهوم مطفيين.
+                      {t("الطوارئ والأهداف غالباً خليهوم مفعّلين، والمصاريف اليومية غالباً خليهوم مطفيين.", "En général : urgences et objectifs activés, dépenses du quotidien désactivées.", "Usually: emergencies and goals on, daily spending off.")}
                     </p>
                   </div>
 
                   <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-2 text-[12px] font-semibold">
                     <span className="rounded-full bg-[#111111] px-3 py-1 text-white">
-                      {rolloverSelectedCount} مفعّلين
+                      {rolloverSelectedCount} {t("مفعّلين", "activées", "on")}
                     </span>
                     <span className="rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1 text-[#3c3c43]">
-                      {proposalPreview.selected_envelopes.length - rolloverSelectedCount} مطفيين
+                      {proposalPreview.selected_envelopes.length - rolloverSelectedCount} {t("مطفيين", "désactivées", "off")}
                     </span>
                   </div>
 
-                  <div className="mx-auto w-full max-w-3xl rounded-[24px] border border-[#dbeafe] bg-[#eff6ff] px-4 py-4 text-right shadow-[0_18px_40px_-30px_rgba(59,130,246,0.25)] sm:px-5">
+                  <div className="mx-auto w-full max-w-3xl rounded-[24px] border border-[#dbeafe] bg-[#eff6ff] px-4 py-4 text-start shadow-[0_18px_40px_-30px_rgba(59,130,246,0.25)] sm:px-5">
                     <div className="flex items-start gap-3">
                       <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#2563eb] text-white">
                         <HandCoins className="h-4.5 w-4.5" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-[#0f172a]">إلى كان مطفّي</p>
+                        <p className="text-[14px] font-semibold text-[#0f172a]">{t("إلى كان مطفّي", "Si désactivé", "If off")}</p>
                         <p className="mt-1 text-[14px] leading-7 text-[#1e3a8a]">
-                          الباقي ديالو كيمشي لظرف الادخار، ومن بعد تقدر تستعملو أو توزعو على أظرفة أخرى.
+                          {t("الباقي ديالو كيمشي لظرف الادخار، ومن بعد تقدر تستعملو أو توزعو على أظرفة أخرى.", "Le reste part dans l'épargne, que tu peux ensuite utiliser ou répartir.", "Leftovers go to savings, which you can later use or share out.")}
                         </p>
                       </div>
                     </div>
@@ -18637,21 +18721,21 @@ export function BetaOnboardingV2PageContent({
                       onClick={() => applyProposalRolloverPreset("recommended")}
                       className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-2 text-[13px] font-semibold text-[#166534] transition hover:bg-[#dcfce7]"
                     >
-                      فعّل غير الموصى به
+                      {t("فعّل غير الموصى به", "Seulement les recommandées", "Recommended only")}
                     </button>
                     <button
                       type="button"
                       onClick={() => applyProposalRolloverPreset("all_on")}
                       className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#dbeafe] bg-[#eff6ff] px-4 py-2 text-[13px] font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
                     >
-                      فعّل الكل
+                      {t("فعّل الكل", "Tout activer", "Turn all on")}
                     </button>
                     <button
                       type="button"
                       onClick={() => applyProposalRolloverPreset("all_off")}
                       className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#374151] transition hover:bg-[#f8fafc]"
                     >
-                      طفي الكل
+                      {t("طفي الكل", "Tout désactiver", "Turn all off")}
                     </button>
                   </div>
                 </div>
@@ -18670,8 +18754,8 @@ export function BetaOnboardingV2PageContent({
                               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef7ff] text-[#2563eb]">
                                 <GroupIcon className="h-5 w-5" />
                               </span>
-                              <div className="text-right">
-                                <p className="text-[17px] font-semibold text-[#111111]">{group.label}</p>
+                              <div className="text-start">
+                                <p className="text-[17px] font-semibold text-[#111111]">{tx(group.label)}</p>
                                 <p className="text-[12px] font-medium text-[#8e8e93]">{group.items.length}</p>
                               </div>
                             </div>
@@ -18694,12 +18778,12 @@ export function BetaOnboardingV2PageContent({
                             ? "bg-[#eef2ff] text-[#4338ca]"
                             : "bg-[#f2f2f7] text-[#6e6e73]";
                           const consequenceLabel = isGoalEnvelope
-                            ? "يبقى حتى الدفعة الجاية (إجباري للأهداف)"
+                            ? t("يبقى حتى الدفعة الجاية (إجباري للأهداف)", "Reste jusqu'au prochain revenu (obligatoire pour les objectifs)", "Stays until the next income (required for goals)")
                             : isDebtEnvelope
-                            ? "يبقى حتى الدفعة الجاية (إجباري للديون)"
+                            ? t("يبقى حتى الدفعة الجاية (إجباري للديون)", "Reste jusqu'au prochain revenu (obligatoire pour les dettes)", "Stays until the next income (required for debts)")
                             : item.final_rollover_enabled
-                            ? "يبقى حتى الدفعة الجاية"
-                            : "يمشي لظرف الادخار";
+                            ? t("يبقى حتى الدفعة الجاية", "Reste jusqu'au prochain revenu", "Stays until the next income")
+                            : t("يمشي لظرف الادخار", "Part dans l'épargne", "Goes to savings");
                           return (
                             <div
                               key={item.id}
@@ -18716,14 +18800,14 @@ export function BetaOnboardingV2PageContent({
                                   toggleProposalRollover(item);
                                 }
                               }}
-                              className={`flex min-h-[72px] w-full items-center gap-3 px-4 py-4 text-right transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74] focus-visible:ring-inset sm:px-5 ${
+                              className={`flex min-h-[72px] w-full items-center gap-3 px-4 py-4 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74] focus-visible:ring-inset sm:px-5 ${
                                 isLockedEnvelope ? "cursor-default" :
                                 item.final_rollover_enabled
                                   ? "bg-[#ecfdf5] hover:bg-[#dcfce7]"
                                   : "bg-[var(--surface)] hover:bg-[#f8fafc]"
                               }`}
-                              aria-label={`${displayName}، الاحتفاظ بالباقي ${
-                                item.final_rollover_enabled ? "مفعّل" : "مطفّي"
+                              aria-label={`${displayName}${t("، الاحتفاظ بالباقي", ", report du reste", ", carry-over")} ${
+                                item.final_rollover_enabled ? t("مفعّل", "Activé", "On") : t("مطفّي", "Désactivé", "Off")
                               }`}
                             >
                               <div className="min-w-0 flex-1">
@@ -18757,7 +18841,7 @@ export function BetaOnboardingV2PageContent({
                                           : "bg-[#f2f2f7] text-[#6e6e73]"
                                       }`}
                                     >
-                                      {item.final_rollover_enabled ? "يبقى" : "للادخار"}
+                                      {item.final_rollover_enabled ? t("يبقى", "Reste", "Stays") : t("للادخار", "Épargne", "Savings")}
                                     </span>
                                     <div
                                       onClick={(event) => event.stopPropagation()}
@@ -18788,7 +18872,7 @@ export function BetaOnboardingV2PageContent({
               <div className="sticky bottom-0 z-10 w-full pb-3 pt-3">
                 <div className="rounded-[26px] border border-[#e5e5ea] bg-[var(--surface)]/92 p-3 shadow-[0_-14px_40px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
                   <p className="mb-3 text-center text-[13px] font-medium text-[#6e6e73]">
-                    تقدر تبدل هاد الاختيارات من بعد داخل التطبيق.
+                    {t("تقدر تبدل هاد الاختيارات من بعد داخل التطبيق.", "Tu pourras changer ces choix dans l'app.", "You can change these choices later in the app.")}
                   </p>
                   <button
                     type="button"
@@ -18800,7 +18884,7 @@ export function BetaOnboardingV2PageContent({
                     className={`h-14 w-full ${onboardingPrimaryTallButtonClass}`}
                     style={onboardingPrimaryTallButtonStyle}
                   >
-                    كمل
+                    {t("كمل", "Continuer", "Continue")}
                   </button>
                 </div>
               </div>
@@ -18820,10 +18904,10 @@ export function BetaOnboardingV2PageContent({
                     <Check className="h-5 w-5" aria-hidden />
                   </div>
                   <h1 className="mt-5 text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[38px]">
-                    نبنيو الخطة ديالك
+                    {t("نبنيو الخطة ديالك", "Construisons ton plan", "Let's build your plan")}
                   </h1>
                   <p className="mt-3 text-[16px] leading-7 text-[#6e6e73]">
-                    عندنا الصورة كاملة. من الأجوبة ديالك غادي نقترحو عليك الأظرفة والمبالغ، وتقدر تبدل أي حاجة.
+                    {t("عندنا الصورة كاملة. من الأجوبة ديالك غادي نقترحو عليك الأظرفة والمبالغ، وتقدر تبدل أي حاجة.", "On a toute la situation. À partir de tes réponses, on te propose les enveloppes et les montants, et tu peux tout modifier.", "We have the full picture. From your answers we'll suggest envelopes and amounts, and you can change anything.")}
                   </p>
                 </div>
               </div>
@@ -18835,7 +18919,7 @@ export function BetaOnboardingV2PageContent({
                   className={`h-14 w-full ${onboardingPrimaryTallButtonClass}`}
                   style={onboardingPrimaryTallButtonStyle}
                 >
-                  يلا نبنيو الخطة
+                  {t("يلا نبنيو الخطة", "Construire mon plan", "Build my plan")}
                 </button>
               </div>
             </motion.section>
@@ -18864,10 +18948,10 @@ export function BetaOnboardingV2PageContent({
                     >
                       {isCompactChoiceQuestion ? (
                         <span className="mb-2 block text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">
-                          الدخل
+                          {t("الدخل", "Revenu", "Income")}
                         </span>
                       ) : null}
-                      {currentQuestion.title}
+                      {tx(currentQuestion.title)}
                     </h1>
                     {currentQuestion.subtitle ? (
                       <p
@@ -18918,14 +19002,14 @@ export function BetaOnboardingV2PageContent({
                                   : `${currentQuestionTheme.outlineButton} shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)]`
                               }`}
                             >
-                              {option.label}
+                              {tx(option.label)}
                             </button>
                           );
                         })}
                       </div>
                       {currentQuestion.id === "G0_has_goal" ? (
                         <p className="text-center text-[13px] text-[#6e6e73]">
-                          بحال صندوق الطوارئ، سفر، شراء حاجة، مشروع...
+                          {t("بحال صندوق الطوارئ، سفر، شراء حاجة، مشروع...", "Fonds d'urgence, voyage, achat, projet…", "Emergency fund, travel, a purchase, a project…")}
                         </p>
                       ) : null}
                     </div>
@@ -18934,10 +19018,10 @@ export function BetaOnboardingV2PageContent({
                       {currentQuestion.groupedOptions.map((group) => (
                         <section
                           key={group.id}
-                          aria-label={group.title}
-                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right"
+                          aria-label={tx(group.title)}
+                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start"
                         >
-                          <p className="mb-3 text-[13px] font-semibold text-[#6e6e73]">{group.title}</p>
+                          <p className="mb-3 text-[13px] font-semibold text-[#6e6e73]">{tx(group.title)}</p>
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {group.options.map((option) => {
                               const active = getString(answers, currentQuestion.id) === option.value;
@@ -18953,7 +19037,7 @@ export function BetaOnboardingV2PageContent({
                                       : "border-[#d1d5db] bg-[var(--surface)] hover:border-[#9ca3af]"
                                   }`}
                                 >
-                                  <span className="[overflow-wrap:anywhere]">{option.label}</span>
+                                  <span className="[overflow-wrap:anywhere]">{tx(option.label)}</span>
                                 </button>
                               );
                             })}
@@ -18980,7 +19064,7 @@ export function BetaOnboardingV2PageContent({
                             onClick={() => answerSingle(currentQuestion, option.value)}
                             className={
                               isSalaryFrequencyQuestion
-                                ? `flex h-16 items-center justify-between rounded-[18px] border px-5 text-right transition ${
+                                ? `flex h-16 items-center justify-between rounded-[18px] border px-5 text-start transition ${
                                     active
                                       ? "border-[#111111] bg-[#f8fafc] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]"
                                       : "border-[#d1d5db] bg-[var(--surface)] hover:border-[#9ca3af]"
@@ -19000,9 +19084,9 @@ export function BetaOnboardingV2PageContent({
                             <div className={`flex items-center justify-between gap-3 ${isPayoutDayQuestion ? "w-full justify-center" : ""}`}>
                               <div className="flex items-center gap-3">
                                 {option.icon ? <option.icon className="h-5 w-5 shrink-0 text-[#3c3c43]" aria-hidden /> : null}
-                                <p className="text-[17px] font-medium text-[#111111]">{option.label}</p>
+                                <p className="text-[17px] font-medium text-[#111111]">{tx(option.label)}</p>
                                 {option.hint ? (
-                                  <p className={`mt-1 text-[14px] ${currentQuestionTheme.accentText}`}>{option.hint}</p>
+                                  <p className={`mt-1 text-[14px] ${currentQuestionTheme.accentText}`}>{tx(option.hint)}</p>
                                 ) : null}
                               </div>
                               {!isPayoutDayQuestion ? (
@@ -19051,9 +19135,9 @@ export function BetaOnboardingV2PageContent({
                         }))
                         .filter((group) => group.items.length > 0);
                       const selectedCount = proposalPreview.selected_envelopes.length;
-                      const selectionSummary = `${selectedCount}/${allValues.length} مختارة • ${objectiveModeLabel} • ${granularityLabel}${
+                      const selectionSummary = `${selectedCount}/${allValues.length} ${t("مختارة", "choisies", "selected")} • ${objectiveModeLabel} • ${granularityLabel}${
                         salaryAmountEffects?.enabled
-                          ? ` • دخل تقديري ${formatMad(salaryAmountEffects.monthly_income_estimate)}`
+                          ? ` • ${t("دخل تقديري", "Revenu estimé", "Estimated income")} ${formatMad(salaryAmountEffects.monthly_income_estimate)}`
                           : ""
                       }`;
 
@@ -19062,14 +19146,14 @@ export function BetaOnboardingV2PageContent({
                           <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 text-center">
                             <div className="w-full rounded-[30px] border border-[#e5e5ea] bg-[var(--surface)] px-5 py-5 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)] sm:px-6">
                               <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[34px]">
-                                {currentQuestion.title}
+                                {tx(currentQuestion.title)}
                               </h1>
                               <p className="mx-auto mt-3 max-w-4xl text-[15px] leading-7 text-[#6e6e73]">
-                                اختار غير اللي بغيتي نبداو به، والباقي تقدر تزيدو ولا تبدلو من بعد.
+                                {t("اختار غير اللي بغيتي نبداو به، والباقي تقدر تزيدو ولا تبدلو من بعد.", "Choisis seulement ce que tu veux pour commencer ; le reste se change plus tard.", "Pick only what you want to start with; the rest can change later.")}
                               </p>
                               <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[12px] font-semibold">
                                 <span className="rounded-full bg-[#111111] px-3 py-1 text-white">
-                                  {selectedCount}/{allValues.length} مختارة
+                                  {selectedCount}/{allValues.length} {t("مختارة", "choisies", "selected")}
                                 </span>
                                 <span className="rounded-full border border-[#e5e5ea] bg-[#fafafc] px-3 py-1 text-[#3c3c43]">
                                   {objectiveModeLabel}
@@ -19079,7 +19163,7 @@ export function BetaOnboardingV2PageContent({
                                 </span>
                                 {salaryAmountEffects?.enabled ? (
                                   <span className="rounded-full border border-[#e5e5ea] bg-[#fafafc] px-3 py-1 text-[#3c3c43]">
-                                    دخل تقديري: {formatMad(salaryAmountEffects.monthly_income_estimate)}
+                                    {t("دخل تقديري:", "Revenu estimé :", "Estimated income:")} {formatMad(salaryAmountEffects.monthly_income_estimate)}
                                   </span>
                                 ) : null}
                               </div>
@@ -19102,7 +19186,7 @@ export function BetaOnboardingV2PageContent({
                               {proposalPreviewSearchEnabled ? (
                                 <Input
                                   type="text"
-                                  placeholder="قلّب على ظرف..."
+                                  placeholder={t("قلّب على ظرف...", "Chercher une enveloppe…", "Search an envelope…")}
                                   value={packSearch}
                                   onChange={(event) => setPackSearch(event.target.value)}
                                   className="h-12 min-w-[240px] rounded-2xl border-[#d1d1d6] bg-[var(--surface)] px-4 text-[15px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] sm:w-[340px]"
@@ -19117,7 +19201,7 @@ export function BetaOnboardingV2PageContent({
                                 className={`h-11 px-4 text-[13px] ${onboardingSecondaryButtonClass}`}
                                 style={onboardingSecondaryButtonStyle}
                               >
-                                + زيد ظرف
+                                {t("+ زيد ظرف", "+ Ajouter une enveloppe", "+ Add an envelope")}
                               </button>
                               {showProposalDebug ? (
                                 <button
@@ -19126,27 +19210,27 @@ export function BetaOnboardingV2PageContent({
                                   className={`h-11 px-4 text-[13px] ${onboardingSecondaryButtonClass}`}
                                   style={onboardingSecondaryButtonStyle}
                                 >
-                                  {proposalDebugOpen ? "خبي وضع الاختبار" : "وضع الاختبار"}
+                                  {proposalDebugOpen ? t("خبي وضع الاختبار", "Masquer le mode test", "Hide test mode") : t("وضع الاختبار", "Mode test", "Test mode")}
                                 </button>
                               ) : null}
                             </div>
 
                             {uiError ? (
                               <div className="w-full max-w-3xl rounded-2xl border border-[#ffd4d8] bg-[#fff4f5] px-4 py-3 text-center text-[14px] text-[#d70015]">
-                                {uiError}
+                                {tx(uiError)}
                               </div>
                             ) : null}
 
                             {showProposalDebug && proposalDebugOpen ? (
-                              <div className="grid w-full gap-3 rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4 text-right">
+                              <div className="grid w-full gap-3 rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4 text-start">
                                 <div>
-                                  <p className="text-[13px] font-medium text-[#111111]">الأجوبة المستعملة</p>
+                                  <p className="text-[13px] font-medium text-[#111111]">{t("الأجوبة المستعملة", "Réponses utilisées", "Answers used")}</p>
                                   <pre className="mt-2 max-h-56 overflow-auto rounded-xl bg-[var(--surface)] p-3 text-[11px] leading-5 text-[#3c3c43]">
                                     {JSON.stringify(proposalComputationAnswers, null, 2)}
                                   </pre>
                                 </div>
                                 <div>
-                                  <p className="text-[13px] font-medium text-[#111111]">سياسة الهدف</p>
+                                  <p className="text-[13px] font-medium text-[#111111]">{t("سياسة الهدف", "Politique d'objectif", "Goal policy")}</p>
                                   <pre className="mt-2 max-h-56 overflow-auto rounded-xl bg-[var(--surface)] p-3 text-[11px] leading-5 text-[#3c3c43]">
                                     {JSON.stringify(draftObjects.objective_effects, null, 2)}
                                   </pre>
@@ -19159,7 +19243,7 @@ export function BetaOnboardingV2PageContent({
                             <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
                             {filteredGroups.length === 0 ? (
                               <div className="rounded-2xl border border-dashed border-[#d1d1d6] bg-[#fafafc] px-4 py-6 text-center text-[14px] text-[#6e6e73] lg:col-span-2 2xl:col-span-3">
-                                ما بقى حتى ظرف بهاد البحث.
+                                {t("ما بقى حتى ظرف بهاد البحث.", "Aucune enveloppe ne correspond à cette recherche.", "No envelope matches this search.")}
                               </div>
                             ) : null}
                             {filteredGroups.map((group, index) => {
@@ -19190,23 +19274,23 @@ export function BetaOnboardingV2PageContent({
                                   <button
                                     type="button"
                                     onClick={() => togglePackGroup(group.groupKey)}
-                                    className={`flex w-full items-center justify-between px-4 py-3 text-right ${groupAccent.header}`}
+                                    className={`flex w-full items-center justify-between px-4 py-3 text-start ${groupAccent.header}`}
                                   >
                                     <div className="space-y-1">
                                       <div className="flex items-center justify-end gap-2">
                                         <p className="text-[15px] font-semibold text-[#111111]">
-                                          {getProposalDomainLabelForUi(group.groupKey)}
+                                          {tx(getProposalDomainLabelForUi(group.groupKey))}
                                         </p>
                                         <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${groupAccent.icon}`}>
                                           <GroupIcon className="h-4 w-4" />
                                         </span>
                                       </div>
                                       <p className="text-[12px] text-[#6e6e73]">
-                                        {selectedInGroup}/{group.items.length} مختارة
+                                        {selectedInGroup}/{group.items.length} {t("مختارة", "choisies", "selected")}
                                       </p>
                                       {groupShownTotal > 0 ? (
                                         <p className="text-[12px] font-semibold text-[#334155]">
-                                          المجموع: {formatMad(groupShownTotal)}
+                                          {t("المجموع:", "Total :", "Total:")} {formatMad(groupShownTotal)}
                                         </p>
                                       ) : null}
                                     </div>
@@ -19259,7 +19343,7 @@ export function BetaOnboardingV2PageContent({
                                         return (
                                           <div
                                             key={item.id}
-                                            className={`rounded-2xl border px-3 py-3 text-right transition ${cardToneClass}`}
+                                            className={`rounded-2xl border px-3 py-3 text-start transition ${cardToneClass}`}
                                           >
                                             <div className="flex items-start gap-3">
                                               <button
@@ -19283,24 +19367,24 @@ export function BetaOnboardingV2PageContent({
                                                 title={
                                                   fixedLocked && active
                                                     ? lifestyleLocked
-                                                      ? "ظرف المعيشة مفعّل دائماً"
+                                                      ? t("ظرف المعيشة مفعّل دائماً", "L'enveloppe du quotidien reste toujours active", "The living-costs envelope is always on")
                                                       : guidanceLocked
-                                                      ? "هاد الظرف بقا مفعّل من البداية"
-                                                      : "ظرف فيه مبلغ ثابت، ما يقدرش يطفى"
+                                                      ? t("هاد الظرف بقا مفعّل من البداية", "Cette enveloppe est active dès le départ", "This envelope is on from the start")
+                                                      : t("ظرف فيه مبلغ ثابت، ما يقدرش يطفى", "Enveloppe à montant fixe : elle ne peut pas être désactivée", "Fixed-amount envelope: it can't be turned off")
                                                     : active
-                                                    ? "معتمد"
-                                                    : "محيد"
+                                                    ? t("معتمد", "Retenue", "Included")
+                                                    : t("محيد", "Retirée", "Removed")
                                                 }
                                                 aria-label={
                                                   fixedLocked && active
                                                     ? lifestyleLocked
-                                                      ? "ظرف المعيشة مفعّل دائماً"
+                                                      ? t("ظرف المعيشة مفعّل دائماً", "L'enveloppe du quotidien reste toujours active", "The living-costs envelope is always on")
                                                       : guidanceLocked
-                                                      ? "هاد الظرف بقا مفعّل من البداية"
-                                                      : "ظرف فيه مبلغ ثابت، ما يقدرش يطفى"
+                                                      ? t("هاد الظرف بقا مفعّل من البداية", "Cette enveloppe est active dès le départ", "This envelope is on from the start")
+                                                      : t("ظرف فيه مبلغ ثابت، ما يقدرش يطفى", "Enveloppe à montant fixe : elle ne peut pas être désactivée", "Fixed-amount envelope: it can't be turned off")
                                                     : active
-                                                    ? "معتمد"
-                                                    : "محيد"
+                                                    ? t("معتمد", "Retenue", "Included")
+                                                    : t("محيد", "Retirée", "Removed")
                                                 }
                                               >
                                                 {active ? <Check className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
@@ -19310,8 +19394,8 @@ export function BetaOnboardingV2PageContent({
                                                 <div className="flex flex-col gap-2">
                                                   <div className="flex flex-wrap items-start justify-between gap-2">
                                                     <div className="min-w-0 flex-1">
-                                                      <span className="block break-words text-right text-[16px] font-semibold leading-6 text-[#111111]">
-                                                        {getEnvelopeLabelForUi(item.final_name)}
+                                                      <span className="block break-words text-start text-[16px] font-semibold leading-6 text-[#111111]">
+                                                        {getEnvelopeDisplayNameForLocale(item.final_name)}
                                                       </span>
                                                     </div>
                                                     <button
@@ -19323,8 +19407,8 @@ export function BetaOnboardingV2PageContent({
                                                         }))
                                                       }
                                                       className="shrink-0 rounded-full border border-[#d1d1d6] bg-[var(--surface)] p-2 text-[#3c3c43] transition hover:bg-[#f5f5f7]"
-                                                      title={expanded ? "خبي التفاصيل" : "تفاصيل"}
-                                                      aria-label={expanded ? "خبي التفاصيل" : "تفاصيل"}
+                                                      title={expanded ? t("خبي التفاصيل", "Masquer les détails", "Hide details") : t("تفاصيل", "Détails", "Details")}
+                                                      aria-label={expanded ? t("خبي التفاصيل", "Masquer les détails", "Hide details") : t("تفاصيل", "Détails", "Details")}
                                                     >
                                                       {expanded ? (
                                                         <ChevronUp className="h-4 w-4" />
@@ -19348,7 +19432,7 @@ export function BetaOnboardingV2PageContent({
                                                             : "border border-[#fde68a] bg-[#fffbeb] text-[#92400e]"
                                                         }`}
                                                       >
-                                                        {guidanceLocked ? "مفعّل من البداية" : "مبلغ ثابت"}
+                                                        {guidanceLocked ? t("مفعّل من البداية", "Active dès le départ", "On from the start") : t("مبلغ ثابت", "Montant fixe", "Fixed amount")}
                                                       </span>
                                                     ) : null}
                                                     {item.custom_category ? (
@@ -19358,12 +19442,12 @@ export function BetaOnboardingV2PageContent({
                                                     ) : null}
                                                     <span
                                                       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tierBadgeClass}`}
-                                                      title={getProposalTierLabelForUi(item.tier)}
-                                                      aria-label={getProposalTierLabelForUi(item.tier)}
+                                                      title={tx(getProposalTierLabelForUi(item.tier))}
+                                                      aria-label={tx(getProposalTierLabelForUi(item.tier))}
                                                     >
                                                       <span className="inline-flex items-center gap-1">
                                                         <TierIcon className="h-3.5 w-3.5" />
-                                                        <span>{getProposalTierLabelForUi(item.tier)}</span>
+                                                        <span>{tx(getProposalTierLabelForUi(item.tier))}</span>
                                                       </span>
                                                     </span>
                                                     <span
@@ -19372,8 +19456,8 @@ export function BetaOnboardingV2PageContent({
                                                           ? "bg-[#d9f8e4] text-[#157347]"
                                                           : "bg-[#f5f5f7] text-[#6e6e73]"
                                                       }`}
-                                                      title={active ? "معتمد" : "محيد"}
-                                                      aria-label={active ? "معتمد" : "محيد"}
+                                                      title={active ? t("معتمد", "Retenue", "Included") : t("محيد", "Retirée", "Removed")}
+                                                      aria-label={active ? t("معتمد", "Retenue", "Included") : t("محيد", "Retirée", "Removed")}
                                                     >
                                                       {active ? (
                                                         <Check className="h-3.5 w-3.5" />
@@ -19388,7 +19472,7 @@ export function BetaOnboardingV2PageContent({
                                                   <p className="mt-2 rounded-xl bg-[#fff8e8] px-3 py-2 text-[12px] font-medium text-[#7a4b00]">
                                                     <span className="inline-flex items-center gap-2">
                                                       <TriangleAlert className="h-4 w-4" />
-                                                      <span>{goalHint}</span>
+                                                      <span>{tx(goalHint)}</span>
                                                     </span>
                                                   </p>
                                                 ) : null}
@@ -19406,7 +19490,7 @@ export function BetaOnboardingV2PageContent({
                                                         >
                                                           <span className="inline-flex items-center gap-1">
                                                             <ShieldCheck className="h-3.5 w-3.5" />
-                                                            <span>{item.final_rollover_enabled ? "مفعّل" : "مطفّي"}</span>
+                                                            <span>{item.final_rollover_enabled ? t("مفعّل", "Activé", "On") : t("مطفّي", "Désactivé", "Off")}</span>
                                                           </span>
                                                         </span>
                                                         <button
@@ -19429,8 +19513,8 @@ export function BetaOnboardingV2PageContent({
                                                               ? "border-[#b8f0cf] bg-[#edfff4] text-[#157347]"
                                                               : "border-[#d1d1d6] bg-[var(--surface)] text-[#111111] hover:bg-[#f5f5f7]"
                                                           }`}
-                                                          title={item.final_rollover_enabled ? "طفي الترحيل" : "فعّل الترحيل"}
-                                                          aria-label={item.final_rollover_enabled ? "طفي الترحيل" : "فعّل الترحيل"}
+                                                          title={item.final_rollover_enabled ? t("طفي الترحيل", "Désactiver le report", "Turn off carry-over") : t("فعّل الترحيل", "Activer le report", "Turn on carry-over")}
+                                                          aria-label={item.final_rollover_enabled ? t("طفي الترحيل", "Désactiver le report", "Turn off carry-over") : t("فعّل الترحيل", "Activer le report", "Turn on carry-over")}
                                                         >
                                                           {item.final_rollover_enabled ? (
                                                             <Check className="h-4 w-4" />
@@ -19440,13 +19524,13 @@ export function BetaOnboardingV2PageContent({
                                                         </button>
                                                       </div>
                                                       <p className="mt-2 text-[12px] leading-5 text-[#6e6e73]">
-                                                        كنخليه مفعّل باش اللي بقى كيتجمع للشهر الجاي.
+                                                        {t("كنخليه مفعّل باش اللي بقى كيتجمع للشهر الجاي.", "Activé pour que le reste s'accumule pour le mois suivant.", "On so that what's left builds up for next month.")}
                                                       </p>
                                                     </div>
 
                                                     <div className="space-y-2">
                                                       <p className="text-[12px] font-medium text-[#6e6e73]">
-                                                        بدّل الاسم إلا بغيتي
+                                                        {t("بدّل الاسم إلا بغيتي", "Renommer si tu veux", "Rename if you like")}
                                                       </p>
                                                       <Input
                                                         value={item.final_name}
@@ -19473,7 +19557,7 @@ export function BetaOnboardingV2PageContent({
 
                                                 {expanded && proposalGranularity !== "simple" ? (
                                                   <div className="mt-3 rounded-2xl bg-[#f7f8fa] px-3 py-2">
-                                                    <p className="text-[11px] font-semibold text-[#111111]">تفاصيل أكثر</p>
+                                                    <p className="text-[11px] font-semibold text-[#111111]">{t("تفاصيل أكثر", "Plus de détails", "More details")}</p>
                                                     <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">
                                                       {getProposalReasonForUi(item.reason)}
                                                     </p>
@@ -19498,12 +19582,12 @@ export function BetaOnboardingV2PageContent({
                           <div className="sticky bottom-3 z-20 mx-auto w-full max-w-4xl px-1">
                             <div className="rounded-[28px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
                               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-center sm:text-right">
+                                <div className="text-center sm:text-start">
                                   <p className="text-[14px] font-semibold text-[#111111]">
                                     {selectionSummary}
                                   </p>
                                   <p className="mt-1 text-[12px] text-[#6e6e73]">
-                                    راجع غير الأظرفة اللي ما محتاجهاش ومن بعد أكد.
+                                    {t("راجع غير الأظرفة اللي ما محتاجهاش ومن بعد أكد.", "Retire les enveloppes inutiles, puis confirme.", "Remove the envelopes you don't need, then confirm.")}
                                   </p>
                                 </div>
                                 <button
@@ -19513,7 +19597,7 @@ export function BetaOnboardingV2PageContent({
                                   style={onboardingPrimaryButtonStyle}
                                   disabled={selectedCount === 0}
                                 >
-                                  تأكيد
+                                  {t("تأكيد", "Confirmer", "Confirm")}
                                 </button>
                               </div>
                             </div>
@@ -19527,8 +19611,8 @@ export function BetaOnboardingV2PageContent({
                         <div className="mx-auto max-w-6xl space-y-4 xl:grid xl:grid-cols-2 xl:gap-4 xl:space-y-0">
                           {currentQuestion.groupedOptions.map((group) => (
                             <section key={group.id} className={`rounded-2xl border p-4 ${currentQuestionTheme.metricCard}`}>
-                              <p className={`mb-3 text-[13px] font-medium uppercase tracking-[0.08em] ${currentQuestionTheme.label}`}>
-                                {group.title}
+                              <p className={`mb-3 text-[13px] font-medium uppercase tracking-[0.08em] ${tx(currentQuestionTheme.label)}`}>
+                                {tx(group.title)}
                               </p>
                               <div className="grid gap-2 sm:grid-cols-2">
                                 {group.options.map((option) => {
@@ -19538,13 +19622,13 @@ export function BetaOnboardingV2PageContent({
                                       key={option.value}
                                       type="button"
                                       onClick={() => toggleMultiAnswer(currentQuestion, option.value)}
-                                      className={`rounded-[18px] border px-4 py-3 text-right text-[16px] font-semibold transition duration-200 hover:-translate-y-[1px] ${getOnboardingChoiceCardClass(
+                                      className={`rounded-[18px] border px-4 py-3 text-start text-[16px] font-semibold transition duration-200 hover:-translate-y-[1px] ${getOnboardingChoiceCardClass(
                                         currentQuestionTheme,
                                         active
                                       )}`}
                                     >
                                       <span className="flex items-center justify-between gap-2">
-                                        <span>{option.label}</span>
+                                        <span>{tx(option.label)}</span>
                                         <span
                                           className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] ${getOnboardingChoiceIndicatorClass(
                                             currentQuestionTheme,
@@ -19570,13 +19654,13 @@ export function BetaOnboardingV2PageContent({
                                 key={option.value}
                                 type="button"
                                 onClick={() => toggleMultiAnswer(currentQuestion, option.value)}
-                                className={`w-full rounded-[22px] border px-5 py-4 text-right text-[17px] font-semibold transition duration-200 hover:-translate-y-[1px] ${getOnboardingChoiceCardClass(
+                                className={`w-full rounded-[22px] border px-5 py-4 text-start text-[17px] font-semibold transition duration-200 hover:-translate-y-[1px] ${getOnboardingChoiceCardClass(
                                   currentQuestionTheme,
                                   active
                                 )}`}
                               >
                                 <span className="flex items-center justify-between gap-2">
-                                  <span>{option.label}</span>
+                                  <span>{tx(option.label)}</span>
                                   <span
                                     className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] ${getOnboardingChoiceIndicatorClass(
                                       currentQuestionTheme,
@@ -19605,7 +19689,7 @@ export function BetaOnboardingV2PageContent({
                             className={`h-12 ${onboardingSecondaryButtonClass}`}
                             style={onboardingSecondaryButtonStyle}
                           >
-                            تخطى
+                            {t("تخطى", "Passer", "Skip")}
                           </button>
                         ) : null}
                         <button
@@ -19614,7 +19698,7 @@ export function BetaOnboardingV2PageContent({
                           className={`h-12 ${onboardingPrimaryButtonClass}`}
                           style={onboardingPrimaryButtonStyle}
                         >
-                          تأكيد
+                          {t("تأكيد", "Confirmer", "Confirm")}
                         </button>
                       </div>
                     </div>
@@ -19637,12 +19721,12 @@ export function BetaOnboardingV2PageContent({
                         <div
                           key={field.id}
                           id={`onboarding-field-${field.id}`}
-                          className={`rounded-[20px] border bg-[var(--surface)] px-4 py-4 text-right ${
+                          className={`rounded-[20px] border bg-[var(--surface)] px-4 py-4 text-start ${
                             fieldError ? "border-[#ff3b30]" : "border-[#e5e5ea]"
                           }`}
                         >
                           <p id={labelId} className="text-[15px] font-semibold leading-7 text-[#111111]">
-                            {field.title}
+                            {tx(field.title)}
                           </p>
                           {field.subtitle ? (
                             <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">{field.subtitle}</p>
@@ -19650,7 +19734,7 @@ export function BetaOnboardingV2PageContent({
                           <div className="mt-3">{renderCardFieldControl(field, labelId)}</div>
                           {fieldError ? (
                             <p role="alert" className="mt-2 text-[12px] text-[#d70015]">
-                              {fieldError}
+                              {tx(fieldError)}
                             </p>
                           ) : null}
                         </div>
@@ -19659,7 +19743,7 @@ export function BetaOnboardingV2PageContent({
 
                     {uiError ? (
                       <p role="alert" className="rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-center text-[14px] text-[#d70015]">
-                        {uiError}
+                        {tx(uiError)}
                       </p>
                     ) : null}
 
@@ -19676,8 +19760,8 @@ export function BetaOnboardingV2PageContent({
                           >
                             <HandCoins className="h-4 w-4" aria-hidden />
                             {financialSanity.remaining < 0
-                              ? `عجز تقديري: ${formatMad(Math.abs(financialSanity.remaining))}`
-                              : `الباقي تقديرياً: ${formatMad(financialSanity.remaining)}`}
+                              ? t(`عجز تقديري: ${formatMad(Math.abs(financialSanity.remaining))}`, `Déficit estimé : ${formatMad(Math.abs(financialSanity.remaining))}`, `Estimated shortfall: ${formatMad(Math.abs(financialSanity.remaining))}`)
+                              : t(`الباقي تقديرياً: ${formatMad(financialSanity.remaining)}`, `Reste estimé : ${formatMad(financialSanity.remaining)}`, `Estimated remaining: ${formatMad(financialSanity.remaining)}`)}
                           </p>
                         ) : (
                           <span />
@@ -19687,7 +19771,7 @@ export function BetaOnboardingV2PageContent({
                           className={`h-12 min-w-[150px] ${onboardingPrimaryButtonClass}`}
                           style={onboardingPrimaryButtonStyle}
                         >
-                          كمل
+                          {t("كمل", "Continuer", "Continue")}
                         </button>
                       </div>
                     </div>
@@ -19703,13 +19787,13 @@ export function BetaOnboardingV2PageContent({
                     }}
                   >
                     {currentQuestion.id === "C1_custom_envelopes" ? (
-                      <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] px-4 py-3 text-right">
-                        <p className="text-[13px] font-medium text-[#111111]">أمثلة سريعة</p>
+                      <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] px-4 py-3 text-start">
+                        <p className="text-[13px] font-medium text-[#111111]">{t("أمثلة سريعة", "Exemples", "Examples")}</p>
                         <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">
-                          كتب غير الأسماء اللي ناقصين عليك. كل اسم يكون قصير وواضح، وفرق بينهم بالفاصلة.
+                          {t("كتب غير الأسماء اللي ناقصين عليك. كل اسم يكون قصير وواضح، وفرق بينهم بالفاصلة.", "Écris seulement les noms qui manquent, courts et clairs, séparés par une virgule.", "Write only the missing names, short and clear, separated by commas.")}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {["هدايا", "سفر", "قهوة", "مناسبات"].map((example) => (
+                          {[t("هدايا", "Cadeaux", "Gifts"), t("سفر", "Voyage", "Travel"), t("قهوة", "Café", "Coffee"), t("مناسبات", "Fêtes", "Occasions")].map((example) => (
                             <span
                               key={example}
                               className="rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1 text-[12px] font-medium text-[#3c3c43]"
@@ -19738,9 +19822,9 @@ export function BetaOnboardingV2PageContent({
                       }`}
                     />
                     {currentQuestion.id === "C1_custom_envelopes" && getString(answers, currentQuestion.id).trim() ? (
-                      <div className="rounded-2xl border border-[#e5e5ea] bg-[var(--surface)] px-4 py-3 text-right">
+                      <div className="rounded-2xl border border-[#e5e5ea] bg-[var(--surface)] px-4 py-3 text-start">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-[13px] font-medium text-[#111111]">الأظرفة اللي كتبتي</p>
+                          <p className="text-[13px] font-medium text-[#111111]">{t("الأظرفة اللي كتبتي", "Enveloppes saisies", "Envelopes you typed")}</p>
                           <span className="rounded-full bg-[#f2f2f7] px-2.5 py-1 text-[11px] font-semibold text-[#3c3c43]">
                             {parseCustomEnvelopeDraft(getString(answers, currentQuestion.id)).length}
                           </span>
@@ -19758,12 +19842,12 @@ export function BetaOnboardingV2PageContent({
                       </div>
                     ) : null}
                     {fieldErrors[currentQuestion.id] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[currentQuestion.id]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[currentQuestion.id])}</p>
                     ) : null}
                     <p className="text-[13px] text-[#8e8e93]">
                       {currentQuestion.id === "C1_custom_envelopes"
-                        ? "إلى ساليت، ضغط على زر الإدخال أو استعمل تأكيد."
-                        : "ضغط على الإدخال أو استعمل تأكيد باش تكمل"}
+                        ? t("إلى ساليت، ضغط على زر الإدخال أو استعمل تأكيد.", "Quand c'est fini, appuie sur Entrée ou Confirmer.", "When done, press Enter or Confirm.")
+                        : t("ضغط على الإدخال أو استعمل تأكيد باش تكمل", "Appuie sur Entrée ou Confirmer pour continuer", "Press Enter or Confirm to continue")}
                     </p>
                     <div className="flex flex-wrap justify-center gap-3">
                       {currentQuestion.optional ? (
@@ -19773,7 +19857,7 @@ export function BetaOnboardingV2PageContent({
                           className={`h-12 ${onboardingSecondaryButtonClass}`}
                           style={onboardingSecondaryButtonStyle}
                         >
-                          {currentQuestion.id === "C1_custom_envelopes" ? "خليه دابا" : "تخطى هاد السؤال"}
+                          {currentQuestion.id === "C1_custom_envelopes" ? t("خليه دابا", "Plus tard", "Later") : t("تخطى هاد السؤال", "Passer cette question", "Skip this question")}
                         </button>
                       ) : null}
                       <button
@@ -19781,7 +19865,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 ${onboardingPrimaryButtonClass}`}
                         style={onboardingPrimaryButtonStyle}
                       >
-                        تأكيد
+                        {t("تأكيد", "Confirmer", "Confirm")}
                       </button>
                     </div>
                   </form>
@@ -19789,9 +19873,9 @@ export function BetaOnboardingV2PageContent({
 
                 {currentQuestion.kind === "debt_builder" ? (
                   <div className="mx-auto max-w-5xl space-y-4">
-                    <div className={`rounded-[22px] border px-4 py-3 text-right ${getFinancialSemanticTheme("debts").metricCard}`}>
+                    <div className={`rounded-[22px] border px-4 py-3 text-start ${getFinancialSemanticTheme("debts").metricCard}`}>
                       <p className={`text-[13px] ${getFinancialSemanticTheme("debts").accentText}`}>
-                        لكل دين، دخل غير الاسم، شحال باقي، وشحال كتخلّص دابا. والباقي غير اختياري باش نضبطو الخطة أكثر.
+                        {t("لكل دين، دخل غير الاسم، شحال باقي، وشحال كتخلّص دابا. والباقي غير اختياري باش نضبطو الخطة أكثر.", "Pour chaque dette : le nom, ce qui reste et ce que tu paies. Le reste est optionnel, pour affiner le plan.", "For each debt: the name, what's left and what you pay. The rest is optional, to fine-tune the plan.")}
                       </p>
                     </div>
 
@@ -19805,7 +19889,7 @@ export function BetaOnboardingV2PageContent({
                             ref={(node) => {
                               debtBuilderCardRefs.current[debtIndex] = node;
                             }}
-                            className={`rounded-[24px] border bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] transition ${
+                            className={`rounded-[24px] border bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] transition ${
                               debtBuilderFocusIndex === debtIndex
                                 ? getFinancialSemanticTheme("debts").focus
                                 : "border-[#e5e5ea]"
@@ -19814,7 +19898,7 @@ export function BetaOnboardingV2PageContent({
                             <div className="mb-4 flex items-start justify-between gap-3">
                               <div className="space-y-1">
                                 <p className={`text-[18px] font-semibold ${getFinancialSemanticTheme("debts").label}`}>
-                                  دين #{debtIndex}
+                                  {t("دين", "Dette", "Debt")} #{debtIndex}
                                 </p>
                                 <p className="text-[12px] text-[#6e6e73]">
                                   {buildDebtBuilderSummaryLine(answers, debtIndex)}
@@ -19826,17 +19910,17 @@ export function BetaOnboardingV2PageContent({
                                   onClick={() => removeDebtBuilderCard(debtIndex)}
                                   className="rounded-full border border-[#ffd4d8] bg-[#fff4f5] px-3 py-1.5 text-[12px] font-semibold text-[#d70015]"
                                 >
-                                  حيد
+                                  {t("حيد", "Retirer", "Remove")}
                                 </button>
                               ) : null}
                             </div>
 
                             <div className="grid gap-4 lg:grid-cols-2">
                               <div className="space-y-2">
-                                <p className="text-[13px] font-medium text-[#111111]">اسم الدين</p>
+                                <p className="text-[13px] font-medium text-[#111111]">{t("اسم الدين", "Nom de la dette", "Debt name")}</p>
                                 <Input
                                   type="text"
-                                  placeholder="مثلاً: كريدي البنك، سلف العائلة"
+                                  placeholder={t("مثلاً: كريدي البنك، سلف العائلة", "ex. crédit banque, prêt famille", "e.g. bank loan, family loan")}
                                   value={getRawInputString(answers, `D2_debt_name_${debtIndex}`)}
                                   onChange={(event) =>
                                     setInputAnswer(`D2_debt_name_${debtIndex}`, event.target.value)
@@ -19847,13 +19931,13 @@ export function BetaOnboardingV2PageContent({
                                 />
                                 {fieldErrors[`D2_debt_name_${debtIndex}`] ? (
                                   <p className="text-[12px] text-[#d70015]">
-                                    {fieldErrors[`D2_debt_name_${debtIndex}`]}
+                                    {tx(fieldErrors[`D2_debt_name_${debtIndex}`])}
                                   </p>
                                 ) : null}
                               </div>
 
                               <div className="space-y-2">
-                                <p className="text-[13px] font-medium text-[#111111]">نوع الدين</p>
+                                <p className="text-[13px] font-medium text-[#111111]">{t("نوع الدين", "Type de dette", "Debt type")}</p>
                                 <select
                                   value={getString(answers, `D1_debt_type_${debtIndex}`)}
                                   onChange={(event) =>
@@ -19861,17 +19945,17 @@ export function BetaOnboardingV2PageContent({
                                   }
                                   className="h-12 w-full rounded-2xl border border-[#d1d1d6] bg-[var(--surface)] px-4 text-[15px] text-[#111111] shadow-none focus:outline-none focus:ring-2 focus:ring-[#111111]"
                                 >
-                                  <option value="">اختار النوع</option>
+                                  <option value="">{t("اختار النوع", "Choisis le type", "Choose the type")}</option>
                                   {DEBT_TYPE_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>
-                                      {option.label}
+                                      {tx(option.label)}
                                     </option>
                                   ))}
                                 </select>
                               </div>
 
                               <div className="space-y-2">
-                                <p className="text-[13px] font-medium text-[#111111]">شحال باقي عليك؟</p>
+                                <p className="text-[13px] font-medium text-[#111111]">{t("شحال باقي عليك؟", "Combien reste-t-il à payer ?", "How much is left to pay?")}</p>
                                 <Input
                                   type="number"
                                   placeholder="0 MAD"
@@ -19886,17 +19970,17 @@ export function BetaOnboardingV2PageContent({
                                   }`}
                                 />
                                 <p className="text-[12px] text-[#6e6e73]">
-                                  إلى ما عرفتيش الرقم مضبوط، دخل أقرب تقدير.
+                                  {t("إلى ما عرفتيش الرقم مضبوط، دخل أقرب تقدير.", "Si tu ne connais pas le chiffre exact, mets une estimation.", "If you don't know the exact figure, enter an estimate.")}
                                 </p>
                                 {fieldErrors[`D3_debt_remaining_amount_${debtIndex}`] ? (
                                   <p className="text-[12px] text-[#d70015]">
-                                    {fieldErrors[`D3_debt_remaining_amount_${debtIndex}`]}
+                                    {tx(fieldErrors[`D3_debt_remaining_amount_${debtIndex}`])}
                                   </p>
                                 ) : null}
                               </div>
 
                               <div className="space-y-2">
-                                <p className="text-[13px] font-medium text-[#111111]">شحال كتخلّص ليه دابا؟</p>
+                                <p className="text-[13px] font-medium text-[#111111]">{t("شحال كتخلّص ليه دابا؟", "Combien paies-tu actuellement ?", "How much are you paying now?")}</p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                   <Input
                                     type="number"
@@ -19924,7 +20008,7 @@ export function BetaOnboardingV2PageContent({
                                   >
                                     {DEBT_PAYMENT_CADENCE_OPTIONS.map((option) => (
                                       <option key={option.value} value={option.value}>
-                                        {option.label}
+                                        {tx(option.label)}
                                       </option>
                                     ))}
                                   </select>
@@ -19933,7 +20017,7 @@ export function BetaOnboardingV2PageContent({
                                   {(() => {
                                     const nativeAmount = toNumber(getString(answers, `D4_debt_native_amount_${debtIndex}`));
                                     const cadence = getString(answers, `D4_debt_payment_cadence_${debtIndex}`) || "monthly";
-                                    if (nativeAmount <= 0) return "دخل المبلغ والإيقاع الحقيقي ديال الأداء.";
+                                    if (nativeAmount <= 0) return t("دخل المبلغ والإيقاع الحقيقي ديال الأداء.", "Indique le montant et la fréquence réels du paiement.", "Enter the real payment amount and frequency.");
                                     const monthlyEquivalent = getDebtPaymentMonthlyEquivalent(nativeAmount, cadence);
                                     const cycleEquivalent = toCycleAmount(monthlyEquivalent, answers);
                                     return `≈ ${formatMad(monthlyEquivalent)}/mo • ≈ ${formatMad(cycleEquivalent)} ${getCycleContributionLabel(answers)}`;
@@ -19941,12 +20025,12 @@ export function BetaOnboardingV2PageContent({
                                 </p>
                                 {fieldErrors[`D4_debt_native_amount_${debtIndex}`] ? (
                                   <p className="text-[12px] text-[#d70015]">
-                                    {fieldErrors[`D4_debt_native_amount_${debtIndex}`]}
+                                    {tx(fieldErrors[`D4_debt_native_amount_${debtIndex}`])}
                                   </p>
                                 ) : null}
                                 {fieldErrors[`D4_debt_payment_cadence_${debtIndex}`] ? (
                                   <p className="text-[12px] text-[#d70015]">
-                                    {fieldErrors[`D4_debt_payment_cadence_${debtIndex}`]}
+                                    {tx(fieldErrors[`D4_debt_payment_cadence_${debtIndex}`])}
                                   </p>
                                 ) : null}
                               </div>
@@ -19954,7 +20038,7 @@ export function BetaOnboardingV2PageContent({
 
                             <div className="mt-4 grid gap-4 lg:grid-cols-2">
                               <div className="space-y-2">
-                                <p className="text-[13px] font-medium text-[#111111]">الأداء الحالي</p>
+                                <p className="text-[13px] font-medium text-[#111111]">{t("الأداء الحالي", "Paiement actuel", "Current payment")}</p>
                                 <div className="grid gap-2 md:grid-cols-3">
                                   {DEBT_PAYMENT_STYLE_OPTIONS.map((option) => {
                                     const selected =
@@ -19972,7 +20056,7 @@ export function BetaOnboardingV2PageContent({
                                             : getFinancialSemanticTheme("debts").outlineButton
                                         }`}
                                       >
-                                        {option.label}
+                                        {tx(option.label)}
                                       </button>
                                     );
                                   })}
@@ -19980,7 +20064,7 @@ export function BetaOnboardingV2PageContent({
                               </div>
 
                               <div className="space-y-2">
-                                <p className="text-[13px] font-medium text-[#111111]">الحالة دابا</p>
+                                <p className="text-[13px] font-medium text-[#111111]">{t("الحالة دابا", "Situation actuelle", "Current status")}</p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                   {DEBT_STATUS_OPTIONS.map((option) => {
                                     const selected =
@@ -19998,7 +20082,7 @@ export function BetaOnboardingV2PageContent({
                                             : getFinancialSemanticTheme("debts").outlineButton
                                         }`}
                                       >
-                                        {option.label}
+                                        {tx(option.label)}
                                       </button>
                                     );
                                   })}
@@ -20009,12 +20093,12 @@ export function BetaOnboardingV2PageContent({
                             <div className="mt-4 space-y-3 rounded-[20px] border border-[#ececf1] bg-[#fbfbfc] p-4">
                               <div className="space-y-2">
                                 <p className="text-[13px] font-medium text-[#111111]">
-                                  بغيتي تسالي منو قبل تاريخ معيّن؟
+                                  {t("بغيتي تسالي منو قبل تاريخ معيّن؟", "Veux-tu la solder avant une date précise ?", "Do you want to clear it before a set date?")}
                                 </p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                   {[
-                                    { value: "yes", label: "اه" },
-                                    { value: "no", label: "لا" },
+                                    { value: "yes", label: t("اه", "Oui", "Yes") },
+                                    { value: "no", label: t("لا", "Non", "No") },
                                   ].map((option) => {
                                     const selected =
                                       (getString(answers, `D1_debt_has_target_date_${debtIndex}`) || "no") ===
@@ -20032,7 +20116,7 @@ export function BetaOnboardingV2PageContent({
                                             : getFinancialSemanticTheme("debts").outlineButton
                                         }`}
                                       >
-                                        {option.label}
+                                        {tx(option.label)}
                                       </button>
                                     );
                                   })}
@@ -20041,7 +20125,7 @@ export function BetaOnboardingV2PageContent({
 
                               {hasTarget ? (
                                 <div className="space-y-2">
-                                  <p className="text-[13px] font-medium text-[#111111]">التاريخ المستهدف</p>
+                                  <p className="text-[13px] font-medium text-[#111111]">{t("التاريخ المستهدف", "Date visée", "Target date")}</p>
                                   <Input
                                     type="date"
                                     value={getString(answers, `D5a_debt_target_date_${debtIndex}`)}
@@ -20056,7 +20140,7 @@ export function BetaOnboardingV2PageContent({
                                   />
                                   {fieldErrors[`D5a_debt_target_date_${debtIndex}`] ? (
                                     <p className="text-[12px] text-[#d70015]">
-                                      {fieldErrors[`D5a_debt_target_date_${debtIndex}`]}
+                                      {tx(fieldErrors[`D5a_debt_target_date_${debtIndex}`])}
                                     </p>
                                   ) : null}
                                 </div>
@@ -20075,7 +20159,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 ${onboardingSecondaryButtonClass}`}
                         style={onboardingSecondaryButtonStyle}
                       >
-                        + زيد دين آخر
+                        {t("+ زيد دين آخر", "+ Ajouter une dette", "+ Add another debt")}
                       </button>
                       <button
                         type="button"
@@ -20083,31 +20167,31 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 px-6 ${onboardingPrimaryButtonClass}`}
                         style={onboardingPrimaryButtonStyle}
                       >
-                        كمل
+                        {t("كمل", "Continuer", "Continue")}
                       </button>
                     </div>
 
                     {getDebtCount(answers) >= DEBT_MAX_COUNT ? (
                       <p className="text-center text-[12px] text-[#6e6e73]">
-                        وصلتي للحد الأقصى ديال الديون ({DEBT_MAX_COUNT}).
+                        {t(`وصلتي للحد الأقصى ديال الديون (${DEBT_MAX_COUNT}).`, `Nombre maximum de dettes atteint (${DEBT_MAX_COUNT}).`, `Maximum number of debts reached (${DEBT_MAX_COUNT}).`)}
                       </p>
                     ) : null}
 
                     <p className="text-center text-[13px] text-[#6e6e73]">
-                      دخل كاع الديون اللي بغيتي يتاخدو فالحساب من دابا.
+                      {t("دخل كاع الديون اللي بغيتي يتاخدو فالحساب من دابا.", "Ajoute toutes les dettes à prendre en compte dès maintenant.", "Add every debt you want counted from now on.")}
                     </p>
                   </div>
                 ) : null}
 
                 {currentQuestion.kind === "debt_preferences" ? (
                   <div className="mx-auto max-w-4xl space-y-5">
-                    <div className="rounded-[22px] border border-[#e5e5ea] bg-[#f7f7f8] px-4 py-3 text-right">
+                    <div className="rounded-[22px] border border-[#e5e5ea] bg-[#f7f7f8] px-4 py-3 text-start">
                       <p className="text-[13px] text-[#6e6e73]">
                         هاد الاختيارات غير باش نفهمو شنو كيزعجك أكثر وشنو باغي من هاد الجزء. القرار النهائي غادي يجي من بعد.
                       </p>
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">الديون دابا كيشكلو عليك شنو أكثر؟</p>
                       </div>
@@ -20119,23 +20203,23 @@ export function BetaOnboardingV2PageContent({
                               key={option.value}
                               type="button"
                               onClick={() => setDebtBuilderChoice("D2_pressure_feeling", option.value)}
-                              className={`rounded-[20px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[20px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#111111] bg-[#111111] text-white"
                                   : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                               }`}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
                       </div>
                       {fieldErrors.D2_pressure_feeling ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.D2_pressure_feeling}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.D2_pressure_feeling)}</p>
                       ) : null}
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">إلى كان عندنا هامش من بعد، شنو يبان ليك أحسن؟</p>
                       </div>
@@ -20147,24 +20231,24 @@ export function BetaOnboardingV2PageContent({
                               key={option.value}
                               type="button"
                               onClick={() => setDebtBuilderChoice("D2_preferred_strategy", option.value)}
-                              className={`rounded-[20px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[20px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#111111] bg-[#111111] text-white"
                                   : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                               }`}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
                       </div>
                       {fieldErrors.D2_preferred_strategy ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.D2_preferred_strategy}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.D2_preferred_strategy)}</p>
                       ) : null}
                     </div>
 
                     {getString(answers, "D2_preferred_strategy") === "focus" ? (
-                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                         <div className="mb-3 space-y-1">
                           <p className="text-[18px] font-semibold text-[#111111]">شكون فيهم بغيتي ياخذ النفس الأول؟</p>
                         </div>
@@ -20176,24 +20260,24 @@ export function BetaOnboardingV2PageContent({
                                 key={option.value}
                                 type="button"
                                 onClick={() => setDebtBuilderChoice("D2_focus_debt_id", option.value)}
-                                className={`rounded-[20px] border px-4 py-4 text-right transition ${
+                                className={`rounded-[20px] border px-4 py-4 text-start transition ${
                                   selected
                                     ? "border-[#111111] bg-[#111111] text-white"
                                     : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                                 }`}
                               >
-                                <p className="text-[15px] font-semibold">{option.label}</p>
+                                <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                               </button>
                             );
                           })}
                         </div>
                         {fieldErrors.D2_focus_debt_id ? (
-                          <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.D2_focus_debt_id}</p>
+                          <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.D2_focus_debt_id)}</p>
                         ) : null}
                       </div>
                     ) : null}
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">واش كاين شي دين مهم خاصو يسالي قبل وقت معيّن؟</p>
                       </div>
@@ -20205,13 +20289,13 @@ export function BetaOnboardingV2PageContent({
                               key={option.value}
                               type="button"
                               onClick={() => setDebtBuilderChoice("D2_target_date_preference", option.value)}
-                              className={`rounded-[20px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[20px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#111111] bg-[#111111] text-white"
                                   : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                               }`}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
@@ -20228,25 +20312,25 @@ export function BetaOnboardingV2PageContent({
                                   key={option.value}
                                   type="button"
                                   onClick={() => toggleDebtPreferenceMulti("D2_targeted_debt_ids", option.value)}
-                                  className={`rounded-[18px] border px-4 py-3 text-right text-[14px] font-semibold transition ${
+                                  className={`rounded-[18px] border px-4 py-3 text-start text-[14px] font-semibold transition ${
                                     active
                                       ? "border-[#34d399] bg-[#ecfdf5] text-[#111111]"
                                       : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                                   }`}
                                 >
-                                  {option.label}
+                                  {tx(option.label)}
                                 </button>
                               );
                             })}
                           </div>
                           {fieldErrors.D2_targeted_debt_ids ? (
-                            <p className="text-[12px] text-[#d70015]">{fieldErrors.D2_targeted_debt_ids}</p>
+                            <p className="text-[12px] text-[#d70015]">{tx(fieldErrors.D2_targeted_debt_ids)}</p>
                           ) : null}
                         </div>
                       ) : null}
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">فهاد المرحلة، شحال بغيتي الخطة تكون مريحة؟</p>
                       </div>
@@ -20258,19 +20342,19 @@ export function BetaOnboardingV2PageContent({
                               key={option.value}
                               type="button"
                               onClick={() => setDebtBuilderChoice("D2_comfort_level", option.value)}
-                              className={`rounded-[20px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[20px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#111111] bg-[#111111] text-white"
                                   : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                               }`}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
                       </div>
                       {fieldErrors.D2_comfort_level ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.D2_comfort_level}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.D2_comfort_level)}</p>
                       ) : null}
                     </div>
 
@@ -20299,7 +20383,7 @@ export function BetaOnboardingV2PageContent({
                       ].map(([label, value]) => (
                         <div
                           key={label}
-                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
+                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
                         >
                           <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{label}</p>
                           <p className="mt-2 text-[20px] font-semibold text-[#111111]">{value}</p>
@@ -20307,7 +20391,7 @@ export function BetaOnboardingV2PageContent({
                       ))}
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <p className="text-[16px] font-semibold text-[#111111]">خدّينا الديون كاملين فالحساب.</p>
                       <p className="mt-2 text-[14px] leading-7 text-[#6e6e73]">
                         شحال غادي نعطيوهم من الأولوية النهائية غادي يتحدد من بعد، منين نوازنو الديون مع الأهداف والمعيشة.
@@ -20329,9 +20413,9 @@ export function BetaOnboardingV2PageContent({
 
                 {currentQuestion.kind === "goal_builder" && getString(answers, "G0_has_goal") !== "yes" ? (
                   <div className="mx-auto max-w-[720px] rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-center shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                    <p className="text-[16px] font-semibold text-[#111111]">عندك شي هدف مالي دابا؟</p>
+                    <p className="text-[16px] font-semibold text-[#111111]">{t("عندك شي هدف مالي دابا؟", "As-tu un objectif financier en ce moment ?", "Do you have a money goal right now?")}</p>
                     <p className="mt-2 text-[14px] leading-7 text-[#6e6e73]">
-                      حتى فكرة بسيطة كافية، وغادي نعاونك تبنيها. تقدر تزيد الأهداف حتى من بعد.
+                      {t("حتى فكرة بسيطة كافية، وغادي نعاونك تبنيها. تقدر تزيد الأهداف حتى من بعد.", "Une simple idée suffit, on t'aide à la construire. Tu pourras en ajouter plus tard.", "A simple idea is enough, we'll help you shape it. You can add goals later too.")}
                     </p>
                     <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
                       <button
@@ -20340,7 +20424,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 px-6 ${onboardingPrimaryButtonClass}`}
                         style={onboardingPrimaryButtonStyle}
                       >
-                        زيد هدف
+                        {t("زيد هدف", "Ajouter un objectif", "Add a goal")}
                       </button>
                       <button
                         type="button"
@@ -20348,7 +20432,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 px-6 ${onboardingSecondaryButtonClass}`}
                         style={onboardingSecondaryButtonStyle}
                       >
-                        ماشي دابا
+                        {t("ماشي دابا", "Pas maintenant", "Not now")}
                       </button>
                     </div>
                   </div>
@@ -20366,7 +20450,7 @@ export function BetaOnboardingV2PageContent({
                             ref={(node) => {
                               goalBuilderCardRefs.current[goalIndex] = node;
                             }}
-                            className={`rounded-[22px] border bg-[var(--surface)] p-3 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] transition ${
+                            className={`rounded-[22px] border bg-[var(--surface)] p-3 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] transition ${
                               goalBuilderFocusIndex === goalIndex
                                 ? getFinancialSemanticTheme("goals").focus
                                 : "border-[#e5e5ea]"
@@ -20375,7 +20459,7 @@ export function BetaOnboardingV2PageContent({
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <div className="space-y-1">
                                 <p className={`text-[16px] font-semibold ${getFinancialSemanticTheme("goals").label}`}>
-                                  هدف #{goalIndex}
+                                  {t("هدف", "Objectif", "Goal")} #{goalIndex}
                                 </p>
                                 <p className="text-[11px] text-[#6e6e73]">
                                   {buildGoalBuilderSummaryLine(answers, goalIndex)}
@@ -20388,7 +20472,7 @@ export function BetaOnboardingV2PageContent({
                                     onClick={() => removeGoalBuilderCard(goalIndex)}
                                     className="rounded-full border border-[#ffd4d8] bg-[#fff4f5] px-3 py-1.5 text-[12px] font-semibold text-[#d70015]"
                                   >
-                                    حيد
+                                    {t("حيد", "Retirer", "Remove")}
                                   </button>
                                 ) : null}
                                 <button
@@ -20404,10 +20488,10 @@ export function BetaOnboardingV2PageContent({
                             {isCollapsed ? null : (
                               <div className="space-y-3">
                                 <div className="space-y-2">
-                                  <p className="text-[12px] font-medium text-[#111111]">شنو الهدف؟</p>
+                                  <p className="text-[12px] font-medium text-[#111111]">{t("شنو الهدف؟", "Quel est l'objectif ?", "What's the goal?")}</p>
                                   <Input
                                     type="text"
-                                    placeholder="مثلاً: صندوق الطوارئ"
+                                    placeholder={t("مثلاً: صندوق الطوارئ", "ex. fonds d'urgence", "e.g. emergency fund")}
                                     value={getRawInputString(answers, `G1_goal_name_${goalIndex}`)}
                                     onChange={(event) =>
                                       setInputAnswer(`G1_goal_name_${goalIndex}`, event.target.value)
@@ -20418,13 +20502,13 @@ export function BetaOnboardingV2PageContent({
                                   />
                                   {fieldErrors[`G1_goal_name_${goalIndex}`] ? (
                                     <p className="text-[12px] text-[#d70015]">
-                                      {fieldErrors[`G1_goal_name_${goalIndex}`]}
+                                      {tx(fieldErrors[`G1_goal_name_${goalIndex}`])}
                                     </p>
                                   ) : null}
                                 </div>
 
                                 <div className="space-y-2">
-                                  <p className="text-[12px] font-medium text-[#111111]">النوع</p>
+                                  <p className="text-[12px] font-medium text-[#111111]">{t("النوع", "Type", "Type")}</p>
                                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                     {GOAL_TYPE_OPTIONS.map((option) => {
                                       const selected = getString(answers, `G1_goal_type_${goalIndex}`) === option.value;
@@ -20439,7 +20523,7 @@ export function BetaOnboardingV2PageContent({
                                             selected
                                           )}`}
                                         >
-                                          {option.label}
+                                          {tx(option.label)}
                                         </button>
                                       );
                                     })}
@@ -20448,7 +20532,7 @@ export function BetaOnboardingV2PageContent({
 
                                 <div className="grid gap-3">
                                   <div className="space-y-2">
-                                    <p className="text-[12px] font-medium text-[#111111]">شحال باغي توصل؟</p>
+                                    <p className="text-[12px] font-medium text-[#111111]">{t("شحال باغي توصل؟", "Quel montant vises-tu ?", "How much are you aiming for?")}</p>
                                     <Input
                                       type="number"
                                       placeholder="0 MAD"
@@ -20464,18 +20548,18 @@ export function BetaOnboardingV2PageContent({
                                     />
                                     {fieldErrors[`G1_goal_target_amount_${goalIndex}`] ? (
                                       <p className="text-[12px] text-[#d70015]">
-                                        {fieldErrors[`G1_goal_target_amount_${goalIndex}`]}
+                                        {tx(fieldErrors[`G1_goal_target_amount_${goalIndex}`])}
                                       </p>
                                     ) : null}
                                   </div>
 
                                   <div className="space-y-2 rounded-[18px] border border-[#ececf1] bg-[#fbfbfc] p-3">
                                     <div className="flex items-center justify-between gap-3">
-                                      <p className="text-[12px] font-medium text-[#111111]">شحال مجموع دابا؟</p>
+                                      <p className="text-[12px] font-medium text-[#111111]">{t("شحال مجموع دابا؟", "Combien as-tu déjà mis de côté ?", "How much have you saved so far?")}</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         {[
-                                          { value: "yes", label: "اه" },
-                                          { value: "no", label: "لا" },
+                                          { value: "yes", label: t("اه", "Oui", "Yes") },
+                                          { value: "no", label: t("لا", "Non", "No") },
                                         ].map((option) => {
                                           const selected =
                                             (getString(answers, `G1_goal_has_current_amount_${goalIndex}`) || "no") === option.value;
@@ -20488,7 +20572,7 @@ export function BetaOnboardingV2PageContent({
                                               }
                                               className={getGoalSemanticButtonClass("binary", option.value, selected)}
                                             >
-                                              {option.label}
+                                              {tx(option.label)}
                                             </button>
                                           );
                                         })}
@@ -20511,12 +20595,12 @@ export function BetaOnboardingV2PageContent({
                                         />
                                         {fieldErrors[`G1_goal_current_amount_${goalIndex}`] ? (
                                           <p className="text-[12px] text-[#d70015]">
-                                            {fieldErrors[`G1_goal_current_amount_${goalIndex}`]}
+                                            {tx(fieldErrors[`G1_goal_current_amount_${goalIndex}`])}
                                           </p>
                                         ) : null}
                                       </div>
                                     ) : (
-                                      <p className="text-[12px] text-[#6e6e73]">اختياري. إلا كنت بديتي فيه، دخل شحال مجموع دابا.</p>
+                                      <p className="text-[12px] text-[#6e6e73]">{t("اختياري. إلا كنت بديتي فيه، دخل شحال مجموع دابا.", "Optionnel. Si tu as déjà commencé, indique ce que tu as mis de côté.", "Optional. If you've started, enter what you've saved.")}</p>
                                     )}
                                   </div>
                                 </div>
@@ -20524,11 +20608,11 @@ export function BetaOnboardingV2PageContent({
                                 <div className="grid gap-3">
                                   <div className="space-y-2 rounded-[18px] border border-[#ececf1] bg-[#fbfbfc] p-3">
                                     <div className="flex items-center justify-between gap-3">
-                                      <p className="text-[12px] font-medium text-[#111111]">عندك تاريخ؟</p>
+                                      <p className="text-[12px] font-medium text-[#111111]">{t("عندك تاريخ؟", "Une date en tête ?", "Have a date in mind?")}</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         {[
-                                          { value: "yes", label: "اه" },
-                                          { value: "no", label: "لا" },
+                                          { value: "yes", label: t("اه", "Oui", "Yes") },
+                                          { value: "no", label: t("لا", "Non", "No") },
                                         ].map((option) => {
                                           const selected =
                                             (getString(answers, `G1_goal_has_date_${goalIndex}`) || "no") === option.value;
@@ -20539,7 +20623,7 @@ export function BetaOnboardingV2PageContent({
                                               onClick={() => setGoalBuilderChoice(`G1_goal_has_date_${goalIndex}`, option.value)}
                                               className={getGoalSemanticButtonClass("binary", option.value, selected)}
                                             >
-                                              {option.label}
+                                              {tx(option.label)}
                                             </button>
                                           );
                                         })}
@@ -20561,17 +20645,17 @@ export function BetaOnboardingV2PageContent({
                                         />
                                         {fieldErrors[`G1_goal_target_date_${goalIndex}`] ? (
                                           <p className="text-[12px] text-[#d70015]">
-                                            {fieldErrors[`G1_goal_target_date_${goalIndex}`]}
+                                            {tx(fieldErrors[`G1_goal_target_date_${goalIndex}`])}
                                           </p>
                                         ) : null}
                                       </div>
                                     ) : (
-                                      <p className="text-[12px] text-[#6e6e73]">إلى ما عندكش تاريخ واضح، خليه مطفي دابا.</p>
+                                      <p className="text-[12px] text-[#6e6e73]">{t("إلى ما عندكش تاريخ واضح، خليه مطفي دابا.", "Pas de date précise ? Laisse désactivé.", "No set date? Leave it off.")}</p>
                                     )}
                                   </div>
 
                                   <div className="space-y-2">
-                                    <p className="text-[12px] font-medium text-[#111111]">الأهمية</p>
+                                    <p className="text-[12px] font-medium text-[#111111]">{t("الأهمية", "Importance", "Importance")}</p>
                                     <div className="flex flex-wrap gap-2">
                                       {GOAL_IMPORTANCE_OPTIONS.map((option) => {
                                         const selected = getString(answers, `G1_goal_importance_${goalIndex}`) === option.value;
@@ -20582,7 +20666,7 @@ export function BetaOnboardingV2PageContent({
                                             onClick={() => setGoalBuilderChoice(`G1_goal_importance_${goalIndex}`, option.value)}
                                             className={getGoalSemanticButtonClass("importance", option.value, selected)}
                                           >
-                                            {option.label}
+                                            {tx(option.label)}
                                           </button>
                                         );
                                       })}
@@ -20604,7 +20688,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 ${onboardingSecondaryButtonClass}`}
                         style={onboardingSecondaryButtonStyle}
                       >
-                        + زيد هدف آخر
+                        {t("+ زيد هدف آخر", "+ Ajouter un objectif", "+ Add another goal")}
                       </button>
                       {getGoalCount(answers) <= 1 &&
                       !getString(answers, "G1_goal_name_1").trim() &&
@@ -20615,7 +20699,7 @@ export function BetaOnboardingV2PageContent({
                           className={`h-12 ${onboardingSecondaryButtonClass}`}
                           style={onboardingSecondaryButtonStyle}
                         >
-                          ماشي دابا
+                          {t("ماشي دابا", "Pas maintenant", "Not now")}
                         </button>
                       ) : null}
                       <button
@@ -20624,7 +20708,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 px-6 ${onboardingPrimaryButtonClass}`}
                         style={onboardingPrimaryButtonStyle}
                       >
-                        كمل
+                        {t("كمل", "Continuer", "Continue")}
                       </button>
                     </div>
                   </div>
@@ -20632,13 +20716,13 @@ export function BetaOnboardingV2PageContent({
 
                 {currentQuestion.kind === "goal_preferences" ? (
                   <div className="mx-auto max-w-4xl space-y-5">
-                    <div className="rounded-[22px] border border-[#e5e5ea] bg-[#f7f7f8] px-4 py-3 text-right">
+                    <div className="rounded-[22px] border border-[#e5e5ea] bg-[#f7f7f8] px-4 py-3 text-start">
                       <p className="text-[13px] text-[#6e6e73]">
                         دابا نضبطو غير النية والراحة ديال الخطة قبل ما نوازنو الأهداف مع الديون والمعيشة.
                       </p>
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">كيفاش بغيتي تبدا؟</p>
                       </div>
@@ -20652,17 +20736,17 @@ export function BetaOnboardingV2PageContent({
                               onClick={() => setGoalBuilderChoice("G2_goal_intent", option.value)}
                               className={getGoalSemanticButtonClass("intent", option.value, selected, "card")}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
                       </div>
                       {fieldErrors.G2_goal_intent ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.G2_goal_intent}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.G2_goal_intent)}</p>
                       ) : null}
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">كاين هدف مهم بزمن؟</p>
                       </div>
@@ -20676,7 +20760,7 @@ export function BetaOnboardingV2PageContent({
                               onClick={() => setGoalBuilderChoice("G2_goal_urgency_scope", option.value)}
                               className={getGoalSemanticButtonClass("urgency", option.value, selected, "card")}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
@@ -20698,22 +20782,22 @@ export function BetaOnboardingV2PageContent({
                                       : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111]"
                                   }`}
                                 >
-                                  {option.label}
+                                  {tx(option.label)}
                                 </button>
                               );
                             })}
                           </div>
                           {fieldErrors.G2_targeted_goal_ids ? (
-                            <p className="text-[12px] text-[#d70015]">{fieldErrors.G2_targeted_goal_ids}</p>
+                            <p className="text-[12px] text-[#d70015]">{tx(fieldErrors.G2_targeted_goal_ids)}</p>
                           ) : null}
                         </div>
                       ) : null}
                       {fieldErrors.G2_goal_urgency_scope ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.G2_goal_urgency_scope}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.G2_goal_urgency_scope)}</p>
                       ) : null}
                     </div>
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
                         <p className="text-[18px] font-semibold text-[#111111]">شحال بغيتي الخطة تكون مريحة؟</p>
                       </div>
@@ -20727,18 +20811,18 @@ export function BetaOnboardingV2PageContent({
                               onClick={() => setGoalBuilderChoice("G2_goal_flexibility", option.value)}
                               className={getGoalSemanticButtonClass("flexibility", option.value, selected, "card")}
                             >
-                              <p className="text-[15px] font-semibold">{option.label}</p>
+                              <p className="text-[15px] font-semibold">{tx(option.label)}</p>
                             </button>
                           );
                         })}
                       </div>
                       {fieldErrors.G2_goal_flexibility ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.G2_goal_flexibility}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.G2_goal_flexibility)}</p>
                       ) : null}
                     </div>
 
                     {getGoalCount(answers) > 1 ? (
-                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                         <div className="mb-3 space-y-1">
                           <p className="text-[18px] font-semibold text-[#111111]">إلى نبداو بهدف واحد، شكون؟</p>
                           <p className="text-[13px] text-[#6e6e73]">اختياري. غير إلى بغيتي هدف واضح ياخذ النفس الأول.</p>
@@ -20751,14 +20835,14 @@ export function BetaOnboardingV2PageContent({
                           <option value="">خليه متوازن بيناتهم</option>
                           {getGoalFocusOptionsForUi(answers).map((option) => (
                             <option key={option.value} value={option.value}>
-                              {option.label}
+                              {tx(option.label)}
                             </option>
                           ))}
                         </select>
                       </div>
                     ) : null}
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-4 flex items-center justify-between gap-3">
                         <p className="text-[18px] font-semibold text-[#111111]">ها الصورة ديال الأهداف دابا</p>
                       </div>
@@ -20771,7 +20855,7 @@ export function BetaOnboardingV2PageContent({
                         ].map(([label, value]) => (
                           <div
                             key={label}
-                            className="rounded-[22px] border border-[#ececf1] bg-[#fbfbfc] p-4 text-right"
+                            className="rounded-[22px] border border-[#ececf1] bg-[#fbfbfc] p-4 text-start"
                           >
                             <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{label}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{value}</p>
@@ -20803,22 +20887,22 @@ export function BetaOnboardingV2PageContent({
                   <div className="mx-auto max-w-6xl space-y-5">
                     {resolvedJourneyMode === "money_plan" ? (
                       <>
-                        <section className="rounded-[30px] border border-[#dbeafe] bg-[linear-gradient(180deg,#f7fbff_0%,#eff6ff_100%)] px-5 py-6 text-right shadow-[0_24px_60px_-42px_rgba(37,99,235,0.2)]">
+                        <section className="rounded-[30px] border border-[#dbeafe] bg-[linear-gradient(180deg,#f7fbff_0%,#eff6ff_100%)] px-5 py-6 text-start shadow-[0_24px_60px_-42px_rgba(37,99,235,0.2)]">
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="max-w-3xl space-y-2">
                               <span className="inline-flex rounded-full border border-[#bfdbfe] bg-[var(--surface)] px-3 py-1 text-[12px] font-semibold text-[#1d4ed8]">
-                                الصورة العامة
+                                {t("الصورة العامة", "Vue d'ensemble", "Overview")}
                               </span>
                               <h2 className="text-[28px] font-semibold leading-[1.2] text-[#0f172a]">
-                                ها فين كيمشيو فلوسك دابا
+                                {t("ها فين كيمشيو فلوسك دابا", "Où va ton argent aujourd'hui", "Where your money goes today")}
                               </h2>
                               <p className="text-[14px] leading-7 text-[#1e3a8a]">
-                                هاد الصفحة غير باش تفهم الصورة الحالية ديال الدخل، المصاريف، والالتزامات قبل ما نختارو
-                                الخطة.
+                                {t("هاد الصفحة غير باش تفهم الصورة الحالية ديال الدخل، المصاريف، والالتزامات قبل ما نختارو", "Cette page montre tes revenus, dépenses et engagements avant de choisir", "This page shows your income, costs and commitments before we choose")}
+                                {t("الخطة.", "le plan.", "the plan.")}
                               </p>
                             </div>
                             <div className="min-w-[220px] rounded-[24px] border border-[var(--border)] bg-[var(--surface)]/90 px-4 py-4 shadow-[0_18px_34px_-24px_rgba(37,99,235,0.22)]">
-                              <p className="text-[12px] font-semibold tracking-[0.08em] text-[#64748b]">الباقي الحر</p>
+                              <p className="text-[12px] font-semibold tracking-[0.08em] text-[#64748b]">{t("الباقي الحر", "Reste libre", "Free remainder")}</p>
                               <p className="mt-2 text-[28px] font-semibold text-[#111111]">
                                 {formatMad(moneyPlanRemainingValue)}
                               </p>
@@ -20828,18 +20912,18 @@ export function BetaOnboardingV2PageContent({
                           <div className="mt-5 rounded-[24px] border border-[#dbeafe] bg-[var(--surface)]/75 px-4 py-4">
                             <p className="text-[16px] font-semibold text-[#111111]">
                               {overviewIncomeValue > 0
-                                ? `من كل ${formatMad(overviewIncomeValue)} دخل، كيبقى ليك تقريباً ${formatMad(moneyPlanRemainingValue)} نقدر نوجهوه بوعي.`
-                                : "إلى شي رقم ما باينش مزيان، تقدر تراجع التفاصيل قبل ما تكمل."}
+                                ? t(`من كل ${formatMad(overviewIncomeValue)} دخل، كيبقى ليك تقريباً ${formatMad(moneyPlanRemainingValue)} نقدر نوجهوه بوعي.`, `Sur ${formatMad(overviewIncomeValue)} de revenu, il te reste environ ${formatMad(moneyPlanRemainingValue)} à orienter.`, `Out of ${formatMad(overviewIncomeValue)} of income, about ${formatMad(moneyPlanRemainingValue)} is left to direct.`)
+                                : t("إلى شي رقم ما باينش مزيان، تقدر تراجع التفاصيل قبل ما تكمل.", "Un chiffre te semble faux ? Vérifie les détails avant de continuer.", "A figure looks off? Check the details before continuing.")}
                             </p>
                             <p className="mt-2 text-[13px] leading-6 text-[#475569]">
-                              الهدف من هاد الصفحة هو الفهم فقط، ماشي اتخاذ القرارات. القرارات غادي تبدا فالمرحلة الجاية.
+                              {t("الهدف من هاد الصفحة هو الفهم فقط، ماشي اتخاذ القرارات. القرارات غادي تبدا فالمرحلة الجاية.", "Ici on comprend, on ne décide pas encore : ça vient à l'étape suivante.", "This page is for understanding, not deciding: that comes next.")}
                             </p>
                           </div>
                         </section>
-                        <section className="rounded-[20px] border border-[#c7d2fe] bg-[#eef2ff] px-4 py-4 text-right">
-                          <p className="text-[14px] font-semibold text-[#3730a3]">القرار ديال هاد المرحلة</p>
+                        <section className="rounded-[20px] border border-[#c7d2fe] bg-[#eef2ff] px-4 py-4 text-start">
+                          <p className="text-[14px] font-semibold text-[#3730a3]">{t("القرار ديال هاد المرحلة", "À cette étape", "At this step")}</p>
                           <p className="mt-1 text-[13px] leading-6 text-[#4338ca]">
-                            غير فهم الصورة الحالية. ما تبدّل حتى إعداد دابا. القرار الحقيقي غادي يكون فالمرحلة الجاية: الاتجاه.
+                            {t("غير فهم الصورة الحالية. ما تبدّل حتى إعداد دابا. القرار الحقيقي غادي يكون فالمرحلة الجاية: الاتجاه.", "Comprendre la situation, sans rien modifier. Le vrai choix vient ensuite : la direction.", "Understand the situation without changing anything. The real choice comes next: the direction.")}
                           </p>
                         </section>
 
@@ -20847,33 +20931,33 @@ export function BetaOnboardingV2PageContent({
                           {moneyPlanQuickCards.map((card) => (
                             <div
                               key={card.key}
-                              className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
+                              className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
                             >
-                              <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{card.title}</p>
+                              <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{tx(card.title)}</p>
                               <p className="mt-2 text-[24px] font-semibold text-[#111111]">{formatMad(card.amount)}</p>
-                              <p className="mt-2 text-[12px] leading-6 text-[#64748b]">{card.helper}</p>
+                              <p className="mt-2 text-[12px] leading-6 text-[#64748b]">{tx(card.helper)}</p>
                             </div>
                           ))}
                         </section>
 
                         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                          <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_20px_48px_-36px_rgba(15,23,42,0.18)]">
+                          <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_20px_48px_-36px_rgba(15,23,42,0.18)]">
                             <div className="space-y-1">
-                              <h3 className="text-[20px] font-semibold text-[#111111]">التقسيم الحالي للفلوس</h3>
+                              <h3 className="text-[20px] font-semibold text-[#111111]">{t("التقسيم الحالي للفلوس", "Répartition actuelle", "Current split")}</h3>
                               <p className="text-[13px] leading-6 text-[#6e6e73]">
-                                هاد التقسيم كيبين فين كيمشي الدخل ديالك دابا قبل ما نبدلو أي حاجة.
+                                {t("هاد التقسيم كيبين فين كيمشي الدخل ديالك دابا قبل ما نبدلو أي حاجة.", "Où va ton revenu aujourd'hui, avant tout changement.", "Where your income goes today, before any change.")}
                               </p>
                             </div>
                             <div className="mt-4 flex flex-wrap items-center gap-2">
                               <span className="rounded-full border border-[#e5e7eb] bg-[#f8fafc] px-2.5 py-1 text-[11px] font-semibold text-[#334155]">
-                                الدخل: {formatMad(overviewIncomeValue)}
+                                {t("الدخل:", "Revenu :", "Income:")} {formatMad(overviewIncomeValue)}
                               </span>
                               <span className="rounded-full border border-[#e5e7eb] bg-[#f8fafc] px-2.5 py-1 text-[11px] font-semibold text-[#334155]">
-                                الباقي: {formatMad(incomeDistributionSummary.remaining)}
+                                {t("الباقي:", "Reste :", "Left:")} {formatMad(incomeDistributionSummary.remaining)}
                               </span>
                               {incomeDistributionSummary.overcommit > 0 ? (
                                 <span className="rounded-full border border-[#fecaca] bg-[#fff1f2] px-2.5 py-1 text-[11px] font-semibold text-[#b91c1c]">
-                                  عجز: {formatMad(incomeDistributionSummary.overcommit)}
+                                  {t("عجز:", "Déficit :", "Shortfall:")} {formatMad(incomeDistributionSummary.overcommit)}
                                 </span>
                               ) : null}
                             </div>
@@ -20891,8 +20975,8 @@ export function BetaOnboardingV2PageContent({
                             </div>
                               {incomeDistributionSummary.overcommit > 0 ? (
                                 <p className="mt-3 rounded-[14px] border border-[#fecaca] bg-[#fff5f5] px-3 py-2 text-[12px] leading-6 text-[#b91c1c]">
-                                  الالتزامات الشهرية الحالية طالعة على الدخل، لذلك كنبيّنو العجز بشكل واضح باش القرار الجاي يتبنى على واقع دقيق.
-                                  النِّسب هنا محسوبة على الدخل الحالي، لذلك المجموع يقدر يفوت 100% ملي كاين عجز.
+                                  {t("الالتزامات الشهرية الحالية طالعة على الدخل، لذلك كنبيّنو العجز بشكل واضح باش القرار الجاي يتبنى على واقع دقيق.", "Tes engagements mensuels dépassent ton revenu : le déficit est affiché pour décider sur une base juste.", "Your monthly commitments exceed your income: the shortfall is shown so the next decision is realistic.")}
+                                  {t("النِّسب هنا محسوبة على الدخل الحالي، لذلك المجموع يقدر يفوت 100% ملي كاين عجز.", "Les pourcentages sont calculés sur le revenu actuel : le total peut dépasser 100 % en cas de déficit.", "Percentages use current income, so the total can exceed 100% when there's a shortfall.")}
                                 </p>
                               ) : null}
                             <div className="mt-4 space-y-2">
@@ -20904,7 +20988,7 @@ export function BetaOnboardingV2PageContent({
                                   >
                                     <div className="flex items-center gap-2">
                                       <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
-                                      <span className="font-semibold text-[#111111]">{row.label}</span>
+                                      <span className="font-semibold text-[#111111]">{tx(row.label)}</span>
                                     </div>
                                     <span className="text-[#334155]">{formatMad(row.amount)}</span>
                                     <span className="text-[#64748b]">{Math.max(0, row.pctIncome).toFixed(1)}%</span>
@@ -20915,23 +20999,23 @@ export function BetaOnboardingV2PageContent({
                           </div>
 
                           <div className="space-y-4">
-                            <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_20px_48px_-36px_rgba(15,23,42,0.18)]">
-                              <h3 className="text-[20px] font-semibold text-[#111111]">شنو فهمنا من هاد الصورة</h3>
+                            <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_20px_48px_-36px_rgba(15,23,42,0.18)]">
+                              <h3 className="text-[20px] font-semibold text-[#111111]">{t("شنو فهمنا من هاد الصورة", "Ce qu'on retient", "What we see")}</h3>
                               <ul className="mt-4 space-y-3 text-[14px] leading-7 text-[#3c3c43]">
                                 {moneyPlanSummaryInsights.map((insight) => (
                                   <li key={insight} className="rounded-[18px] border border-[#ececf1] bg-[#fbfbfc] px-4 py-3">
-                                    {insight}
+                                    {tx(insight)}
                                   </li>
                                 ))}
                               </ul>
                             </section>
 
-                            <section className="rounded-[28px] border border-[#bbf7d0] bg-[#f0fdf4] p-5 text-right shadow-[0_20px_48px_-36px_rgba(21,128,61,0.14)]">
+                            <section className="rounded-[28px] border border-[#bbf7d0] bg-[#f0fdf4] p-5 text-start shadow-[0_20px_48px_-36px_rgba(21,128,61,0.14)]">
                               <p className="text-[15px] font-semibold text-[#14532d]">
-                                إلى بغيتي تفصّل أكثر، تقدر تراجع المعلومات كاملة قبل ما تكمل.
+                                {t("إلى بغيتي تفصّل أكثر، تقدر تراجع المعلومات كاملة قبل ما تكمل.", "Pour plus de détail, revois toutes tes informations avant de continuer.", "For more detail, review all your information before continuing.")}
                               </p>
                               <p className="mt-2 text-[13px] leading-6 text-[#166534]">
-                                من بعد هاد الصفحة غادي نبداو الاختيارات: الاتجاه أولاً، من بعد الأظرفة، ومن بعد القواعد الذكية.
+                                {t("من بعد هاد الصفحة غادي نبداو الاختيارات: الاتجاه أولاً، من بعد الأظرفة، ومن بعد القواعد الذكية.", "Ensuite viennent les choix : la direction, puis les enveloppes, puis les réglages.", "Next come the choices: direction, then envelopes, then settings.")}
                               </p>
                             </section>
                           </div>
@@ -20946,12 +21030,12 @@ export function BetaOnboardingV2PageContent({
                                 className={`h-12 min-w-[150px] ${onboardingSecondaryButtonClass}`}
                                 style={onboardingSecondaryButtonStyle}
                               >
-                                عدّل الأرقام
+                                {t("عدّل الأرقام", "Modifier mes chiffres", "Edit my figures")}
                               </button>
-                              <div className="flex-1 text-center sm:text-right">
-                                <p className="text-[14px] font-semibold text-[#111111]">دابا الصورة ولات واضحة وبسيطة.</p>
+                              <div className="flex-1 text-center sm:text-start">
+                                <p className="text-[14px] font-semibold text-[#111111]">{t("دابا الصورة ولات واضحة وبسيطة.", "La situation est claire.", "The picture is clear now.")}</p>
                                 <p className="mt-1 text-[12px] text-[#6e6e73]">
-                                  المرحلة الجاية غادي نختارو فيها الاتجاه العام بلا ما نعاودو نفس القراءة.
+                                  {t("المرحلة الجاية غادي نختارو فيها الاتجاه العام بلا ما نعاودو نفس القراءة.", "Prochaine étape : choisir la direction générale.", "Next step: choose the overall direction.")}
                                 </p>
                               </div>
                               <button
@@ -20960,7 +21044,7 @@ export function BetaOnboardingV2PageContent({
                                 className={`h-12 min-w-[200px] ${onboardingPrimaryButtonClass}`}
                                 style={onboardingPrimaryButtonStyle}
                               >
-                                {currentQuestion.continueLabel ?? "دابا ورّيني كيفاش نوجهو هاد الفلوس"}
+                                {currentQuestion.continueLabel ?? t("دابا ورّيني كيفاش نوجهو هاد الفلوس", "Voir comment orienter cet argent", "See how to direct this money")}
                               </button>
                             </div>
                           </div>
@@ -20970,11 +21054,11 @@ export function BetaOnboardingV2PageContent({
                   </div>
                 ) : null}
                 {/*
-                      <section className="space-y-4 rounded-[28px] border border-[#dbeafe] bg-gradient-to-b from-[#eff6ff] to-[var(--surface)] p-5 text-right shadow-[0_20px_48px_-34px_rgba(37,99,235,0.25)]">
+                      <section className="space-y-4 rounded-[28px] border border-[#dbeafe] bg-gradient-to-b from-[#eff6ff] to-[var(--surface)] p-5 text-start shadow-[0_20px_48px_-34px_rgba(37,99,235,0.25)]">
                         <div className="space-y-2">
-                          <p className="text-[22px] font-semibold text-[#0f172a]">صفحة التوجيه التفاعلي</p>
+                          <p className="text-[22px] font-semibold text-[#0f172a]">{t("صفحة التوجيه التفاعلي", "Orientation interactive", "Interactive direction")}</p>
                           <p className="text-[14px] leading-7 text-[#1e3a8a]">
-                            فهم + محاكاة + توجيه: بدّل شوية وشوف الأثر مباشرة قبل القرار النهائي.
+                            {t("فهم + محاكاة + توجيه: بدّل شوية وشوف الأثر مباشرة قبل القرار النهائي.", "Comprendre, simuler, orienter : ajuste et vois l'effet avant de décider.", "Understand, simulate, steer: adjust and see the effect before deciding.")}
                           </p>
                         </div>
 
@@ -20991,39 +21075,39 @@ export function BetaOnboardingV2PageContent({
                               }}
                               className="rounded-[18px] border border-[#bfdbfe] bg-[var(--surface)]/90 px-3 py-3 text-[13px] font-semibold text-[#1d4ed8] transition hover:border-[#2563eb] hover:bg-[#eff6ff]"
                             >
-                              {scenario.label}
+                              {tx(scenario.label)}
                             </button>
                           ))}
                         </div>
 
                         <div className="grid gap-4 xl:grid-cols-2">
                           <div className="rounded-[22px] border border-[#dbeafe] bg-[var(--surface)] p-4">
-                            <p className="text-[14px] font-semibold text-[#111111]">منطقة التعديل التفاعلي</p>
+                            <p className="text-[14px] font-semibold text-[#111111]">{t("منطقة التعديل التفاعلي", "Ajustements", "Adjustments")}</p>
                             <div className="mt-3 space-y-3">
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
-                                  <span>الدين (+ / -)</span>
+                                  <span>{t("الدين (+ / -)", "Dette (+ / -)", "Debt (+ / -)")}</span>
                                   <span>{formatMad(guidanceDebtDelta)}</span>
                                 </div>
                                 <input type="range" min={-400} max={600} step={50} value={guidanceDebtDelta} onChange={(e) => guidanceSetDebtDeltaSafe(Number(e.target.value))} className="w-full" />
                               </label>
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
-                                  <span>الاحتياط (+ / -)</span>
+                                  <span>{t("الاحتياط (+ / -)", "Réserve (+ / -)", "Reserve (+ / -)")}</span>
                                   <span>{formatMad(guidanceReserveDelta)}</span>
                                 </div>
                                 <input type="range" min={-300} max={500} step={50} value={guidanceReserveDelta} onChange={(e) => guidanceSetReserveDeltaSafe(Number(e.target.value))} className="w-full" />
                               </label>
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
-                                  <span>الأهداف (+ / -)</span>
+                                  <span>{t("الأهداف (+ / -)", "Objectifs (+ / -)", "Goals (+ / -)")}</span>
                                   <span>{formatMad(guidanceGoalDelta)}</span>
                                 </div>
                                 <input type="range" min={-300} max={500} step={50} value={guidanceGoalDelta} onChange={(e) => guidanceSetGoalDeltaSafe(Number(e.target.value))} className="w-full" />
                               </label>
                               <label className="block">
                                 <div className="mb-1 flex items-center justify-between text-[12px] text-[#475569]">
-                                  <span>تنقيص المرونة</span>
+                                  <span>{t("تنقيص المرونة", "Réduire la souplesse", "Reduce flexible")}</span>
                                   <span>{guidanceFlexibleCutPct}%</span>
                                 </div>
                                 <input type="range" min={0} max={40} step={5} value={guidanceFlexibleCutPct} onChange={(e) => guidanceSetFlexCutSafe(Number(e.target.value))} className="w-full" />
@@ -21032,45 +21116,45 @@ export function BetaOnboardingV2PageContent({
                           </div>
 
                           <div className="rounded-[22px] border border-[#dbeafe] bg-[var(--surface)] p-4">
-                            <p className="text-[14px] font-semibold text-[#111111]">قبل / من بعد</p>
+                            <p className="text-[14px] font-semibold text-[#111111]">{t("قبل / من بعد", "Avant / après", "Before / after")}</p>
                             <div className="mt-3 grid gap-3 sm:grid-cols-3">
                               <div className="rounded-[16px] border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                                <p className="text-[11px] text-[#64748b]">ضغط الدين</p>
+                                <p className="text-[11px] text-[#64748b]">{t("ضغط الدين", "Pression des dettes", "Debt pressure")}</p>
                                 <p className="mt-1 text-[14px] font-semibold text-[#111111]">{guidanceSimulation.beforeDebtPressure}% → {guidanceSimulation.afterDebtPressure}%</p>
                               </div>
                               <div className="rounded-[16px] border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                                <p className="text-[11px] text-[#64748b]">الأمان القريب</p>
+                                <p className="text-[11px] text-[#64748b]">{t("الأمان القريب", "Sécurité à court terme", "Short-term safety")}</p>
                                 <p className="mt-1 text-[14px] font-semibold text-[#111111]">{guidanceSimulation.beforeSafety}% → {guidanceSimulation.afterSafety}%</p>
                               </div>
                               <div className="rounded-[16px] border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                                <p className="text-[11px] text-[#64748b]">وتيرة الأهداف</p>
+                                <p className="text-[11px] text-[#64748b]">{t("وتيرة الأهداف", "Rythme des objectifs", "Goal pace")}</p>
                                 <p className="mt-1 text-[14px] font-semibold text-[#111111]">{guidanceSimulation.beforeGoalsPace}% → {guidanceSimulation.afterGoalsPace}%</p>
                               </div>
                             </div>
 
                             <div className="mt-4 rounded-[16px] border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                              <p className="text-[12px] font-semibold text-[#0f172a]">القراءة المباشرة من AI</p>
+                              <p className="text-[12px] font-semibold text-[#0f172a]">{t("القراءة المباشرة من AI", "Lecture de l'IA", "AI reading")}</p>
                               <p className="mt-2 text-[13px] leading-7 text-[#334155]">{guidanceSimulation.aiSummary}</p>
-                              <p className="mt-2 text-[12px] text-[#1d4ed8]">الاتجاه اللي باين دابا: {guidanceSimulation.shortDirection}</p>
+                              <p className="mt-2 text-[12px] text-[#1d4ed8]">{t("الاتجاه اللي باين دابا:", "Direction actuelle :", "Current direction:")} {tx(guidanceSimulation.shortDirection)}</p>
                             </div>
                           </div>
                         </div>
                       </section>
                     ) : null}
 
-                    <div className="rounded-[24px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-4 text-right shadow-[0_18px_40px_-30px_rgba(59,130,246,0.22)]">
+                    <div className="rounded-[24px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-4 text-start shadow-[0_18px_40px_-30px_rgba(59,130,246,0.22)]">
                       <p className="text-[15px] font-semibold text-[#0f172a]">
-                        دابا خلّينا نشوفو الصورة كاملة ديال الفلوس ديالك.
+                        {t("دابا خلّينا نشوفو الصورة كاملة ديال الفلوس ديالك.", "Voyons l'ensemble de ton argent.", "Let's look at your whole money picture.")}
                       </p>
                       <p className="mt-1 text-[14px] leading-7 text-[#1e3a8a]">
-                        جمعنا الدخل، المصاريف، الديون، والأهداف باش يبان ليك كلشي بوضوح.
+                        {t("جمعنا الدخل، المصاريف، الديون، والأهداف باش يبان ليك كلشي بوضوح.", "Revenus, dépenses, dettes et objectifs réunis au même endroit.", "Income, costs, debts and goals in one place.")}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {[
-                          ["income", "الدخل"],
-                          ["expenses", "المصاريف"],
-                          ["debts", "الديون"],
-                          ["goals", "الأهداف"],
+                          ["income", t("الدخل", "Revenu", "Income")],
+                          ["expenses", t("المصاريف", "Dépenses", "Costs")],
+                          ["debts", t("الديون", "Dettes", "Debts")],
+                          ["goals", t("الأهداف", "Objectifs", "Goals")],
                         ].map(([domain, label]) => {
                           const theme = getFinancialSemanticTheme(domain as FinancialSemanticDomain);
                           return (
@@ -21088,35 +21172,35 @@ export function BetaOnboardingV2PageContent({
 
                     <section
                       ref={financialSummaryIncomeRef}
-                      className={`scroll-mt-28 rounded-[28px] border p-5 text-right transition ${getFinancialSemanticTheme("capacity").section} ${
+                      className={`scroll-mt-28 rounded-[28px] border p-5 text-start transition ${getFinancialSemanticTheme("capacity").section} ${
                         highlightedFinancialSection === "income_expenses"
                           ? getFinancialSemanticTheme("capacity").sectionHighlight
                           : ""
                       }`}
                     >
                       <div className="mb-4 space-y-1">
-                        <h2 className="text-[20px] font-semibold text-[#111111]">الدخل والمصاريف</h2>
+                        <h2 className="text-[20px] font-semibold text-[#111111]">{t("الدخل والمصاريف", "Revenus et dépenses", "Income and costs")}</h2>
                         <p className={`text-[14px] ${getFinancialSemanticTheme("capacity").accentText}`}>
-                          المتبقي هو اللي غادي نبنيو عليه الخطة.
+                          {t("المتبقي هو اللي غادي نبنيو عليه الخطة.", "Le plan se construit sur ce qui reste.", "The plan is built on what's left.")}
                         </p>
                       </div>
 
                       <div className="grid gap-3 md:grid-cols-3">
                         <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("income").metricCard}`}>
                           <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("income").label}`}>
-                            الدخل
+                            {t("الدخل", "Revenu", "Income")}
                           </p>
                           <p className="mt-2 text-[24px] font-semibold text-[#111111]">{formatMad(overviewIncomeValue)}</p>
                         </div>
                         <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("expenses").metricCard}`}>
                           <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("expenses").label}`}>
-                            المصاريف
+                            {t("المصاريف", "Dépenses", "Costs")}
                           </p>
                           <p className="mt-2 text-[24px] font-semibold text-[#111111]">{formatMad(overviewExpenseValue)}</p>
                         </div>
                         <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("capacity").metricCard}`}>
                           <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("capacity").label}`}>
-                            المتبقي
+                            {t("المتبقي", "Reste", "Remaining")}
                           </p>
                           <p className="mt-2 text-[24px] font-semibold text-[#111111]">{formatMad(overviewRemainingValue)}</p>
                         </div>
@@ -21147,36 +21231,36 @@ export function BetaOnboardingV2PageContent({
                     <div className="grid gap-4 xl:grid-cols-2">
                       <section
                         ref={financialSummaryDebtRef}
-                        className={`scroll-mt-28 rounded-[28px] border p-5 text-right transition ${getFinancialSemanticTheme("debts").section} ${
+                        className={`scroll-mt-28 rounded-[28px] border p-5 text-start transition ${getFinancialSemanticTheme("debts").section} ${
                           highlightedFinancialSection === "debts"
                             ? getFinancialSemanticTheme("debts").sectionHighlight
                             : ""
                         }`}
                       >
                         <div className="mb-4 space-y-1">
-                          <h2 className={`text-[20px] font-semibold ${getFinancialSemanticTheme("debts").label}`}>الديون</h2>
+                          <h2 className={`text-[20px] font-semibold ${getFinancialSemanticTheme("debts").label}`}>{t("الديون", "Dettes", "Debts")}</h2>
                           <p className={`text-[14px] ${getFinancialSemanticTheme("debts").accentText}`}>{debtOverviewInsight}</p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("debts").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>عدد الديون</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>{t("عدد الديون", "Nombre de dettes", "Number of debts")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{debtSummaryMetrics.count}</p>
                           </div>
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("debts").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>المبلغ الكلي</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>{t("المبلغ الكلي", "Montant total", "Total amount")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{formatMad(debtSummaryMetrics.total_remaining)}</p>
                           </div>
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("debts").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>الأداء الشهري</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>{t("الأداء الشهري", "Paiement mensuel", "Monthly payment")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{formatMad(debtSummaryMetrics.current_monthly)}</p>
                           </div>
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("debts").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>ديون مرتبطة بتاريخ</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("debts").label}`}>{t("ديون مرتبطة بتاريخ", "Dettes avec une date", "Debts with a date")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{debtSummaryMetrics.targeted_count}</p>
                           </div>
                           {debtSummaryMetrics.late_count > 0 ? (
                             <div className={`rounded-[22px] border p-4 sm:col-span-2 ${getFinancialSemanticTheme("debts").metricCard}`}>
-                              <p className="text-[12px] font-semibold tracking-[0.08em] text-[#b91c1c]">ديون فيهم تأخير أو خطر</p>
+                              <p className="text-[12px] font-semibold tracking-[0.08em] text-[#b91c1c]">{t("ديون فيهم تأخير أو خطر", "Dettes en retard ou à risque", "Late or at-risk debts")}</p>
                               <p className="mt-2 text-[20px] font-semibold text-[#111111]">{debtSummaryMetrics.late_count}</p>
                     )}
                     </div>
@@ -21186,31 +21270,31 @@ export function BetaOnboardingV2PageContent({
 
                       <section
                         ref={financialSummaryGoalRef}
-                        className={`scroll-mt-28 rounded-[28px] border p-5 text-right transition ${getFinancialSemanticTheme("goals").section} ${
+                        className={`scroll-mt-28 rounded-[28px] border p-5 text-start transition ${getFinancialSemanticTheme("goals").section} ${
                           highlightedFinancialSection === "goals"
                             ? getFinancialSemanticTheme("goals").sectionHighlight
                             : ""
                         }`}
                       >
                         <div className="mb-4 space-y-1">
-                          <h2 className={`text-[20px] font-semibold ${getFinancialSemanticTheme("goals").label}`}>الأهداف</h2>
+                          <h2 className={`text-[20px] font-semibold ${getFinancialSemanticTheme("goals").label}`}>{t("الأهداف", "Objectifs", "Goals")}</h2>
                           <p className={`text-[14px] ${getFinancialSemanticTheme("goals").accentText}`}>{goalOverviewInsight}</p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("goals").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>عدد الأهداف</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>{t("عدد الأهداف", "Nombre d'objectifs", "Number of goals")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{goalSummaryMetrics.count}</p>
                           </div>
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("goals").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>المبلغ الإجمالي</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>{t("المبلغ الإجمالي", "Montant total", "Total amount")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{formatMad(goalSummaryMetrics.total_target_amount)}</p>
                           </div>
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("goals").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>بديتي فيهم</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>{t("بديتي فيهم", "Déjà commencés", "Already started")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{goalSummaryMetrics.started_count}</p>
                           </div>
                           <div className={`rounded-[22px] border p-4 ${getFinancialSemanticTheme("goals").metricCard}`}>
-                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>عندهم تاريخ</p>
+                            <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("goals").label}`}>{t("عندهم تاريخ", "Avec une date", "With a date")}</p>
                             <p className="mt-2 text-[20px] font-semibold text-[#111111]">{goalSummaryMetrics.with_date_count}</p>
                           </div>
                         </div>
@@ -21220,31 +21304,31 @@ export function BetaOnboardingV2PageContent({
                     <section className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                       <div
                         ref={financialSummaryCapacityRef}
-                        className={`scroll-mt-28 rounded-[28px] border p-5 text-right transition ${getFinancialSemanticTheme("capacity").section} ${
+                        className={`scroll-mt-28 rounded-[28px] border p-5 text-start transition ${getFinancialSemanticTheme("capacity").section} ${
                           highlightedFinancialSection === "capacity"
                             ? getFinancialSemanticTheme("capacity").sectionHighlight
                             : ""
                         }`}
                       >
                         <h2 className={`text-[20px] font-semibold ${getFinancialSemanticTheme("capacity").label}`}>
-                          شنو باقي نقدر نخدمو به
+                          {t("شنو باقي نقدر نخدمو به", "Ce qu'il reste à orienter", "What's left to work with")}
                         </h2>
-                        <p className="mt-3 text-[28px] font-semibold text-[#111111]">عندك تقريباً {formatMad(overviewRemainingValue)}</p>
+                        <p className="mt-3 text-[28px] font-semibold text-[#111111]">{t("عندك تقريباً", "Tu as environ", "You have about")} {formatMad(overviewRemainingValue)}</p>
                         <p className={`mt-2 text-[14px] leading-7 ${getFinancialSemanticTheme("capacity").accentText}`}>
-                          هاد المبلغ هو اللي غادي يتوزع من بعد بين الديون، الأهداف، والاحتياط.
+                          {t("هاد المبلغ هو اللي غادي يتوزع من بعد بين الديون، الأهداف، والاحتياط.", "Ce montant sera réparti entre dettes, objectifs et réserve.", "This amount will be split between debts, goals and the reserve.")}
                         </p>
 
                         <div className={`mt-4 rounded-[18px] border px-4 py-3 ${getFinancialSemanticTheme("capacity").metricCard}`}>
                           <p className={`text-[12px] font-semibold tracking-[0.08em] ${getFinancialSemanticTheme("capacity").label}`}>
-                            المتاح دابا (current cash)
+                            {t("المتاح دابا (current cash)", "Disponible maintenant", "Available now")}
                           </p>
                           <p className="mt-1 text-[20px] font-semibold text-[#111111]">
-                            {currentCashAvailable > 0 ? formatMad(currentCashAvailable) : "ما تدخلش دابا"}
+                            {currentCashAvailable > 0 ? formatMad(currentCashAvailable) : t("ما تدخلش دابا", "Pas encore saisi", "Not entered yet")}
                           </p>
                           <p className={`mt-1 text-[12px] ${getFinancialSemanticTheme("capacity").accentText}`}>
                             {currentCashAvailable > 0
-                              ? "غادي ناخذو هاد الرقم كنقطة بداية فالاقتراحات اللي جاية."
-                              : "تقدر تزيدو من بعد إلى بغيتي تدقّق البداية أكثر."}
+                              ? t("غادي ناخذو هاد الرقم كنقطة بداية فالاقتراحات اللي جاية.", "Ce chiffre sert de point de départ aux propositions.", "This figure is the starting point for the suggestions.")
+                              : t("تقدر تزيدو من بعد إلى بغيتي تدقّق البداية أكثر.", "Tu pourras l'ajouter plus tard pour affiner.", "You can add it later to refine.")}
                           </p>
                         </div>
 
@@ -21257,7 +21341,7 @@ export function BetaOnboardingV2PageContent({
                                 Arbitrage assisté (AI + Rules)
                               </h3>
                               <p className={`mt-1 text-[13px] ${getFinancialSemanticTheme("capacity").accentText}`}>
-                                كلشي recommendation فقط حتى توافق أنت.
+                                {t("كلشي recommendation فقط حتى توافق أنت.", "Ce ne sont que des recommandations jusqu'à ta validation.", "These are only recommendations until you confirm.")}
                               </p>
                             </div>
                             <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getFinancialSemanticTheme("capacity").badge}`}>
@@ -21267,11 +21351,11 @@ export function BetaOnboardingV2PageContent({
 
                           <div className="mt-4 grid gap-2 sm:grid-cols-2">
                             {[
-                              ["المتاح بعد الثوابت", arbitragePreview.available_after_fixed],
+                              [t("المتاح بعد الثوابت", "Disponible après charges fixes", "Available after fixed costs"), arbitragePreview.available_after_fixed],
                               ["Debt minimum", arbitragePreview.debt_minimum],
                               ["Reserve seed", arbitragePreview.starter_reserve_seed],
                               ["Sinking funds", arbitragePreview.sinking_funds],
-                              ["المبلغ القابل للتحكيم", arbitragePreview.discretionary_after_core],
+                              [t("المبلغ القابل للتحكيم", "Montant à orienter", "Amount to allocate"), arbitragePreview.discretionary_after_core],
                             ].map(([label, value]) => (
                               <div key={String(label)} className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)]/75 px-3 py-2">
                                 <p className="text-[11px] font-semibold tracking-[0.06em] text-[#6e6e73]">{label}</p>
@@ -21298,7 +21382,7 @@ export function BetaOnboardingV2PageContent({
                                       {getArbitrageModeLabel(allocation.mode)}
                                     </p>
                                     {isRecommended ? (
-                                      <span className="rounded-full bg-[#2563eb] px-2 py-0.5 text-[10px] font-semibold text-white">موصى به</span>
+                                      <span className="rounded-full bg-[#2563eb] px-2 py-0.5 text-[10px] font-semibold text-white">{t("موصى به", "Recommandé", "Recommended")}</span>
                                     ) : null}
                                   </div>
                                   <div className="h-2.5 overflow-hidden rounded-full bg-[#dfeafe]">
@@ -21320,8 +21404,8 @@ export function BetaOnboardingV2PageContent({
                         </div>
                       </div>
 
-                      <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
-                        <h2 className="text-[20px] font-semibold text-[#111111]">الخلاصة الذكية</h2>
+                      <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
+                        <h2 className="text-[20px] font-semibold text-[#111111]">{t("الخلاصة الذكية", "En résumé", "Summary")}</h2>
                         <div className="mt-4 space-y-3">
                           {financialOverviewInteractiveInsights.map((insight) => {
                             const expanded = expandedFinancialInsightId === insight.id;
@@ -21360,12 +21444,12 @@ export function BetaOnboardingV2PageContent({
 
                             const sectionLabel =
                               insight.section === "income_expenses"
-                                ? "قسم الدخل والمصاريف"
+                                ? t("قسم الدخل والمصاريف", "Section revenus et dépenses", "Income and costs section")
                                 : insight.section === "debts"
-                                  ? "قسم الديون"
+                                  ? t("قسم الديون", "Section dettes", "Debts section")
                                   : insight.section === "goals"
-                                    ? "قسم الأهداف"
-                                    : "قسم المبلغ المتبقي";
+                                    ? t("قسم الأهداف", "Section objectifs", "Goals section")
+                                    : t("قسم المبلغ المتبقي", "Section reste", "Remaining section");
                             const sectionTheme = getFinancialSummarySectionTheme(insight.section);
 
                             return (
@@ -21376,7 +21460,7 @@ export function BetaOnboardingV2PageContent({
                                 <button
                                   type="button"
                                   onClick={() => toggleFinancialInsight(insight)}
-                                  className="flex w-full items-start justify-between gap-3 text-right"
+                                  className="flex w-full items-start justify-between gap-3 text-start"
                                   aria-expanded={expanded}
                                 >
                                   <div className="flex min-w-0 items-start gap-3">
@@ -21398,7 +21482,7 @@ export function BetaOnboardingV2PageContent({
                                         {insight.text}
                                       </p>
                                       <p className="mt-1 text-[12px] text-[#6e6e73]">
-                                        ضغط باش تفهم علاش بان لينا هاد المؤشر.
+                                        {t("ضغط باش تفهم علاش بان لينا هاد المؤشر.", "Clique pour comprendre cet indicateur.", "Click to see why we show this.")}
                                       </p>
                                     </div>
                                   </div>
@@ -21418,7 +21502,7 @@ export function BetaOnboardingV2PageContent({
                                     </p>
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                       <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${sectionTheme.chip}`}>
-                                        مربوط بـ {sectionLabel}
+                                        {t("مربوط بـ", "Lié à :", "Linked to:")} {sectionLabel}
                                       </span>
                                       <div className="flex flex-wrap items-center justify-end gap-2">
                                         <button
@@ -21426,16 +21510,16 @@ export function BetaOnboardingV2PageContent({
                                           onClick={() => scrollToFinancialInsightSection(insight.section)}
                                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${sectionTheme.outlineButton}`}
                                         >
-                                          شوف القسم المرتبط
+                                          {t("شوف القسم المرتبط", "Voir la section", "See the section")}
                                         </button>
                                         {insight.editTargets.map((target) => (
                                           <button
-                                            key={`${insight.id}-${target.kind}-${target.label}`}
+                                            key={`${insight.id}-${target.kind}-${tx(target.label)}`}
                                             type="button"
                                             onClick={() => openFinancialInsightEditTarget(target)}
                                             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${sectionTheme.solidButton}`}
                                           >
-                                            {target.label}
+                                            {tx(target.label)}
                                           </button>
                                         ))}
                                       </div>
@@ -21458,11 +21542,11 @@ export function BetaOnboardingV2PageContent({
                             className={`h-12 min-w-[150px] ${onboardingSecondaryButtonClass}`}
                             style={onboardingSecondaryButtonStyle}
                           >
-                            راجع المعلومات
+                            {t("راجع المعلومات", "Revoir mes informations", "Review my information")}
                           </button>
-                          <div className="flex-1 text-center sm:text-right">
-                            <p className="text-[14px] font-semibold text-[#111111]">دابا الصورة المالية ولات واضحة.</p>
-                            <p className="mt-1 text-[12px] text-[#6e6e73]">من بعد هاد الشاشة غادي نبداو غير فالاختيارات ديال الخطة.</p>
+                          <div className="flex-1 text-center sm:text-start">
+                            <p className="text-[14px] font-semibold text-[#111111]">{t("دابا الصورة المالية ولات واضحة.", "Ta situation financière est claire.", "Your financial picture is clear.")}</p>
+                            <p className="mt-1 text-[12px] text-[#6e6e73]">{t("من بعد هاد الشاشة غادي نبداو غير فالاختيارات ديال الخطة.", "Ensuite, on passe aux choix du plan.", "Next, we move to the plan choices.")}</p>
                           </div>
                           <button
                             type="button"
@@ -21470,7 +21554,7 @@ export function BetaOnboardingV2PageContent({
                             className={`h-12 min-w-[170px] ${onboardingPrimaryButtonClass}`}
                             style={onboardingPrimaryButtonStyle}
                           >
-                            {currentQuestion.continueLabel ?? "كمل وشوف الخطة"}
+                            {currentQuestion.continueLabel ?? t("كمل وشوف الخطة", "Voir le plan", "See the plan")}
                           </button>
                         </div>
                       </div>
@@ -21480,7 +21564,7 @@ export function BetaOnboardingV2PageContent({
                 {currentQuestion.kind === "interactive_guidance" || currentQuestion.kind === "priority_profile" ? (
                   <div className="mx-auto max-w-5xl space-y-5">
                     {/* One status line: the state, what living costs get, what is left to direct. */}
-                    <section className={`rounded-[20px] border px-4 py-3 text-right ${lifestylePlanningMessage.tone}`}>
+                    <section className={`rounded-[20px] border px-4 py-3 text-start ${lifestylePlanningMessage.tone}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="inline-flex items-center gap-2 text-[14px] font-semibold">
                           {lifestylePlanningState === "stable" ? (
@@ -21488,37 +21572,37 @@ export function BetaOnboardingV2PageContent({
                           ) : (
                             <TriangleAlert className="h-4 w-4" aria-hidden />
                           )}
-                          {lifestylePlanningMessage.title}
+                          {tx(lifestylePlanningMessage.title)}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold">
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-current/25 bg-[var(--surface)]/70 px-2.5 py-1">
                             <Home className="h-3.5 w-3.5" aria-hidden />
-                            المعيشة: {formatMad(lifestyleBasePlannedAmount)}
+                            {t("المعيشة:", "Quotidien :", "Living costs:")} {formatMad(lifestyleBasePlannedAmount)}
                             {lifestyleBasePlannedAmount < lifestyleMinimumThreshold
                               ? ` / ${formatMad(lifestyleMinimumThreshold)}`
                               : ""}
                           </span>
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-current/25 bg-[var(--surface)]/70 px-2.5 py-1">
                             <HandCoins className="h-3.5 w-3.5" aria-hidden />
-                            الهامش: {formatMad(guidanceAvailableNow)}
+                            {t("الهامش:", "Marge :", "Margin:")} {formatMad(guidanceAvailableNow)}
                           </span>
                         </div>
                       </div>
                       {lifestylePlanningState !== "stable" ? (
-                        <p className="mt-2 text-[13px] leading-6">{lifestylePlanningMessage.body}</p>
+                        <p className="mt-2 text-[13px] leading-6">{tx(lifestylePlanningMessage.body)}</p>
                       ) : null}
                     </section>
 
-                    <section className="rounded-[28px] border border-[#dbeafe] bg-gradient-to-b from-[#eff6ff] to-[var(--surface)] px-5 py-5 text-right shadow-[0_24px_60px_-40px_rgba(37,99,235,0.22)]">
+                    <section className="rounded-[28px] border border-[#dbeafe] bg-gradient-to-b from-[#eff6ff] to-[var(--surface)] px-5 py-5 text-start shadow-[0_24px_60px_-40px_rgba(37,99,235,0.22)]">
                       <div className="space-y-2">
                         <h2 className="inline-flex items-center gap-2 text-[24px] font-semibold text-[#0f172a]">
                           <Sparkles className="h-5 w-5 text-[#2563eb]" aria-hidden />
-                          الاقتراح ديالنا
+                          {t("الاقتراح ديالنا", "Notre recommandation", "Our recommendation")}
                         </h2>
                         <p className="text-[14px] leading-7 text-[#1e3a8a]">{guidanceRecommendationReason}</p>
                         {guidanceIsConstrained ? (
                           <p className="text-[13px] leading-6 text-[#1e3a8a]">
-                            التوزيع الفعلي غادي يبان منين يرجع المتاح موجب.
+                            {t("التوزيع الفعلي غادي يبان منين يرجع المتاح موجب.", "La répartition réelle apparaîtra quand le disponible redeviendra positif.", "The actual split will show once what's available is positive again.")}
                           </p>
                         ) : null}
                       </div>
@@ -21540,7 +21624,7 @@ export function BetaOnboardingV2PageContent({
                           return (
                             <div
                               key={scenario.id}
-                              className={`rounded-[20px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[20px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#2563eb] bg-[var(--surface)] text-[#1d4ed8] shadow-[0_18px_36px_-28px_rgba(37,99,235,0.45)]"
                                   : "border-[#dbeafe] bg-[#f8fbff] text-[#1d4ed8] hover:border-[#2563eb] hover:bg-[var(--surface)]"
@@ -21551,29 +21635,29 @@ export function BetaOnboardingV2PageContent({
                                   type="button"
                                   aria-pressed={selected}
                                   onClick={() => applyGuidanceScenarioSafe(scenario, guidanceStrengthPct)}
-                                  className="block w-full text-right"
+                                  className="block w-full text-start"
                                 >
                                   <div className="flex items-start justify-between gap-3">
-                                    <p className="min-w-0 flex-1 text-[15px] font-semibold">{scenario.label}</p>
+                                    <p className="min-w-0 flex-1 text-[15px] font-semibold">{tx(scenario.label)}</p>
                                     {isRecommendation ? (
                                       <span className="rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
-                                        مقترح
+                                        {t("مقترح", "Recommandé", "Recommended")}
                                       </span>
                                     ) : selected ? (
                                       <span className="rounded-full border border-[#bfdbfe] bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold text-[#1d4ed8]">
-                                        مختار
+                                        {t("مختار", "Choisi", "Selected")}
                                       </span>
                                     ) : null}
                                   </div>
-                                  <p className="mt-2 text-[12px] leading-6 text-current/80">{scenario.hint}</p>
+                                  <p className="mt-2 text-[12px] leading-6 text-current/80">{tx(scenario.hint)}</p>
                                   {showGuidanceAlternatives ? (
                                     <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-semibold">
                                       {(
                                         [
-                                          ["debt", Landmark, "دين", preview.debt],
-                                          ["reserve", ShieldCheck, "أمان", preview.reserve],
-                                          ["goals", Target, "أهداف", preview.goals],
-                                          ["flex", Wallet, "مرونة", preview.flex],
+                                          ["debt", Landmark, t("دين", "Dette", "Debt"), preview.debt],
+                                          ["reserve", ShieldCheck, t("أمان", "Sécurité", "Safety"), preview.reserve],
+                                          ["goals", Target, t("أهداف", "Objectifs", "Goals"), preview.goals],
+                                          ["flex", Wallet, t("مرونة", "Souplesse", "Flexible"), preview.flex],
                                         ] as const
                                       ).map(([key, Icon, label, value]) => (
                                         <p
@@ -21592,10 +21676,10 @@ export function BetaOnboardingV2PageContent({
                                   type="button"
                                   onClick={() => setGuidanceScenarioDetailId(scenario.id)}
                                   className="inline-flex w-fit items-center gap-1.5 rounded-full border border-current/20 bg-[var(--surface)]/80 px-3 py-1 text-[11px] font-semibold text-current transition hover:border-current/35 hover:bg-[var(--surface)]"
-                                  aria-label={`شوف التفاصيل فاختيار ${scenario.label}`}
+                                  aria-label={t(`شوف التفاصيل فاختيار ${tx(scenario.label)}`, `Voir le détail : ${tx(scenario.label)}`, `See details: ${tx(scenario.label)}`)}
                                 >
                                   <Info className="h-3.5 w-3.5" aria-hidden />
-                                  التفاصيل
+                                  {t("التفاصيل", "Détails", "Details")}
                                 </button>
                               </div>
                             </div>
@@ -21610,23 +21694,23 @@ export function BetaOnboardingV2PageContent({
                           onClick={() => setShowGuidanceAlternatives((prev) => !prev)}
                           className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#bfdbfe] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#1d4ed8] transition hover:border-[#2563eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]"
                         >
-                          {showGuidanceAlternatives ? "خبّي الاختيارات الأخرى" : "اختار اتجاه آخر"}
+                          {showGuidanceAlternatives ? t("خبّي الاختيارات الأخرى", "Masquer les autres choix", "Hide other choices") : t("اختار اتجاه آخر", "Choisir une autre direction", "Choose another direction")}
                           {showGuidanceAlternatives ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
                         </button>
                       ) : null}
 
                       {guidanceConstraintNotice ? (
                         <div className="mt-5 rounded-[14px] border border-[#fde68a] bg-[#fffbeb] px-3 py-2 text-[12px] font-semibold text-[#92400e]">
-                          {guidanceConstraintNotice}
+                          {tx(guidanceConstraintNotice)}
                         </div>
                       ) : null}
                     </section>
 
-                    <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_20px_48px_-36px_rgba(15,23,42,0.2)]">
+                    <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_20px_48px_-36px_rgba(15,23,42,0.2)]">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-[20px] font-semibold text-[#111111]">توزيع الهامش</h3>
+                        <h3 className="text-[20px] font-semibold text-[#111111]">{t("توزيع الهامش", "Répartition de la marge", "Split of the margin")}</h3>
                         <span className="rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[12px] font-semibold text-[#64748b]">
-                          أرقام تقريبية
+                          {t("أرقام تقريبية", "Montants approximatifs", "Approximate figures")}
                         </span>
                       </div>
                       <div className="mt-4 rounded-[24px] border border-[#eef2f7] bg-[#fbfcfe] p-4">
@@ -21640,8 +21724,8 @@ export function BetaOnboardingV2PageContent({
                                   width: `${(row.amount / guidanceLiveStripTotal) * 100}%`,
                                   background: row.color,
                                 }}
-                                aria-label={`${row.label}: ${formatMad(row.amount)}`}
-                                title={`${row.label}: ${formatMad(row.amount)}`}
+                                aria-label={`${tx(row.label)}: ${formatMad(row.amount)}`}
+                                title={`${tx(row.label)}: ${formatMad(row.amount)}`}
                               />
                             ))}
                           </div>
@@ -21665,7 +21749,7 @@ export function BetaOnboardingV2PageContent({
                               >
                                 <div className="flex items-center gap-2 text-[12px] font-semibold">
                                   <RowIcon className="h-4 w-4" style={{ color: row.color }} aria-hidden />
-                                  <span className={row.textClass}>{row.label}</span>
+                                  <span className={row.textClass}>{tx(row.label)}</span>
                                 </div>
                                 <p className="mt-2 text-[18px] font-semibold text-[#111111]">{formatMad(row.amount)}</p>
                               </div>
@@ -21676,14 +21760,14 @@ export function BetaOnboardingV2PageContent({
                     </section>
 
                     <section className="grid gap-4 xl:grid-cols-2">
-                      <div className="rounded-[24px] border border-[#bfdbfe] bg-[#f7fbff] p-4 text-right">
+                      <div className="rounded-[24px] border border-[#bfdbfe] bg-[#f7fbff] p-4 text-start">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="inline-flex items-center gap-2 text-[17px] font-semibold text-[#0f172a]">
                               <ShieldCheck className="h-5 w-5 text-[#2563eb]" aria-hidden />
-                              ظرف الأمان
+                              {t("ظرف الأمان", "Enveloppe sécurité", "Safety envelope")}
                             </p>
-                            <p className="mt-1 text-[13px] leading-6 text-[#1e3a8a]">احتياط للطوارئ باش ما ترجعش للدين.</p>
+                            <p className="mt-1 text-[13px] leading-6 text-[#1e3a8a]">{t("احتياط للطوارئ باش ما ترجعش للدين.", "Une réserve pour les imprévus, pour éviter de s'endetter.", "A reserve for emergencies, so you don't fall back into debt.")}</p>
                           </div>
                           <button
                             type="button"
@@ -21695,31 +21779,31 @@ export function BetaOnboardingV2PageContent({
                                 : "border-[#d1d5db] bg-[var(--surface)] text-[#374151]"
                             }`}
                           >
-                            {guidanceKeepSafetyEnvelope ? "مفعّل" : "ماشي ضروري دابا"}
+                            {guidanceKeepSafetyEnvelope ? t("مفعّل", "Activé", "On") : t("ماشي ضروري دابا", "Pas nécessaire pour l'instant", "Not needed for now")}
                           </button>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
                           <span className="rounded-[12px] border border-[#dbeafe] bg-[var(--surface)] px-3 py-2 text-[#334155]">
-                            هاد الدورة: <span className="font-semibold text-[#111111]">{formatMad(guidanceReservePlannedAmount)}</span>
+                            {t("هاد الدورة:", "Ce cycle :", "This cycle:")} <span className="font-semibold text-[#111111]">{formatMad(guidanceReservePlannedAmount)}</span>
                           </span>
                           {guidanceEssentialMonthly > 0 ? (
                             <span className="rounded-[12px] border border-[#dbeafe] bg-[var(--surface)] px-3 py-2 text-[#334155]">
-                              الهدف: <span className="font-semibold text-[#111111]">
-                                {guidanceSafetyCoverageMonths < 1 ? "شهر" : "3 شهور"} ديال المصاريف الأساسية
+                              {t("الهدف:", "Objectif :", "Target:")} <span className="font-semibold text-[#111111]">
+                                {guidanceSafetyCoverageMonths < 1 ? t("شهر", "1 mois", "1 month") : t("3 شهور", "3 mois", "3 months")} {t("ديال المصاريف الأساسية", "de dépenses essentielles", "of essential costs")}
                               </span>
                             </span>
                           ) : null}
                         </div>
                       </div>
 
-                      <div className="rounded-[24px] border border-[#bbf7d0] bg-[#f0fdf4] p-4 text-right">
+                      <div className="rounded-[24px] border border-[#bbf7d0] bg-[#f0fdf4] p-4 text-start">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="inline-flex items-center gap-2 text-[17px] font-semibold text-[#14532d]">
                               <Wallet className="h-5 w-5 text-[#16a34a]" aria-hidden />
-                              ظرف المرونة
+                              {t("ظرف المرونة", "Enveloppe souplesse", "Flexible envelope")}
                             </p>
-                            <p className="mt-1 text-[13px] leading-6 text-[#166534]">ماكلة، تنقل، ومصاريف كتبدّل من شهر لشهر.</p>
+                            <p className="mt-1 text-[13px] leading-6 text-[#166534]">{t("ماكلة، تنقل، ومصاريف كتبدّل من شهر لشهر.", "Courses, transport et dépenses qui varient d'un mois à l'autre.", "Food, transport and costs that change month to month.")}</p>
                           </div>
                           <button
                             type="button"
@@ -21731,15 +21815,15 @@ export function BetaOnboardingV2PageContent({
                                 : "border-[#d1d5db] bg-[var(--surface)] text-[#374151]"
                             }`}
                           >
-                            {guidanceKeepFlexEnvelope ? "مفعّل" : "ماشي ضروري دابا"}
+                            {guidanceKeepFlexEnvelope ? t("مفعّل", "Activé", "On") : t("ماشي ضروري دابا", "Pas nécessaire pour l'instant", "Not needed for now")}
                           </button>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
                           <span className="rounded-[12px] border border-[#bbf7d0] bg-[var(--surface)] px-3 py-2 text-[#14532d]">
-                            هاد الدورة: <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexPlannedAmount)}</span>
+                            {t("هاد الدورة:", "Ce cycle :", "This cycle:")} <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexPlannedAmount)}</span>
                           </span>
                           <span className="rounded-[12px] border border-[#bbf7d0] bg-[var(--surface)] px-3 py-2 text-[#14532d]">
-                            القاعدة اليومية: <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexBaseAmount)}</span>
+                            {t("القاعدة اليومية:", "Base quotidienne :", "Daily base:")} <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexBaseAmount)}</span>
                           </span>
                         </div>
                       </div>
@@ -21762,7 +21846,7 @@ export function BetaOnboardingV2PageContent({
                         style={onboardingSecondaryButtonStyle}
                       >
                         <RefreshCcw className="h-4 w-4" aria-hidden />
-                        رجّع للاقتراح
+                        {t("رجّع للاقتراح", "Revenir à la recommandation", "Back to the recommendation")}
                       </button>
                       <button
                         type="button"
@@ -21770,7 +21854,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 min-w-[190px] ${onboardingPrimaryButtonClass}`}
                         style={onboardingPrimaryButtonStyle}
                       >
-                        {currentQuestion.continueLabel ?? "كمل لاختيار الأظرفة"}
+                        {currentQuestion.continueLabel ?? t("كمل لاختيار الأظرفة", "Choisir les enveloppes", "Choose the envelopes")}
                       </button>
                     </div>
                   </div>
@@ -21779,24 +21863,24 @@ export function BetaOnboardingV2PageContent({
                 {false ? (
                   <div className="mx-auto max-w-5xl space-y-5">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
-                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">الديون</p>
+                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{t("الديون", "Dettes", "Debts")}</p>
                         <p className="mt-2 text-[18px] font-semibold text-[#111111]">
-                          {getString(answers, "E5_has_debt") === "yes" ? `${debtsCount} ديون` : "ما كايناش"}
+                          {getString(answers, "E5_has_debt") === "yes" ? t(`${debtsCount} ديون`, `${debtsCount} dettes`, `${debtsCount} debts`) : t("ما كايناش", "Aucune", "None")}
                         </p>
                       </div>
-                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">الأهداف</p>
+                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{t("الأهداف", "Objectifs", "Goals")}</p>
                         <p className="mt-2 text-[18px] font-semibold text-[#111111]">
-                          {getString(answers, "G0_has_goal") === "yes" ? `${goalsCount} أهداف` : "ما كايناش دابا"}
+                          {getString(answers, "G0_has_goal") === "yes" ? t(`${goalsCount} أهداف`, `${goalsCount} objectifs`, `${goalsCount} goals`) : t("ما كايناش دابا", "Aucun pour l'instant", "None yet")}
                         </p>
                       </div>
-                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">المعيشة</p>
+                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{t("المعيشة", "Quotidien", "Living costs")}</p>
                         <p className="mt-2 text-[18px] font-semibold text-[#111111]">{planLivingSummaryLabel}</p>
                       </div>
-                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
-                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">الاحتياط</p>
+                      <div className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                        <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6e6e73]">{t("الاحتياط", "Réserve", "Reserve")}</p>
                         <p className="mt-2 text-[18px] font-semibold text-[#111111]">{planReserveSummaryLabel}</p>
                       </div>
                     </div>
@@ -21804,32 +21888,32 @@ export function BetaOnboardingV2PageContent({
                       const selectedPresetMode = getPriorityProfileSelectedPresetMode(answers);
                       const recommendedPresetMode = getPriorityProfileRecommendedMode(answers);
                       return (
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
-                        <p className="text-[18px] font-semibold text-[#111111]">إلى بغيتي، اختار مود جاهز</p>
+                        <p className="text-[18px] font-semibold text-[#111111]">{t("إلى بغيتي، اختار مود جاهز", "Choisis un mode tout prêt si tu veux", "Pick a ready-made mode if you like")}</p>
                         <p className="text-[13px] text-[#6e6e73]">
-                          هاد المودات كيعطيوك خطة جاهزة بسرعة، وتقدر من بعد تبدل التفاصيل بيدك إلا بغيتي.
+                          {t("هاد المودات كيعطيوك خطة جاهزة بسرعة، وتقدر من بعد تبدل التفاصيل بيدك إلا بغيتي.", "Ces modes donnent un plan prêt, modifiable ensuite.", "These modes give a ready plan you can adjust later.")}
                         </p>
                         {selectedPresetMode ? null : (
                           <p className="text-[12px] text-[#8a5b00]">
-                            دابا راك ختاريتي توليفة خاصة بك. المود الأقرب ليها هو{" "}
+                            {t("دابا راك ختاريتي توليفة خاصة بك. المود الأقرب ليها هو", "Tu as composé ton propre réglage. Le mode le plus proche :", "You've made your own mix. The closest mode is")}{" "}
                             {recommendedPresetMode === "debt_relief_first"
-                              ? "الديون أولاً"
+                              ? t("الديون أولاً", "Dettes d'abord", "Debts first")
                               : recommendedPresetMode === "goal_growth_first"
-                              ? "الهدف يبدا دابا"
+                              ? t("الهدف يبدا دابا", "Objectif dès maintenant", "Goal starts now")
                               : recommendedPresetMode === "stability_first"
-                              ? "الاستقرار أولاً"
-                              : "توازن من جديد"}
+                              ? t("الاستقرار أولاً", "Stabilité d'abord", "Stability first")
+                              : t("توازن من جديد", "Rééquilibrer", "Rebalance")}
                             .
                           </p>
                         )}
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
                         {[
-                          ["debt_relief_first", "الديون أولاً", "دفعة أكبر للديون وراحة أقل شوية"],
-                          ["balanced_rebuild", "توازن من جديد", "توازن بين الديون والهدف والاحتياط"],
-                          ["goal_growth_first", "الهدف يبدا دابا", "بداية واضحة للهدف من هاد الدورة"],
-                          ["stability_first", "الاستقرار أولاً", "راحة واحتياط أقوى قبل الضغط"],
+                          ["debt_relief_first", t("الديون أولاً", "Dettes d'abord", "Debts first"), t("دفعة أكبر للديون وراحة أقل شوية", "Plus pour les dettes, un peu moins de confort", "More toward debts, a bit less comfort")],
+                          ["balanced_rebuild", t("توازن من جديد", "Rééquilibrer", "Rebalance"), t("توازن بين الديون والهدف والاحتياط", "Équilibre entre dettes, objectif et réserve", "Balance between debts, goal and reserve")],
+                          ["goal_growth_first", t("الهدف يبدا دابا", "Objectif dès maintenant", "Goal starts now"), t("بداية واضحة للهدف من هاد الدورة", "L'objectif démarre dès ce cycle", "The goal starts this cycle")],
+                          ["stability_first", t("الاستقرار أولاً", "Stabilité d'abord", "Stability first"), t("راحة واحتياط أقوى قبل الضغط", "Plus de confort et de réserve avant l'effort", "More comfort and reserve before pushing")],
                         ].map(([mode, title, hint]) => {
                           const selected = selectedPresetMode === mode;
                           const recommended = !selectedPresetMode && recommendedPresetMode === mode;
@@ -21838,7 +21922,7 @@ export function BetaOnboardingV2PageContent({
                               key={mode}
                               type="button"
                               onClick={() => applyPriorityProfileMode(mode)}
-                              className={`rounded-[22px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[22px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#111111] bg-[#111111] text-white"
                                   : recommended
@@ -21850,11 +21934,11 @@ export function BetaOnboardingV2PageContent({
                                 <p className="text-[16px] font-semibold">{title}</p>
                                 {selected ? (
                                   <span className="rounded-full bg-[var(--surface)]/14 px-2 py-1 text-[11px] font-semibold text-white">
-                                    مختار
+                                    {t("مختار", "Choisi", "Selected")}
                                   </span>
                                 ) : recommended ? (
                                   <span className="rounded-full bg-[#ececf1] px-2 py-1 text-[11px] font-semibold text-[#3a3a3c]">
-                                    الأقرب
+                                    {t("الأقرب", "Le plus proche", "Closest")}
                                   </span>
                                 ) : null}
                               </div>
@@ -21874,10 +21958,10 @@ export function BetaOnboardingV2PageContent({
                     })()}
 
                     {getString(answers, "E5_has_debt") === "yes" ? (
-                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                         <div className="mb-3 space-y-1">
-                          <p className="text-[18px] font-semibold text-[#111111]">بالنسبة للديون</p>
-                          <p className="text-[13px] text-[#6e6e73]">اختار شنو بغيتي دابا، وحنا نرتبو المجهود على هاد الأساس.</p>
+                          <p className="text-[18px] font-semibold text-[#111111]">{t("بالنسبة للديون", "Pour les dettes", "For debts")}</p>
+                          <p className="text-[13px] text-[#6e6e73]">{t("اختار شنو بغيتي دابا، وحنا نرتبو المجهود على هاد الأساس.", "Choisis ce que tu veux, on organise l'effort en conséquence.", "Choose what you want and we'll plan the effort around it.")}</p>
                         </div>
                         <div className="grid gap-3 md:grid-cols-3">
                           {getPriorityProfileDebtOptions().map((option) => {
@@ -21887,32 +21971,32 @@ export function BetaOnboardingV2PageContent({
                                 key={option.value}
                                 type="button"
                                 onClick={() => setPriorityProfileAnswer("P1_debt_priority", option.value)}
-                                className={`rounded-[22px] border px-4 py-4 text-right transition ${
+                                className={`rounded-[22px] border px-4 py-4 text-start transition ${
                                   selected
                                     ? "border-[#111111] bg-[#111111] text-white"
                                     : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111] hover:border-[#111111]"
                                 }`}
                               >
-                                <p className="text-[16px] font-semibold">{option.label}</p>
+                                <p className="text-[16px] font-semibold">{tx(option.label)}</p>
                                 <p className={`mt-2 text-[13px] ${selected ? "text-[var(--ink)]" : "text-[#6e6e73]"}`}>
-                                  {option.hint}
+                                  {tx(option.hint)}
                                 </p>
                               </button>
                             );
                           })}
                         </div>
                         {fieldErrors.P1_debt_priority ? (
-                          <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.P1_debt_priority}</p>
+                          <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.P1_debt_priority)}</p>
                         ) : null}
                       </div>
                     ) : null}
 
                     {getString(answers, "G0_has_goal") === "yes" ? (
-                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                      <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                         <div className="mb-3 space-y-1">
-                          <p className="text-[18px] font-semibold text-[#111111]">بالنسبة للهدف</p>
+                          <p className="text-[18px] font-semibold text-[#111111]">{t("بالنسبة للهدف", "Pour l'objectif", "For the goal")}</p>
                           <p className="text-[13px] text-[#6e6e73]">
-                            اختار شنو بغيتي للهدف دابا، وحنا نرتبو ليه النفس المناسب داخل الخطة كاملة.
+                            {t("اختار شنو بغيتي للهدف دابا، وحنا نرتبو ليه النفس المناسب داخل الخطة كاملة.", "Choisis le rythme de l'objectif, on l'intègre au plan.", "Choose the goal's pace and we'll fit it into the plan.")}
                           </p>
                         </div>
                         <div className="grid gap-3 md:grid-cols-3">
@@ -21923,30 +22007,30 @@ export function BetaOnboardingV2PageContent({
                                 key={option.value}
                                 type="button"
                                 onClick={() => setPriorityProfileAnswer("P1_goal_priority", option.value)}
-                                className={`rounded-[22px] border px-4 py-4 text-right transition ${
+                                className={`rounded-[22px] border px-4 py-4 text-start transition ${
                                   selected
                                     ? "border-[#111111] bg-[#111111] text-white"
                                     : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111] hover:border-[#111111]"
                                 }`}
                               >
-                                <p className="text-[16px] font-semibold">{option.label}</p>
+                                <p className="text-[16px] font-semibold">{tx(option.label)}</p>
                                 <p className={`mt-2 text-[13px] ${selected ? "text-[var(--ink)]" : "text-[#6e6e73]"}`}>
-                                  {option.hint}
+                                  {tx(option.hint)}
                                 </p>
                               </button>
                             );
                           })}
                         </div>
                         {fieldErrors.P1_goal_priority ? (
-                          <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.P1_goal_priority}</p>
+                          <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.P1_goal_priority)}</p>
                         ) : null}
                       </div>
                     ) : null}
 
-                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
+                    <div className="rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]">
                       <div className="mb-3 space-y-1">
-                        <p className="text-[18px] font-semibold text-[#111111]">بالنسبة للمعيشة</p>
-                        <p className="text-[13px] text-[#6e6e73]">اختار شحال بغيتي الحياة اليومية تبقى مريحة وانت خدام على الباقي.</p>
+                        <p className="text-[18px] font-semibold text-[#111111]">{t("بالنسبة للمعيشة", "Pour le quotidien", "For living costs")}</p>
+                        <p className="text-[13px] text-[#6e6e73]">{t("اختار شحال بغيتي الحياة اليومية تبقى مريحة وانت خدام على الباقي.", "Choisis le niveau de confort au quotidien.", "Choose how comfortable daily life should stay.")}</p>
                       </div>
                       <div className="grid gap-3 md:grid-cols-3">
                         {getPriorityProfileLivingOptions(answers).map((option) => {
@@ -21956,35 +22040,35 @@ export function BetaOnboardingV2PageContent({
                               key={option.value}
                               type="button"
                               onClick={() => setPriorityProfileAnswer("P1_living_priority", option.value)}
-                              className={`rounded-[22px] border px-4 py-4 text-right transition ${
+                              className={`rounded-[22px] border px-4 py-4 text-start transition ${
                                 selected
                                   ? "border-[#111111] bg-[#111111] text-white"
                                   : "border-[#d1d1d6] bg-[#fbfbfd] text-[#111111] hover:border-[#111111]"
                               }`}
                             >
-                              <p className="text-[16px] font-semibold">{option.label}</p>
+                              <p className="text-[16px] font-semibold">{tx(option.label)}</p>
                               <p className={`mt-2 text-[13px] ${selected ? "text-[var(--ink)]" : "text-[#6e6e73]"}`}>
-                                {option.hint}
+                                {tx(option.hint)}
                               </p>
                             </button>
                           );
                         })}
                       </div>
                       {fieldErrors.P1_living_priority ? (
-                        <p className="mt-3 text-[12px] text-[#d70015]">{fieldErrors.P1_living_priority}</p>
+                        <p className="mt-3 text-[12px] text-[#d70015]">{tx(fieldErrors.P1_living_priority)}</p>
                       ) : null}
                     </div>
 
-                    <div className="rounded-[22px] border border-[#ecedf0] bg-[#f7f7f8] px-4 py-3 text-right">
-                      <p className="text-[13px] font-semibold text-[#111111]">هادي هي الخطة اللي غادي نبنيو عليها</p>
+                    <div className="rounded-[22px] border border-[#ecedf0] bg-[#f7f7f8] px-4 py-3 text-start">
+                      <p className="text-[13px] font-semibold text-[#111111]">{t("هادي هي الخطة اللي غادي نبنيو عليها", "Le plan retenu", "The plan we'll build on")}</p>
                       <p className="mt-1 text-[13px] text-[#6e6e73]">
                         {getPriorityProfileRecommendedMode(answers) === "debt_relief_first"
-                          ? "غادي نعطيو النفس الأول للديون، ونرتبو الهدف والمعيشة على هاد الأساس."
+                          ? t("غادي نعطيو النفس الأول للديون، ونرتبو الهدف والمعيشة على هاد الأساس.", "Priorité aux dettes ; objectif et quotidien s'organisent autour.", "Debts come first; goal and living costs fit around them.")
                           : getPriorityProfileRecommendedMode(answers) === "goal_growth_first"
-                          ? "غادي نخليو الهدف حاضر من البداية، مع ديون تحت السيطرة ومعيشة معقولة."
+                          ? t("غادي نخليو الهدف حاضر من البداية، مع ديون تحت السيطرة ومعيشة معقولة.", "L'objectif démarre tout de suite, avec des dettes maîtrisées et un quotidien raisonnable.", "The goal starts right away, with debts under control and sensible living costs.")
                           : getPriorityProfileRecommendedMode(answers) === "stability_first"
-                          ? "غادي نحافظو أولاً على راحة المعيشة والاستقرار، ومن بعد نرتبو الباقي."
-                          : "غادي نبنيو خطة متوازنة بين الديون، الأهداف، والمعيشة."}
+                          ? t("غادي نحافظو أولاً على راحة المعيشة والاستقرار، ومن بعد نرتبو الباقي.", "D'abord le confort et la stabilité, puis le reste.", "Comfort and stability first, then the rest.")
+                          : t("غادي نبنيو خطة متوازنة بين الديون، الأهداف، والمعيشة.", "Un plan équilibré entre dettes, objectifs et quotidien.", "A balanced plan across debts, goals and living costs.")}
                       </p>
                     </div>
 
@@ -21995,7 +22079,7 @@ export function BetaOnboardingV2PageContent({
                         className={`h-12 px-6 ${onboardingPrimaryButtonClass}`}
                         style={onboardingPrimaryButtonStyle}
                       >
-                        تأكيد
+                        {t("تأكيد", "Confirmer", "Confirm")}
                       </button>
                     </div>
                   </div>
@@ -22016,12 +22100,12 @@ export function BetaOnboardingV2PageContent({
                       getPriorityProfileRecommendedMode(answers);
                     const directionLabel =
                       modeFromPreviousStep === "debt_relief_first"
-                        ? "تخفيف ضغط الدين"
+                        ? t("تخفيف ضغط الدين", "Alléger les dettes", "Ease debt pressure")
                         : modeFromPreviousStep === "stability_first"
-                        ? "تقوية الأمان"
+                        ? t("تقوية الأمان", "Renforcer la sécurité", "Build safety")
                         : modeFromPreviousStep === "goal_growth_first"
-                        ? "تسريع الأهداف"
-                        : "اتجاه متوازن";
+                        ? t("تسريع الأهداف", "Accélérer les objectifs", "Speed up goals")
+                        : t("اتجاه متوازن", "Direction équilibrée", "Balanced direction");
                     const featuredGuidanceItems = (proposalPreview.candidates ?? []).filter((item: EnvelopeProposalResolved) =>
                       featuredGuidanceProposalIds.has(item.id)
                     );
@@ -22056,10 +22140,10 @@ export function BetaOnboardingV2PageContent({
 
                     return (
                       <div className="space-y-4" dir={pageDir}>
-                        <section className="rounded-[28px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] px-5 py-5 text-right shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)]">
+                        <section className="rounded-[28px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] px-5 py-5 text-start shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)]">
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
-                              <p className="text-[13px] font-semibold text-[#6e6e73]">الاتجاه المختار</p>
+                              <p className="text-[13px] font-semibold text-[#6e6e73]">{t("الاتجاه المختار", "Direction choisie", "Chosen direction")}</p>
                               <h2 className="text-[25px] font-semibold tracking-[-0.02em] text-[#111111]">{directionLabel}</h2>
                             </div>
                             <button
@@ -22069,7 +22153,7 @@ export function BetaOnboardingV2PageContent({
                               style={onboardingSecondaryButtonStyle}
                             >
                               <RefreshCcw className="h-4 w-4" aria-hidden />
-                              بدّل الاتجاه
+                              {t("بدّل الاتجاه", "Changer de direction", "Change direction")}
                             </button>
                           </div>
                           {savedGuidanceSnapshot ? (
@@ -22077,31 +22161,31 @@ export function BetaOnboardingV2PageContent({
                               {getString(answers, "E5_has_debt") === "yes" ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
                                   <Landmark className="h-3.5 w-3.5 text-[#e11d48]" aria-hidden />
-                                  الدين: {formatMad(savedGuidanceSnapshot.planned_debt)}
+                                  {t("الدين:", "Dette :", "Debt:")} {formatMad(savedGuidanceSnapshot.planned_debt)}
                                 </span>
                               ) : null}
                               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
                                 <ShieldCheck className="h-3.5 w-3.5 text-[#2563eb]" aria-hidden />
-                                الأمان: {savedGuidanceSnapshot.keep_safety ? formatMad(savedGuidanceSnapshot.planned_reserve) : "0 MAD"}
+                                {t("الأمان:", "Sécurité :", "Safety:")} {savedGuidanceSnapshot.keep_safety ? formatMad(savedGuidanceSnapshot.planned_reserve) : "0 MAD"}
                               </span>
                               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
                                 <Wallet className="h-3.5 w-3.5 text-[#16a34a]" aria-hidden />
-                                المرونة: {savedGuidanceSnapshot.keep_flex ? formatMad(savedGuidanceSnapshot.planned_flex) : "0 MAD"}
+                                {t("المرونة:", "Souplesse :", "Flexible:")} {savedGuidanceSnapshot.keep_flex ? formatMad(savedGuidanceSnapshot.planned_flex) : "0 MAD"}
                               </span>
                               {hasConcreteGoals ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
                                   <Target className="h-3.5 w-3.5 text-[#6366f1]" aria-hidden />
-                                  الأهداف: {formatMad(savedGuidanceSnapshot.planned_goals)}
+                                  {t("الأهداف:", "Objectifs :", "Goals:")} {formatMad(savedGuidanceSnapshot.planned_goals)}
                                 </span>
                               ) : null}
                             </div>
                           ) : null}
                         </section>
                         {moronaDistributionPreviewNames.length > 0 ? (
-                          <section className="rounded-[20px] border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-right">
+                          <section className="rounded-[20px] border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-start">
                             <p className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#14532d]">
                               <Wallet className="h-4 w-4" aria-hidden />
-                              المرونة غادي تتقسم فالخطوة الجاية على:
+                              {t("المرونة غادي تتقسم فالخطوة الجاية على:", "Le budget souplesse sera réparti à l'étape suivante sur :", "The flexible budget will be split in the next step across:")}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {moronaDistributionPreviewNames.map((name) => (
@@ -22117,33 +22201,33 @@ export function BetaOnboardingV2PageContent({
                         ) : null}
                         {(planningStateCode === "critique" || planningStateCode === "sous_finance") && (
                           <section
-                            className={`rounded-[20px] border px-4 py-4 text-right ${
+                            className={`rounded-[20px] border px-4 py-4 text-start ${
                               planningStateCode === "critique"
                                 ? "border-[#fecaca] bg-[#fff1f2] text-[#9f1239]"
                                 : "border-[#fde68a] bg-[#fffbeb] text-[#92400e]"
                             }`}
                           >
                             <p className="text-[14px] font-semibold">
-                              {planningStateCode === "critique" ? "خطة مؤقتة ضد العجز" : "خطة انتقالية للمعيشة"}
+                              {planningStateCode === "critique" ? t("خطة مؤقتة ضد العجز", "Plan temporaire contre le déficit", "Temporary plan against the shortfall") : t("خطة انتقالية للمعيشة", "Plan de transition pour le quotidien", "Transition plan for living costs")}
                             </p>
                             <p className="mt-1 text-[13px] leading-6">
                               {planningStateCode === "critique"
-                                ? "المعيشة باقية مفعلة فالبنية ولكن التمويل دابا 0 MAD مؤقتاً حتى يتحسن الهامش."
-                                : "المعيشة مفعلة بتمويل جزئي مؤقت. الهدف دابا هو نوصلو للحد الأدنى الكامل."}
+                                ? t("المعيشة باقية مفعلة فالبنية ولكن التمويل دابا 0 MAD مؤقتاً حتى يتحسن الهامش.", "Le quotidien reste dans le plan mais à 0 MAD pour l'instant, jusqu'à ce que la marge s'améliore.", "Living costs stay in the plan at 0 MAD for now, until the margin improves.")
+                                : t("المعيشة مفعلة بتمويل جزئي مؤقت. الهدف دابا هو نوصلو للحد الأدنى الكامل.", "Le quotidien est financé en partie pour l'instant ; l'objectif est d'atteindre le minimum complet.", "Living costs are partly funded for now; the aim is to reach the full minimum.")}
                             </p>
                           </section>
                         )}
 
                         <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 text-center">
                           {featuredGuidanceItems.length > 0 ? (
-                            <section className="w-full rounded-[30px] border border-[#e5e7eb] bg-[var(--surface)] px-5 py-5 text-right shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)] sm:px-6">
+                            <section className="w-full rounded-[30px] border border-[#e5e7eb] bg-[var(--surface)] px-5 py-5 text-start shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)] sm:px-6">
                               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                                <p className="text-[18px] font-semibold text-[#111111]">الأظرفة الأساسية</p>
+                                <p className="text-[18px] font-semibold text-[#111111]">{t("الأظرفة الأساسية", "Enveloppes principales", "Core envelopes")}</p>
                               </div>
                               <div className="grid gap-4 xl:grid-cols-2">
                                 {featuredGuidanceItems.map((item) => {
                                   const isSafetyEnvelope = normalizeProposalName(item.name) === "Imprévus / طوارئ";
-                                  const title = isSafetyEnvelope ? "ظرف الأمان" : "ظرف المرونة";
+                                  const title = isSafetyEnvelope ? t("ظرف الأمان", "Enveloppe sécurité", "Safety envelope") : t("ظرف المرونة", "Enveloppe souplesse", "Flexible envelope");
                                   const knownAmount = isSafetyEnvelope
                                     ? savedGuidanceSnapshot?.keep_safety
                                       ? savedGuidanceSnapshot.planned_reserve
@@ -22163,7 +22247,7 @@ export function BetaOnboardingV2PageContent({
                                   return (
                                     <div
                                       key={item.id}
-                                      className={`rounded-[24px] border px-4 py-4 text-right transition ${accentClass}`}
+                                      className={`rounded-[24px] border px-4 py-4 text-start transition ${accentClass}`}
                                     >
                                       <div className="flex items-start gap-3">
                                         <div className={`inline-flex h-10 w-10 items-center justify-center rounded-full border ${iconClass}`}>
@@ -22178,10 +22262,10 @@ export function BetaOnboardingV2PageContent({
                                             <p className="text-[17px] font-semibold text-[#111111]">{title}</p>
                                             <span
                                               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${badgeClass}`}
-                                              title="مفعّل دائماً"
+                                              title={t("مفعّل دائماً", "Toujours active", "Always on")}
                                             >
                                               <Lock className="h-3.5 w-3.5" aria-hidden />
-                                              <span className="sr-only">مفعّل دائماً</span>
+                                              <span className="sr-only">{t("مفعّل دائماً", "Toujours active", "Always on")}</span>
                                               {typeof knownAmount === "number" && knownAmount > 0 ? formatMad(knownAmount) : null}
                                             </span>
                                           </div>
@@ -22198,7 +22282,7 @@ export function BetaOnboardingV2PageContent({
                             {proposalPreviewSearchEnabled ? (
                               <Input
                                 type="text"
-                                placeholder="قلّب على ظرف..."
+                                placeholder={t("قلّب على ظرف...", "Chercher une enveloppe…", "Search an envelope…")}
                                 value={packSearch}
                                 onChange={(event) => setPackSearch(event.target.value)}
                                 className="h-12 min-w-[240px] rounded-2xl border-[#d1d1d6] bg-[var(--surface)] px-4 text-[15px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] sm:w-[340px]"
@@ -22213,13 +22297,13 @@ export function BetaOnboardingV2PageContent({
                               className={`h-11 px-4 text-[13px] ${onboardingSecondaryButtonClass}`}
                               style={onboardingSecondaryButtonStyle}
                             >
-                              + زيد ظرف
+                              {t("+ زيد ظرف", "+ Ajouter une enveloppe", "+ Add an envelope")}
                             </button>
                           </div>
 
                           {uiError ? (
                             <div className="w-full max-w-3xl rounded-2xl border border-[#ffd4d8] bg-[#fff4f5] px-4 py-3 text-center text-[14px] text-[#d70015]">
-                              {uiError}
+                              {tx(uiError)}
                             </div>
                           ) : null}
                         </div>
@@ -22228,7 +22312,7 @@ export function BetaOnboardingV2PageContent({
                           <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
                             {filteredGroups.length === 0 ? (
                               <div className="rounded-2xl border border-dashed border-[#d1d1d6] bg-[#fafafc] px-4 py-6 text-center text-[14px] text-[#6e6e73] lg:col-span-2 2xl:col-span-3">
-                                ما بقى حتى ظرف بهاد البحث.
+                                {t("ما بقى حتى ظرف بهاد البحث.", "Aucune enveloppe ne correspond à cette recherche.", "No envelope matches this search.")}
                               </div>
                             ) : null}
                             {filteredGroups.map((group, index) => {
@@ -22259,12 +22343,12 @@ export function BetaOnboardingV2PageContent({
                                   <button
                                     type="button"
                                     onClick={() => togglePackGroup(group.groupKey)}
-                                    className={`flex w-full items-center justify-between px-4 py-3 text-right ${groupAccent.header}`}
+                                    className={`flex w-full items-center justify-between px-4 py-3 text-start ${groupAccent.header}`}
                                   >
                                     <div className="space-y-1">
                                       <div className="flex items-center justify-end gap-2">
                                         <p className="text-[15px] font-semibold text-[#111111]">
-                                          {getProposalDomainLabelForUi(group.groupKey)}
+                                          {tx(getProposalDomainLabelForUi(group.groupKey))}
                                         </p>
                                         <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${groupAccent.icon}`}>
                                           <GroupIcon className="h-4 w-4" />
@@ -22272,19 +22356,19 @@ export function BetaOnboardingV2PageContent({
                                       </div>
                                       {group.groupKey !== "buffer" && group.groupKey !== "lifestyle" ? (
                                         <p className="text-[12px] text-[#6e6e73]">
-                                          {selectedInGroup}/{group.items.length} مختارة
+                                          {selectedInGroup}/{group.items.length} {t("مختارة", "choisies", "selected")}
                                         </p>
                                       ) : null}
                                       {groupShownTotal > 0 ? (
                                         <p className="text-[12px] font-semibold text-[#334155]">
-                                          المجموع: {formatMad(groupShownTotal)}
+                                          {t("المجموع:", "Total :", "Total:")} {formatMad(groupShownTotal)}
                                         </p>
                                       ) : null}
                                       {groupBudgetMeta?.guidanceHint &&
                                       group.groupKey !== "buffer" &&
                                       group.groupKey !== "lifestyle" ? (
                                         <p className="text-[12px] text-[#475569]">
-                                          {groupBudgetMeta.guidanceHint}
+                                          {tx(groupBudgetMeta.guidanceHint)}
                                         </p>
                                       ) : null}
                                       {groupBudgetMeta?.guidanceAmount !== null ? (
@@ -22355,7 +22439,7 @@ export function BetaOnboardingV2PageContent({
                                         return (
                                           <div
                                             key={item.id}
-                                            className={`rounded-2xl border px-3 py-3 text-right transition ${cardToneClass}`}
+                                            className={`rounded-2xl border px-3 py-3 text-start transition ${cardToneClass}`}
                                           >
                                             <div className="flex items-start gap-3">
                                               {internalEnvelopeDetail ? (
@@ -22384,24 +22468,24 @@ export function BetaOnboardingV2PageContent({
                                                   title={
                                                     fixedLocked && active
                                                       ? lifestyleLocked
-                                                        ? "ظرف المعيشة مفعّل دائماً"
+                                                        ? t("ظرف المعيشة مفعّل دائماً", "L'enveloppe du quotidien reste toujours active", "The living-costs envelope is always on")
                                                         : guidanceLocked
-                                                        ? "هاد الظرف بقا مفعّل من البداية"
-                                                        : "ظرف فيه مبلغ ثابت، ما يقدرش يطفى"
+                                                        ? t("هاد الظرف بقا مفعّل من البداية", "Cette enveloppe est active dès le départ", "This envelope is on from the start")
+                                                        : t("ظرف فيه مبلغ ثابت، ما يقدرش يطفى", "Enveloppe à montant fixe : elle ne peut pas être désactivée", "Fixed-amount envelope: it can't be turned off")
                                                       : active
-                                                      ? "معتمد"
-                                                      : "محيد"
+                                                      ? t("معتمد", "Retenue", "Included")
+                                                      : t("محيد", "Retirée", "Removed")
                                                   }
                                                   aria-label={
                                                     fixedLocked && active
                                                       ? lifestyleLocked
-                                                        ? "ظرف المعيشة مفعّل دائماً"
+                                                        ? t("ظرف المعيشة مفعّل دائماً", "L'enveloppe du quotidien reste toujours active", "The living-costs envelope is always on")
                                                         : guidanceLocked
-                                                        ? "هاد الظرف بقا مفعّل من البداية"
-                                                        : "ظرف فيه مبلغ ثابت، ما يقدرش يطفى"
+                                                        ? t("هاد الظرف بقا مفعّل من البداية", "Cette enveloppe est active dès le départ", "This envelope is on from the start")
+                                                        : t("ظرف فيه مبلغ ثابت، ما يقدرش يطفى", "Enveloppe à montant fixe : elle ne peut pas être désactivée", "Fixed-amount envelope: it can't be turned off")
                                                       : active
-                                                      ? "معتمد"
-                                                      : "محيد"
+                                                      ? t("معتمد", "Retenue", "Included")
+                                                      : t("محيد", "Retirée", "Removed")
                                                   }
                                                 >
                                                   {active ? <Check className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
@@ -22412,8 +22496,8 @@ export function BetaOnboardingV2PageContent({
                                                 <div className="flex flex-col gap-2">
                                                   <div className="flex flex-wrap items-start justify-between gap-2">
                                                     <div className="min-w-0 flex-1">
-                                                      <span className="block break-words text-right text-[16px] font-semibold leading-6 text-[#111111]">
-                                                        {getEnvelopeLabelForUi(item.final_name)}
+                                                      <span className="block break-words text-start text-[16px] font-semibold leading-6 text-[#111111]">
+                                                        {getEnvelopeDisplayNameForLocale(item.final_name)}
                                                       </span>
                                                     </div>
                                                     <button
@@ -22425,8 +22509,8 @@ export function BetaOnboardingV2PageContent({
                                                         }))
                                                       }
                                                       className="shrink-0 rounded-full border border-[#d1d1d6] bg-[var(--surface)] p-2 text-[#3c3c43] transition hover:bg-[#f5f5f7]"
-                                                      title={expanded ? "خبي التفاصيل" : "تفاصيل"}
-                                                      aria-label={expanded ? "خبي التفاصيل" : "تفاصيل"}
+                                                      title={expanded ? t("خبي التفاصيل", "Masquer les détails", "Hide details") : t("تفاصيل", "Détails", "Details")}
+                                                      aria-label={expanded ? t("خبي التفاصيل", "Masquer les détails", "Hide details") : t("تفاصيل", "Détails", "Details")}
                                                     >
                                                       {expanded ? <ChevronUp className="h-4 w-4" /> : <CircleHelp className="h-4 w-4" />}
                                                     </button>
@@ -22440,7 +22524,7 @@ export function BetaOnboardingV2PageContent({
                                                     ) : null}
                                                     {internalEnvelopeDetail && !isMoronaDistributionTarget ? (
                                                       <span className="rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[#374151]">
-                                                        من نفس الغلاف
+                                                        {t("من نفس الغلاف", "Même enveloppe", "Same envelope")}
                                                       </span>
                                                     ) : internalEnvelopeDetail ? null : fixedLocked ? (
                                                       <span
@@ -22452,14 +22536,14 @@ export function BetaOnboardingV2PageContent({
                                                       >
                                                         <span className="inline-flex items-center gap-1">
                                                           <Lock className="h-3.5 w-3.5" aria-hidden />
-                                                          {guidanceLocked ? "مفعّل من البداية" : "ثابت"}
+                                                          {guidanceLocked ? t("مفعّل من البداية", "Active dès le départ", "On from the start") : t("ثابت", "Fixe", "Fixed")}
                                                         </span>
                                                       </span>
                                                     ) : null}
                                                     {isMoronaDistributionTarget ? (
                                                       <span className="inline-flex items-center gap-1 rounded-full border border-[#a7f3d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#047857]">
                                                         <Wallet className="h-3.5 w-3.5" aria-hidden />
-                                                        من المرونة
+                                                        {t("من المرونة", "Budget souplesse", "Flexible budget")}
                                                       </span>
                                                     ) : null}
                                                     {item.custom_category ? (
@@ -22470,7 +22554,7 @@ export function BetaOnboardingV2PageContent({
                                                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tierBadgeClass}`}>
                                                       <span className="inline-flex items-center gap-1">
                                                         <TierIcon className="h-3.5 w-3.5" />
-                                                        <span>{getProposalTierLabelForUi(item.tier)}</span>
+                                                        <span>{tx(getProposalTierLabelForUi(item.tier))}</span>
                                                       </span>
                                                     </span>
                                                   </div>
@@ -22480,7 +22564,7 @@ export function BetaOnboardingV2PageContent({
                                                   <p className="mt-2 rounded-xl bg-[#fff8e8] px-3 py-2 text-[12px] font-medium text-[#7a4b00]">
                                                     <span className="inline-flex items-center gap-2">
                                                       <TriangleAlert className="h-4 w-4" />
-                                                      <span>{goalHint}</span>
+                                                      <span>{tx(goalHint)}</span>
                                                     </span>
                                                   </p>
                                                 ) : null}
@@ -22488,7 +22572,7 @@ export function BetaOnboardingV2PageContent({
                                                 {expanded ? (
                                                   <div className="mt-3 space-y-3">
                                                     <div className="space-y-2">
-                                                      <p className="text-[12px] font-medium text-[#6e6e73]">بدّل الاسم إلا بغيتي</p>
+                                                      <p className="text-[12px] font-medium text-[#6e6e73]">{t("بدّل الاسم إلا بغيتي", "Renommer si tu veux", "Rename if you like")}</p>
                                                       <Input
                                                         value={item.final_name}
                                                         onChange={(event) => {
@@ -22524,14 +22608,14 @@ export function BetaOnboardingV2PageContent({
                           </div>
                         </div>
                         {fieldErrors.E10_keep_suggestions ? (
-                          <p className="text-center text-[12px] text-[#d70015]">{fieldErrors.E10_keep_suggestions}</p>
+                          <p className="text-center text-[12px] text-[#d70015]">{tx(fieldErrors.E10_keep_suggestions)}</p>
                         ) : null}
 
                         <div className="sticky bottom-3 z-20 mx-auto w-full max-w-3xl px-1">
                           <div className="rounded-[28px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-center text-[14px] font-semibold text-[#111111] sm:text-right">
-                              {proposalPreview.selected_envelopes.length} أظرفة مختارة
+                            <p className="text-center text-[14px] font-semibold text-[#111111] sm:text-start">
+                              {proposalPreview.selected_envelopes.length} {t("أظرفة مختارة", "enveloppes choisies", "envelopes selected")}
                             </p>
                             <button
                               type="button"
@@ -22540,7 +22624,7 @@ export function BetaOnboardingV2PageContent({
                               style={onboardingPrimaryButtonStyle}
                               disabled={proposalPreview.selected_envelopes.length === 0}
                             >
-                                كمل لقواعد التوزيع
+                                {t("كمل لقواعد التوزيع", "Continuer vers la répartition", "Continue to the split")}
                             </button>
                           </div>
                           </div>
@@ -22553,20 +22637,20 @@ export function BetaOnboardingV2PageContent({
                 {currentQuestion.kind === "smart_settings" ? (
                   <div className="mx-auto max-w-3xl space-y-5">
                     {/* 1. The only required input: the last income, which opens the first cycle. */}
-                    <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
+                    <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h2 className="text-[20px] font-semibold text-[#111111]">آخر دخل توصلتي بيه</h2>
+                        <h2 className="text-[20px] font-semibold text-[#111111]">{t("آخر دخل توصلتي بيه", "Ton dernier revenu", "Your last income")}</h2>
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1 text-[12px] font-semibold text-[#1d4ed8]">
                           <RefreshCcw className="h-3.5 w-3.5" aria-hidden />
-                          دورة {sweepCadenceLabel} · كل {sweepIntervalDays} يوم
+                          {t(`دورة ${sweepCadenceLabel} · كل ${sweepIntervalDays} يوم`, `Cycle ${tx(sweepCadenceLabel).toLowerCase()} · tous les ${sweepIntervalDays} jours`, `${tx(sweepCadenceLabel)} cycle · every ${sweepIntervalDays} days`)}
                         </span>
                       </div>
-                      <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">منو كتبدا أول دورة ديالك.</p>
+                      <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">{t("منو كتبدا أول دورة ديالك.", "Il marque le début de ton premier cycle.", "It marks the start of your first cycle.")}</p>
 
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <div className="min-w-0">
                           <label htmlFor="smart-settings-income-date" className="mb-2 block text-[14px] font-semibold text-[#111111]">
-                            التاريخ
+                            {t("التاريخ", "Date", "Date")}
                           </label>
                           <Input
                             id="smart-settings-income-date"
@@ -22584,13 +22668,13 @@ export function BetaOnboardingV2PageContent({
                               className="mt-2 inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1 text-[12px] font-semibold text-[#1d4ed8]"
                             >
                               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                              اليوم: {formatIsoDateLabel(sweepSuggestedIncomeDate)}
+                              {t("اليوم:", "Aujourd'hui :", "Today:")} {formatIsoDateLabel(sweepSuggestedIncomeDate)}
                             </button>
                           ) : null}
                         </div>
                         <div className="min-w-0">
                           <label htmlFor="smart-settings-income-amount" className="mb-2 block text-[14px] font-semibold text-[#111111]">
-                            المبلغ
+                            {t("المبلغ", "Montant", "Amount")}
                           </label>
                           <Input
                             id="smart-settings-income-amount"
@@ -22608,7 +22692,7 @@ export function BetaOnboardingV2PageContent({
                               className="mt-2 inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-[#dcfce7] bg-[#f0fdf4] px-3 py-1 text-[12px] font-semibold text-[#15803d]"
                             >
                               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                              من الأجوبة ديالك: {formatMad(sweepSuggestedIncomeAmount)}
+                              {t("من الأجوبة ديالك:", "D'après tes réponses :", "From your answers:")} {formatMad(sweepSuggestedIncomeAmount)}
                             </button>
                           ) : null}
                         </div>
@@ -22616,19 +22700,19 @@ export function BetaOnboardingV2PageContent({
                       {sweepAmountLooksSuspicious ? (
                         <p className="mt-3 inline-flex items-start gap-2 text-[12px] leading-6 text-[#92400e]">
                           <TriangleAlert className="mt-1 h-4 w-4 shrink-0" aria-hidden />
-                          المبلغ باين أقل بزاف من التقدير ديالك. راجعو قبل التفعيل.
+                          {t("المبلغ باين أقل بزاف من التقدير ديالك. راجعو قبل التفعيل.", "Ce montant semble bien inférieur à ton estimation. Vérifie avant d'activer.", "This amount looks much lower than your estimate. Check before activating.")}
                         </p>
                       ) : null}
                     </section>
 
                     {/* 2. What happens to unspent money: recommended default, editable. */}
-                    <section className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
+                    <section className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-start shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                          <h2 className="text-[20px] font-semibold text-[#111111]">الباقي فآخر الدورة</h2>
+                          <h2 className="text-[20px] font-semibold text-[#111111]">{t("الباقي فآخر الدورة", "Le reste en fin de cycle", "Leftovers at cycle end")}</h2>
                           <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">
-                            {Object.keys(proposalEditedRollover).length === 0 ? "الإعداد الموصى به: " : "الإعداد ديالك: "}
-                            {rolloverSelectedCount} من {proposalPreview.selected_envelopes.length} أظرفة كيبقى فيهم الباقي، والباقي كيمشي للادخار.
+                            {Object.keys(proposalEditedRollover).length === 0 ? t("الإعداد الموصى به: ", "Réglage recommandé : ", "Recommended setting: ") : t("الإعداد ديالك: ", "Ton réglage : ", "Your setting: ")}
+                            {t(`${rolloverSelectedCount} من ${proposalPreview.selected_envelopes.length} أظرفة كيبقى فيهم الباقي، والباقي كيمشي للادخار.`, `${rolloverSelectedCount} enveloppes sur ${proposalPreview.selected_envelopes.length} gardent leur reste ; le reste des autres part en épargne.`, `${rolloverSelectedCount} of ${proposalPreview.selected_envelopes.length} envelopes keep their leftovers; the others' leftovers go to savings.`)}
                           </p>
                         </div>
                         <button
@@ -22638,7 +22722,7 @@ export function BetaOnboardingV2PageContent({
                           onClick={() => setShowRolloverDetails((prev) => !prev)}
                           className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-full border border-[#d1d1d6] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#f2f2f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74]"
                         >
-                          {showRolloverDetails ? "خبّي التفاصيل" : "بدّل"}
+                          {showRolloverDetails ? t("خبّي التفاصيل", "Masquer les détails", "Hide details") : t("بدّل", "Modifier", "Change")}
                           {showRolloverDetails ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
                         </button>
                       </div>
@@ -22651,21 +22735,21 @@ export function BetaOnboardingV2PageContent({
                             onClick={() => applyProposalRolloverPreset("recommended")}
                             className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-2 text-[13px] font-semibold text-[#166534] transition hover:bg-[#dcfce7]"
                           >
-                            فعّل غير الموصى به
+                            {t("فعّل غير الموصى به", "Seulement les recommandées", "Recommended only")}
                           </button>
                           <button
                             type="button"
                             onClick={() => applyProposalRolloverPreset("all_on")}
                             className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#dbeafe] bg-[#eff6ff] px-4 py-2 text-[13px] font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
                           >
-                            فعّل الكل
+                            {t("فعّل الكل", "Tout activer", "Turn all on")}
                           </button>
                           <button
                             type="button"
                             onClick={() => applyProposalRolloverPreset("all_off")}
                             className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#374151] transition hover:bg-[#f8fafc]"
                           >
-                            طفي الكل
+                            {t("طفي الكل", "Tout désactiver", "Turn all off")}
                           </button>
                         </div>
 
@@ -22676,7 +22760,7 @@ export function BetaOnboardingV2PageContent({
                               className="overflow-hidden rounded-[24px] border border-[#e5e5ea] bg-[#fafafc]"
                             >
                               <div className="flex items-center justify-between gap-3 border-b border-[#e5e5ea] bg-[var(--surface)] px-4 py-3">
-                                <p className="text-[16px] font-semibold text-[#111111]">{group.label}</p>
+                                <p className="text-[16px] font-semibold text-[#111111]">{tx(group.label)}</p>
                                 <span className="rounded-full bg-[#f2f2f7] px-2.5 py-1 text-[11px] font-semibold text-[#3c3c43]">
                                   {group.items.length}
                                 </span>
@@ -22690,16 +22774,16 @@ export function BetaOnboardingV2PageContent({
                                   const isLockedEnvelope = isGoalEnvelope || isDebtEnvelope;
                                   return (
                                     <div key={item.id} className="flex items-center gap-3 px-4 py-3">
-                                      <div className="min-w-0 flex-1 text-right">
+                                      <div className="min-w-0 flex-1 text-start">
                                         <p className="text-[15px] font-semibold text-[#111111]">{displayName}</p>
                                         <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
                                           {isGoalEnvelope
-                                            ? "يبقى حتى الدفعة الجاية (إجباري للأهداف)"
+                                            ? t("يبقى حتى الدفعة الجاية (إجباري للأهداف)", "Reste jusqu'au prochain revenu (obligatoire pour les objectifs)", "Stays until the next income (required for goals)")
                                             : isDebtEnvelope
-                                            ? "يبقى حتى الدفعة الجاية (إجباري للديون)"
+                                            ? t("يبقى حتى الدفعة الجاية (إجباري للديون)", "Reste jusqu'au prochain revenu (obligatoire pour les dettes)", "Stays until the next income (required for debts)")
                                             : item.final_rollover_enabled
-                                            ? "يبقى حتى الدفعة الجاية"
-                                            : "يمشي لظرف الادخار"}
+                                            ? t("يبقى حتى الدفعة الجاية", "Reste jusqu'au prochain revenu", "Stays until the next income")
+                                            : t("يمشي لظرف الادخار", "Part dans l'épargne", "Goes to savings")}
                                         </p>
                                       </div>
                                       <Switch
@@ -22726,22 +22810,22 @@ export function BetaOnboardingV2PageContent({
                     <ul className="flex flex-wrap gap-2 text-[13px] font-semibold text-[#111111]">
                       <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
                         <Wallet className="h-4 w-4 text-[#16a34a]" aria-hidden />
-                        {proposalPreview.selected_envelopes.length} أظرفة
+                        {proposalPreview.selected_envelopes.length} {t("أظرفة", "enveloppes", "envelopes")}
                       </li>
                       <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
                         <RefreshCcw className="h-4 w-4 text-[#2563eb]" aria-hidden />
-                        {rolloverSelectedCount} كيحتافظو بالباقي
+                        {rolloverSelectedCount} {t("كيحتافظو بالباقي", "gardent le reste", "keep leftovers")}
                       </li>
                       {goalsCount > 0 ? (
                         <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
                           <Target className="h-4 w-4 text-[#6366f1]" aria-hidden />
-                          {goalsCount} أهداف
+                          {goalsCount} {t("أهداف", "objectifs", "goals")}
                         </li>
                       ) : null}
                       {debtsCount > 0 ? (
                         <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
                           <Landmark className="h-4 w-4 text-[#e11d48]" aria-hidden />
-                          {debtsCount} ديون
+                          {debtsCount} {t("ديون", "dettes", "debts")}
                         </li>
                       ) : null}
                       <li className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
@@ -22750,18 +22834,18 @@ export function BetaOnboardingV2PageContent({
                           distributionOnboardingStatus?.setup_status === "applied" ||
                           distributionOnboardingStatus?.setup_status === "legacy_rules_detected" ? (
                           <span className="min-w-0 [overflow-wrap:anywhere]">
-                            {distributionOnboardingStatus?.active_config?.name ?? "التوزيع"} ·{" "}
+                            {distributionOnboardingStatus?.active_config?.name ?? t("التوزيع", "Répartition", "Split")} ·{" "}
                             {distributionOnboardingStatus?.covered_total ?? 0}/{distributionOnboardingStatus?.eligible_total ?? 0}
                           </span>
                         ) : (
-                          <span>التوزيع: تقدر تضبطو من بعد</span>
+                          <span>{t("التوزيع: تقدر تضبطو من بعد", "Répartition : à régler plus tard", "Split: set it up later")}</span>
                         )}
                       </li>
                     </ul>
 
                     {uiError ? (
                       <div className="rounded-2xl border border-[#ffd4d8] bg-[#fff4f5] px-4 py-3 text-center text-[14px] text-[#d70015]">
-                        {uiError}
+                        {tx(uiError)}
                       </div>
                     ) : null}
 
@@ -22774,7 +22858,7 @@ export function BetaOnboardingV2PageContent({
                             className={`h-12 min-w-[150px] ${onboardingSecondaryButtonClass}`}
                             style={onboardingSecondaryButtonStyle}
                           >
-                            رجع نراجع
+                            {t("رجع نراجع", "Revoir", "Go back")}
                           </button>
                           <button
                             type="button"
@@ -22786,18 +22870,18 @@ export function BetaOnboardingV2PageContent({
                             disabled={isApplyingPlan || onboardingRecordStatus === "saving"}
                           >
                             {isApplyingPlan
-                              ? "كنفعّلو الخطة..."
+                              ? t("كنفعّلو الخطة...", "Activation du plan…", "Activating the plan…")
                               : isRegisterGuestMode || isPostRegisterMode
-                              ? "كمل إنشاء الحساب"
-                              : "فعّل الخطة ودخل"}
+                              ? t("كمل إنشاء الحساب", "Terminer l'inscription", "Finish creating the account")
+                              : t("فعّل الخطة ودخل", "Activer mon plan", "Activate my plan")}
                           </button>
                         </div>
                         {!isRegisterGuestMode && !isPostRegisterMode && (onboardingRecordStatus === "saving" || isApplyingPlan) ? (
-                          <p className="mt-2 text-center text-[12px] text-[#6e6e73]">كنسجلو المعلومات ديالك…</p>
+                          <p className="mt-2 text-center text-[12px] text-[#6e6e73]">{t("كنسجلو المعلومات ديالك…", "Enregistrement de tes informations…", "Saving your information…")}</p>
                         ) : null}
                         {!isRegisterGuestMode && !isPostRegisterMode && onboardingRecordStatus === "error" ? (
                           <p className="mt-2 text-center text-[12px] text-[#d70015]">
-                            {onboardingRecordError || "وقع مشكل فحفظ المعلومات ديالك."}
+                            {onboardingRecordError || t("وقع مشكل فحفظ المعلومات ديالك.", "Tes informations n'ont pas pu être enregistrées.", "Your information couldn't be saved.")}
                           </p>
                         ) : null}
                       </div>
@@ -22824,7 +22908,7 @@ export function BetaOnboardingV2PageContent({
                         <p className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4 text-[13px] leading-6 text-[#334155]">
                           {isStandaloneDistributionRoute
                             ? distributionUiCopy.noTargets
-                            : "ما لقيناش أظرفة مرنة للتوزيع فهاد المرحلة، غادي نكملو مباشرة للإعدادات الذكية."}
+                            : t("ما لقيناش أظرفة مرنة للتوزيع فهاد المرحلة، غادي نكملو مباشرة للإعدادات الذكية.", "Aucune enveloppe flexible à répartir : on passe directement aux réglages.", "No flexible envelopes to split: we'll go straight to the settings.")}
                         </p>
                       ) : (
                         <>
@@ -22880,7 +22964,7 @@ export function BetaOnboardingV2PageContent({
                             </p>
                           ) : distributionOnboardingStatus?.message && locale === "ar" && !distributionIsReady ? (
                             <p className="mt-2 text-[12px] leading-6 text-[#64748b]">
-                              {distributionOnboardingStatus.message}
+                              {tx(distributionOnboardingStatus.message)}
                             </p>
                           ) : null}
 
@@ -22959,7 +23043,7 @@ export function BetaOnboardingV2PageContent({
                     ) : null}
 
                     {fieldErrors.E11b_distribution_setup ? (
-                      <p className="text-center text-[12px] text-[#d70015]">{fieldErrors.E11b_distribution_setup}</p>
+                      <p className="text-center text-[12px] text-[#d70015]">{tx(fieldErrors.E11b_distribution_setup)}</p>
                     ) : null}
 
                     <div className="sticky bottom-3 z-20 mx-auto w-full max-w-4xl px-1">
@@ -22989,10 +23073,10 @@ export function BetaOnboardingV2PageContent({
                               className={`h-12 min-w-[150px] ${onboardingSecondaryButtonClass}`}
                               style={onboardingSecondaryButtonStyle}
                             >
-                              رجع نراجع
+                              {t("رجع نراجع", "Revoir", "Go back")}
                             </button>
                             {!canContinueFromDistributionSetup ? (
-                              <p className="flex-1 text-center text-[12px] text-[#92400e] sm:text-right">
+                              <p className="flex-1 text-center text-[12px] text-[#92400e] sm:text-start">
                                 {distributionUiCopy.footerHint}
                               </p>
                             ) : null}
@@ -23005,7 +23089,7 @@ export function BetaOnboardingV2PageContent({
                               style={onboardingPrimaryButtonStyle}
                               disabled={!canContinueFromDistributionSetup || distributionSyncingTargets}
                             >
-                              كمل للإعدادات الذكية
+                              {t("كمل للإعدادات الذكية", "Continuer vers les réglages", "Continue to settings")}
                             </button>
                           </div>
                         )}
@@ -23037,7 +23121,7 @@ export function BetaOnboardingV2PageContent({
                       }`}
                     />
                     {fieldErrors[`D2_debt_name_${currentQuestion.debtIndex ?? 1}`] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[`D2_debt_name_${currentQuestion.debtIndex ?? 1}`]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[`D2_debt_name_${currentQuestion.debtIndex ?? 1}`])}</p>
                     ) : null}
                     <Input
                       type="number"
@@ -23051,7 +23135,7 @@ export function BetaOnboardingV2PageContent({
                       }`}
                     />
                     {fieldErrors[`D3_debt_remaining_amount_${currentQuestion.debtIndex ?? 1}`] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[`D3_debt_remaining_amount_${currentQuestion.debtIndex ?? 1}`]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[`D3_debt_remaining_amount_${currentQuestion.debtIndex ?? 1}`])}</p>
                     ) : null}
                     <Input
                       type="number"
@@ -23065,7 +23149,7 @@ export function BetaOnboardingV2PageContent({
                       }`}
                     />
                     {fieldErrors[`D4_debt_monthly_payment_${currentQuestion.debtIndex ?? 1}`] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[`D4_debt_monthly_payment_${currentQuestion.debtIndex ?? 1}`]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[`D4_debt_monthly_payment_${currentQuestion.debtIndex ?? 1}`])}</p>
                     ) : null}
                     {getString(answers, "D5_debt_target_date_preference") === "yes" ? (
                       <>
@@ -23084,7 +23168,7 @@ export function BetaOnboardingV2PageContent({
                         />
                         {fieldErrors[`D5a_debt_target_date_${currentQuestion.debtIndex ?? 1}`] ? (
                           <p className="text-[12px] text-[#d70015]">
-                            {fieldErrors[`D5a_debt_target_date_${currentQuestion.debtIndex ?? 1}`]}
+                            {tx(fieldErrors[`D5a_debt_target_date_${currentQuestion.debtIndex ?? 1}`])}
                           </p>
                         ) : null}
                       </>
@@ -23112,7 +23196,7 @@ export function BetaOnboardingV2PageContent({
                       <Input
                         ref={inputRef}
                         type="number"
-                        placeholder="شحال هو أقل دخل متوقع فالشهر؟"
+                        placeholder={t("شحال هو أقل دخل متوقع فالشهر؟", "Quel est le revenu minimum attendu par mois ?", "What's the lowest income you expect per month?")}
                         value={getString(answers, `${currentQuestion.id}_min`)}
                         onChange={(event) => setInputAnswer(`${currentQuestion.id}_min`, event.target.value)}
                         className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
@@ -23121,12 +23205,12 @@ export function BetaOnboardingV2PageContent({
                       />
                     ) : null}
                     {fieldErrors[`${currentQuestion.id}_min`] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[`${currentQuestion.id}_min`]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[`${currentQuestion.id}_min`])}</p>
                     ) : null}
                     <Input
                       ref={currentQuestion.id === "H3_income_profile" ? undefined : inputRef}
                       type="number"
-                      placeholder="شهر ضعيف"
+                      placeholder={t("شهر ضعيف", "Mois faible", "Weak month")}
                       value={getString(answers, `${currentQuestion.id}_weak`)}
                       onChange={(event) => setInputAnswer(`${currentQuestion.id}_weak`, event.target.value)}
                       className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
@@ -23134,11 +23218,11 @@ export function BetaOnboardingV2PageContent({
                       }`}
                     />
                     {fieldErrors[`${currentQuestion.id}_weak`] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[`${currentQuestion.id}_weak`]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[`${currentQuestion.id}_weak`])}</p>
                     ) : null}
                     <Input
                       type="number"
-                      placeholder="شهر مزيان"
+                      placeholder={t("شهر مزيان", "Bon mois", "Good month")}
                       value={getString(answers, `${currentQuestion.id}_good`)}
                       onChange={(event) => setInputAnswer(`${currentQuestion.id}_good`, event.target.value)}
                       className={`h-14 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
@@ -23146,7 +23230,7 @@ export function BetaOnboardingV2PageContent({
                       }`}
                     />
                     {fieldErrors[`${currentQuestion.id}_good`] ? (
-                      <p className="text-[12px] text-[#d70015]">{fieldErrors[`${currentQuestion.id}_good`]}</p>
+                      <p className="text-[12px] text-[#d70015]">{tx(fieldErrors[`${currentQuestion.id}_good`])}</p>
                     ) : null}
                     <button
                       type="button"
@@ -23154,14 +23238,14 @@ export function BetaOnboardingV2PageContent({
                       className={`h-12 ${onboardingPrimaryButtonClass} lg:col-span-2 lg:justify-self-center`}
                       style={onboardingPrimaryButtonStyle}
                     >
-                      تأكيد
+                      {t("تأكيد", "Confirmer", "Confirm")}
                     </button>
                   </form>
                 ) : null}
 
                 {currentQuestion.kind === "debt_plan_preview" ? (
                   <div className="mx-auto max-w-5xl space-y-4">
-                    <div className="rounded-[24px] border border-[#dbeafe] bg-[#f8fbff] p-4 text-right shadow-[0_18px_40px_-34px_rgba(37,99,235,0.22)]">
+                    <div className="rounded-[24px] border border-[#dbeafe] bg-[#f8fbff] p-4 text-start shadow-[0_18px_40px_-34px_rgba(37,99,235,0.22)]">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
                           <p className="text-[17px] font-semibold text-[#111111]">الخطة اللي غادي نمشيو بها دابا</p>
@@ -23187,7 +23271,7 @@ export function BetaOnboardingV2PageContent({
                       {debtPlanPreviewItems.map((item) => (
                         <div
                           key={item.index}
-                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-right shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
+                          className="rounded-[22px] border border-[#e5e5ea] bg-[var(--surface)] p-4 text-start shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="space-y-1">
@@ -23323,7 +23407,7 @@ export function BetaOnboardingV2PageContent({
                 ) : null}
                 {uiError ? (
                   <p className="mt-4 rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-[14px] text-[#d70015]">
-                    {uiError}
+                    {tx(uiError)}
                   </p>
                 ) : null}
               </div>
@@ -23399,12 +23483,12 @@ export function BetaOnboardingV2PageContent({
 	          <DialogContent className="max-w-sm overflow-hidden border-0 bg-transparent p-0 shadow-none" dir={pageDir}>
             {guidanceScenarioDetail ? (
               <div className="relative overflow-hidden rounded-[28px] border border-[#dbeafe] bg-[var(--surface)] p-5 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)]">
-                <DialogHeader className="text-right">
+                <DialogHeader className="text-start">
                   <DialogTitle className="text-[22px] font-semibold text-[#111111]">
-                    {guidanceScenarioDetail.detailTitle}
+                    {tx(guidanceScenarioDetail.detailTitle)}
                   </DialogTitle>
                   <DialogDescription className="text-[13px] leading-7 text-[#4b5563]">
-                    {guidanceScenarioDetail.detailBody}
+                    {tx(guidanceScenarioDetail.detailBody)}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -23440,14 +23524,14 @@ export function BetaOnboardingV2PageContent({
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-[18px] border border-[#dcfce7] bg-[#f0fdf4] px-4 py-3 text-right">
+                    <div className="mt-4 rounded-[18px] border border-[#dcfce7] bg-[#f0fdf4] px-4 py-3 text-start">
                       <p className="text-[12px] font-semibold text-[#166534]">الخلاصة العملية</p>
                       <p className="mt-1 text-[13px] leading-6 text-[#166534]">
-                        {guidanceScenarioDetail.detailResult}
+                        {tx(guidanceScenarioDetail.detailResult)}
                       </p>
                       <div className="mt-3 space-y-2 text-[12px] leading-6 text-[#166534]">
                         {guidanceScenarioDetailPreview.facts.map((fact) => (
-                          <p key={fact}>• {fact}</p>
+                          <p key={fact}>• {tx(fact)}</p>
                         ))}
                       </div>
                     </div>
@@ -23470,7 +23554,7 @@ export function BetaOnboardingV2PageContent({
         >
 	          <DialogContent className="max-w-2xl overflow-hidden border-0 bg-transparent p-0 shadow-none" dir={pageDir}>
             <div className="relative overflow-hidden rounded-[28px] border border-[#e5e7eb] bg-[var(--surface)] p-5 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)]">
-              <DialogHeader className="text-right">
+              <DialogHeader className="text-start">
                 <DialogTitle className="text-[22px] font-semibold text-[#111111]">
                   تعديل {guidanceModalCategory === "income"
                     ? "الدخل"
@@ -23524,7 +23608,7 @@ export function BetaOnboardingV2PageContent({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <p className="text-[14px] font-semibold text-[#111111]">{item.label}</p>
+                            <p className="text-[14px] font-semibold text-[#111111]">{tx(item.label)}</p>
                             <p className="text-[11px] text-[#475569]">
                               {item.type === "entry" ? "دخول" : "خروج"} • {formatMad(item.amount)}
                             </p>
@@ -23543,7 +23627,7 @@ export function BetaOnboardingV2PageContent({
                             onChange={(event) => setGuidanceModalDraftValue(item.answer_key, event.target.value)}
                             className="h-10 rounded-xl border-[var(--border)] bg-[var(--surface)] px-3 text-[13px] shadow-none focus-visible:ring-[#111111]"
                           />
-                          <p className="text-[12px] leading-6 text-[#374151]">{item.comment}</p>
+                          <p className="text-[12px] leading-6 text-[#374151]">{tx(item.comment)}</p>
                         </div>
                       </div>
                     );
@@ -23604,7 +23688,7 @@ export function BetaOnboardingV2PageContent({
                 }}
                 className="relative"
               >
-                <DialogHeader className="text-right">
+                <DialogHeader className="text-start">
                   <motion.div
                     variants={{
                       hidden: { opacity: 0, y: 10 },
@@ -23681,7 +23765,7 @@ export function BetaOnboardingV2PageContent({
                         key="error"
                         className="rounded-xl border border-[#ffd4d8] bg-[#fff4f5] px-3 py-2 text-[14px] text-[#d70015]"
                       >
-                        {proposalCustomError}
+                        {tx(proposalCustomError)}
                       </p>
                     ) : null,
                   ].filter(Boolean).map((node, index) => (
