@@ -49,9 +49,9 @@ export const CHANGELOG: Release[] = [
             ar: "ملي كتبني الخطة، شنو يوقع للفلوس اللي بقات مضبوط ديجا على حساب النصيحة ديالنا، وتقدر تبدلو بكليكة.",
           },
           {
-            fr: "Les écrans d'orientation, de choix des enveloppes et de répartition de ton plan sont plus courts : une recommandation expliquée en une phrase, des chiffres avec des icônes et moins de texte.",
-            en: "The plan direction, envelope and split screens are shorter: one recommendation explained in a sentence, figures with icons and less text.",
-            ar: "صفحات توجيه الخطة، اختيار الأظرفة، والتوزيع ولاو أقصر: اقتراح واحد مشروح فجملة، أرقام بأيقونات، وكلام أقل.",
+            fr: "Les écrans d'orientation, de choix des enveloppes, de répartition et d'activation de ton plan sont plus courts : une recommandation expliquée en une phrase, des chiffres avec des icônes et moins de texte.",
+            en: "The plan direction, envelope, split and activation screens are shorter: one recommendation explained in a sentence, figures with icons and less text.",
+            ar: "صفحات توجيه الخطة، اختيار الأظرفة، التوزيع، والتفعيل ولاو أقصر: اقتراح واحد مشروح فجملة، أرقام بأيقونات، وكلام أقل.",
           },
         ],
       },

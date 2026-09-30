@@ -23,6 +23,7 @@ import {
   Lock,
   PiggyBank,
   RefreshCcw,
+  Scale,
   ShieldCheck,
   Sparkles,
   Target,
@@ -9798,7 +9799,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   questions.push({
     id: "E12_smart_settings",
     title: "الإعدادات الذكية",
-    subtitle: "هنا فقط غادي نضبطو الاحتفاظ بالباقي، وبداية الدورة المالية، وآخر دخل قبل ما تدخل للتطبيق.",
     kind: "smart_settings",
   });
 
@@ -22166,49 +22166,97 @@ export function BetaOnboardingV2PageContent({
                 ) : null}
 
                 {currentQuestion.kind === "smart_settings" ? (
-                  <div className="mx-auto max-w-6xl space-y-5">
-                    <section className="rounded-[24px] border border-[#bbf7d0] bg-[#f0fdf4] px-5 py-4 text-right shadow-[0_18px_40px_-34px_rgba(15,118,110,0.18)]">
-                      <div className="space-y-1">
-                        <p className="text-[16px] font-semibold text-[#14532d]">هنا كندخلو غير فالقواعد الذكية</p>
-                        <p className="text-[13px] leading-7 text-[#166534]">
-                          الأظرفة تثبتات دابا. فهاد المرحلة غير كنحددو شنو يوقع للباقي، كيفاش تبدا الدورة الأولى، وآخر دخل دخلتيه.
-                        </p>
+                  <div className="mx-auto max-w-3xl space-y-5">
+                    {/* 1. The only required input: the last income, which opens the first cycle. */}
+                    <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h2 className="text-[20px] font-semibold text-[#111111]">آخر دخل توصلتي بيه</h2>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1 text-[12px] font-semibold text-[#1d4ed8]">
+                          <RefreshCcw className="h-3.5 w-3.5" aria-hidden />
+                          دورة {sweepCadenceLabel} · كل {sweepIntervalDays} يوم
+                        </span>
                       </div>
-                    </section>
-                    <section className="rounded-[20px] border border-[#bbf7d0] bg-[var(--surface)] px-4 py-4 text-right">
-                      <p className="text-[14px] font-semibold text-[#166534]">القرار ديال هاد المرحلة</p>
-                      <p className="mt-1 text-[13px] leading-6 text-[#15803d]">
-                        حدّد غير: شنو يوقع للباقي، وآخر دخل توصلتي به. من بعد الضغط على الزر الأخير غادي تتفعّل الخطة.
-                      </p>
+                      <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">منو كتبدا أول دورة ديالك.</p>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div className="min-w-0">
+                          <label htmlFor="smart-settings-income-date" className="mb-2 block text-[14px] font-semibold text-[#111111]">
+                            التاريخ
+                          </label>
+                          <Input
+                            id="smart-settings-income-date"
+                            type="date"
+                            value={getString(answers, "SWP1_last_income_date")}
+                            max={localTodayIso}
+                            onChange={(event) => handleSweepIncomeDateInputChange(event.target.value)}
+                            dir="ltr"
+                            className="h-14 w-full min-w-0 rounded-2xl border-2 border-[#cbd5e1] bg-[var(--surface)] px-4 text-center text-[17px] font-semibold text-[#0f172a] shadow-none focus-visible:ring-[#111111]"
+                          />
+                          {sweepCurrentIncomeDate !== sweepSuggestedIncomeDate ? (
+                            <button
+                              type="button"
+                              onClick={applySuggestedSweepIncomeDate}
+                              className="mt-2 inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1 text-[12px] font-semibold text-[#1d4ed8]"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                              اليوم: {formatIsoDateLabel(sweepSuggestedIncomeDate)}
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="min-w-0">
+                          <label htmlFor="smart-settings-income-amount" className="mb-2 block text-[14px] font-semibold text-[#111111]">
+                            المبلغ
+                          </label>
+                          <Input
+                            id="smart-settings-income-amount"
+                            type="text"
+                            inputMode="decimal"
+                            value={getString(answers, "SWP2_last_income_amount")}
+                            onChange={(event) => handleSweepIncomeAmountInputChange(event.target.value)}
+                            className="h-14 w-full min-w-0 rounded-2xl border-2 border-[#cbd5e1] bg-[var(--surface)] px-4 text-center text-[17px] font-semibold text-[#0f172a] shadow-none focus-visible:ring-[#111111]"
+                            placeholder="0"
+                          />
+                          {sweepSuggestedIncomeAmount > 0 && sweepCurrentIncomeAmount !== sweepSuggestedIncomeAmount ? (
+                            <button
+                              type="button"
+                              onClick={applySuggestedSweepIncomeAmount}
+                              className="mt-2 inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-[#dcfce7] bg-[#f0fdf4] px-3 py-1 text-[12px] font-semibold text-[#15803d]"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                              من الأجوبة ديالك: {formatMad(sweepSuggestedIncomeAmount)}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      {sweepAmountLooksSuspicious ? (
+                        <p className="mt-3 inline-flex items-start gap-2 text-[12px] leading-6 text-[#92400e]">
+                          <TriangleAlert className="mt-1 h-4 w-4 shrink-0" aria-hidden />
+                          المبلغ باين أقل بزاف من التقدير ديالك. راجعو قبل التفعيل.
+                        </p>
+                      ) : null}
                     </section>
 
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
-                      <section className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
-                        <div className="space-y-1">
-                          <p className="text-[20px] font-semibold text-[#111111]">الاحتفاظ بالباقي</p>
-                          <p className="text-[14px] leading-7 text-[#6e6e73]">
-                            إلى كان مفعّل، الباقي كيبقى فنفس الظرف. إلى كان مطفّي، كيمشي لظرف الادخار.
+                    {/* 2. What happens to unspent money: recommended default, editable. */}
+                    <section className="space-y-4 rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <h2 className="text-[20px] font-semibold text-[#111111]">الباقي فآخر الدورة</h2>
+                          <p className="mt-1 text-[13px] leading-6 text-[#6e6e73]">
+                            {Object.keys(proposalEditedRollover).length === 0 ? "الإعداد الموصى به: " : "الإعداد ديالك: "}
+                            {rolloverSelectedCount} من {proposalPreview.selected_envelopes.length} أظرفة كيبقى فيهم الباقي، والباقي كيمشي للادخار.
                           </p>
                         </div>
-
-                        <div className="flex flex-col gap-3 rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-[14px] leading-7 text-[#3c3c43]">
-                            {Object.keys(proposalEditedRollover).length === 0
-                              ? "طبّقنا الإعداد الموصى به:"
-                              : "الإعداد ديالك:"}{" "}
-                            {rolloverSelectedCount} من {proposalPreview.selected_envelopes.length} أظرفة كتحتفظ بالباقي. تقدر تبدلو حتى من بعد من صفحة الأظرفة.
-                          </p>
-                          <button
-                            type="button"
-                            aria-expanded={showRolloverDetails}
-                            aria-controls="smart-settings-rollover-details"
-                            onClick={() => setShowRolloverDetails((prev) => !prev)}
-                            className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-full border border-[#d1d1d6] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#f2f2f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74]"
-                          >
-                            {showRolloverDetails ? "خبّي التفاصيل" : "بدّل"}
-                            {showRolloverDetails ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          aria-expanded={showRolloverDetails}
+                          aria-controls="smart-settings-rollover-details"
+                          onClick={() => setShowRolloverDetails((prev) => !prev)}
+                          className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-full border border-[#d1d1d6] bg-[var(--surface)] px-4 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#f2f2f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f9d74]"
+                        >
+                          {showRolloverDetails ? "خبّي التفاصيل" : "بدّل"}
+                          {showRolloverDetails ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+                        </button>
+                      </div>
 
                         {showRolloverDetails ? (
                         <div id="smart-settings-rollover-details" className="space-y-4">
@@ -22287,153 +22335,44 @@ export function BetaOnboardingV2PageContent({
                         </div>
                         </div>
                         ) : null}
+                    </section>
 
-                        <div className="rounded-[22px] border border-[#dbeafe] bg-[#eff6ff] px-4 py-4 text-right shadow-[0_18px_40px_-30px_rgba(59,130,246,0.22)]">
-                          <p className="text-[14px] font-semibold text-[#0f172a]">الادخار</p>
-                          <p className="mt-1 text-[14px] leading-7 text-[#1e3a8a]">
-                            الادخار هو ظرف افتراضي كيجمع الباقي اللي ما بغيتيش يبقى فالأظرفة الأخرى.
-                          </p>
-                        </div>
-                      </section>
-
-                      <section className="space-y-4">
-                        <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
-                          <div className="space-y-1">
-                            <p className="text-[20px] font-semibold text-[#111111]">بداية الدورة المالية</p>
-                            <p className="text-[14px] leading-7 text-[#6e6e73]">
-                              هاد المعطيات غير باش نوجدّو أول دورة، ومنين تصرّح بأول دخل غادي تبدا الانطلاقة الرسمية.
-                            </p>
-                          </div>
-
-                          <div className="mt-4 rounded-[22px] border border-[#dbeafe] bg-[#eff6ff] p-4">
-                            <p className="text-[14px] font-semibold text-[#0f172a]">الدورة ديالك غادي تكون: {sweepCadenceLabel}</p>
-                            <p className="mt-1 text-[14px] leading-7 text-[#1d4ed8]">
-                              يعني تقريباً كل {sweepIntervalDays} يوم غادي كتسالي دورة وتبدا اللي من بعدها.
-                            </p>
-                          </div>
-
-                          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                            <div className="rounded-[22px] border border-[#e5e7eb] bg-[#fafafc] p-4 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.18)]">
-                              <label className="mb-2 block text-[14px] font-semibold text-[#111111]">
-                                آخر مرة توصلتي بالدخل إمتى؟
-                              </label>
-                              <p className="mb-3 text-[12px] leading-6 text-[#475569]">
-                                {sweepCurrentIncomeDate
-                                  ? `التاريخ الحالي: ${formatIsoDateLabel(sweepCurrentIncomeDate)}`
-                                  : "مازال ما تختارش التاريخ. ضغط على الخانة اللي لتحت واختار آخر نهار توصّلتي فيه بالدخل."}
-                              </p>
-                              <Input
-                                type="date"
-                                value={getString(answers, "SWP1_last_income_date")}
-                                max={localTodayIso}
-                                onChange={(event) => handleSweepIncomeDateInputChange(event.target.value)}
-                                dir="ltr"
-                                className="h-14 rounded-2xl border-2 border-[#cbd5e1] bg-[var(--surface)] px-4 text-center text-[17px] font-semibold text-[#0f172a] shadow-none focus-visible:ring-[#111111]"
-                              />
-                              <div className="mt-3 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={applySuggestedSweepIncomeDate}
-                                  className="rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1.5 text-[12px] font-semibold text-[#1d4ed8]"
-                                >
-                                  عمّر بالتاريخ المقترح: {formatIsoDateLabel(sweepSuggestedIncomeDate)}
-                                </button>
-                              </div>
-                              <p className="mt-2 text-[12px] leading-6 text-[#8e8e93]">خاص هاد التاريخ يكون اليوم ولا شي نهار فات.</p>
-                            </div>
-                            <div className="rounded-[22px] border border-[#e5e7eb] bg-[#fafafc] p-4 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.18)]">
-                              <label className="mb-2 block text-[14px] font-semibold text-[#111111]">
-                                شحال كان هداك الدخل؟
-                              </label>
-                              <p className="mb-3 text-[12px] leading-6 text-[#475569]">
-                                {sweepCurrentIncomeAmount > 0
-                                  ? `المبلغ الحالي: ${formatMad(sweepCurrentIncomeAmount)}`
-                                  : "مازال ما دخلتي حتى مبلغ. تقدر تعمّرو من الاقتراح اللي لتحت ولا تبدلو بيدك."}
-                              </p>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                value={getString(answers, "SWP2_last_income_amount")}
-                                onChange={(event) => handleSweepIncomeAmountInputChange(event.target.value)}
-                                className="h-14 rounded-2xl border-2 border-[#cbd5e1] bg-[var(--surface)] px-4 text-center text-[17px] font-semibold text-[#0f172a] shadow-none focus-visible:ring-[#111111]"
-                                placeholder="0"
-                              />
-                              <div className="mt-3 flex flex-wrap justify-end gap-2">
-                                {sweepSuggestedIncomeAmount > 0 ? (
-                                  <button
-                                    type="button"
-                                    onClick={applySuggestedSweepIncomeAmount}
-                                    className="rounded-full border border-[#dcfce7] bg-[#f0fdf4] px-3 py-1.5 text-[12px] font-semibold text-[#15803d]"
-                                  >
-                                    عمّر بالمبلغ المقترح: {formatMad(sweepSuggestedIncomeAmount)}
-                                  </button>
-                                ) : null}
-                                {sweepAmountLooksSuspicious ? (
-                                  <span className="rounded-full border border-[#fde68a] bg-[#fffbeb] px-3 py-1.5 text-[12px] font-semibold text-[#92400e]">
-                                    المبلغ الحالي باين أقل بزاف من التقدير. راجعو قبل التفعيل.
-                                  </span>
-                                ) : null}
-                              </div>
-                              <p className="mt-2 text-[12px] leading-6 text-[#8e8e93]">
-                                لقيناه تقريباً من الجوابات ديالك: {sweepSuggestedIncomeAmount > 0 ? formatMad(sweepSuggestedIncomeAmount) : "—"}.
-                                بدلو إلا كان تبدل.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 rounded-[22px] border border-[#e5e5ea] bg-[#fafafc] p-4">
-                            <p className="text-[15px] font-semibold text-[#111111]">شنو غادي يوقع من بعد</p>
-                            <ul className="mt-2 space-y-2 text-[13px] leading-7 text-[#3c3c43]">
-                              <li>1. هاد المعطيات غير باش نوجدّو أول دورة.</li>
-                              <li>2. منين تصرّح بأول دخل داخل التطبيق، هو اللي غادي يثبت البداية الرسمية.</li>
-                              <li>3. من بعد، غادي يبقى التتبع خدام على نفس الوتيرة ديالك.</li>
-                            </ul>
-                          </div>
-                        </div>
-
-                        <div className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_24px_60px_-44px_rgba(15,23,42,0.22)]">
-                          <div className="space-y-1">
-                            <p className="text-[20px] font-semibold text-[#111111]">الخلاصة النهائية</p>
-                            <p className="text-[14px] leading-7 text-[#6e6e73]">
-                              صافي، منين تدخل غادي تلقى الأظرفة والخطة والإعدادات ديالك واجدين.
-                            </p>
-                          </div>
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                              <p className="text-[13px] text-[#8e8e93]">عدد الأظرفة</p>
-                              <p className="mt-1 text-[24px] font-semibold text-[#111111]">{proposalPreview.selected_envelopes.length}</p>
-                            </div>
-                            <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                              <p className="text-[13px] text-[#8e8e93]">الاحتفاظ بالباقي</p>
-                              <p className="mt-1 text-[24px] font-semibold text-[#111111]">{rolloverSelectedCount} مفعّل</p>
-                            </div>
-                            <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                              <p className="text-[13px] text-[#8e8e93]">الأهداف</p>
-                              <p className="mt-1 text-[24px] font-semibold text-[#111111]">{goalsCount}</p>
-                            </div>
-                            <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4">
-                              <p className="text-[13px] text-[#8e8e93]">الديون</p>
-                              <p className="mt-1 text-[24px] font-semibold text-[#111111]">{debtsCount}</p>
-                            </div>
-                            <div className="rounded-2xl border border-[#e5e5ea] bg-[#fafafc] p-4 sm:col-span-2">
-                              <p className="text-[13px] text-[#8e8e93]">قواعد توزيع الدخل المعتمدة</p>
-                              <p className="mt-1 text-[16px] font-semibold text-[#111111]">
-                                {distributionOnboardingStatus?.active_config?.name ?? "مازال ما تحدداتش"}
-                              </p>
-                              <p className="mt-1 text-[12px] text-[#64748b]">
-                                {distributionOnboardingStatus?.setup_status === "saved_valid" ||
-                                distributionOnboardingStatus?.setup_status === "applied" ||
-                                distributionOnboardingStatus?.setup_status === "legacy_rules_detected"
-                                  ? `تغطية ${distributionOnboardingStatus?.covered_total ?? 0}/${
-                                      distributionOnboardingStatus?.eligible_total ?? 0
-                                    } من الأظرفة المرنة`
-                                  : "تقدر تكمل دابا، وتضبط قواعد التوزيع من بعد من صفحة التوزيع."}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </section>
-                    </div>
+                    {/* 3. What gets activated, at a glance. */}
+                    <ul className="flex flex-wrap gap-2 text-[13px] font-semibold text-[#111111]">
+                      <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
+                        <Wallet className="h-4 w-4 text-[#16a34a]" aria-hidden />
+                        {proposalPreview.selected_envelopes.length} أظرفة
+                      </li>
+                      <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
+                        <RefreshCcw className="h-4 w-4 text-[#2563eb]" aria-hidden />
+                        {rolloverSelectedCount} كيحتافظو بالباقي
+                      </li>
+                      {goalsCount > 0 ? (
+                        <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
+                          <Target className="h-4 w-4 text-[#6366f1]" aria-hidden />
+                          {goalsCount} أهداف
+                        </li>
+                      ) : null}
+                      {debtsCount > 0 ? (
+                        <li className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
+                          <Landmark className="h-4 w-4 text-[#e11d48]" aria-hidden />
+                          {debtsCount} ديون
+                        </li>
+                      ) : null}
+                      <li className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-3 py-1.5">
+                        <Scale className="h-4 w-4 shrink-0 text-[#0f766e]" aria-hidden />
+                        {distributionOnboardingStatus?.setup_status === "saved_valid" ||
+                          distributionOnboardingStatus?.setup_status === "applied" ||
+                          distributionOnboardingStatus?.setup_status === "legacy_rules_detected" ? (
+                          <span className="min-w-0 [overflow-wrap:anywhere]">
+                            {distributionOnboardingStatus?.active_config?.name ?? "التوزيع"} ·{" "}
+                            {distributionOnboardingStatus?.covered_total ?? 0}/{distributionOnboardingStatus?.eligible_total ?? 0}
+                          </span>
+                        ) : (
+                          <span>التوزيع: تقدر تضبطو من بعد</span>
+                        )}
+                      </li>
+                    </ul>
 
                     {uiError ? (
                       <div className="rounded-2xl border border-[#ffd4d8] bg-[#fff4f5] px-4 py-3 text-center text-[14px] text-[#d70015]">
@@ -22443,7 +22382,7 @@ export function BetaOnboardingV2PageContent({
 
                     <div className="sticky bottom-3 z-20 mx-auto w-full max-w-4xl px-1">
                       <div className="rounded-[28px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <button
                             type="button"
                             onClick={handleBack}
@@ -22452,10 +22391,6 @@ export function BetaOnboardingV2PageContent({
                           >
                             رجع نراجع
                           </button>
-                          <div className="flex-1 text-center sm:text-right">
-                            <p className="text-[14px] font-semibold text-[#111111]">كلشي واجد باش تبدأ.</p>
-                            <p className="mt-1 text-[12px] text-[#6e6e73]">منين تضغط، غادي نفعّلو الخطة ديالك وندخلوك للتطبيق.</p>
-                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -22469,14 +22404,10 @@ export function BetaOnboardingV2PageContent({
                               ? "كنفعّلو الخطة..."
                               : isRegisterGuestMode || isPostRegisterMode
                               ? "كمل إنشاء الحساب"
-                              : "دخل للتطبيق"}
+                              : "فعّل الخطة ودخل"}
                           </button>
                         </div>
-                        {isRegisterGuestMode || isPostRegisterMode ? (
-                          <p className="mt-2 text-center text-[12px] text-[#6e6e73]">
-                            منين تضغط هنا غادي نكملو إنشاء الحساب.
-                          </p>
-                        ) : onboardingRecordStatus === "saving" || isApplyingPlan ? (
+                        {!isRegisterGuestMode && !isPostRegisterMode && (onboardingRecordStatus === "saving" || isApplyingPlan) ? (
                           <p className="mt-2 text-center text-[12px] text-[#6e6e73]">كنسجلو المعلومات ديالك…</p>
                         ) : null}
                         {!isRegisterGuestMode && !isPostRegisterMode && onboardingRecordStatus === "error" ? (
