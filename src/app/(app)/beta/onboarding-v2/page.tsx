@@ -11193,6 +11193,7 @@ export function BetaOnboardingV2PageContent({
     ? extractRestoredProposalState(initialRegisterDraft?.draft_objects)
     : null;
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const authUserId = authUser?.id ?? null;
   const [authResolved, setAuthResolved] = useState(isRegisterGuestMode);
   const [betaEntrySummaryDismissed, setBetaEntrySummaryDismissed] = useState(false);
   const [hasRestoredPersistedRecord, setHasRestoredPersistedRecord] = useState(false);
@@ -14668,6 +14669,9 @@ export function BetaOnboardingV2PageContent({
       setCanPersistOnboardingRecord(true);
       return;
     }
+    // Wait for the session check: fired in parallel it hit the API with an
+    // expired access token and logged a 401 before the refresh kicked in.
+    if (!authUserId) return;
 
     let cancelled = false;
     setHasRestoredPersistedRecord(false);
@@ -14816,6 +14820,7 @@ export function BetaOnboardingV2PageContent({
       cancelled = true;
     };
   }, [
+    authUserId,
     isForcedReviewMode,
     isRegisterGuestMode,
     isStandaloneDistributionRoute,
@@ -14921,8 +14926,9 @@ export function BetaOnboardingV2PageContent({
   }, []);
 
   useEffect(() => {
+    if (!authUserId) return;
     void refreshDistributionEnvelopeDirectory();
-  }, [refreshDistributionEnvelopeDirectory]);
+  }, [authUserId, refreshDistributionEnvelopeDirectory]);
 
   const refreshSavedDistributionConfigs = useCallback(async () => {
     try {
@@ -15114,8 +15120,9 @@ export function BetaOnboardingV2PageContent({
   );
 
   useEffect(() => {
+    if (!authUserId) return;
     void refreshSavedDistributionConfigs();
-  }, [refreshSavedDistributionConfigs]);
+  }, [authUserId, refreshSavedDistributionConfigs]);
 
   useEffect(() => {
     if (currentQuestion?.kind !== "distribution_setup") return;
