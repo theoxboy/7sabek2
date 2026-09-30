@@ -17,7 +17,10 @@ import {
   HandCoins,
   HeartHandshake,
   Home,
+  Info,
   Landmark,
+  Lock,
+  PiggyBank,
   RefreshCcw,
   ShieldCheck,
   Sparkles,
@@ -25,6 +28,7 @@ import {
   Ticket,
   TrainFront,
   TriangleAlert,
+  Wallet,
 } from "lucide-react";
 import {
   Dialog,
@@ -9781,7 +9785,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   questions.push({
     id: "E11_envelope_setup",
     title: "الأظرفة اللي غادي نبداو بهم",
-    subtitle: "هنا غادي نثبتو غير بنية الأظرفة: شنو يبقى، شنو يتحيد، وشنو يتسمى من جديد.",
     kind: "envelope_setup",
   });
 
@@ -12801,14 +12804,6 @@ export function BetaOnboardingV2PageContent({
     if (guidanceSimulation.shortDirection === "مقاربة دفع الأهداف") return "goal_growth_first";
     return "balanced_rebuild";
   }, [guidanceActiveScenarioId, guidanceSimulation.shortDirection]);
-  const guidanceSelectedPresetLabel =
-    guidanceSelectedPresetMode === "debt_relief_first"
-      ? "تخفيف ضغط الدين"
-      : guidanceSelectedPresetMode === "stability_first"
-      ? "تقوية الأمان"
-      : guidanceSelectedPresetMode === "goal_growth_first"
-      ? "تسريع الأهداف"
-      : "توازن حسب الحاجة";
   const guidanceEffectiveOutcome = useMemo(
     () =>
       guidanceActiveScenarioId
@@ -13038,33 +13033,6 @@ export function BetaOnboardingV2PageContent({
   );
   const guidanceSafetyCoverageMonths =
     guidanceEssentialMonthly > 0 ? currentCashAvailable / guidanceEssentialMonthly : 0;
-  const guidanceHighRiskMonth =
-    guidanceSafetyCoverageMonths < 1 ||
-    currentCashAvailable < guidanceEssentialMonthly ||
-    getString(answers, "Q0_income_type") !== "salaried";
-  const guidanceSafetyStageLabel =
-    guidanceEssentialMonthly <= 0
-      ? "ما باناش مصاريف أساسية كافية باش نحسبو مرحلة الأمان بدقة."
-      : guidanceSafetyCoverageMonths < 1
-      ? "مرحلة 1: خصنا نوصلو على الأقل لشهر واحد ديال المصاريف الأساسية."
-      : guidanceSafetyCoverageMonths < 3
-      ? "مرحلة 2: دابا الهدف نوصلو لـ 3 شهور ديال المصاريف الأساسية."
-      : "مرحلة 3: الأمان واصل 3 شهور، دابا غير صيانة شهرية خفيفة.";
-  const guidanceSafetyRecommendedAmount = useMemo(() => {
-    if (guidancePoolAmount <= 0) return 0;
-    const capRatio = guidanceHighRiskMonth ? 0.12 : 0.08;
-    const capAmount = guidancePoolAmount * capRatio;
-    const phaseOneNeed = Math.max(0, guidanceEssentialMonthly - currentCashAvailable);
-    const floor = guidanceEssentialMonthly > 0 ? 75 : 0;
-    return roundAmount(
-      Math.max(0, Math.min(guidancePoolAmount, capAmount, Math.max(floor, phaseOneNeed)))
-    );
-  }, [
-    currentCashAvailable,
-    guidanceEssentialMonthly,
-    guidanceHighRiskMonth,
-    guidancePoolAmount,
-  ]);
   const guidanceFlexRecommendedAmount = useMemo(() => {
     if (guidancePoolAmount <= 0) return 0;
     if (variableExpensesTotal > 0) {
@@ -13285,7 +13253,7 @@ export function BetaOnboardingV2PageContent({
     return {
       tone: "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]",
       title: "القاعدة مستقرة",
-      body: "المعيشة والثابت تسدّاو أولاً، ودابا الهامش الزايد كيتوزع بين الدين والأمان والمرونة، مع بقاء الأهداف حاضرة كأولوية قابلة للتفعيل.",
+      body: "المعيشة والثابت مغطيين.",
     };
   }, [lifestylePlanningState]);
   const guidanceOriginalPlannedDistribution = useMemo(
@@ -13400,12 +13368,6 @@ export function BetaOnboardingV2PageContent({
   const guidanceFlexBaseAmount = roundAmount(
     Math.max(0, Math.min(guidanceFlexPlannedAmountEffective, guidanceFlexRecommendedAmount))
   );
-  const guidanceFlexBufferAmount = roundAmount(
-    Math.max(0, guidanceFlexPlannedAmountEffective - guidanceFlexBaseAmount)
-  );
-  const guidanceFlexBufferCapAmount = roundAmount(
-    guidanceAvailableNow * (guidanceHighRiskMonth ? 0.12 : 0.08)
-  );
   const guidanceRemainingAfterDirection = Math.max(
     0,
     roundAmount(
@@ -13463,221 +13425,16 @@ export function BetaOnboardingV2PageContent({
       textClass: "text-[#0f172a]",
     },
   ] as const;
+  // Zero rows are noise, except goals the user declared but this cycle does
+  // not fund: that gap has to stay visible.
   const guidanceVisibleRows = guidanceLiveRows.filter(
-    (row) => row.amount > 0 || row.key === "remaining" || row.key === "goals"
+    (row) => row.amount > 0 || (row.key === "goals" && guidanceHasGoal)
   );
   const guidanceLiveStripTotal = Math.max(
     guidanceAvailableNow,
     guidanceVisibleRows.reduce((sum, row) => sum + row.amount, 0),
     1
   );
-  const guidanceSummaryTextUi = useMemo(() => {
-    if (guidanceIsConstrained) {
-      return "حاليا ما كاينش هامش فعلي للتوزيع، لذلك هاد الاختيار غير كيحدد ترتيب الأولويات فالمرحلة الجاية.";
-    }
-    const before = guidanceSimulation.before;
-    const after = guidanceEffectiveOutcome;
-    const conservativeMonthly = (amount: number) => roundAmount(Math.max(0, amount * 0.9));
-    const toEtaMonths = (remaining: number, monthly: number) => {
-      const safeMonthly = conservativeMonthly(monthly);
-      if (remaining <= 0) return 0;
-      if (safeMonthly <= 0) return null;
-      return Math.max(1, Math.ceil(remaining / safeMonthly));
-    };
-    const formatMonthsLabel = (months: number | null) =>
-      months === null ? "غير واضح دابا" : months === 0 ? "دابا" : `${months} شهر`;
-    const formatDebtBaselineLabel = (months: number | null) => {
-      if (months === null) return "غير واضح دابا";
-      if (months >= 120) return "بزاف ديال الوقت بهاد الإيقاع الحالي";
-      if (months === 0) return "دابا";
-      return `${months} شهر`;
-    };
-    const getAllocationDeltaKind = (selected: number, baseline: number) => {
-      const diff = Math.abs(roundAmount(selected - baseline));
-      const ratio = baseline > 0 ? diff / baseline : selected > 0 ? 1 : 0;
-      if (diff < 25 || ratio < 0.05) return "none" as const;
-      if (diff < 100 || ratio < 0.12) return "small" as const;
-      if (diff < 300 || ratio < 0.25) return "visible" as const;
-      return "strong" as const;
-    };
-    const getEtaDeltaKind = (selected: number | null, baseline: number | null) => {
-      if (selected === null || baseline === null) return "unknown" as const;
-      const diff = baseline - selected;
-      if (Math.abs(diff) === 0) return "same" as const;
-      if (Math.abs(diff) <= 1) return "small" as const;
-      return diff > 0 ? "faster" as const : "slower" as const;
-    };
-    const primaryGoal = guidanceGoalEntries[0] ?? null;
-    const primaryGoalName = primaryGoal?.name || (goalSummaryMetrics.count > 1 ? "الهدف الحالي" : "الهدف");
-    const primaryGoalRemaining = primaryGoal
-      ? Math.max(0, roundAmount(primaryGoal.target_amount - primaryGoal.current_amount))
-      : 0;
-    const debtMonthlyWithoutPlan = Math.max(0, roundAmount(debtSummaryMetrics.current_monthly));
-    const debtMonthlyWithPlan = Math.max(
-      0,
-      roundAmount(debtSummaryMetrics.current_monthly + after.debt)
-    );
-    const debtEtaBaseline = toEtaMonths(debtSummaryMetrics.total_remaining, debtMonthlyWithoutPlan);
-    const debtEtaSelected = toEtaMonths(debtSummaryMetrics.total_remaining, debtMonthlyWithPlan);
-    const goalEtaBaseline = primaryGoalRemaining > 0 ? toEtaMonths(primaryGoalRemaining, before.goals) : null;
-    const goalEtaSelected = primaryGoalRemaining > 0 ? toEtaMonths(primaryGoalRemaining, after.goals) : null;
-    const safetyPhase1Remaining = Math.max(0, roundAmount(guidanceEssentialMonthly - currentCashAvailable));
-    const safetyEtaBaseline = toEtaMonths(safetyPhase1Remaining, before.reserve);
-    const safetyEtaSelected = toEtaMonths(safetyPhase1Remaining, after.reserve);
-    const debtEtaKind = getEtaDeltaKind(debtEtaSelected, debtEtaBaseline);
-    const goalEtaKind = getEtaDeltaKind(goalEtaSelected, goalEtaBaseline);
-    const safetyEtaKind = getEtaDeltaKind(safetyEtaSelected, safetyEtaBaseline);
-    const debtDeltaAmount = roundAmount(after.debt - before.debt);
-    const reserveDeltaAmount = roundAmount(after.reserve - before.reserve);
-    const goalDeltaAmount = roundAmount(after.goals - before.goals);
-    const flexDeltaAmount = roundAmount(after.flex - before.flex);
-    const debtAllocationKind = getAllocationDeltaKind(after.debt, before.debt);
-    const reserveAllocationKind = getAllocationDeltaKind(after.reserve, before.reserve);
-    const goalAllocationKind = getAllocationDeltaKind(after.goals, before.goals);
-    const flexAllocationKind = getAllocationDeltaKind(after.flex, before.flex);
-    const modeIntentSatisfied =
-      guidanceSelectedPresetMode === "debt_relief_first"
-        ? debtEtaKind === "faster" ||
-          ((debtAllocationKind === "visible" || debtAllocationKind === "strong") && after.debt > before.debt)
-        : guidanceSelectedPresetMode === "stability_first"
-        ? safetyEtaKind === "faster" ||
-          ((reserveAllocationKind === "visible" || reserveAllocationKind === "strong") && after.reserve > before.reserve)
-        : guidanceSelectedPresetMode === "goal_growth_first"
-        ? goalEtaKind === "faster" ||
-          ((goalAllocationKind === "visible" || goalAllocationKind === "strong") && after.goals > before.goals)
-        : debtAllocationKind !== "strong" &&
-          reserveAllocationKind !== "strong" &&
-          goalAllocationKind !== "strong" &&
-          flexAllocationKind !== "strong";
-    const limitedEffectCycle =
-      [debtEtaKind, goalEtaKind, safetyEtaKind].every((kind) => kind === "same" || kind === "small" || kind === "unknown") &&
-      [debtAllocationKind, reserveAllocationKind, goalAllocationKind, flexAllocationKind].every(
-        (kind) => kind === "none" || kind === "small"
-      );
-    const positiveDrivers = [
-      { key: "debt", amount: debtDeltaAmount },
-      { key: "reserve", amount: reserveDeltaAmount },
-      { key: "goal", amount: goalDeltaAmount },
-      { key: "flex", amount: flexDeltaAmount },
-    ]
-      .filter((item) => item.amount > 0)
-      .sort((a, b) => b.amount - a.amount);
-    const dominantDriver = positiveDrivers[0]?.key ?? "balanced";
-    const focusSummary =
-      guidanceSelectedPresetMode === "debt_relief_first"
-        ? debtEtaKind === "faster"
-          ? "بهاد الإعداد، كنسرّعو التخلّص من الدين مع بقاء الأظرفة الأخرى خدامة."
-          : limitedEffectCycle
-          ? "بهاد الإعداد، الأولوية كتبان أكثر فترتيب التوزيع الشهري من الموعد النهائي."
-          : !modeIntentSatisfied && goalEtaKind === "slower"
-          ? "بهاد الإعداد، كنوجهو حصة أكبر للدين فهاد الدورة، ولكن الفرق الأوضح كيبان فبطء الهدف ماشي فموعد الدين."
-          : debtAllocationKind === "visible" || debtAllocationKind === "strong"
-          ? "بهاد الإعداد، كنزيدو التمويل الشهري ديال الدين بشكل واضح، حتى إلا كان أثر الموعد النهائي محدود دابا."
-          : dominantDriver === "flex"
-          ? "بهاد الإعداد، كنخليو هامش عملي أكبر للشهر الحقيقي، بلا دفعة قوية للدين."
-          : "بهاد الإعداد، كنبدلو التوزيع لصالح الدين بشكل جزئي، مع بقاء الحماية الأساسية خدامة."
-        : guidanceSelectedPresetMode === "stability_first"
-        ? safetyEtaKind === "faster"
-          ? "بهاد الإعداد، كنقوّيو ظرف الأمان بشكل أوضح باش نوصلو للاحتياط الأولي بسرعة أكثر."
-          : limitedEffectCycle
-          ? "بهاد الإعداد، الأثر كيبان أكثر فزيادة حصة الأمان من الموعد النهائي."
-          : reserveAllocationKind === "visible" || reserveAllocationKind === "strong"
-          ? "بهاد الإعداد، كنزيدو الأمان بشكل واضح فهاد الدورة، مع بقاء الدين والأهداف خدامين بإيقاع أهدأ."
-          : "بهاد الإعداد، كيبقى الأمان حاضر، ولكن بلا قفزة كبيرة فموعد الوصول للمرحلة الأولى."
-        : guidanceSelectedPresetMode === "goal_growth_first"
-        ? goalEtaKind === "faster"
-          ? "بهاد الإعداد، كنسرّعو التقدّم فالأهداف مع الحفاظ على تمويل مستمر للدين، الأمان، والمرونة."
-          : limitedEffectCycle
-          ? "بهاد الإعداد، التمويل الشهري ديال الهدف ولى أوضح، ولكن الفرق فالموعد النهائي مازال محدود."
-          : goalAllocationKind === "visible" || goalAllocationKind === "strong"
-          ? "بهاد الإعداد، كنزيدو حضور الأهداف بشكل واضح فهاد الدورة، حتى إلا كان أثر الموعد النهائي محدود دابا."
-          : "بهاد الإعداد، كيبقى الهدف حاضر، ولكن بلا تسريع كبير فالموعد المتوقع."
-        : limitedEffectCycle
-        ? "بهاد الإعداد، المسار العام كيبقى قريب بزاف من السابق، والفرق كيبان أكثر فطريقة التوزيع من السرعة النهائية."
-        : dominantDriver === "flex"
-        ? "بهاد الإعداد، كنحتافظو بهامش أكبر للمرونة مع بقاء تمويل مستمر للدين، الأمان، والأهداف."
-        : "بهاد الإعداد، كنخليو الأظرفة الرئيسية كلها خدامة مع بعض بلا دفعة قوية لظرف واحد.";
-    const debtSentence =
-      debtSummaryMetrics.total_remaining <= 0
-        ? ""
-        : debtEtaKind === "faster" || debtEtaKind === "slower"
-        ? `الدين يقدر يتسال تقريباً فـ ${formatMonthsLabel(debtEtaSelected)} بهاد الخطة، مقابل ${formatDebtBaselineLabel(debtEtaBaseline)} إلا خليتي غير الأداء الحالي بلا هاد التوجيه.`
-        : debtAllocationKind === "visible" || debtAllocationKind === "strong"
-        ? `التمويل الشهري ديال الدين ولى ${formatMad(debtMonthlyWithPlan)} بدل ${formatMad(debtMonthlyWithoutPlan)}، ولكن أثر الموعد النهائي مازال محدود دابا.`
-        : debtEtaKind === "small"
-        ? "التأثير على موعد التخلّص من الدين كيبقى محدود."
-        : "ما كاينش تغيير كبير فالموعد المتوقع ديال الدين.";
-    const goalSentence =
-      goalSummaryMetrics.count === 0 || primaryGoalRemaining <= 0
-        ? ""
-        : goalEtaKind === "faster" || goalEtaKind === "slower"
-        ? `${primaryGoalName} يقدر يوصل تقريباً فـ ${formatMonthsLabel(goalEtaSelected)}، مقابل ${formatMonthsLabel(goalEtaBaseline)} فالمسار السابق.`
-        : goalAllocationKind === "visible" || goalAllocationKind === "strong"
-        ? `التمويل الشهري ديال ${primaryGoalName} تبدل بوضوح لـ ${formatMad(after.goals)}، ولكن الأثر على الموعد النهائي مازال محدود دابا.`
-        : goalEtaKind === "small"
-        ? `التأثير على موعد ${primaryGoalName} كيبقى محدود.`
-        : `ما كاينش تغيير كبير فموعد ${primaryGoalName} المتوقع.`;
-    const safetySentence =
-      safetyPhase1Remaining <= 0
-        ? ""
-        : safetyEtaKind === "faster" || safetyEtaKind === "slower"
-        ? `وظرف الأمان يقدر يوصل للمرحلة الأولى فـ ${formatMonthsLabel(safetyEtaSelected)}، مقابل ${formatMonthsLabel(safetyEtaBaseline)} إلا ما تبدّل والو.`
-        : reserveAllocationKind === "visible" || reserveAllocationKind === "strong"
-        ? `حصة الأمان تبدلات بوضوح لـ ${formatMad(after.reserve)} فهاد الدورة، ولكن أثر الموعد النهائي مازال محدود دابا.`
-        : safetyEtaKind === "small"
-        ? "التأثير على بناء الأمان كيبقى محدود."
-        : "ما كاينش تغيير كبير فموعد الوصول للمرحلة الأولى ديال الأمان.";
-    const tradeoffSentence =
-      guidanceSelectedPresetMode === "debt_relief_first"
-        ? goalEtaKind === "slower" || goalDeltaAmount < 0
-          ? `النتيجة هنا هي أن ${primaryGoalName} يقدر يوصل بإيقاع أبطأ من المسار السابق، مقابل إعادة توجيه جزء أكبر من هاد الدورة نحو الدين.`
-          : flexAllocationKind === "visible" || dominantDriver === "flex"
-          ? "الثمن هنا محدود: كنحتافظو بشوية مرونة عملية باش الشهر يبقى قابل للاستمرار."
-          : debtEtaKind === "faster"
-          ? "الفائدة الرئيسية هنا هي تخفيف ضغط الدين بشكل أوضح، مع بقاء الأظرفة الأخرى حاضرة."
-          : ""
-        : guidanceSelectedPresetMode === "stability_first"
-        ? debtEtaKind === "slower" || goalEtaKind === "slower"
-          ? "الفائدة الرئيسية هنا هي بناء احتياط أوضح ضد الطوارئ، حتى إلا كان التقدّم فالدين أو الهدف أبطأ شوية."
-          : ""
-        : guidanceSelectedPresetMode === "goal_growth_first"
-        ? debtEtaKind === "slower" || debtDeltaAmount < 0
-          ? "الفائدة الرئيسية هنا هي أنك كتقرّب الهدف ديالك بشكل أوضح، لكن سرعة التخلّص من الدين تقدر تولّي أبطأ شوية من المسار السابق."
-          : ""
-        : dominantDriver === "flex"
-        ? "الفائدة الرئيسية هنا هي حماية أكبر للشهر الحقيقي، لكن بلا دفعة قوية لظرف واحد."
-        : "";
-    const comparableChanges = [debtEtaKind, goalEtaKind, safetyEtaKind].filter(
-      (kind) => kind === "faster" || kind === "slower" || kind === "small"
-    ).length;
-    const stableSentence =
-      limitedEffectCycle || comparableChanges === 0
-        ? "المسار العام كيبقى قريب بزاف من الخطة السابقة، يعني ما كاينش تغيير كبير فالمواعيد المتوقعة."
-        : "";
-    const prioritizedSentences =
-      guidanceSelectedPresetMode === "goal_growth_first"
-        ? [goalSentence, debtSentence, safetySentence]
-        : guidanceSelectedPresetMode === "stability_first"
-        ? [safetySentence, debtSentence, goalSentence]
-        : guidanceSelectedPresetMode === "debt_relief_first"
-        ? [debtSentence, goalSentence, safetySentence]
-        : [stableSentence || debtSentence, safetySentence, goalSentence];
-    const selectedSentences = prioritizedSentences.filter(Boolean).slice(0, stableSentence ? 1 : 2).join(" ");
-    return ["سدّينا المعيشة والثابت أولاً.", focusSummary, stableSentence || selectedSentences, tradeoffSentence]
-      .filter(Boolean)
-      .join(" ");
-  }, [
-    currentCashAvailable,
-    debtSummaryMetrics.current_monthly,
-    debtSummaryMetrics.total_remaining,
-    goalSummaryMetrics.count,
-    guidanceEssentialMonthly,
-    guidanceIsConstrained,
-    guidanceGoalEntries,
-    guidanceEffectiveOutcome,
-    guidanceSelectedPresetMode,
-    guidanceSimulation.before,
-  ]);
   const guidanceScenarioCardPreview = useMemo(() => {
     return Object.fromEntries(
       guidanceScenarios.map((scenario) => {
@@ -21497,37 +21254,42 @@ export function BetaOnboardingV2PageContent({
 
                 {currentQuestion.kind === "interactive_guidance" || currentQuestion.kind === "priority_profile" ? (
                   <div className="mx-auto max-w-5xl space-y-5">
-                    <section className="rounded-[24px] border border-[#bbf7d0] bg-[#f0fdf4] px-5 py-4 text-right shadow-[0_18px_40px_-34px_rgba(15,118,110,0.2)]">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-[16px] font-semibold text-[#14532d]">هاد المرحلة كتحدد الاتجاه العام</p>
-                          <p className="text-[13px] leading-7 text-[#166534]">
-                            {guidanceIsConstrained
-                              ? "دابا غير كنثبتو ترتيب الأولويات حتى يرجع الهامش موجب."
-                              : "المعيشة والثابت تسدّاو أولاً. دابا اختار شكون ياخذ الأولوية فالهامش الزايد: الدين، الأمان، الأهداف، ولا توزيع حسب الحاجة."}
-                          </p>
+                    {/* One status line: the state, what living costs get, what is left to direct. */}
+                    <section className={`rounded-[20px] border px-4 py-3 text-right ${lifestylePlanningMessage.tone}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="inline-flex items-center gap-2 text-[14px] font-semibold">
+                          {lifestylePlanningState === "stable" ? (
+                            <ShieldCheck className="h-4 w-4" aria-hidden />
+                          ) : (
+                            <TriangleAlert className="h-4 w-4" aria-hidden />
+                          )}
+                          {lifestylePlanningMessage.title}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-current/25 bg-[var(--surface)]/70 px-2.5 py-1">
+                            <Home className="h-3.5 w-3.5" aria-hidden />
+                            المعيشة: {formatMad(lifestyleBasePlannedAmount)}
+                            {lifestyleBasePlannedAmount < lifestyleMinimumThreshold
+                              ? ` / ${formatMad(lifestyleMinimumThreshold)}`
+                              : ""}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-current/25 bg-[var(--surface)]/70 px-2.5 py-1">
+                            <HandCoins className="h-3.5 w-3.5" aria-hidden />
+                            الهامش: {formatMad(guidanceAvailableNow)}
+                          </span>
                         </div>
-                        <span className="rounded-full border border-[#86efac] bg-[var(--surface)] px-3 py-1 text-[12px] font-semibold text-[#166534]">
-                          الاتجاه الحالي: {guidanceSelectedPresetLabel}
-                        </span>
                       </div>
-                    </section>
-                    <section className={`rounded-[20px] border px-4 py-4 text-right ${lifestylePlanningMessage.tone}`}>
-                      <p className="text-[14px] font-semibold">{lifestylePlanningMessage.title}</p>
-                      <p className="mt-1 text-[13px] leading-6">{lifestylePlanningMessage.body}</p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                        <span className="rounded-full border border-current/25 bg-[var(--surface)]/70 px-2.5 py-1">
-                          الحد الأدنى للمعيشة: {formatMad(lifestyleMinimumThreshold)}
-                        </span>
-                        <span className="rounded-full border border-current/25 bg-[var(--surface)]/70 px-2.5 py-1">
-                          تمويل المعيشة دابا: {formatMad(lifestyleBasePlannedAmount)}
-                        </span>
-                      </div>
+                      {lifestylePlanningState !== "stable" ? (
+                        <p className="mt-2 text-[13px] leading-6">{lifestylePlanningMessage.body}</p>
+                      ) : null}
                     </section>
 
                     <section className="rounded-[28px] border border-[#dbeafe] bg-gradient-to-b from-[#eff6ff] to-[var(--surface)] px-5 py-5 text-right shadow-[0_24px_60px_-40px_rgba(37,99,235,0.22)]">
                       <div className="space-y-2">
-                        <h2 className="text-[24px] font-semibold text-[#0f172a]">الاقتراح ديالنا</h2>
+                        <h2 className="inline-flex items-center gap-2 text-[24px] font-semibold text-[#0f172a]">
+                          <Sparkles className="h-5 w-5 text-[#2563eb]" aria-hidden />
+                          الاقتراح ديالنا
+                        </h2>
                         <p className="text-[14px] leading-7 text-[#1e3a8a]">{guidanceRecommendationReason}</p>
                         {guidanceIsConstrained ? (
                           <p className="text-[13px] leading-6 text-[#1e3a8a]">
@@ -21549,6 +21311,7 @@ export function BetaOnboardingV2PageContent({
                         ).map((scenario) => {
                           const selected = guidanceActiveScenarioId === scenario.id;
                           const isRecommendation = scenario.id === guidanceRecommendedScenarioId;
+                          const preview = guidanceScenarioCardPreview[scenario.id];
                           return (
                             <div
                               key={scenario.id}
@@ -21561,6 +21324,7 @@ export function BetaOnboardingV2PageContent({
                               <div className="flex h-full flex-col gap-3">
                                 <button
                                   type="button"
+                                  aria-pressed={selected}
                                   onClick={() => applyGuidanceScenarioSafe(scenario, guidanceStrengthPct)}
                                   className="block w-full text-right"
                                 >
@@ -21570,44 +21334,43 @@ export function BetaOnboardingV2PageContent({
                                       <span className="rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
                                         مقترح
                                       </span>
-                                    ) : null}
-                                    {selected ? (
+                                    ) : selected ? (
                                       <span className="rounded-full border border-[#bfdbfe] bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold text-[#1d4ed8]">
                                         مختار
                                       </span>
                                     ) : null}
                                   </div>
                                   <p className="mt-2 text-[12px] leading-6 text-current/80">{scenario.hint}</p>
-                                  <p className="mt-2 text-[11px] leading-5 text-current/70">
-                                    {guidanceScenarioCardPreview[scenario.id].summary}
-                                  </p>
-                                  <p className="mt-3 text-[11px] font-semibold text-current/70">اللي غادي يولي تقريباً فهاد الاختيار</p>
-                                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-semibold">
-                                    <div className="rounded-[10px] border border-current/10 bg-[var(--surface)]/75 px-2 py-1.5">
-                                      <p className="text-current/70">دين</p>
-                                      <p>{guidanceScenarioCardPreview[scenario.id].debt}</p>
+                                  {showGuidanceAlternatives ? (
+                                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-semibold">
+                                      {(
+                                        [
+                                          ["debt", Landmark, "دين", preview.debt],
+                                          ["reserve", ShieldCheck, "أمان", preview.reserve],
+                                          ["goals", Target, "أهداف", preview.goals],
+                                          ["flex", Wallet, "مرونة", preview.flex],
+                                        ] as const
+                                      ).map(([key, Icon, label, value]) => (
+                                        <p
+                                          key={key}
+                                          className="flex items-center gap-1.5 rounded-[10px] border border-current/10 bg-[var(--surface)]/75 px-2 py-1.5"
+                                        >
+                                          <Icon className="h-3.5 w-3.5 shrink-0 text-current/70" aria-hidden />
+                                          <span className="sr-only">{label}: </span>
+                                          <span>{value}</span>
+                                        </p>
+                                      ))}
                                     </div>
-                                    <div className="rounded-[10px] border border-current/10 bg-[var(--surface)]/75 px-2 py-1.5">
-                                      <p className="text-current/70">أمان</p>
-                                      <p>{guidanceScenarioCardPreview[scenario.id].reserve}</p>
-                                    </div>
-                                    <div className="rounded-[10px] border border-current/10 bg-[var(--surface)]/75 px-2 py-1.5">
-                                      <p className="text-current/70">أهداف</p>
-                                      <p>{guidanceScenarioCardPreview[scenario.id].goals}</p>
-                                    </div>
-                                    <div className="rounded-[10px] border border-current/10 bg-[var(--surface)]/75 px-2 py-1.5">
-                                      <p className="text-current/70">مرونة</p>
-                                      <p>{guidanceScenarioCardPreview[scenario.id].flex}</p>
-                                    </div>
-                                  </div>
+                                  ) : null}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setGuidanceScenarioDetailId(scenario.id)}
-                                  className="inline-flex w-fit items-center rounded-full border border-current/20 bg-[var(--surface)]/80 px-3 py-1 text-[11px] font-semibold text-current transition hover:border-current/35 hover:bg-[var(--surface)]"
+                                  className="inline-flex w-fit items-center gap-1.5 rounded-full border border-current/20 bg-[var(--surface)]/80 px-3 py-1 text-[11px] font-semibold text-current transition hover:border-current/35 hover:bg-[var(--surface)]"
                                   aria-label={`شوف التفاصيل فاختيار ${scenario.label}`}
                                 >
-                                  شوف التفاصيل
+                                  <Info className="h-3.5 w-3.5" aria-hidden />
+                                  التفاصيل
                                 </button>
                               </div>
                             </div>
@@ -21636,24 +21399,12 @@ export function BetaOnboardingV2PageContent({
 
                     <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_20px_48px_-36px_rgba(15,23,42,0.2)]">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-[20px] font-semibold text-[#111111]">إلى مشينا بهاد الاتجاه</h3>
-                          {guidanceIsConstrained ? (
-                            <p className="mt-1 text-[13px] leading-6 text-[#64748b]">
-                              دابا الشريط كيبين ترتيب الأولويات فقط. منين يتحسن الهامش، نفس الاتجاه غادي يتفعّل بمبالغ فعلية.
-                            </p>
-                          ) : (
-                            <p className="mt-1 text-[13px] leading-6 text-[#64748b]">
-                              هاد الشريط كيبين كيفاش غادي يتقسم المبلغ اللي بقى من بعد المعيشة والثابت بين الأظرفة اللي باقي خاصها قرار.
-                            </p>
-                          )}
-                        </div>
-                        <span className="rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[12px] font-semibold text-[#0f172a]">
-                          الهامش الزايد المتاح من بعد المعيشة والثابت: {formatMad(guidanceAvailableNow)}
+                        <h3 className="text-[20px] font-semibold text-[#111111]">توزيع الهامش</h3>
+                        <span className="rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[12px] font-semibold text-[#64748b]">
+                          أرقام تقريبية
                         </span>
                       </div>
-                      <p className="mt-3 text-[11px] text-[#64748b]">الأرقام تقريبية وقد يبان فرق صغير بسبب التقريب.</p>
-                      <div className="mt-5 rounded-[24px] border border-[#eef2f7] bg-[#fbfcfe] p-4">
+                      <div className="mt-4 rounded-[24px] border border-[#eef2f7] bg-[#fbfcfe] p-4">
                         <div className="h-5 overflow-hidden rounded-full bg-[#e5e7eb]">
                           <div className="flex h-full w-full">
                             {guidanceVisibleRows.map((row) => (
@@ -21671,23 +21422,30 @@ export function BetaOnboardingV2PageContent({
                           </div>
                         </div>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                          {guidanceVisibleRows.map((row) => (
-                            <div
-                              key={row.key}
-                              className={`rounded-[16px] border p-3 ${row.bgClass} ${row.borderClass}`}
-                            >
-                              <div className="flex items-center gap-2 text-[12px] font-semibold">
-                                <span
-                                  className="inline-flex h-2.5 w-2.5 rounded-full"
-                                  style={{ background: row.color }}
-                                />
-                                <span className={row.textClass}>{row.label}</span>
+                          {guidanceVisibleRows.map((row) => {
+                            const RowIcon =
+                              row.key === "debt"
+                                ? Landmark
+                                : row.key === "safety"
+                                ? ShieldCheck
+                                : row.key === "goals"
+                                ? Target
+                                : row.key === "flex"
+                                ? Wallet
+                                : PiggyBank;
+                            return (
+                              <div
+                                key={row.key}
+                                className={`rounded-[16px] border p-3 ${row.bgClass} ${row.borderClass}`}
+                              >
+                                <div className="flex items-center gap-2 text-[12px] font-semibold">
+                                  <RowIcon className="h-4 w-4" style={{ color: row.color }} aria-hidden />
+                                  <span className={row.textClass}>{row.label}</span>
+                                </div>
+                                <p className="mt-2 text-[18px] font-semibold text-[#111111]">{formatMad(row.amount)}</p>
                               </div>
-                              <p className="mt-2 text-[18px] font-semibold text-[#111111]">
-                                {formatMad(row.amount)}
-                              </p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     </section>
@@ -21696,13 +21454,15 @@ export function BetaOnboardingV2PageContent({
                       <div className="rounded-[24px] border border-[#bfdbfe] bg-[#f7fbff] p-4 text-right">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-[17px] font-semibold text-[#0f172a]">ظرف الأمان</p>
-                            <p className="mt-1 text-[13px] leading-6 text-[#1e3a8a]">
-                              هاد الظرف ماشي رفاهية: هو الاحتياط اللي كيمنع الطارئ يرجعك للدين أو يكسّر الميزانية الشهرية.
+                            <p className="inline-flex items-center gap-2 text-[17px] font-semibold text-[#0f172a]">
+                              <ShieldCheck className="h-5 w-5 text-[#2563eb]" aria-hidden />
+                              ظرف الأمان
                             </p>
+                            <p className="mt-1 text-[13px] leading-6 text-[#1e3a8a]">احتياط للطوارئ باش ما ترجعش للدين.</p>
                           </div>
                           <button
                             type="button"
+                            aria-pressed={guidanceKeepSafetyEnvelope}
                             onClick={() => setGuidanceKeepSafetyEnvelope((prev) => !prev)}
                             className={`rounded-full border px-3 py-1 text-[12px] font-semibold ${
                               guidanceKeepSafetyEnvelope
@@ -21713,34 +21473,32 @@ export function BetaOnboardingV2PageContent({
                             {guidanceKeepSafetyEnvelope ? "مفعّل" : "ماشي ضروري دابا"}
                           </button>
                         </div>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <p className="rounded-[12px] border border-[#dbeafe] bg-[var(--surface)] px-3 py-2 text-[12px] text-[#334155]">
-                            اللي غادي يتطبق دابا: <span className="font-semibold text-[#111111]">{formatMad(guidanceReservePlannedAmount)}</span>
-                          </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
+                          <span className="rounded-[12px] border border-[#dbeafe] bg-[var(--surface)] px-3 py-2 text-[#334155]">
+                            هاد الدورة: <span className="font-semibold text-[#111111]">{formatMad(guidanceReservePlannedAmount)}</span>
+                          </span>
+                          {guidanceEssentialMonthly > 0 ? (
+                            <span className="rounded-[12px] border border-[#dbeafe] bg-[var(--surface)] px-3 py-2 text-[#334155]">
+                              الهدف: <span className="font-semibold text-[#111111]">
+                                {guidanceSafetyCoverageMonths < 1 ? "شهر" : "3 شهور"} ديال المصاريف الأساسية
+                              </span>
+                            </span>
+                          ) : null}
                         </div>
-                        <p className="mt-2 text-[12px] leading-6 text-[#475569]">
-                          {guidanceReservePlannedAmount < guidanceSafetyRecommendedAmount
-                            ? "هاد المبلغ هو البداية ديال بناء ظرف الأمان فهاد الدورة."
-                            : "دابا التوزيع قريب بزاف من المستوى اللي كيخلي ظرف الأمان يخدم مزيان."}
-                        </p>
-                        {guidanceReservePlannedAmount < guidanceSafetyRecommendedAmount ? (
-                          <p className="mt-2 text-[12px] leading-6 text-[#475569]">
-                            ما وصلناش لتمويل أكبر لأن الخطة الحالية كتقسم الهامش بين أكثر من ظرف، وما عطتش الأولوية القصوى للأمان فهاد الدورة.
-                          </p>
-                        ) : null}
-                        <p className="mt-2 text-[12px] leading-6 text-[#475569]">{guidanceSafetyStageLabel}</p>
                       </div>
 
                       <div className="rounded-[24px] border border-[#bbf7d0] bg-[#f0fdf4] p-4 text-right">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-[17px] font-semibold text-[#14532d]">ظرف المرونة</p>
-                            <p className="mt-1 text-[13px] leading-6 text-[#166534]">
-                              هاد الظرف هو الصدّام ديال المصاريف المتغيّرة: ماكلة، تنقل، يومي، وكل ما كيطلع ويهبط من شهر لشهر.
+                            <p className="inline-flex items-center gap-2 text-[17px] font-semibold text-[#14532d]">
+                              <Wallet className="h-5 w-5 text-[#16a34a]" aria-hidden />
+                              ظرف المرونة
                             </p>
+                            <p className="mt-1 text-[13px] leading-6 text-[#166534]">ماكلة، تنقل، ومصاريف كتبدّل من شهر لشهر.</p>
                           </div>
                           <button
                             type="button"
+                            aria-pressed={guidanceKeepFlexEnvelope}
                             onClick={() => setGuidanceKeepFlexEnvelope((prev) => !prev)}
                             className={`rounded-full border px-3 py-1 text-[12px] font-semibold ${
                               guidanceKeepFlexEnvelope
@@ -21751,62 +21509,45 @@ export function BetaOnboardingV2PageContent({
                             {guidanceKeepFlexEnvelope ? "مفعّل" : "ماشي ضروري دابا"}
                           </button>
                         </div>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <p className="rounded-[12px] border border-[#bbf7d0] bg-[var(--surface)] px-3 py-2 text-[12px] text-[#14532d]">
-                            القاعدة الشهرية: <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexRecommendedAmount)}</span>
-                          </p>
-                          <p className="rounded-[12px] border border-[#bbf7d0] bg-[var(--surface)] px-3 py-2 text-[12px] text-[#14532d]">
-                            اللي غادي يتطبق دابا: <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexPlannedAmount)}</span>
-                          </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
+                          <span className="rounded-[12px] border border-[#bbf7d0] bg-[var(--surface)] px-3 py-2 text-[#14532d]">
+                            هاد الدورة: <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexPlannedAmount)}</span>
+                          </span>
+                          <span className="rounded-[12px] border border-[#bbf7d0] bg-[var(--surface)] px-3 py-2 text-[#14532d]">
+                            القاعدة اليومية: <span className="font-semibold text-[#111111]">{formatMad(guidanceFlexBaseAmount)}</span>
+                          </span>
                         </div>
-                        <p className="mt-2 text-[12px] leading-6 text-[#166534]">
-                          منها {formatMad(guidanceFlexBaseAmount)} قاعدة يومية، و{formatMad(guidanceFlexBufferAmount)} هامش مرونة زائد.
-                        </p>
-                        <p className="mt-2 text-[12px] leading-6 text-[#166534]">
-                          {guidanceFlexPlannedAmount > guidanceFlexRecommendedAmount
-                            ? "زدنا غير هامش صغير فوق القاعدة اليومية باش يبقى الشهر الحقيقي محمي."
-                            : guidanceFlexPlannedAmount < guidanceFlexRecommendedAmount
-                            ? "هنا نقصنا المرونة باش نعطيو مساحة أكبر لأظرفة أخرى."
-                            : "المرونة دابا جاية تقريباً على قد الحاجة الشهرية المتغيّرة."}
-                        </p>
                       </div>
                     </section>
 
-                    <section className="rounded-[28px] border border-[#e5e5ea] bg-[var(--surface)] p-5 text-right shadow-[0_20px_48px_-36px_rgba(15,23,42,0.2)]">
-                      <div className="space-y-2">
-                        <h3 className="text-[20px] font-semibold text-[#111111]">الخلاصة</h3>
-                        <p className="text-[14px] leading-7 text-[#334155]">{guidanceSummaryTextUi}</p>
-                      </div>
-                      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setGuidanceStrengthPct(65);
-                            setGuidanceKeepSafetyEnvelope(true);
-                            setGuidanceKeepFlexEnvelope(true);
-                            const scenario =
-                              guidanceScenarios.find((item) => item.id === guidanceRecommendedScenarioId) ??
-                              guidanceScenarios[3];
-                            if (!scenario) return;
-                            applyGuidanceScenarioSafe(scenario, 65);
-                          }}
-                          className={`h-11 min-w-[150px] ${onboardingSecondaryButtonClass}`}
-                          style={onboardingSecondaryButtonStyle}
-                        >
-                          رجّع للاقتراح
-                        </button>
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => submitInteractiveGuidanceQuestion(currentQuestion)}
-                            className={`h-12 min-w-[190px] ${onboardingPrimaryButtonClass}`}
-                            style={onboardingPrimaryButtonStyle}
-                          >
-                            {currentQuestion.continueLabel ?? "كمل لاختيار الأظرفة"}
-                          </button>
-                        </div>
-                      </div>
-                    </section>
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGuidanceStrengthPct(65);
+                          setGuidanceKeepSafetyEnvelope(true);
+                          setGuidanceKeepFlexEnvelope(true);
+                          const scenario =
+                            guidanceScenarios.find((item) => item.id === guidanceRecommendedScenarioId) ??
+                            guidanceScenarios[3];
+                          if (!scenario) return;
+                          applyGuidanceScenarioSafe(scenario, 65);
+                        }}
+                        className={`inline-flex h-11 min-w-[150px] items-center justify-center gap-2 ${onboardingSecondaryButtonClass}`}
+                        style={onboardingSecondaryButtonStyle}
+                      >
+                        <RefreshCcw className="h-4 w-4" aria-hidden />
+                        رجّع للاقتراح
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => submitInteractiveGuidanceQuestion(currentQuestion)}
+                        className={`h-12 min-w-[190px] ${onboardingPrimaryButtonClass}`}
+                        style={onboardingPrimaryButtonStyle}
+                      >
+                        {currentQuestion.continueLabel ?? "كمل لاختيار الأظرفة"}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
@@ -22044,7 +21785,6 @@ export function BetaOnboardingV2PageContent({
                       .filter((item: EnvelopeProposalResolved) => !featuredGuidanceProposalIds.has(item.id))
                       .map((item: EnvelopeProposalResolved) => item.id);
                     const normalizedSearch = packSearch.trim().toLowerCase();
-                    const granularityLabel = getGranularityLabelForUi(proposalGranularity);
                     const modeFromPreviousStep =
                       savedGuidanceSnapshot?.mode ??
                       getPriorityProfileSelectedPresetMode(answers) ??
@@ -22057,14 +21797,6 @@ export function BetaOnboardingV2PageContent({
                         : modeFromPreviousStep === "goal_growth_first"
                         ? "تسريع الأهداف"
                         : "اتجاه متوازن";
-                    const directionHint =
-                      modeFromPreviousStep === "debt_relief_first"
-                        ? "غادي نخليو الأظرفة تدعم تخفيف الضغط ديال الدين من البداية."
-                        : modeFromPreviousStep === "stability_first"
-                        ? "غادي نخليو الأظرفة تدعم الأمان والاستقرار قبل أي توسع."
-                        : modeFromPreviousStep === "goal_growth_first"
-                        ? "غادي نخليو الأظرفة تدعم تمويل الأهداف بوتيرة أسرع."
-                        : "غادي نخليو الأظرفة على توزيع متوازن بين الضروري والهدف.";
                     const featuredGuidanceItems = (proposalPreview.candidates ?? []).filter((item: EnvelopeProposalResolved) =>
                       featuredGuidanceProposalIds.has(item.id)
                     );
@@ -22104,55 +21836,49 @@ export function BetaOnboardingV2PageContent({
                             <div className="space-y-2">
                               <p className="text-[13px] font-semibold text-[#6e6e73]">الاتجاه المختار</p>
                               <h2 className="text-[25px] font-semibold tracking-[-0.02em] text-[#111111]">{directionLabel}</h2>
-                              <p className="max-w-2xl text-[13px] leading-6 text-[#6e6e73]">{directionHint}</p>
                             </div>
                             <button
                               type="button"
                               onClick={handleBack}
-                              className={`h-10 ${onboardingSecondaryButtonClass}`}
+                              className={`inline-flex h-10 items-center gap-2 ${onboardingSecondaryButtonClass}`}
                               style={onboardingSecondaryButtonStyle}
                             >
-                              رجع وعدّل الاتجاه
+                              <RefreshCcw className="h-4 w-4" aria-hidden />
+                              بدّل الاتجاه
                             </button>
                           </div>
                           {savedGuidanceSnapshot ? (
-                            <div className="mt-4 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
-                                الدين: {formatMad(savedGuidanceSnapshot.planned_debt)}
-                              </span>
-                              <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
+                            <div className="mt-4 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-[#111111]">
+                              {getString(answers, "E5_has_debt") === "yes" ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
+                                  <Landmark className="h-3.5 w-3.5 text-[#e11d48]" aria-hidden />
+                                  الدين: {formatMad(savedGuidanceSnapshot.planned_debt)}
+                                </span>
+                              ) : null}
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
+                                <ShieldCheck className="h-3.5 w-3.5 text-[#2563eb]" aria-hidden />
                                 الأمان: {savedGuidanceSnapshot.keep_safety ? formatMad(savedGuidanceSnapshot.planned_reserve) : "0 MAD"}
                               </span>
-                              <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
+                                <Wallet className="h-3.5 w-3.5 text-[#16a34a]" aria-hidden />
                                 المرونة: {savedGuidanceSnapshot.keep_flex ? formatMad(savedGuidanceSnapshot.planned_flex) : "0 MAD"}
                               </span>
                               {hasConcreteGoals ? (
-                                <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5">
+                                  <Target className="h-3.5 w-3.5 text-[#6366f1]" aria-hidden />
                                   الأهداف: {formatMad(savedGuidanceSnapshot.planned_goals)}
                                 </span>
                               ) : null}
                             </div>
                           ) : null}
                         </section>
-                        <section className="rounded-[20px] border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4 text-right">
-                          <p className="text-[14px] font-semibold text-[#0f172a]">القرار ديال هاد المرحلة</p>
-                          <p className="mt-1 text-[13px] leading-6 text-[#334155]">
-                            ثبّت شكون من الأظرفة غادي تبدأ بهم من أول نهار. تقدر تزيد أو تبدّل الأسماء من بعد داخل التطبيق.
-                          </p>
-                        </section>
-                        <section className="rounded-[20px] border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-4 text-right">
-                          <p className="text-[14px] font-semibold text-[#14532d]">المنطق الجديد ديال المرونة (Morona)</p>
-                          <p className="mt-1 text-[13px] leading-6 text-[#166534]">
-                            ظرف المرونة كيبقى غير Parent للتوزيع. أي ظرف ما عندوش مبلغ ثابت دابا غادي ياخذ حصتو من المرونة
-                            فالخطوة الجاية حسب النسب.
-                          </p>
-                          <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-[12px] font-semibold">
-                            <span className="rounded-full border border-[#86efac] bg-[var(--surface)] px-3 py-1 text-[#166534]">
-                              الأظرفة المرشحة للتوزيع: {moronaDistributionPreviewNames.length}
-                            </span>
-                          </div>
-                          {moronaDistributionPreviewNames.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap justify-end gap-2">
+                        {moronaDistributionPreviewNames.length > 0 ? (
+                          <section className="rounded-[20px] border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-right">
+                            <p className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#14532d]">
+                              <Wallet className="h-4 w-4" aria-hidden />
+                              المرونة غادي تتقسم فالخطوة الجاية على:
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
                               {moronaDistributionPreviewNames.map((name) => (
                                 <span
                                   key={name}
@@ -22162,8 +21888,8 @@ export function BetaOnboardingV2PageContent({
                                 </span>
                               ))}
                             </div>
-                          ) : null}
-                        </section>
+                          </section>
+                        ) : null}
                         {(planningStateCode === "critique" || planningStateCode === "sous_finance") && (
                           <section
                             className={`rounded-[20px] border px-4 py-4 text-right ${
@@ -22184,34 +21910,10 @@ export function BetaOnboardingV2PageContent({
                         )}
 
                         <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 text-center">
-                          <div className="w-full rounded-[30px] border border-[#e5e5ea] bg-[var(--surface)] px-5 py-5 text-center shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)] sm:px-6">
-                            <h2 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-[#111111] sm:text-[34px]">
-                              الأظرفة المقترحة دابا
-                            </h2>
-                            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[12px] font-semibold">
-                              <span className="rounded-full border border-[#e5e5ea] bg-[#fafafc] px-3 py-1 text-[#3c3c43]">
-                                {directionLabel}
-                              </span>
-                              <span className="rounded-full border border-[#e5e5ea] bg-[#fafafc] px-3 py-1 text-[#3c3c43]">
-                                {granularityLabel}
-                              </span>
-                              {salaryAmountEffects?.enabled ? (
-                                <span className="rounded-full border border-[#e5e5ea] bg-[#fafafc] px-3 py-1 text-[#3c3c43]">
-                                  دخل تقديري: {formatMad(salaryAmountEffects.monthly_income_estimate)}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-
                           {featuredGuidanceItems.length > 0 ? (
                             <section className="w-full rounded-[30px] border border-[#e5e7eb] bg-[var(--surface)] px-5 py-5 text-right shadow-[0_24px_70px_-48px_rgba(0,0,0,0.24)] sm:px-6">
                               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                                <div className="space-y-1">
-                                  <p className="text-[18px] font-semibold text-[#111111]">الأظرفة الأساسية الجاية من التوجيه</p>
-                                </div>
-                                <span className="rounded-full border border-[#e5e7eb] bg-[#fafafc] px-3 py-1 text-[12px] font-semibold text-[#3c3c43]">
-                                  {featuredGuidanceItems.length}/{featuredGuidanceItems.length} مفعّلة
-                                </span>
+                                <p className="text-[18px] font-semibold text-[#111111]">الأظرفة الأساسية</p>
                               </div>
                               <div className="grid gap-4 xl:grid-cols-2">
                                 {featuredGuidanceItems.map((item) => {
@@ -22240,30 +21942,22 @@ export function BetaOnboardingV2PageContent({
                                     >
                                       <div className="flex items-start gap-3">
                                         <div className={`inline-flex h-10 w-10 items-center justify-center rounded-full border ${iconClass}`}>
-                                          <Check className="h-4 w-4" />
+                                          {isSafetyEnvelope ? (
+                                            <ShieldCheck className="h-4 w-4" aria-hidden />
+                                          ) : (
+                                            <Wallet className="h-4 w-4" aria-hidden />
+                                          )}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                          <div className="flex flex-wrap items-start justify-between gap-2">
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[17px] font-semibold text-[#111111]">{title}</p>
-                                            </div>
-                                            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${badgeClass}`}>
-                                              أساسي من التوجيه
-                                            </span>
-                                          </div>
-                                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                                            {typeof knownAmount === "number" && knownAmount > 0 ? (
-                                              <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[#0f172a]">
-                                                {formatMad(knownAmount)}
-                                              </span>
-                                            ) : null}
-                                            {!isSafetyEnvelope ? (
-                                              <span className="rounded-full border border-[#bbf7d0] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[#15803d]">
-                                                Parent للتوزيع
-                                              </span>
-                                            ) : null}
-                                            <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[#374151]">
-                                              مفعّل دائماً
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-[17px] font-semibold text-[#111111]">{title}</p>
+                                            <span
+                                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${badgeClass}`}
+                                              title="مفعّل دائماً"
+                                            >
+                                              <Lock className="h-3.5 w-3.5" aria-hidden />
+                                              <span className="sr-only">مفعّل دائماً</span>
+                                              {typeof knownAmount === "number" && knownAmount > 0 ? formatMad(knownAmount) : null}
                                             </span>
                                           </div>
                                         </div>
@@ -22351,17 +22045,19 @@ export function BetaOnboardingV2PageContent({
                                           <GroupIcon className="h-4 w-4" />
                                         </span>
                                       </div>
-                                      <p className="text-[12px] text-[#6e6e73]">
-                                        {group.groupKey === "buffer" || group.groupKey === "lifestyle"
-                                          ? "تفاصيل كتخدم داخل نفس الغلاف"
-                                          : `${selectedInGroup}/${group.items.length} مختارة`}
-                                      </p>
+                                      {group.groupKey !== "buffer" && group.groupKey !== "lifestyle" ? (
+                                        <p className="text-[12px] text-[#6e6e73]">
+                                          {selectedInGroup}/{group.items.length} مختارة
+                                        </p>
+                                      ) : null}
                                       {groupShownTotal > 0 ? (
                                         <p className="text-[12px] font-semibold text-[#334155]">
                                           المجموع: {formatMad(groupShownTotal)}
                                         </p>
                                       ) : null}
-                                      {groupBudgetMeta?.guidanceHint ? (
+                                      {groupBudgetMeta?.guidanceHint &&
+                                      group.groupKey !== "buffer" &&
+                                      group.groupKey !== "lifestyle" ? (
                                         <p className="text-[12px] text-[#475569]">
                                           {groupBudgetMeta.guidanceHint}
                                         </p>
@@ -22517,11 +22213,11 @@ export function BetaOnboardingV2PageContent({
                                                         {formatMad(shownAmount)}
                                                       </span>
                                                     ) : null}
-                                                    {internalEnvelopeDetail ? (
+                                                    {internalEnvelopeDetail && !isMoronaDistributionTarget ? (
                                                       <span className="rounded-full border border-[#e5e5ea] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[#374151]">
-                                                        تفصيل داخل الغلاف
+                                                        من نفس الغلاف
                                                       </span>
-                                                    ) : fixedLocked ? (
+                                                    ) : internalEnvelopeDetail ? null : fixedLocked ? (
                                                       <span
                                                         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                                                           guidanceLocked
@@ -22529,12 +22225,16 @@ export function BetaOnboardingV2PageContent({
                                                             : "border border-[#fde68a] bg-[#fffbeb] text-[#92400e]"
                                                         }`}
                                                       >
-                                                        {guidanceLocked ? "مفعّل من البداية" : "مبلغ ثابت"}
+                                                        <span className="inline-flex items-center gap-1">
+                                                          <Lock className="h-3.5 w-3.5" aria-hidden />
+                                                          {guidanceLocked ? "مفعّل من البداية" : "ثابت"}
+                                                        </span>
                                                       </span>
                                                     ) : null}
                                                     {isMoronaDistributionTarget ? (
-                                                      <span className="rounded-full border border-[#a7f3d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#047857]">
-                                                        كيتوزع من المرونة
+                                                      <span className="inline-flex items-center gap-1 rounded-full border border-[#a7f3d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#047857]">
+                                                        <Wallet className="h-3.5 w-3.5" aria-hidden />
+                                                        من المرونة
                                                       </span>
                                                     ) : null}
                                                     {item.custom_category ? (
@@ -22548,15 +22248,6 @@ export function BetaOnboardingV2PageContent({
                                                         <span>{getProposalTierLabelForUi(item.tier)}</span>
                                                       </span>
                                                     </span>
-                                                    {!internalEnvelopeDetail ? (
-                                                      <span
-                                                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                                                          active ? "bg-[#d9f8e4] text-[#157347]" : "bg-[#f5f5f7] text-[#6e6e73]"
-                                                        }`}
-                                                      >
-                                                        {active ? <Check className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
-                                                      </span>
-                                                    ) : null}
                                                   </div>
                                                 </div>
 
@@ -22571,16 +22262,6 @@ export function BetaOnboardingV2PageContent({
 
                                                 {expanded ? (
                                                   <div className="mt-3 space-y-3">
-                                                    <div className="rounded-2xl border border-[#dbeafe] bg-[#f7fbff] px-3 py-3">
-                                                      <p className="text-[12px] font-semibold text-[#1d4ed8]">
-                                                        إعدادات الاحتفاظ بالباقي ماشي هنا.
-                                                      </p>
-                                                      <p className="mt-1 text-[12px] leading-6 text-[#475569]">
-                                                        غادي نضبطو `يبقى حتى الدفعة الجاية` ولا `يمشي لظرف الادخار` فالإعدادات الذكية
-                                                        فالمرحلة الجاية.
-                                                      </p>
-                                                    </div>
-
                                                     <div className="space-y-2">
                                                       <p className="text-[12px] font-medium text-[#6e6e73]">بدّل الاسم إلا بغيتي</p>
                                                       <Input
@@ -22624,9 +22305,9 @@ export function BetaOnboardingV2PageContent({
                         <div className="sticky bottom-3 z-20 mx-auto w-full max-w-3xl px-1">
                           <div className="rounded-[28px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-center sm:text-right">
-                                <p className="text-[14px] font-semibold text-[#111111]">من بعد هاد الخطوة غادي نمشيو لقواعد توزيع الدخل.</p>
-                            </div>
+                            <p className="text-center text-[14px] font-semibold text-[#111111] sm:text-right">
+                              {proposalPreview.selected_envelopes.length} أظرفة مختارة
+                            </p>
                             <button
                               type="button"
                               onClick={() => submitEnvelopeSetupQuestion(currentQuestion)}

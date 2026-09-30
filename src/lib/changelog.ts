@@ -48,6 +48,11 @@ export const CHANGELOG: Release[] = [
             en: "When building your plan, what happens to unspent money is already set to our recommendation; you can change it in one click.",
             ar: "ملي كتبني الخطة، شنو يوقع للفلوس اللي بقات مضبوط ديجا على حساب النصيحة ديالنا، وتقدر تبدلو بكليكة.",
           },
+          {
+            fr: "Les écrans d'orientation et de choix des enveloppes de ton plan sont plus courts : une recommandation expliquée en une phrase, des chiffres avec des icônes et moins de texte.",
+            en: "The plan direction and envelope screens are shorter: one recommendation explained in a sentence, figures with icons and less text.",
+            ar: "صفحات توجيه الخطة واختيار الأظرفة ولاو أقصر: اقتراح واحد مشروح فجملة، أرقام بأيقونات، وكلام أقل.",
+          },
         ],
       },
       {
