@@ -9,6 +9,7 @@ import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { GUEST_LIMITS } from "@/lib/guestQuota";
 import {
+  ArrowDown,
   Check,
   ChevronDown,
   ChevronUp,
@@ -4798,7 +4799,7 @@ function localizeProposalEnvelopeNameForUi(name: string): string {
   if (normalized.startsWith("Dettes — ")) return `الديون — ${normalized.slice("Dettes — ".length)}`;
   if (normalized.startsWith("Dettes - ")) return `الديون — ${normalized.slice("Dettes - ".length)}`;
   if (normalized.startsWith("Objectif ")) return normalized.replace(/^Objectif\b/, "الهدف");
-  return name;
+  return getEnvelopeLabelForUi(name);
 }
 
 function isExcludedMoronaTargetKey(key: string): boolean {
@@ -9791,8 +9792,6 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   questions.push({
     id: "E11b_distribution_setup",
     title: "قواعد توزيع الدخل",
-    subtitle:
-      "هنا غادي نطبّق نفس منطق التوزيع ديال المنصة على الأظرفة اللي ما فيهاش مبلغ ثابت.",
     kind: "distribution_setup",
   });
 
@@ -11500,16 +11499,6 @@ export function BetaOnboardingV2PageContent({
     () => new Set<EnvelopeProposalDomain>(["debts", "goals"]),
     []
   );
-  const distributionStructuralEnvelopeNames = useMemo(
-    () =>
-      uniqueBySlug(
-        selectedProposalEnvelopes
-          .filter((item) => structuralEnvelopeGroupKeys.has(item.group_key))
-          .map((item) => item.final_name.trim())
-          .filter(Boolean)
-      ),
-    [selectedProposalEnvelopes, structuralEnvelopeGroupKeys]
-  );
   const distributionExplainFixedNameSet = useMemo(() => {
     const explainRows = Array.isArray(proposalPreview?.explain_v2)
       ? proposalPreview.explain_v2
@@ -11838,15 +11827,6 @@ export function BetaOnboardingV2PageContent({
     draftObjects.fixed_expenses,
     proposalPreview?.explain_v2,
   ]);
-  const distributionBaselineFixedNameSet = useMemo(
-    () =>
-      new Set(
-        distributionBaselineFixedSimulationItems
-          .map((item) => normalizeProposalName(item.name))
-          .filter(Boolean)
-      ),
-    [distributionBaselineFixedSimulationItems]
-  );
   const distributionFixedExcludedNameSet = useMemo(
     () =>
       new Set(
@@ -11855,13 +11835,6 @@ export function BetaOnboardingV2PageContent({
           .filter(Boolean)
       ),
     [distributionBaselineFixedSimulationItems]
-  );
-  const distributionStructuralEnvelopeNamesFiltered = useMemo(
-    () =>
-      distributionStructuralEnvelopeNames.filter(
-        (name) => !distributionBaselineFixedNameSet.has(normalizeProposalName(name))
-      ),
-    [distributionBaselineFixedNameSet, distributionStructuralEnvelopeNames]
   );
   const currentDistributionScopeHash = useMemo(() => {
     const normalized = [...distributionCurrentMoronaScopeTokens]
@@ -11931,66 +11904,6 @@ export function BetaOnboardingV2PageContent({
     [scopeMatchingDistributionConfigs]
   );
   const savedGuidanceSnapshot = useMemo(() => getGuidanceDirectionSnapshot(answers), [answers]);
-  const distributionParentBudgetRows = useMemo(() => {
-    if (!savedGuidanceSnapshot) return [] as Array<{ key: string; label: string; amount: number; note: string }>;
-    const rows = [
-      {
-        key: "debt",
-        label: "الدين",
-        amount: savedGuidanceSnapshot.planned_debt,
-        note: "هاد الغلاف خذا budget بالفعل من التوجيه، وما غاديش يتعاود تقسيمو هنا.",
-      },
-      {
-        key: "reserve",
-        label: "الأمان",
-        amount: savedGuidanceSnapshot.keep_safety ? savedGuidanceSnapshot.planned_reserve : 0,
-        note: "هاد الغلاف تحدد فمرحلة التوجيه، وهنا غير كنأكدوه داخل بنية الخطة.",
-      },
-      {
-        key: "flex",
-        label: "المرونة",
-        amount: savedGuidanceSnapshot.keep_flex ? savedGuidanceSnapshot.planned_flex : 0,
-        note: "المرونة خذات base + buffer فالتوجيه، وماشي هاد الصفحة اللي غادي تعاود تبudgetيها.",
-      },
-      {
-        key: "goals",
-        label: "الأهداف",
-        amount: savedGuidanceSnapshot.planned_goals,
-        note: "تمويل الأهداف خرج من guidance، وهنا غير كنوضح شكون داخل فالبنية.",
-      },
-    ];
-    return rows.filter((row) => row.amount > 0);
-  }, [savedGuidanceSnapshot]);
-  const distributionParentBudgetItems = useMemo<DistributionSetupItem[]>(
-    () =>
-      distributionParentBudgetRows.map((row) => ({
-        id: row.key,
-        name: row.label,
-        kind: "parent_budgeted",
-        amount: row.amount,
-        note: row.note,
-      })),
-    [distributionParentBudgetRows]
-  );
-  const distributionFixedReviewItems = useMemo<DistributionSetupItem[]>(
-    () =>
-      distributionBaselineFixedSimulationItems.map((item) => ({
-        id: normalizeProposalName(item.name) || item.name,
-        name: item.name,
-        kind: "fixed_already_counted",
-        amount: item.amount,
-      })),
-    [distributionBaselineFixedSimulationItems]
-  );
-  const distributionStructuralItems = useMemo<DistributionSetupItem[]>(
-    () =>
-      distributionStructuralEnvelopeNamesFiltered.map((name) => ({
-        id: normalizeProposalName(name) || name,
-        name,
-        kind: "child_structural",
-      })),
-    [distributionStructuralEnvelopeNamesFiltered]
-  );
   const distributionEffectiveEligibleEnvelopeNames = useMemo(
     () =>
       distributionEligibleEnvelopeNames.filter((name) => {
@@ -17332,145 +17245,72 @@ export function BetaOnboardingV2PageContent({
 
   const distributionCopy = {
     fr: {
-      ruleBase: "Règle de distribution",
-      titleStandalone: "Configurer les règles de distribution",
-      introStandalone:
-        "Ici tu règles seulement comment le montant flexible est réparti sur les enveloppes non fixes, sans modifier le plan original.",
-      targetsLabel: (count: number) => `Enveloppes ciblées : ${count}`,
-      statusLabel: "Statut :",
+      titleStandalone: "Répartition du budget flexible",
+      flowTitle: "Budget flexible",
+      flowLine: (amount: string) =>
+        `Chaque mois, ${amount} de budget flexible est réparti sur ces enveloppes selon tes pourcentages.`,
+      flowLineNoAmount: "Chaque mois, le budget flexible est réparti sur ces enveloppes selon tes pourcentages.",
+      unresolvedLine: (count: number) =>
+        `${count} de ces enveloppes n’existent pas encore : elles seront créées avec le bouton.`,
       statusReady: "Prêt",
       statusNeedsSetup: "À compléter",
       statusNotSaved: "Non configuré",
-      whatNow: "Que faire maintenant ?",
-      steps: [
-        "Ouvre la configuration de distribution.",
-        "Enregistre la configuration.",
-        "Après l’enregistrement, la règle est active sur cette page.",
-      ],
-      important: "À savoir",
-      notes: (amountLabel: string) => [
-        "La distribution ici s’applique seulement au montant flexible, pas au revenu total.",
-        `Le montant mensuel distribué maintenant : ${amountLabel}.`,
-        "Dans la configuration, ce montant sert juste à simuler pour comprendre le résultat.",
-        "Le système répartit ce montant sur les enveloppes flexibles selon les pourcentages choisis.",
-      ],
-      unresolvedPrefix: "Certaines enveloppes ne sont pas encore synchronisées :",
       noTargets: "Aucune enveloppe flexible ne nécessite de règles de distribution sur cette page.",
-      targetsTitle: "Enveloppes concernées par la distribution",
-      targetsSubtitle: [
-        "Ce sont les enveloppes flexibles sans montant fixe.",
-        "La distribution provient uniquement du montant flexible.",
-      ],
-      ctaUnresolved:
-        "Certaines enveloppes n’existent pas encore. On les crée d’abord, puis on configure la distribution.",
-      ctaReady:
-        "Ouvre la configuration et enregistre-la pour valider les règles sur cette page.",
       btnSyncing: "Synchronisation…",
-      btnFixAndSetup: "Créer les enveloppes manquantes et configurer",
-      btnSetup: "Configurer la distribution",
-      savedTitle: "Configurations enregistrées (compatibles)",
-      savedSubtitle:
-        "Seules les configurations correspondant aux enveloppes actuelles s’affichent ici.",
-      savedEmpty: "Aucune configuration enregistrée ne correspond à ces enveloppes.",
+      btnFixAndSetup: "Créer les enveloppes et configurer",
+      btnSetup: "Configurer la répartition",
+      savedTitle: "Configurations enregistrées",
       savedAt: (label: string) => `Enregistré : ${label}`,
       activeNow: "Active",
       delete: "Supprimer",
       deleting: "Suppression…",
-      footerHint: "Enregistre la configuration pour activer le bouton.",
+      footerHint: "Enregistre la répartition pour continuer.",
       footerSave: "Enregistrer",
     },
     en: {
-      ruleBase: "Distribution rule",
-      titleStandalone: "Set up distribution rules",
-      introStandalone:
-        "This only configures how the flexible amount is split across non-fixed envelopes, without changing the original plan.",
-      targetsLabel: (count: number) => `Targeted envelopes: ${count}`,
-      statusLabel: "Status:",
+      titleStandalone: "Flexible budget split",
+      flowTitle: "Flexible budget",
+      flowLine: (amount: string) =>
+        `Each month, ${amount} of flexible budget is split across these envelopes by your percentages.`,
+      flowLineNoAmount: "Each month, the flexible budget is split across these envelopes by your percentages.",
+      unresolvedLine: (count: number) =>
+        `${count} of these envelopes do not exist yet: the button creates them.`,
       statusReady: "Ready",
       statusNeedsSetup: "Needs setup",
       statusNotSaved: "Not configured",
-      whatNow: "What to do now?",
-      steps: [
-        "Open distribution setup.",
-        "Save the configuration.",
-        "After saving, the rule is active on this page.",
-      ],
-      important: "Important",
-      notes: (amountLabel: string) => [
-        "Distribution here applies only to the flexible amount, not total income.",
-        `Monthly amount distributed now: ${amountLabel}.`,
-        "In the setup screen, this amount is only used for simulation.",
-        "The system splits this amount across flexible envelopes based on your percentages.",
-      ],
-      unresolvedPrefix: "Some envelopes are not synced yet:",
       noTargets: "No flexible envelopes need distribution rules on this page right now.",
-      targetsTitle: "Envelopes needing distribution rules",
-      targetsSubtitle: [
-        "These are flexible envelopes without a fixed amount.",
-        "Distribution comes only from the flexible amount.",
-      ],
-      ctaUnresolved:
-        "Some envelopes do not exist yet. We’ll create them first, then configure distribution.",
-      ctaReady:
-        "Open the setup and save it to validate rules for this page.",
       btnSyncing: "Syncing…",
-      btnFixAndSetup: "Create missing envelopes and configure",
-      btnSetup: "Configure distribution",
-      savedTitle: "Saved matching configs",
-      savedSubtitle: "Only configs matching the current envelopes are shown here.",
-      savedEmpty: "No saved config matches the current envelopes.",
+      btnFixAndSetup: "Create envelopes and configure",
+      btnSetup: "Configure the split",
+      savedTitle: "Saved setups",
       savedAt: (label: string) => `Saved: ${label}`,
       activeNow: "Active",
       delete: "Delete",
       deleting: "Deleting…",
-      footerHint: "Finish distribution setup to enable the button.",
+      footerHint: "Save the split to continue.",
       footerSave: "Save",
     },
     ar: {
-      ruleBase: "قاعدة التوزيع",
-      titleStandalone: "إعداد قواعد توزيع الدخل",
-      introStandalone:
-        "هنا كتضبط غير كيفاش فلوس المرونة غادي تتقسم على الأظرفة غير الثابتة، بلا ما نبدلو الخطة الأصلية.",
-      targetsLabel: (count: number) => `الأظرفة المستهدفة: ${count}`,
-      statusLabel: "الحالة:",
+      titleStandalone: "توزيع المرونة",
+      flowTitle: "ظرف المرونة",
+      flowLine: (amount: string) =>
+        `كل شهر، ${amount} ديال المرونة كيتقسمو على هاد الأظرفة حسب النسب اللي كتختار.`,
+      flowLineNoAmount: "كل شهر، المرونة كتتقسم على هاد الأظرفة حسب النسب اللي كتختار.",
+      unresolvedLine: (count: number) =>
+        `${count} من هاد الأظرفة مازال ما كايناش فالحساب: الزر غادي يصاوبهم.`,
       statusReady: "جاهز",
       statusNeedsSetup: "خاصك تكمل الإعداد",
-      statusNotSaved: "مازال ما تسجلش الإعداد",
-      whatNow: "شنو غادي نديرو دابا؟",
-      steps: [
-        "إعداد طريقة التوزيع.",
-        "حفظ الإعداد.",
-        "من بعد الحفظ، القواعد غادي تولّي جاهزة للاستعمال فهاد الصفحة.",
-      ],
-      important: "توضيح مهم على هاد المرحلة:",
-      notes: (amountLabel: string) => [
-        "التوزيع هنا كيتطبق غير على فلوس ظرف المرونة، ماشي على الدخل كامل.",
-        `المبلغ الشهري اللي غادي يتوزع دابا هو: ${amountLabel}.`,
-        "فـ إعداد التوزيع، هاد المبلغ كيبان غير للمحاكاة باش تفهم النتيجة، وما كتبدلوش من هنا.",
-        "النظام كيقسم هاد المبلغ كل شهر على الأظرفة المرنة حسب النسب اللي اخترتي.",
-      ],
-      unresolvedPrefix: "بعض الأظرفة مازال ما تزامنوش:",
+      statusNotSaved: "مازال ما تسجلش",
       noTargets: "حالياً ما كايناش أظرفة مرنة محتاجة قواعد توزيع فهاد الصفحة.",
-      targetsTitle: "الأظرفة اللي خاصها قواعد التوزيع",
-      targetsSubtitle: [
-        "هادو غير الأظرفة المرنة اللي ما عندهاش مبلغ ثابت.",
-        "التوزيع هنا كيكون غير من فلوس ظرف المرونة.",
-      ],
-      ctaUnresolved:
-        "بعض الأظرفة مازال ما كايناش فالحساب. غادي نصاوبها أولاً ومن بعد نوجدّو طريقة التوزيع.",
-      ctaReady:
-        "دخل لإعداد طريقة التوزيع وحفظها باش نثبتو القواعد ديال هاد الصفحة.",
       btnSyncing: "كنديرو مزامنة للأظرفة...",
-      btnFixAndSetup: "صاوب الأظرفة الناقصة وإعداد طريقة التوزيع",
-      btnSetup: "إعداد طريقة التوزيع",
-      savedTitle: "الكونفيكات المحفوظة المناسبة",
-      savedSubtitle: "كيبانو هنا غير الكونفيكات اللي كيناسبو هاد الأظرفة الحالية.",
-      savedEmpty: "ما لقيناش حتى كونفيك محفوظ كيناسب هاد الأظرفة الحالية.",
+      btnFixAndSetup: "صاوب الأظرفة وحدد التوزيع",
+      btnSetup: "حدد طريقة التوزيع",
+      savedTitle: "الإعدادات المحفوظة",
       savedAt: (label: string) => `تحفظ فـ ${label}`,
       activeNow: "النشط دابا",
       delete: "حذف",
       deleting: "كيتحيد...",
-      footerHint: "كمّل إعداد قواعد التوزيع باش يتفعل الزر.",
+      footerHint: "احفظ طريقة التوزيع باش تكمل.",
       footerSave: "حفظ الإعداد",
     },
   } as const;
@@ -22650,212 +22490,157 @@ export function BetaOnboardingV2PageContent({
                 ) : null}
 
                 {currentQuestion.kind === "distribution_setup" ? (
-                  <div className="mx-auto max-w-5xl space-y-5" dir={pageDir}>
-	                    <section className={`rounded-[28px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] px-5 py-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)] ${pageAlign}`}>
-	                      <div className="space-y-2">
-	                        <p className="text-[13px] font-semibold text-[#6e6e73]">
-	                          {isStandaloneDistributionRoute
-	                            ? distributionUiCopy.ruleBase
-	                            : "قاعدة التوزيع"}
-	                        </p>
-	                        <h2 className="text-[25px] font-semibold tracking-[-0.02em] text-[#111111]">
-	                          {isStandaloneDistributionRoute
-	                            ? distributionUiCopy.titleStandalone
-	                            : "بقاو خطوات بسيطة قبل الإعدادات الذكية"}
-	                        </h2>
-	                        <p className="max-w-3xl text-[13px] leading-6 text-[#6e6e73]">
-	                          {isStandaloneDistributionRoute
-	                            ? distributionUiCopy.introStandalone
-	                            : "هاد المرحلة ما فيهاش تقسيم جديد للفلوس. غير كنربطو الأظرفة المرنة بقواعد التوزيع."}
-	                        </p>
-	                      </div>
-	                      <div className="mt-4 flex flex-wrap items-center gap-2">
-	                        <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
-	                          {isStandaloneDistributionRoute
-	                            ? distributionUiCopy.targetsLabel(distributionTargetItems.length)
-	                            : `الأظرفة المستهدفة: ${distributionTargetItems.length}`}
-	                        </span>
-	                        <span className="rounded-full border border-[#e5e7eb] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-semibold text-[#111111]">
-	                          {isStandaloneDistributionRoute
-	                            ? `${distributionUiCopy.statusLabel} ${distributionStatusLabel}`
-	                            : `الحالة: ${distributionStatusLabel}`}
-	                        </span>
-	                      </div>
-	                      <div className="mt-3 rounded-xl border border-[#dbeafe] bg-[#eff6ff] px-3 py-3">
-	                        <p className="text-[12px] font-semibold text-[#1e3a8a]">
-	                          {isStandaloneDistributionRoute ? distributionUiCopy.whatNow : "شنو غادي نديرو دابا؟"}
-	                        </p>
-	                        <ul className="mt-1 space-y-1 text-[12px] leading-6 text-[#1e3a8a]">
-	                          {distributionUiCopy.steps.map((step, index) => (
-	                            <li key={index}>{index + 1}. {step}</li>
-	                          ))}
-	                        </ul>
-	                      </div>
-	                      <div className="mt-3 rounded-xl border border-[#e5e7eb] bg-[var(--surface)] px-3 py-3">
-	                        <p className="text-[12px] font-semibold text-[#111111]">
-	                          {isStandaloneDistributionRoute ? distributionUiCopy.important : "توضيح مهم على هاد المرحلة:"}
-	                        </p>
-	                        <ul className="mt-1 space-y-1 text-[12px] leading-6 text-[#475569]">
-	                          {distributionUiCopy
-	                            .notes(
-	                              guidanceFlexPlannedAmountEffective > 0
-	                                ? formatMad(guidanceFlexPlannedAmountEffective)
-	                                : locale === "ar"
-	                                ? "مازال ما تحددش"
-	                                : locale === "fr"
-	                                ? "—"
-	                                : "—"
-	                            )
-	                            .map((line, index) => (
-	                              <li key={index}>• {line}</li>
-	                            ))}
-	                        </ul>
-	                      </div>
-                      {distributionOnboardingStatus?.message && locale === "ar" ? (
-                        <p className="mt-2 max-w-3xl text-[12px] leading-6 text-[#64748b]">
-                          {distributionOnboardingStatus.message}
+                  (() => {
+                    const distributionUnresolvedKeySet = new Set(
+                      distributionDisplayUnresolvedEnvelopeNames.map((name) => getDistributionNameEquivalentKey(name))
+                    );
+                    const distributionIsReady = distributionStatusLabel === distributionUiCopy.statusReady;
+                    return (
+                  <div className="mx-auto max-w-3xl space-y-5" dir={pageDir}>
+                    {isStandaloneDistributionRoute ? (
+                      <h2 className={`text-[25px] font-semibold tracking-[-0.02em] text-[#111111] ${pageAlign}`}>
+                        {distributionUiCopy.titleStandalone}
+                      </h2>
+                    ) : null}
+
+                    <section className={`rounded-[28px] border border-[#e5e7eb] bg-[var(--surface)] p-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.18)] ${pageAlign}`}>
+                      {distributionTargetItems.length === 0 ? (
+                        <p className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4 text-[13px] leading-6 text-[#334155]">
+                          {isStandaloneDistributionRoute
+                            ? distributionUiCopy.noTargets
+                            : "ما لقيناش أظرفة مرنة للتوزيع فهاد المرحلة، غادي نكملو مباشرة للإعدادات الذكية."}
                         </p>
-                      ) : null}
-                      {distributionOnboardingStatus &&
-	                      distributionDisplayUnresolvedTotal > 0 ? (
-	                        <p className="mt-2 max-w-3xl rounded-xl border border-[#fecaca] bg-[#fff5f5] px-3 py-2 text-[12px] leading-6 text-[#b91c1c]">
-                          {distributionUiCopy.unresolvedPrefix}{" "}
-                          {distributionDisplayUnresolvedEnvelopeNames
-                            .map((name) => localizeProposalEnvelopeNameForUi(name))
-                            .join(locale === "ar" ? "، " : ", ")}
-                        </p>
-                      ) : null}
-                    </section>
-
-                    {distributionParentBudgetItems.length > 0 ? (
-                      <></>
-                    ) : null}
-
-                    {distributionFixedReviewItems.length > 0 ? (
-                      <></>
-                    ) : null}
-
-                    {distributionStructuralItems.length > 0 ? (
-                      <></>
-                    ) : null}
-
-		                    <section className={`rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] ${pageAlign}`}>
-		                      {distributionTargetItems.length === 0 ? (
-		                        <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4 text-[13px] leading-6 text-[#334155]">
-		                          {isStandaloneDistributionRoute
-		                            ? distributionUiCopy.noTargets
-	                            : "ما لقيناش أظرفة مرنة للتوزيع فهاد المرحلة، غادي نكملو مباشرة للإعدادات الذكية."}
-	                        </div>
-	                      ) : (
-	                        <>
-	                          <p className="text-[15px] font-semibold text-[#111111]">
-	                            {isStandaloneDistributionRoute
-	                              ? distributionUiCopy.targetsTitle
-	                              : "الأظرفة اللي خاصها قواعد التوزيع"}
-	                          </p>
-	                          <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
-	                            {(isStandaloneDistributionRoute
-	                              ? distributionUiCopy.targetsSubtitle[0]
-	                              : "هادو غير الأظرفة المرنة اللي ما عندهاش مبلغ ثابت.")}
-	                          </p>
-	                          <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
-	                            {(isStandaloneDistributionRoute
-	                              ? distributionUiCopy.targetsSubtitle[1]
-	                              : "التوزيع هنا كيكون غير من فلوس ظرف المرونة.")}
-	                          </p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {distributionTargetItems.map((item) => (
-                              <span
-                                key={item.id}
-                                className="rounded-full border border-[#d1d5db] bg-[#f9fafb] px-3 py-1.5 text-[12px] font-semibold text-[#111827]"
-                              >
-                                {localizeProposalEnvelopeNameForUi(item.name)}
+                      ) : (
+                        <>
+                          {/* Where the money comes from… */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3">
+                            <p className="inline-flex items-center gap-2 text-[15px] font-semibold text-[#14532d]">
+                              <Wallet className="h-5 w-5" aria-hidden />
+                              {distributionUiCopy.flowTitle}
+                            </p>
+                            {guidanceFlexPlannedAmountEffective > 0 ? (
+                              <span className="rounded-full border border-[#86efac] bg-[var(--surface)] px-3 py-1 text-[14px] font-semibold text-[#111111]">
+                                {formatMad(guidanceFlexPlannedAmountEffective)}
                               </span>
-                            ))}
+                            ) : null}
                           </div>
-	                          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#dbeafe] bg-[#eff6ff] px-4 py-4">
-	                            <p className="text-[13px] leading-6 text-[#1e3a8a]">
-	                              {distributionDisplayUnresolvedTotal > 0
-	                                ? distributionUiCopy.ctaUnresolved
-	                                : isStandaloneDistributionRoute
-	                                ? distributionUiCopy.ctaReady
-	                                : "إعداد طريقة التوزيع وحفظه باش يتفعّل الزر ديال المتابعة."}
-	                            </p>
-	                            <button
+
+                          <div className="flex justify-center py-2 text-[#94a3b8]">
+                            <ArrowDown className="h-5 w-5" aria-hidden />
+                          </div>
+
+                          {/* …and where it goes. Envelopes still missing from the account are dashed. */}
+                          <ul className="flex flex-wrap gap-2">
+                            {distributionTargetItems.map((item) => {
+                              const isMissing = distributionUnresolvedKeySet.has(
+                                getDistributionNameEquivalentKey(item.name)
+                              );
+                              return (
+                                <li
+                                  key={item.id}
+                                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
+                                    isMissing
+                                      ? "border border-dashed border-[#f59e0b] bg-[#fffbeb] text-[#92400e]"
+                                      : "border border-[#d1d5db] bg-[#f9fafb] text-[#111827]"
+                                  }`}
+                                >
+                                  {isMissing ? <CircleDashed className="h-3.5 w-3.5" aria-hidden /> : null}
+                                  {localizeProposalEnvelopeNameForUi(item.name)}
+                                </li>
+                              );
+                            })}
+                          </ul>
+
+                          <p className="mt-3 text-[13px] leading-6 text-[#475569]">
+                            {guidanceFlexPlannedAmountEffective > 0
+                              ? distributionUiCopy.flowLine(formatMad(guidanceFlexPlannedAmountEffective))
+                              : distributionUiCopy.flowLineNoAmount}
+                          </p>
+
+                          {distributionDisplayUnresolvedTotal > 0 ? (
+                            <p className="mt-2 inline-flex items-start gap-2 text-[12px] leading-6 text-[#92400e]">
+                              <TriangleAlert className="mt-1 h-4 w-4 shrink-0" aria-hidden />
+                              {distributionUiCopy.unresolvedLine(distributionDisplayUnresolvedTotal)}
+                            </p>
+                          ) : distributionOnboardingStatus?.message && locale === "ar" && !distributionIsReady ? (
+                            <p className="mt-2 text-[12px] leading-6 text-[#64748b]">
+                              {distributionOnboardingStatus.message}
+                            </p>
+                          ) : null}
+
+                          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#f0f2f5] pt-4">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+                                distributionIsReady
+                                  ? "border border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]"
+                                  : "border border-[#fde68a] bg-[#fffbeb] text-[#92400e]"
+                              }`}
+                            >
+                              {distributionIsReady ? (
+                                <Check className="h-3.5 w-3.5" aria-hidden />
+                              ) : (
+                                <CircleDashed className="h-3.5 w-3.5" aria-hidden />
+                              )}
+                              {distributionStatusLabel}
+                            </span>
+                            <button
                               type="button"
                               onClick={() => {
                                 void openDistributionSetupDialog();
                               }}
                               className={`h-11 ${onboardingPrimaryButtonClass}`}
-	                              style={onboardingPrimaryButtonStyle}
-	                              disabled={distributionSyncingTargets || distributionCtaBusy}
-	                            >
-	                              {distributionSyncingTargets || distributionCtaBusy
-	                                ? distributionUiCopy.btnSyncing
-	                                : distributionDisplayUnresolvedTotal > 0
-	                                ? distributionUiCopy.btnFixAndSetup
-	                                : distributionUiCopy.btnSetup}
-	                            </button>
-	                          </div>
-	                        </>
-	                      )}
-	                    </section>
+                              style={onboardingPrimaryButtonStyle}
+                              disabled={distributionSyncingTargets || distributionCtaBusy}
+                            >
+                              {distributionSyncingTargets || distributionCtaBusy
+                                ? distributionUiCopy.btnSyncing
+                                : distributionDisplayUnresolvedTotal > 0
+                                ? distributionUiCopy.btnFixAndSetup
+                                : distributionUiCopy.btnSetup}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </section>
 
-		                    <section className={`rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] ${pageAlign}`}>
-		                      <div className="flex items-center justify-between gap-3">
-		                        <p className="text-[15px] font-semibold text-[#111111]">
-		                          {isStandaloneDistributionRoute ? distributionUiCopy.savedTitle : "الكونفيكات المحفوظة المناسبة"}
-		                        </p>
-	                        <span className="rounded-full border border-[#e5e7eb] bg-[#f8fafc] px-3 py-1 text-[12px] font-semibold text-[#111111]">
-	                          {scopeMatchingDistributionConfigs.length}
-	                        </span>
-	                      </div>
-	                      <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">
-	                        {isStandaloneDistributionRoute ? distributionUiCopy.savedSubtitle : "كيبانو هنا غير الكونفيكات اللي كيناسبو هاد الأظرفة الحالية."}
-	                      </p>
-	                      {scopedDistributionConfigsPreview.length === 0 ? (
-	                        <p className="mt-3 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-3 py-3 text-[12px] text-[#64748b]">
-	                          {isStandaloneDistributionRoute ? distributionUiCopy.savedEmpty : "ما لقيناش حتى كونفيك محفوظ كيناسب هاد الأظرفة الحالية."}
-	                        </p>
-	                      ) : (
+                    {scopedDistributionConfigsPreview.length > 0 ? (
+                      <section className={`rounded-[24px] border border-[#e5e5ea] bg-[var(--surface)] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] ${pageAlign}`}>
+                        <p className="text-[15px] font-semibold text-[#111111]">{distributionUiCopy.savedTitle}</p>
                         <div className="mt-3 space-y-2">
                           {scopedDistributionConfigsPreview.map((config) => (
                             <div
                               key={config.id}
                               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-3 py-2"
                             >
-	                              <div className="min-w-0">
-	                                <p className="truncate text-[13px] font-semibold text-[#0f172a]">{config.name}</p>
-	                                <p className="text-[11px] text-[#64748b]">
-	                                  {isStandaloneDistributionRoute
-	                                    ? distributionUiCopy.savedAt(config.savedAtLabel)
-	                                    : `تحفظ فـ ${config.savedAtLabel}`}
-	                                </p>
-	                              </div>
-	                              <div className="flex items-center gap-2">
-	                                {activeScopeDistributionConfigId === config.id ? (
-	                                  <span className="rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-1 text-[11px] font-semibold text-[#166534]">
-	                                    {isStandaloneDistributionRoute ? distributionUiCopy.activeNow : "النشط دابا"}
-	                                  </span>
-	                                ) : null}
-	                                <button
+                              <div className="min-w-0">
+                                <p className="truncate text-[13px] font-semibold text-[#0f172a]">{config.name}</p>
+                                <p className="text-[11px] text-[#64748b]">{distributionUiCopy.savedAt(config.savedAtLabel)}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {activeScopeDistributionConfigId === config.id ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-1 text-[11px] font-semibold text-[#166534]">
+                                    <Check className="h-3 w-3" aria-hidden />
+                                    {distributionUiCopy.activeNow}
+                                  </span>
+                                ) : null}
+                                <button
                                   type="button"
                                   onClick={() => {
                                     void handleDeleteDistributionConfig(config.id, config.name);
                                   }}
-	                                  className="rounded-full border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[11px] font-semibold text-[#b91c1c] transition hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-60"
-	                                  disabled={deletingDistributionConfigId === config.id}
-	                                >
-	                                  {deletingDistributionConfigId === config.id
-	                                    ? distributionUiCopy.deleting
-	                                    : distributionUiCopy.delete}
-	                                </button>
-	                              </div>
-	                            </div>
-	                          ))}
+                                  className="rounded-full border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[11px] font-semibold text-[#b91c1c] transition hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-60"
+                                  disabled={deletingDistributionConfigId === config.id}
+                                >
+                                  {deletingDistributionConfigId === config.id
+                                    ? distributionUiCopy.deleting
+                                    : distributionUiCopy.delete}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                    </section>
+                      </section>
+                    ) : null}
 
                     {fieldErrors.E11b_distribution_setup ? (
                       <p className="text-center text-[12px] text-[#d70015]">{fieldErrors.E11b_distribution_setup}</p>
@@ -22863,26 +22648,24 @@ export function BetaOnboardingV2PageContent({
 
                     <div className="sticky bottom-3 z-20 mx-auto w-full max-w-4xl px-1">
                       <div className="rounded-[28px] border border-[#dfe3ea] bg-[var(--surface)]/92 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] backdrop-blur">
-	                        {isStandaloneDistributionRoute ? (
-	                          <div className="flex flex-col items-center gap-3">
-	                            {!canContinueFromDistributionSetup ? (
-	                              <p className="text-center text-[12px] text-[#b91c1c]">
-	                                {distributionUiCopy.footerHint}
-	                              </p>
-	                            ) : null}
+                        {isStandaloneDistributionRoute ? (
+                          <div className="flex flex-col items-center gap-3">
+                            {!canContinueFromDistributionSetup ? (
+                              <p className="text-center text-[12px] text-[#92400e]">{distributionUiCopy.footerHint}</p>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => {
                                 void submitDistributionSetupQuestion(currentQuestion);
                               }}
                               className={`h-12 min-w-[170px] ${onboardingPrimaryButtonClass}`}
-	                              style={onboardingPrimaryButtonStyle}
-	                              disabled={!canContinueFromDistributionSetup || distributionSyncingTargets}
-	                            >
-	                              {distributionUiCopy.footerSave}
-	                            </button>
-	                          </div>
-	                        ) : (
+                              style={onboardingPrimaryButtonStyle}
+                              disabled={!canContinueFromDistributionSetup || distributionSyncingTargets}
+                            >
+                              {distributionUiCopy.footerSave}
+                            </button>
+                          </div>
+                        ) : (
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <button
                               type="button"
@@ -22892,16 +22675,11 @@ export function BetaOnboardingV2PageContent({
                             >
                               رجع نراجع
                             </button>
-                            <div className="flex-1 text-center sm:text-right">
-                              <p className="text-[14px] font-semibold text-[#111111]">
-                                منين تكمل إعداد التوزيع، غادي نمشيو للإعدادات الذكية.
+                            {!canContinueFromDistributionSetup ? (
+                              <p className="flex-1 text-center text-[12px] text-[#92400e] sm:text-right">
+                                {distributionUiCopy.footerHint}
                               </p>
-                              {!canContinueFromDistributionSetup ? (
-                                <p className="mt-1 text-[12px] text-[#b91c1c]">
-                                  كمّل إعداد قواعد التوزيع باش يتفعل الزر.
-                                </p>
-                              ) : null}
-                            </div>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => {
@@ -22918,6 +22696,8 @@ export function BetaOnboardingV2PageContent({
                       </div>
                     </div>
                   </div>
+                    );
+                  })()
                 ) : null}
 
                 {currentQuestion.kind === "debt_entry" ? (
