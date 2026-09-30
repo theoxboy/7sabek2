@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
 import {
@@ -139,6 +140,18 @@ const NOTIFICATION_TONE_STYLES = {
   neutral: "bg-[var(--surface-2)] text-[var(--muted)]",
 } as const;
 
+function BaOmarNavIcon({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/landing/ai/ba-omar-avatar.png"
+      alt="Ba Omar"
+      width={20}
+      height={20}
+      className={`${className ?? "h-4 w-4"} rounded-full object-cover shrink-0`}
+    />
+  );
+}
+
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
@@ -147,7 +160,7 @@ const NAV_ITEMS = [
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/debts", label: "Dettes & Salaf", icon: HandCoins },
   { href: "/beta", label: "Beta", icon: FlaskConical },
-  { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/chat", label: "Ba Omar", icon: BaOmarNavIcon },
   { href: "/aide", label: "Aide", icon: CircleHelp },
   { href: "/reports", label: "Reports", icon: ChartBar },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -187,7 +200,7 @@ const APP_SHELL_COPY = {
       "/goals": "Objectifs",
       "/debts": "Dettes & Salaf",
       "/beta": "Beta",
-      "/chat": "Chat",
+      "/chat": "Ba Omar",
       "/aide": "Aide",
       "/reports": "Rapports",
       "/settings": "Parametres",
@@ -227,7 +240,7 @@ const APP_SHELL_COPY = {
       "/goals": "Goals",
       "/debts": "Debts & Salaf",
       "/beta": "Beta",
-      "/chat": "Chat",
+      "/chat": "Ba Omar",
       "/aide": "Help",
       "/reports": "Reports",
       "/settings": "Settings",
@@ -267,7 +280,7 @@ const APP_SHELL_COPY = {
       "/goals": "الأهداف",
       "/debts": "الديون والسلف",
       "/beta": "بيتا",
-      "/chat": "المحادثة",
+      "/chat": "با عمر",
       "/aide": "المساعدة",
       "/reports": "التقارير",
       "/settings": "الإعدادات",

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
@@ -1884,14 +1885,23 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                     setQuickTxMode((m) => m === "magic" ? "standard" : "magic");
                     setMagicInput("");
                   }}
-                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
                     quickTxMode === "magic"
-                      ? "border-violet-400 bg-violet-500 text-white shadow-md"
-                      : "border-violet-200 bg-white dark:bg-slate-800 text-violet-700 dark:text-violet-300 hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                      ? "border-emerald-400 bg-emerald-600 text-white shadow-md"
+                      : "border-emerald-200 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                   }`}
                   disabled={quickTxSubmitting}
                 >
-                  ✨ {locale === "ar" ? "إدخال سحري" : locale === "fr" ? "Saisie Magique" : "Magic Input"}
+                  <Image
+                    src="/landing/ai/ba-omar-avatar.png"
+                    alt="Ba Omar"
+                    width={16}
+                    height={16}
+                    className="rounded-full object-cover shrink-0"
+                  />
+                  <span>
+                    {locale === "ar" ? "با عمر (سحري)" : locale === "fr" ? "Ba Omar (Saisie)" : "Ba Omar (Magic)"}
+                  </span>
                 </button>
               </div>
             ) : (
@@ -1902,14 +1912,23 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                     setQuickTxMode((m) => m === "magic" ? "standard" : "magic");
                     setMagicInput("");
                   }}
-                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
                     quickTxMode === "magic"
-                      ? "border-violet-400 bg-violet-500 text-white shadow-md"
-                      : "border-violet-200 bg-white dark:bg-slate-800 text-violet-700 dark:text-violet-300 hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                      ? "border-emerald-400 bg-emerald-600 text-white shadow-md"
+                      : "border-emerald-200 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                   }`}
                   disabled={quickTxSubmitting}
                 >
-                  ✨ {locale === "ar" ? "إدخال سحري" : locale === "fr" ? "Saisie Magique" : "Magic Input"}
+                  <Image
+                    src="/landing/ai/ba-omar-avatar.png"
+                    alt="Ba Omar"
+                    width={16}
+                    height={16}
+                    className="rounded-full object-cover shrink-0"
+                  />
+                  <span>
+                    {locale === "ar" ? "با عمر (سحري)" : locale === "fr" ? "Ba Omar (Saisie)" : "Ba Omar (Magic)"}
+                  </span>
                 </button>
               </div>
             )}
@@ -2226,16 +2245,24 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                   </div>
                 ) : !isNlpLoading && (
                   <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400 dark:text-slate-500 bg-slate-500/5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800/80 p-4">
-                    <span className="text-2xl mb-1.5 animate-pulse select-none">✨</span>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                      {locale === "ar" ? "مساعد الإدخال السحري بالذكاء الاصطناعي" : locale === "fr" ? "Assistant de Saisie Magique IA" : "AI Magic Input Assistant"}
+                    <div className="relative mb-2.5 h-12 w-12 overflow-hidden rounded-full border-2 border-emerald-500/30 shadow-md">
+                      <Image
+                        src="/landing/ai/ba-omar-avatar.png"
+                        alt="Ba Omar"
+                        width={48}
+                        height={48}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                      {locale === "ar" ? "با عمر — مساعد الإدخال الذكي" : locale === "fr" ? "Ba Omar — Assistant de Saisie IA" : "Ba Omar — AI Input Assistant"}
                     </p>
-                    <p className="text-[11px] leading-relaxed max-w-[250px] text-slate-400 dark:text-slate-500">
+                    <p className="text-[11px] leading-relaxed max-w-[260px] text-slate-400 dark:text-slate-500">
                       {locale === "ar"
-                        ? "اكتب وصف مصروفك بالدارجة أو بالفرنسية وسيقوم النظام بتحديد المبلغ والفئة تلقائياً."
+                        ? "اكتب وصف مصروفك بالدارجة أو بالفرنسية وسيقوم با عمر بتحديد المبلغ والفئة تلقائياً."
                         : locale === "fr"
-                        ? "Décrivez votre dépense en français ou en darija. Le système détectera automatiquement le montant et la catégorie."
-                        : "Describe your expense in French or Moroccan Darija. The AI will automatically extract the amount and category."}
+                        ? "Décrivez votre dépense en français ou en darija. Ba Omar détectera automatiquement le montant et la catégorie."
+                        : "Describe your expense in French or Moroccan Darija. Ba Omar will automatically extract the amount and category."}
                     </p>
                   </div>
                 )}
@@ -2923,10 +2950,10 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
               <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl p-3 text-sm">
                 <p className="font-semibold text-amber-800 dark:text-amber-300">
                   {locale === "ar"
-                    ? "الفئة المقترحة من طرف المساعد الذكي:"
+                    ? "الفئة اللي اقترح با عمر:"
                     : locale === "fr"
-                    ? "Catégorie suggérée par le copilote IA :"
-                    : "Suggested category by AI copilot:"}
+                    ? "Catégorie suggérée par Ba Omar :"
+                    : "Category suggested by Ba Omar:"}
                 </p>
                 <p className="mt-1 font-bold text-base text-[var(--ink)]">
                   {localizeCategoryName(aiWarning.suggestedCategory, locale)}

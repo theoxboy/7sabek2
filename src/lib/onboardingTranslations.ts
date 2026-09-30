@@ -7,6 +7,13 @@
 export type OnboardingTranslation = { fr: string; en: string };
 
 export const ONBOARDING_TRANSLATIONS: Record<string, OnboardingTranslation> = {
+  // Step labels
+  "الدخل": { fr: "Revenu", en: "Income" },
+  "إلى شي رقم ما باينش مزيان، تقدر تراجع التفاصيل قبل ما تكمل.": {
+    fr: "Un chiffre te semble faux ? Vérifie les détails avant de continuer.",
+    en: "A figure looks off? Check the details before continuing.",
+  },
+
   // Income type
   "موظف (راتب)": { fr: "Salarié", en: "Employee (salary)" },
   "حِرافي / خدمة يومية": { fr: "Artisan / travail à la journée", en: "Tradesperson / day work" },
@@ -619,4 +626,36 @@ export const ONBOARDING_TRANSLATIONS: Record<string, OnboardingTranslation> = {
   "ظرف المرونة هو الأصل هنا. الأظرفة اللي لتحت كيتصرفو من نفس الهامش.": { fr: "Les enveloppes ci-dessous sont financées par la souplesse.", en: "The envelopes below are funded from the flexible budget." },
   "فالتوجيه اخترتي ما تفتّحش غلاف مستقل للمرونة دابا.": { fr: "Tu as choisi de ne pas ouvrir d'enveloppe souplesse pour l'instant.", en: "You chose not to open a flexible envelope for now." },
   "هاد الجزء باقي ما تعيّنش نهائياً، وتقدر من بعد تقرر فين بغيتي تمشّيه.": { fr: "Cette part n'est pas encore attribuée : tu décideras plus tard.", en: "This part isn't assigned yet: you can decide later." },
+
+  // Envelope names from the plan engine, as displayed
+  "الاحتياط": { fr: "Réserve", en: "Reserve" },
+  "المعيشة": { fr: "Quotidien", en: "Living costs" },
+  "الباقي الحر": { fr: "Reste libre", en: "Free remainder" },
+  "Charges": { fr: "Charges", en: "Housing costs" },
+  "Crédit logement": { fr: "Crédit logement", en: "Home loan" },
+  "Crédit Logement": { fr: "Crédit logement", en: "Home loan" },
+  "Maison": { fr: "Maison", en: "Home" },
+  "Entretien maison": { fr: "Entretien maison", en: "Home maintenance" },
+  "Entretien Maison": { fr: "Entretien maison", en: "Home maintenance" },
+  "Impôts": { fr: "Impôts", en: "Taxes" },
+  "Contribution famille": { fr: "Contribution famille", en: "Family contribution" },
+  "Contribution Famille": { fr: "Contribution famille", en: "Family contribution" },
+  "Transport public": { fr: "Transport public", en: "Public transport" },
+  "Transport Public": { fr: "Transport public", en: "Public transport" },
+  "Dettes": { fr: "Dettes", en: "Debts" },
+  "Aide famille": { fr: "Aide famille", en: "Family support" },
+  "Aide Famille": { fr: "Aide famille", en: "Family support" },
+  "Famille — Aide": { fr: "Famille — Aide", en: "Family — Support" },
+  "Enfants": { fr: "Enfants", en: "Children" },
+  "Famille — Enfants": { fr: "Famille — Enfants", en: "Family — Children" },
+  "École/Crèche": { fr: "École/Crèche", en: "School/Childcare" },
+  "Famille — École": { fr: "Famille — École", en: "Family — School" },
+  "Internet/Téléphone": { fr: "Internet/Téléphone", en: "Internet/Phone" },
+  "Assurance": { fr: "Assurance", en: "Insurance" },
+  "Transport fixe": { fr: "Transport fixe", en: "Fixed transport" },
+  "Transport Fixe": { fr: "Transport fixe", en: "Fixed transport" },
+  "Autres fixes": { fr: "Autres charges fixes", en: "Other fixed costs" },
+  "Autres Fixes": { fr: "Autres charges fixes", en: "Other fixed costs" },
+  "Objectif principal": { fr: "Objectif principal", en: "Main goal" },
+  "Objectif Principal": { fr: "Objectif principal", en: "Main goal" },
 };

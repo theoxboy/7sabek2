@@ -9077,7 +9077,9 @@ function buildQuestions(answers: Answers, journeyMode: JourneyMode = "onboarding
   ];
 
   const incomeType = getString(answers, "Q0_income_type");
-  if (!incomeType && journeyMode !== "money_plan") return questions;
+  // Before the income type is known only the first question exists; it still
+  // goes through the language pass.
+  if (!incomeType && journeyMode !== "money_plan") return questions.map(localizeQuestionSpec);
 
   const addPublicTransportQuestions = (prefix: string) => {
     questions.push(
@@ -18957,7 +18959,7 @@ export function BetaOnboardingV2PageContent({
                       <p
                         className={`mx-auto ${isGoalBuilderStep ? "mt-3 max-w-2xl text-[14px] leading-6" : "mt-4 max-w-3xl text-[16px] leading-7"} ${currentQuestionTheme.accentText}`}
                       >
-                        {currentQuestion.subtitle}
+                        {tx(currentQuestion.subtitle)}
                       </p>
                     ) : null}
                   </div>
@@ -19729,7 +19731,7 @@ export function BetaOnboardingV2PageContent({
                             {tx(field.title)}
                           </p>
                           {field.subtitle ? (
-                            <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">{field.subtitle}</p>
+                            <p className="mt-1 text-[12px] leading-6 text-[#6e6e73]">{tx(field.subtitle)}</p>
                           ) : null}
                           <div className="mt-3">{renderCardFieldControl(field, labelId)}</div>
                           {fieldError ? (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { BellRing } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -63,7 +64,7 @@ const BETA_PAGES: Record<
     },
     {
       id: "beta-chat",
-      title: "7sabek AI Smart Conseiller",
+      title: "Ba Omar",
       description: "Chat d'assistance connecté à vos alertes avec suggestions proactives.",
       href: "/chat",
       status: "active",
@@ -93,8 +94,8 @@ const BETA_PAGES: Record<
     },
     {
       id: "beta-chat",
-      title: "7sabek AI Smart Conseiller",
-      description: "AI advisor chat connected to your alerts with proactive action buttons.",
+      title: "Ba Omar",
+      description: "Ba Omar, the AI advisor chat connected to your alerts with proactive action buttons.",
       href: "/chat",
       status: "active",
     },
@@ -123,8 +124,8 @@ const BETA_PAGES: Record<
     },
     {
       id: "beta-chat",
-      title: "مستشار الذكاء الاصطناعي 7سابك",
-      description: "محادثة ذكية متصلة بتنبيهاتك وتقترح إجراءات عملية.",
+      title: "با عمر",
+      description: "محادثة ذكية مع با عمر متصلة بتنبيهاتك وتقترح إجراءات عملية.",
       href: "/chat",
       status: "active",
     },
@@ -952,15 +953,28 @@ export default function BetaHubPage() {
       {pages.map((item) => (
         <Card key={item.id}>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-base font-semibold text-[var(--ink)]">{item.title}</p>
-                <Badge tone={item.status === "active" ? "success" : "muted"}>
-                  {item.status === "active" ? copy.active : copy.soon}
-                </Badge>
+            <div className="flex items-start gap-3.5">
+              {item.id === "beta-chat" ? (
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] shadow-sm">
+                  <Image
+                    src="/landing/ai/ba-omar-avatar.png"
+                    alt="Ba Omar"
+                    width={44}
+                    height={44}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : null}
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-semibold text-[var(--ink)]">{item.title}</p>
+                  <Badge tone={item.status === "active" ? "success" : "muted"}>
+                    {item.status === "active" ? copy.active : copy.soon}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm text-[var(--muted)]">{item.description}</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">{item.href}</p>
               </div>
-              <p className="mt-1 text-sm text-[var(--muted)]">{item.description}</p>
-              <p className="mt-1 text-xs text-[var(--muted)]">{item.href}</p>
             </div>
             <Button asChild>
               <Link href={item.href}>{copy.open}</Link>

@@ -36,8 +36,23 @@ export function tx(text: string | undefined): string | undefined;
 export function tx(text: string | undefined): string | undefined {
   if (text === undefined || activeLocale === "ar") return text;
   const entry = ONBOARDING_TRANSLATIONS[text.trim()];
-  if (!entry) return text;
+  if (!entry) {
+    reportMissingTranslation(text);
+    return text;
+  }
   return activeLocale === "fr" ? entry.fr : entry.en;
+}
+
+const ARABIC_SCRIPT = /[؀-ۿ]/;
+const reportedMissing = new Set<string>();
+
+// Development only: a Darija text shown to a French or English user has no
+// translation yet. Logged once per text so it can be added to the dictionary.
+function reportMissingTranslation(text: string): void {
+  if (process.env.NODE_ENV === "production" || !ARABIC_SCRIPT.test(text)) return;
+  if (reportedMissing.has(text)) return;
+  reportedMissing.add(text);
+  console.warn(`[onboarding i18n] Missing ${activeLocale} translation:`, text);
 }
 
 /** Whether a static Darija text has a translation (used by tests). */

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,7 +13,6 @@ import {
   Coins,
   ShieldCheck,
   Check,
-  Bot,
   User,
   RefreshCw,
   ThumbsUp,
@@ -48,31 +48,34 @@ interface NotificationItem {
   important?: boolean;
 }
 
+// Ba Omar, the assistant's face: same portrait as on the landing page.
+const BA_OMAR_AVATAR = "/landing/ai/ba-omar-avatar.png";
+
 // Fire the advisor-daily-cap analytics event at most once per page load.
 let advisorWallHitSent = false;
 
 const CHAT_COPY = {
   fr: {
     back: "Retour",
-    title: "7sabek AI Smart Conseiller",
+    title: "Ba Omar",
     version: "v2.5",
     clear: "Effacer",
     deleteConversation: "Supprimer la conversation",
-    placeholder: "Posez votre question à 7sabek AI...",
+    placeholder: "Posez votre question à Ba Omar...",
     welcomeUnread: (userName: string, unreadCount: number) =>
-      `Bonjour ${userName} ! Je suis l'assistant intelligent **7sabek AI** 🪙.\n\n` +
+      `Bonjour ${userName} ! Je suis **Ba Omar**, votre assistant intelligent.\n\n` +
       `Je vois que vous avez actuellement **${unreadCount} alerte(s) de sécurité ou de budget** non lue(s).\n\n` +
       `Souhaitez-vous que je les analyse ou que nous fassions une simulation de dépenses ?\n\n` +
       `[bouton: 🔍 Analyser mes alertes]\n` +
       `[bouton: 📈 Simuler un budget]\n` +
       `[bouton: 🔐 Conseil ShieldKey]`,
     welcomeClean: (userName: string) =>
-      `Bonjour ${userName} ! Je suis l'assistant intelligent **7sabek AI** 🪙.\n\n` +
+      `Bonjour ${userName} ! Je suis **Ba Omar**, votre assistant intelligent.\n\n` +
       `Toutes vos notifications sont lues. Votre compte est en parfaite sécurité et votre budget est stable !\n\nComment puis-je vous aider aujourd'hui ?\n\n` +
       `[bouton: 📈 Simuler un budget]\n` +
       `[bouton: 💡 Conseils d'épargne]\n` +
       `[bouton: 💸 Expliquer Cash Split]`,
-    suggestionsTitle: "Suggestions 7sabek AI :",
+    suggestionsTitle: "Suggestions de Ba Omar :",
     copied: "Copié !",
     copy: "Copier",
     errorConnect: "Oups ! Je rencontre une difficulté pour me connecter au serveur chiffré ShieldKey. Veuillez vérifier que la connexion est établie et réessayez.",
@@ -91,7 +94,7 @@ const CHAT_COPY = {
     shortcutSystemPrompt: "Comment fonctionne le chiffrement ShieldKey de l'application 7sabek ?",
     shortcutSystemDesc: "Détails sur l'isolation cryptographique locale et l'authentification de session unique.",
     send: "Envoyer",
-    disclaimer: "7sabek AI s'appuie sur Gemini pour formuler des conseils indicatifs",
+    disclaimer: "Ba Omar s'appuie sur Gemini pour formuler des conseils indicatifs",
     intelTitle: "Analyse d'Alertes Actives",
     intelUnread: "Non lues",
     intelScore: "Score IP",
@@ -100,29 +103,29 @@ const CHAT_COPY = {
     intelEncryption: "Chiffrement local",
     intelConn: "Connexion",
     intelLinkTitle: "Lien Intelligent",
-    intelLinkDesc: "Le conseiller AI a un accès direct chiffré à vos notifications. Cliquez sur une alerte ci-dessus pour la charger automatiquement !",
+    intelLinkDesc: "Ba Omar a un accès direct chiffré à vos notifications. Cliquez sur une alerte ci-dessus pour la charger automatiquement !",
   },
   en: {
     back: "Back",
-    title: "7sabek AI Smart Advisor",
+    title: "Ba Omar",
     version: "v2.5",
     clear: "Clear",
     deleteConversation: "Delete conversation",
-    placeholder: "Ask 7sabek AI your question...",
+    placeholder: "Ask Ba Omar your question...",
     welcomeUnread: (userName: string, unreadCount: number) =>
-      `Hello ${userName}! I am your smart assistant **7sabek AI** 🪙.\n\n` +
+      `Hello ${userName}! I'm **Ba Omar**, your smart assistant.\n\n` +
       `I see you currently have **${unreadCount} unread security or budget alert(s)**.\n\n` +
       `Would you like me to analyze them or run a spending simulation?\n\n` +
       `[button: 🔍 Analyze my alerts]\n` +
       `[button: 📈 Simulate a budget]\n` +
       `[button: 🔐 ShieldKey advice]`,
     welcomeClean: (userName: string) =>
-      `Hello ${userName}! I am your smart assistant **7sabek AI** 🪙.\n\n` +
+      `Hello ${userName}! I'm **Ba Omar**, your smart assistant.\n\n` +
       `All your notifications are read. Your account is perfectly secure and your budget is stable!\n\nHow can I help you today?\n\n` +
       `[button: 📈 Simulate a budget]\n` +
       `[button: 💡 Savings tips]\n` +
       `[button: 💸 Explain Cash Split]`,
-    suggestionsTitle: "7sabek AI Suggestions:",
+    suggestionsTitle: "Suggestions from Ba Omar:",
     copied: "Copied!",
     copy: "Copy",
     errorConnect: "Oops! I am having trouble connecting to the ShieldKey encrypted server. Please check the connection and try again.",
@@ -141,7 +144,7 @@ const CHAT_COPY = {
     shortcutSystemPrompt: "How does 7sabek's ShieldKey encryption work?",
     shortcutSystemDesc: "Details on local cryptographic isolation and single-session authentication.",
     send: "Send",
-    disclaimer: "7sabek AI relies on Gemini to formulate indicative advice",
+    disclaimer: "Ba Omar relies on Gemini to formulate indicative advice",
     intelTitle: "Active Alerts Analysis",
     intelUnread: "Unread",
     intelScore: "IP Score",
@@ -150,29 +153,29 @@ const CHAT_COPY = {
     intelEncryption: "Local encryption",
     intelConn: "Connection",
     intelLinkTitle: "Smart Link",
-    intelLinkDesc: "The AI advisor has direct encrypted access to your notifications. Click on any alert above to load it automatically!",
+    intelLinkDesc: "Ba Omar has direct encrypted access to your notifications. Click on any alert above to load it automatically!",
   },
   ar: {
     back: "رجوع",
-    title: "مستشار الذكاء الاصطناعي 7سابك",
+    title: "با عمر",
     version: "v2.5",
     clear: "مسح",
     deleteConversation: "حذف المحادثة",
-    placeholder: "سول 7sabek AI ديالك هنا...",
+    placeholder: "سول با عمر هنا...",
     welcomeUnread: (userName: string, unreadCount: number) =>
-      `أهلاً ${userName}! أنا المساعد الذكي ديالك **7sabek AI** 🪙.\n\n` +
+      `أهلاً ${userName}! أنا **با عمر**، المساعد الذكي ديالك.\n\n` +
       `كنشوف بلي عندك **${unreadCount} تنبيهات غير مقروءة** ديال الأمان ولا الميزانية.\n\n` +
       `واش بغيتيني نحللهم ولا نديرو محاكاة للمصاريف ديالك؟\n\n` +
       `[bouton: 🔍 تحليل التنبيهات ديالي]\n` +
       `[bouton: 📈 محاكاة الميزانية]\n` +
       `[bouton: 🔐 نصيحة ShieldKey]`,
     welcomeClean: (userName: string) =>
-      `أهلاً ${userName}! أنا المساعد الذكي ديالك **7sabek AI** 🪙.\n\n` +
+      `أهلاً ${userName}! أنا **با عمر**، المساعد الذكي ديالك.\n\n` +
       `كاع الإشعارات ديالك مقروءة. الحساب ديالك فـ أمان تام والميزانية ديالك مستقرة!\n\nكيفاش نقدر نعاونك اليوم؟\n\n` +
       `[bouton: 📈 محاكاة الميزانية]\n` +
       `[bouton: 💡 نصائح الادخار]\n` +
       `[bouton: 💸 شرح Cash Split]`,
-    suggestionsTitle: "اقتراحات 7sabek AI :",
+    suggestionsTitle: "اقتراحات با عمر :",
     copied: "تنسخ!",
     copy: "نسخ",
     errorConnect: "أوبس! لقيت صعوبة باش نتصل بسيرفر ShieldKey المشفر. عفاك تأكد من الاتصال وعاود المحاولة.",
@@ -191,7 +194,7 @@ const CHAT_COPY = {
     shortcutSystemPrompt: "كيفاش كيخدم تشفير ShieldKey فـ تطبيق 7سابك؟",
     shortcutSystemDesc: "تفاصيل على العزل التشفيري المحلي وتأمين الحصة الفريدة.",
     send: "إرسال",
-    disclaimer: "7sabek AI كيعتمد على Gemini باش يقدم نصائح توجيهية",
+    disclaimer: "با عمر كيعتمد على Gemini باش يقدم نصائح توجيهية",
     intelTitle: "تحليل التنبيهات النشطة",
     intelUnread: "غير مقروءة",
     intelScore: "نقطة IP",
@@ -200,7 +203,7 @@ const CHAT_COPY = {
     intelEncryption: "التشفير المحلي",
     intelConn: "الاتصال",
     intelLinkTitle: "الرابط الذكي",
-    intelLinkDesc: "مستشار الذكاء الاصطناعي عنده صلاحية مباشرة مشفرة للإشعارات ديالك. انقر على أي تنبيه لفوق باش يتحمل تلقائياً!",
+    intelLinkDesc: "با عمر عندو صلاحية مباشرة مشفرة للإشعارات ديالك. انقر على أي تنبيه لفوق باش يتحمل تلقائياً!",
   },
 };
 
@@ -693,8 +696,8 @@ export default function BetaChatPage() {
 
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-sm shadow-emerald-600/10">
-                <Bot className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm shadow-emerald-600/10">
+                <Image src={BA_OMAR_AVATAR} alt="" width={40} height={40} className="h-full w-full object-cover" priority />
               </div>
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[var(--border)] rounded-full animate-pulse" />
             </div>
@@ -707,6 +710,10 @@ export default function BetaChatPage() {
                   {copy.version}
                 </span>
               </div>
+              <p className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {locale === "ar" ? "المستشار المالي الذكي • متصل" : locale === "fr" ? "Conseiller IA • En ligne" : "AI Advisor • Online"}
+              </p>
             </div>
           </div>
 
@@ -760,13 +767,17 @@ export default function BetaChatPage() {
                   >
                     {/* Bubble Icon indicator */}
                     <div
-                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center shrink-0 border transition-all shadow-xs ${
+                      className={`w-9 h-9 sm:w-10 sm:h-10 overflow-hidden rounded-2xl flex items-center justify-center shrink-0 border transition-all shadow-xs ${
                         msg.role === "user"
                           ? "bg-slate-900 border-slate-800 text-white shadow-slate-900/10"
                           : "bg-[var(--surface)] border-[var(--border)]/60 text-emerald-600 shadow-emerald-100/20"
                       }`}
                     >
-                      {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                      {msg.role === "user" ? (
+                        <User className="w-4 h-4" />
+                      ) : (
+                        <Image src={BA_OMAR_AVATAR} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                      )}
                     </div>
 
                     {/* Bubble Context */}

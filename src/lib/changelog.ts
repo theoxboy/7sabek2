@@ -27,6 +27,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.6.2",
+    date: "2026-09-30",
+    groups: [
+      {
+        kind: "fixed",
+        items: [
+          {
+            fr: "En français et en anglais, la première question et le nom de l'étape « Revenu » s'affichaient encore en darija.",
+            en: "In French and English, the first question and the \"Income\" step name were still shown in Darija.",
+            ar: "بالفرنسية والإنجليزية، السؤال الأول وسمية مرحلة « الدخل » كانو باقين كيبانو بالدارجة.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.6.1",
     date: "2026-09-29",
     groups: [

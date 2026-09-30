@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,7 +13,6 @@ import {
   Settings,
   Target,
   FlaskConical,
-  MessageSquare,
   SlidersHorizontal,
   Plus,
   ChevronLeft,
@@ -119,8 +119,8 @@ export const SIDEBAR_SECTIONS: NavSection[] = [
       {
         href: "/chat",
         labelKey: "/chat",
-        defaultLabel: "Assistant 7sabek",
-        icon: MessageSquare,
+        defaultLabel: "Ba Omar",
+        icon: BaOmarIcon,
         badge: { text: "AI", variant: "emerald" },
       },
       {
@@ -152,6 +152,19 @@ export const SIDEBAR_SECTIONS: NavSection[] = [
   },
 ];
 
+// Ba Omar, the AI assistant: same portrait as on the landing page.
+function BaOmarIcon({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/landing/ai/ba-omar-avatar.png"
+      alt="Ba Omar"
+      width={24}
+      height={24}
+      className={`${className ?? "h-5 w-5"} rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0`}
+    />
+  );
+}
+
 const SIDEBAR_I18N = {
   fr: {
     quickAdd: "Nouvelle transaction",
@@ -167,7 +180,7 @@ const SIDEBAR_I18N = {
     "/debts": "Dettes & Salaf",
     "/reports": "Rapports",
     "/gamification": "Série & Ranking",
-    "/chat": "Assistant IA",
+    "/chat": "Ba Omar",
     "/beta": "Labo Beta",
     "/aide": "Aide & Support",
     "/settings": "Paramètres",
@@ -190,7 +203,7 @@ const SIDEBAR_I18N = {
     "/debts": "Debts & Salaf",
     "/reports": "Reports",
     "/gamification": "Streak & Ranking",
-    "/chat": "AI Assistant",
+    "/chat": "Ba Omar",
     "/beta": "Beta Lab",
     "/aide": "Help & Support",
     "/settings": "Settings",
@@ -213,7 +226,7 @@ const SIDEBAR_I18N = {
     "/debts": "الديون والسلف",
     "/reports": "التقارير",
     "/gamification": "السلسلة والتصنيف",
-    "/chat": "المساعد الذكي",
+    "/chat": "با عمر",
     "/beta": "مختبر بيتا",
     "/aide": "المساعدة والدعم",
     "/settings": "الإعدادات",
