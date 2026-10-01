@@ -1,10 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Camera, Eye, EyeOff, Home } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Camera,
+  Check,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Home,
+  Lock,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  User,
+} from "lucide-react";
 import { Cairo, Fraunces, Manrope } from "next/font/google";
 
 import { apiFetch, resetAuthClientState } from "@/lib/api";
@@ -43,19 +63,18 @@ declare global {
   }
 }
 
-const displayFont = Fraunces({ subsets: ["latin"], weight: ["600", "700"] });
-const bodyFont = Manrope({ subsets: ["latin"], weight: ["400", "500", "600"] });
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700"] });
+const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
 
 const DEFAULT_SWEEP_INTERVAL_DAYS = 7;
 type CurrencyCode = "MAD" | "DZD" | "TND" | "EGP";
 const COUNTRY_OPTIONS = [
-  { name: "Maroc", code: "ma" },
-  { name: "Algérie", code: "dz" },
-  { name: "Tunisie", code: "tn" },
-  { name: "Égypte", code: "eg" },
+  { name: "Maroc", code: "ma", defaultCurrency: "MAD" as CurrencyCode },
+  { name: "Algérie", code: "dz", defaultCurrency: "DZD" as CurrencyCode },
+  { name: "Tunisie", code: "tn", defaultCurrency: "TND" as CurrencyCode },
+  { name: "Égypte", code: "eg", defaultCurrency: "EGP" as CurrencyCode },
 ] as const;
 type CountryName = (typeof COUNTRY_OPTIONS)[number]["name"];
+
 const CURRENCY_BY_COUNTRY: Record<CountryName, CurrencyCode> = {
   Maroc: "MAD",
   Algérie: "DZD",
@@ -208,7 +227,6 @@ const REGISTER_ONBOARDING_PREFILL_KEY = "floussy.register.prefill";
 const REGISTER_ONBOARDING_DRAFT_KEY = "floussy.register.onboarding_v2";
 const REGISTER_ONBOARDING_COMPLETED_KEY = "floussy.register.onboarding_v2.completed";
 const REGISTER_FORCE_ONBOARDING_KEY = "floussy.register.force_onboarding_v2";
-const REGISTER_ONBOARDING_MESSAGE_TYPE = "floussy.register.onboarding_v2.complete";
 const REGISTER_LEAD_ID_KEY = "floussy.register.lead_id";
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const MAX_PROFILE_PHOTO_SIZE_BYTES = 13 * 1024 * 1024;
@@ -238,307 +256,289 @@ const COMPROMISED_PASSWORDS = new Set([
 
 const REGISTER_COPY = {
   fr: {
-    photoMustBeImage: "Le fichier doit être une image.",
+    photoMustBeImage: "Le fichier doit être une image (PNG, JPG, WebP).",
     photoMaxSize: "La photo ne doit pas dépasser 13 Mo.",
     waitBeforeRetry: "Merci d’attendre avant de réessayer.",
-    allFieldsRequired: "Tous les champs sont requis.",
-    validEmail: "Merci d’entrer un email valide.",
-    passwordsMismatch: "Les mots de passe ne correspondent pas.",
-    captchaIncorrect: "Code de vérification incorrect.",
-    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو التسجيل.",
-    recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
+    allFieldsRequired: "Tous les champs obligatoires doivent être remplis.",
+    validEmail: "Merci d’entrer une adresse email valide.",
+    passwordsMismatch: "Les deux mots de passe ne correspondent pas.",
+    recaptchaRequired: "Veuillez valider la vérification de sécurité.",
+    recaptchaFailed: "Échec de vérification reCAPTCHA. Merci de réessayer.",
     recaptchaMissingConfig: "Configuration reCAPTCHA manquante. Ajoute NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
-    recaptchaDevBypass: "Mode dev: NEXT_PUBLIC_RECAPTCHA_SITE_KEY manquant, reCAPTCHA bypassé localement.",
-    recaptchaChecking: "Vérification anti-spam validée.",
-    completeInfo: "Merci de compléter toutes les informations.",
-    phoneTooShort: "Le numéro de téléphone est trop court.",
+    recaptchaDevBypass: "Mode dev : vérification de sécurité contournée localement.",
+    recaptchaChecking: "Protection anti-spam validée avec succès.",
+    completeInfo: "Merci de renseigner tous les champs requis.",
+    phoneTooShort: "Le numéro de téléphone est trop court (au moins 8 chiffres).",
     invalidBirthDate: "La date de naissance est invalide.",
-    minAge: "Il faut avoir au moins 13 ans.",
-    chooseCountryCity: "Merci de choisir un pays et une ville.",
-    validCity: "Merci de choisir une ville valide pour ce pays.",
-    currencyUnavailable: "Devise automatique indisponible pour ce pays.",
-    tooManyAttempts: "Trop de tentatives. Merci de réessayer plus tard.",
-    accountExists: "Un compte existe déjà avec cet email.",
-    weakPassword: "Le mot de passe ne respecte pas les exigences.",
-    weakPasswordRule: "Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre.",
-    compromisedPassword: "Ce mot de passe est compromis. Merci d’en choisir un autre.",
+    minAge: "L’inscription requiert d’avoir au moins 13 ans.",
+    chooseCountryCity: "Merci de sélectionner un pays et une ville.",
+    validCity: "Merci de choisir une ville valide.",
+    currencyUnavailable: "Devise indisponible pour ce pays.",
+    tooManyAttempts: "Trop de tentatives. Merci de réessayer dans un instant.",
+    accountExists: "Un compte existe déjà avec cette adresse email.",
+    weakPassword: "Le mot de passe ne respecte pas les exigences minimales.",
+    weakPasswordRule: "Le mot de passe doit comporter au moins 8 caractères, dont une lettre et un chiffre.",
+    compromisedPassword: "Ce mot de passe est trop courant. Choisis-en un plus sécurisé.",
     passwordRuleMinLength: "Au moins 8 caractères",
     passwordRuleLetter: "Au moins 1 lettre",
     passwordRuleDigit: "Au moins 1 chiffre",
-    passwordRuleNotCompromised: "Mot de passe non compromis",
-    mfaRequired: "L’activation MFA est obligatoire pour créer le compte.",
-    mfaConsentLabel: "J’accepte d’activer MFA (authentification à deux facteurs) pour sécuriser mon compte.",
-    createAccountFailed: "Impossible de créer le compte. Réessaie.",
-    onboardingRequired: "Tu dois terminer onboarding v2 avant de créer le compte.",
-    heroPoint1: "Profil personnalisé selon ta situation.",
-    heroPoint2: "Enveloppes auto‑créées pour démarrer vite.",
-    heroPoint3: "Données sécurisées et assistance dédiée.",
-    mobileTitle: "Crée ton espace budget",
-    mobileBody: "Quelques étapes pour personnaliser ton expérience.",
-    stepBadge: (step: number) => `Inscription • Étape ${step} sur 5`,
+    passwordRuleNotCompromised: "Mot de passe sûr et robuste",
+    passwordStrengthWeak: "Faible",
+    passwordStrengthMedium: "Moyen",
+    passwordStrengthStrong: "Robuste",
+    createAccountFailed: "Impossible de créer le compte pour le moment. Réessaie.",
+    heroTitle: "Prends le contrôle de tes finances avec 7sabek",
+    heroSubtitle: "Rejoins des milliers de personnes qui gèrent leur argent facilement avec la méthode des enveloppes.",
+    baOmarName: "Ba Omar",
+    baOmarRole: "Conseiller Financier IA",
+    baOmarQuote: "« Marhaban bik ! En quelques secondes, créons ton compte pour reprendre le contrôle de ton budget avec la méthode des enveloppes. »",
+    envelopeLabel: "Enveloppe Active",
+    envelopeCategory: "Alimentation & Courses",
+    addExpenseQuick: "Ajout rapide",
     chipSalary: "Salaire",
     chipRent: "Loyer",
     chipDebt: "Crédit",
     fabor: "c’est faboooor",
-    createAccount: "Créer un compte",
-    createAccountSubtitle: "Commence avec tes informations puis complète tes identifiants.",
+    step1Pill: "1. Compte & Accès",
+    step2Pill: "2. Profil & Finalisation",
+    step1Title: "Crée ton compte 7sabek",
+    step1Subtitle: "Renseigne tes informations pour configurer ton espace personnel.",
+    step2Title: "Finalise ton profil",
+    step2Subtitle: "Dernière étape pour personnaliser tes enveloppes budgétaires.",
     maintenanceSuffix: "Les inscriptions sont désactivées pendant la maintenance.",
     alreadyLoggedIn: "Tu es déjà connecté en tant que",
-    goDashboard: "Aller au dashboard",
+    goDashboard: "Accéder au tableau de bord",
     logout: "Se déconnecter",
     profilePhoto: "Photo de profil (optionnelle)",
+    profilePhotoChange: "Changer la photo",
+    profilePhotoRemove: "Supprimer",
     firstName: "Prénom",
+    firstNamePlaceholder: "Ex. Youssef",
     lastName: "Nom",
+    lastNamePlaceholder: "Ex. Bennani",
     phone: "Numéro de téléphone",
+    phonePlaceholder: "06 12 34 56 78",
     birthDate: "Date de naissance",
-    email: "Email",
+    email: "Adresse email",
+    emailPlaceholder: "nom@exemple.ma",
     password: "Mot de passe",
     confirmPassword: "Confirmer le mot de passe",
     hidePassword: "Masquer le mot de passe",
     showPassword: "Afficher le mot de passe",
-    passwordHint: "Au moins 8 caractères, avec 1 lettre et 1 chiffre. Les mots de passe compromis sont refusés.",
-    antiSpam: "Vérification anti‑spam",
-    regenerate: "Regénérer",
-    captchaPlaceholder: "Recopie le code",
-    support: "Besoin d’aide ? Contacte le support.",
-    country: "Pays",
+    passwordHint: "8 caractères minimum, avec au moins 1 lettre et 1 chiffre.",
+    country: "Pays de résidence",
     city: "Ville",
     selectCity: "Sélectionner une ville",
-    chooseCountryFirst: "Choisir un pays d'abord",
-    onboardingTitle: "Terminer onboarding v2",
-    onboardingBody: "Cette étape s’ouvre sur une page dédiée. Une fois terminée, on revient ici pour finir l’inscription.",
-    onboardingOpen: "Ouvrir onboarding v2",
-    onboardingDone: "Onboarding v2 terminé. On passe à la dernière étape.",
-    onboardingWaiting: "Une fois onboarding terminé, ses données seront récupérées ici automatiquement.",
-    summaryTitle: "Résumé avant création du compte",
-    summaryBody: "Le compte va être créé avec tes infos de profil, puis le record onboarding v2 sera enregistré juste après.",
-    profileLine: "Profil",
-    emailLine: "Email",
-    countryCityLine: "Pays / ville",
-    onboardingLine: "Onboarding v2",
-    completed: "complété",
-    missing: "manquant",
-    defaultEnvelopes: "Enveloppes par défaut",
-    selectedCurrency: "Devise sélectionnée",
-    countryLine: "Pays",
-    retryIn: "Trop de tentatives. Réessaie dans",
-    back: "Retour",
-    continue: "Continuer",
-    createAndStartOnboarding: "Créer le compte et commencer onboarding v2",
-    createFinalAccount: "Créer le compte",
-    alreadyAccount: "Déjà un compte ?",
+    chooseCountryFirst: "Choisis d'abord un pays",
+    continueToStep2: "Continuer vers le profil",
+    backToStep1: "Retour",
+    createFinalAccount: "Créer mon compte et démarrer",
+    creatingAccount: "Création de ton compte en cours...",
+    alreadyAccount: "Tu as déjà un compte ?",
     login: "Se connecter",
     flagAlt: (name: string) => `Drapeau ${name}`,
-    acceptTermsPrefix: "En créant votre compte, vous acceptez les ",
-    acceptTermsCGULink: "Conditions Générales d'Utilisation (CGU)",
+    acceptTermsPrefix: "En créant ton compte, tu acceptes les ",
+    acceptTermsCGULink: "Conditions d'Utilisation (CGU)",
     acceptTermsAnd: " et la ",
     acceptTermsPrivacyLink: "Politique de Confidentialité",
     acceptTermsSuffix: " de 7sabek.ma.",
     tryWithoutAccount: "Essayer sans compte",
-    tryWithoutAccountHint: "Sans e-mail, sans mot de passe. Tes données restent, tu crées un compte quand tu veux.",
+    tryWithoutAccountHint: "Découvre 7sabek instantanément en mode invité, sans e-mail ni engagement.",
     guestStartError: "Impossible de démarrer le mode découverte. Réessaie.",
+    retryIn: "Trop de tentatives. Réessaie dans",
+    trustFeature1: "100% Gratuit & Conçu pour le Maroc",
+    trustFeature2: "Méthode des Enveloppes Budgétaires",
+    trustFeature3: "Sécurité & Chiffrement de niveau bancaire",
   },
   en: {
-    photoMustBeImage: "The file must be an image.",
+    photoMustBeImage: "The file must be an image (PNG, JPG, WebP).",
     photoMaxSize: "Profile photo must be 13 MB or less.",
     waitBeforeRetry: "Please wait before trying again.",
-    allFieldsRequired: "All fields are required.",
-    validEmail: "Please enter a valid email.",
+    allFieldsRequired: "All required fields must be completed.",
+    validEmail: "Please enter a valid email address.",
     passwordsMismatch: "Passwords do not match.",
-    captchaIncorrect: "Verification code is incorrect.",
-    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو التسجيل.",
-    recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
+    recaptchaRequired: "Please verify you are not a robot.",
+    recaptchaFailed: "Security verification failed. Please try again.",
     recaptchaMissingConfig: "Missing reCAPTCHA configuration. Add NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
-    recaptchaDevBypass: "Dev mode: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is missing, reCAPTCHA is bypassed locally.",
+    recaptchaDevBypass: "Dev mode: security verification bypassed locally.",
     recaptchaChecking: "Anti-spam verification passed.",
-    completeInfo: "Please complete all information.",
-    phoneTooShort: "Phone number is too short.",
+    completeInfo: "Please complete all required fields.",
+    phoneTooShort: "Phone number is too short (at least 8 digits).",
     invalidBirthDate: "Birth date is invalid.",
     minAge: "You must be at least 13 years old.",
-    chooseCountryCity: "Please choose a country and a city.",
-    validCity: "Please choose a valid city for this country.",
-    currencyUnavailable: "Automatic currency is unavailable for this country.",
-    tooManyAttempts: "Too many attempts. Please try again later.",
+    chooseCountryCity: "Please select a country and city.",
+    validCity: "Please select a valid city.",
+    currencyUnavailable: "Currency is unavailable for this country.",
+    tooManyAttempts: "Too many attempts. Please try again shortly.",
     accountExists: "An account already exists with this email.",
-    weakPassword: "Password does not meet the requirements.",
-    weakPasswordRule: "Password must have at least 8 characters, one letter, and one number.",
-    compromisedPassword: "This password is compromised. Please choose another one.",
+    weakPassword: "Password does not meet minimum security requirements.",
+    weakPasswordRule: "Password must have at least 8 characters, including a letter and a number.",
+    compromisedPassword: "This password is too common. Please choose a stronger one.",
     passwordRuleMinLength: "At least 8 characters",
     passwordRuleLetter: "At least 1 letter",
     passwordRuleDigit: "At least 1 number",
-    passwordRuleNotCompromised: "Password is not compromised",
-    mfaRequired: "MFA activation is required to create the account.",
-    mfaConsentLabel: "I agree to enable MFA (two-factor authentication) to secure my account.",
-    createAccountFailed: "Unable to create the account. Try again.",
-    onboardingRequired: "You must finish onboarding v2 before creating the account.",
-    heroPoint1: "A setup tailored to your situation.",
-    heroPoint2: "Starter envelopes created automatically.",
-    heroPoint3: "Secure data and dedicated support.",
-    mobileTitle: "Create your budget space",
-    mobileBody: "A few steps to personalize your experience.",
-    stepBadge: (step: number) => `Register • Step ${step} of 5`,
+    passwordRuleNotCompromised: "Strong & safe password",
+    passwordStrengthWeak: "Weak",
+    passwordStrengthMedium: "Medium",
+    passwordStrengthStrong: "Strong",
+    createAccountFailed: "Unable to create account right now. Please try again.",
+    heroTitle: "Take control of your finances with 7sabek",
+    heroSubtitle: "Join thousands of users budgeting effortlessly with the smart envelope method.",
+    baOmarName: "Ba Omar",
+    baOmarRole: "AI Financial Advisor",
+    baOmarQuote: "“Welcome! In just a few seconds, let's create your account to take full control of your finances with envelope budgeting.”",
+    envelopeLabel: "Active Envelope",
+    envelopeCategory: "Groceries & Food",
+    addExpenseQuick: "Quick add",
     chipSalary: "Salary",
     chipRent: "Rent",
     chipDebt: "Loan",
     fabor: "it’s freeeee",
-    createAccount: "Create an account",
-    createAccountSubtitle: "Start with your profile details, then complete your credentials.",
+    step1Pill: "1. Account & Credentials",
+    step2Pill: "2. Profile & Complete",
+    step1Title: "Create your 7sabek account",
+    step1Subtitle: "Fill in your details to set up your personal budget space.",
+    step2Title: "Complete your profile",
+    step2Subtitle: "Final step to personalize your budget envelopes.",
     maintenanceSuffix: "Signups are disabled during maintenance.",
     alreadyLoggedIn: "You are already signed in as",
     goDashboard: "Go to dashboard",
     logout: "Log out",
     profilePhoto: "Profile photo (optional)",
+    profilePhotoChange: "Change photo",
+    profilePhotoRemove: "Remove",
     firstName: "First name",
+    firstNamePlaceholder: "e.g. Youssef",
     lastName: "Last name",
+    lastNamePlaceholder: "e.g. Bennani",
     phone: "Phone number",
+    phonePlaceholder: "06 12 34 56 78",
     birthDate: "Birth date",
-    email: "Email",
+    email: "Email address",
+    emailPlaceholder: "name@example.com",
     password: "Password",
     confirmPassword: "Confirm password",
     hidePassword: "Hide password",
     showPassword: "Show password",
-    passwordHint: "At least 8 characters, with 1 letter and 1 number. Compromised passwords are rejected.",
-    antiSpam: "Anti-spam verification",
-    regenerate: "Regenerate",
-    captchaPlaceholder: "Type the code",
-    support: "Need help? Contact support.",
-    country: "Country",
+    passwordHint: "8 characters minimum, with at least 1 letter and 1 number.",
+    country: "Country of residence",
     city: "City",
     selectCity: "Select a city",
     chooseCountryFirst: "Choose a country first",
-    onboardingTitle: "Complete onboarding v2",
-    onboardingBody: "This step opens on its own page. Once finished, we come back here to finish registration.",
-    onboardingOpen: "Open onboarding v2",
-    onboardingDone: "Onboarding v2 completed. Moving to the final step.",
-    onboardingWaiting: "Once onboarding is done, its data will be captured here automatically.",
-    summaryTitle: "Summary before account creation",
-    summaryBody: "The account will be created with your profile info, then the onboarding v2 record will be saved right after.",
-    profileLine: "Profile",
-    emailLine: "Email",
-    countryCityLine: "Country / city",
-    onboardingLine: "Onboarding v2",
-    completed: "completed",
-    missing: "missing",
-    defaultEnvelopes: "Default envelopes",
-    selectedCurrency: "Selected currency",
-    countryLine: "Country",
-    retryIn: "Too many attempts. Try again in",
-    back: "Back",
-    continue: "Continue",
-    createAndStartOnboarding: "Create account and start onboarding v2",
-    createFinalAccount: "Create account",
+    continueToStep2: "Continue to profile",
+    backToStep1: "Back",
+    createFinalAccount: "Create account and start",
+    creatingAccount: "Creating your account...",
     alreadyAccount: "Already have an account?",
     login: "Sign in",
     flagAlt: (name: string) => `${name} flag`,
-    acceptTermsPrefix: "By creating your account, you accept the ",
-    acceptTermsCGULink: "General Terms of Use (CGU)",
+    acceptTermsPrefix: "By creating an account, you accept the ",
+    acceptTermsCGULink: "Terms of Service",
     acceptTermsAnd: " and the ",
     acceptTermsPrivacyLink: "Privacy Policy",
     acceptTermsSuffix: " of 7sabek.ma.",
     tryWithoutAccount: "Try without an account",
-    tryWithoutAccountHint: "No email, no password. Your data stays; create an account whenever you want.",
+    tryWithoutAccountHint: "Explore 7sabek instantly in guest mode, no email or commitment required.",
     guestStartError: "Unable to start discovery mode. Please try again.",
+    retryIn: "Too many attempts. Try again in",
+    trustFeature1: "100% Free & Tailored for Morocco",
+    trustFeature2: "Smart Envelope Budgeting Method",
+    trustFeature3: "Bank-grade Security & Encryption",
   },
   ar: {
-    photoMustBeImage: "الملف خاصو يكون صورة.",
-    photoMaxSize: "الصورة ما خاصهاش تفوت 13 ميغا.",
-    waitBeforeRetry: "تسنى شوية قبل ما تعاود.",
-    allFieldsRequired: "كل الخانات ضروريين.",
-    validEmail: "دخل إيميل صحيح.",
+    photoMustBeImage: "الملف خاصو يكون صورة (PNG أو JPG أو WebP).",
+    photoMaxSize: "الصورة ما خاصهاش تفوت 13 ميغابايت.",
+    waitBeforeRetry: "تسنى شوية عاد تعاود المحاولة.",
+    allFieldsRequired: "عمر جميع الخانات الضرورية عافاك.",
+    validEmail: "دخل عنوان بريد إلكتروني صحيح.",
     passwordsMismatch: "كلمات السر ما متطابقينش.",
-    captchaIncorrect: "كود التحقق ماشي صحيح.",
-    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو التسجيل.",
+    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو.",
     recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
     recaptchaMissingConfig: "إعداد reCAPTCHA ناقص. زيد NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
-    recaptchaDevBypass: "وضع التطوير: NEXT_PUBLIC_RECAPTCHA_SITE_KEY ناقص وتم تجاوز reCAPTCHA محلياً.",
-    recaptchaChecking: "تم التحقق من الحماية ضد السبام.",
-    completeInfo: "كمل جميع المعلومات.",
-    phoneTooShort: "رقم الهاتف قصير بزاف.",
+    recaptchaDevBypass: "وضع التطوير: تم تجاوز التحقق الأمني محلياً.",
+    recaptchaChecking: "تم التحقق من الحماية بنجاح.",
+    completeInfo: "عمر جميع المعلومات المطلوبة.",
+    phoneTooShort: "رقم الهاتف قصير بزاف (على الأقل 8 أرقام).",
     invalidBirthDate: "تاريخ الازدياد ما صالحش.",
     minAge: "خاص يكون العمر على الأقل 13 عام.",
     chooseCountryCity: "اختار البلد والمدينة.",
-    validCity: "اختار مدينة صالحة لهاد البلاد.",
-    currencyUnavailable: "العملة الأوتوماتيكية ما متوفراش لهاد البلاد.",
-    tooManyAttempts: "كاين بزاف ديال المحاولات. عاود من بعد.",
-    accountExists: "كاين حساب بهاد الإيميل من قبل.",
-    weakPassword: "كلمة السر ما كتحترمش الشروط.",
-    weakPasswordRule: "كلمة السر خاصها تكون فيها على الأقل 8 حروف، وحرف واحد، ورقم واحد.",
-    compromisedPassword: "هاد كلمة السر متسربة. اختار كلمة سر أخرى.",
+    validCity: "اختار مدينة صالحة.",
+    currencyUnavailable: "العملة ما متوفراش لهاد البلد.",
+    tooManyAttempts: "كاين بزاف ديال المحاولات. عاود من بعد شوية.",
+    accountExists: "كاين حساب مسجل بهاد الإيميل من قبل.",
+    weakPassword: "كلمة السر ضعيفة وما كتحترمش الشروط.",
+    weakPasswordRule: "كلمة السر خاصها تكون فيها على الأقل 8 حروف، وفيها حرف ورقم.",
+    compromisedPassword: "هاد كلمة السر معروفة وضعيفة بزاف. اختار وحدة أقوى.",
     passwordRuleMinLength: "على الأقل 8 حروف",
     passwordRuleLetter: "على الأقل 1 حرف",
     passwordRuleDigit: "على الأقل 1 رقم",
-    passwordRuleNotCompromised: "كلمة سر غير متسربة",
-    mfaRequired: "الموافقة على حماية إضافية للحساب ضرورية باش يتصاوب الحساب.",
-    mfaConsentLabel: "باش نحمي الحساب ديالك، نقدر نطلبو تحقق إضافي فبعض الحالات.",
+    passwordRuleNotCompromised: "كلمة سر قوية وآمنة",
+    passwordStrengthWeak: "ضعيفة",
+    passwordStrengthMedium: "متوسطة",
+    passwordStrengthStrong: "قوية ومحمية",
     createAccountFailed: "ما قدرناش نصاوبو الحساب دابا. عاود المحاولة.",
-    onboardingRequired: "خاصك تكمل الإعداد قبل إنشاء الحساب.",
-    heroPoint1: "بروفايل مخصص حسب الوضعية ديالك.",
-    heroPoint2: "أظرفة كيتصاوبو ليك تلقائياً باش تبدا بسرعة.",
-    heroPoint3: "بيانات مؤمنة ودعم مخصص.",
-    mobileTitle: "صاوب حسابك فـ 7sabek",
-    mobileBody: "غير شحال هادي ديال الخطوات باش نخصصو التجربة ديالك.",
-    stepBadge: (step: number) => `خطوة التسجيل • ${step} من 5`,
+    heroTitle: "تحكم فمصاريفك وفلوسك مع 7sabek",
+    heroSubtitle: "انضم لآلاف المستعملين اللي كيسيرو ميزانيتهم بسهولة بطريقة الأظرفة الذكية.",
+    baOmarName: "با عمر",
+    baOmarRole: "المستشار المالي الذكي",
+    baOmarQuote: "« مرحباً بك! فثواني معدودة، غادي نصاوبو حسابك باش ترجع تتحكم فمصاريفك وفلوسك بطريقة الأظرفة الذكية. »",
+    envelopeLabel: "الظرف النشط",
+    envelopeCategory: "التغذية والتقدية",
+    addExpenseQuick: "إضافة سريعة",
     chipSalary: "السالير",
     chipRent: "الكراء",
     chipDebt: "كريدي",
     fabor: "فابووووور",
-    createAccount: "صاوب حساب",
-    createAccountSubtitle: "بدا بالمعلومات الأساسية، ومن بعد كمل بيانات الدخول.",
+    step1Pill: "1. الحساب والدخول",
+    step2Pill: "2. البروفايل والتأكيد",
+    step1Title: "صاوب حسابك فـ 7sabek",
+    step1Subtitle: "دخل معلوماتك الأساسية باش نجهزو مساحتك المالية الخاصة.",
+    step2Title: "كمّل البروفايل ديالك",
+    step2Subtitle: "آخر خطوة باش نخصصو الأظرفة ديال الميزانية ديالك.",
     maintenanceSuffix: "التسجيل موقف أثناء الصيانة.",
     alreadyLoggedIn: "راك داير الدخول بهاد الحساب",
-    goDashboard: "سير للوحة القيادة",
+    goDashboard: "سير للوحة التحكم",
     logout: "تسجيل الخروج",
     profilePhoto: "صورة البروفايل (اختيارية)",
+    profilePhotoChange: "تبديل الصورة",
+    profilePhotoRemove: "حذف",
     firstName: "الاسم الشخصي",
-    lastName: "النسب",
+    firstNamePlaceholder: "مثلاً: يوسف",
+    lastName: "النسب (اسم العائلة)",
+    lastNamePlaceholder: "مثلاً: بناني",
     phone: "رقم الهاتف",
+    phonePlaceholder: "06 12 34 56 78",
     birthDate: "تاريخ الازدياد",
-    email: "الإيميل",
+    email: "البريد الإلكتروني",
+    emailPlaceholder: "nom@exemple.ma",
     password: "كلمة السر",
     confirmPassword: "أكد كلمة السر",
     hidePassword: "خبي كلمة السر",
     showPassword: "بيّن كلمة السر",
-    passwordHint: "كلمة السر خاصها تكون على الأقل 8 حروف، وفيها حرف ورقم. كلمات السر المتسربة ما مقبولاش.",
-    antiSpam: "التحقق ضد السبام",
-    regenerate: "بدّل كود التحقق",
-    captchaPlaceholder: "عاود كتب كود التحقق",
-    support: "إلى محتاج مساعدة تاصل بالدعم.",
-    country: "البلد",
+    passwordHint: "8 حروف على الأقل، وحرف واحد، ورقم واحد.",
+    country: "بلد الإقامة",
     city: "المدينة",
-    selectCity: "اختار مدينة",
+    selectCity: "اختار المدينة",
     chooseCountryFirst: "اختار البلد أولاً",
-    onboardingTitle: "كمّل الإعداد",
-    onboardingBody: "هاد المرحلة كتتحل فصفحة بوحدها. منين تسالي غادي نرجعو لهنا ونكملو التسجيل.",
-    onboardingOpen: "فتح صفحة الإعداد",
-    onboardingDone: "الإعداد سالا. غادي ندوزو للمرحلة الأخيرة.",
-    onboardingWaiting: "منين تسالي الإعداد، المعطيات غادي تجي لهنا تلقائياً.",
-    summaryTitle: "الخلاصة قبل إنشاء الحساب",
-    summaryBody: "الحساب غادي يتصاوب بمعلومات البروفايل ديالك ومن بعد بيانات الإعداد غادي تتحفظ مباشرة.",
-    profileLine: "البروفايل",
-    emailLine: "الإيميل",
-    countryCityLine: "البلاد / المدينة",
-    onboardingLine: "الإعداد",
-    completed: "مكمل",
-    missing: "ناقص",
-    defaultEnvelopes: "الأظرفة الافتراضية",
-    selectedCurrency: "العملة المختارة",
-    countryLine: "البلاد",
-    retryIn: "كاين بزاف ديال المحاولات. عاود ف",
-    back: "رجوع",
-    continue: "التالي",
-    createAndStartOnboarding: "صاوب الحساب وبدا الإعداد",
-    createFinalAccount: "صاوب الحساب",
+    continueToStep2: "المتابعة نحو البروفايل",
+    backToStep1: "رجوع",
+    createFinalAccount: "صاوب حسابي وابدأ دابا",
+    creatingAccount: "كنصاوبو فالحساب ديالك...",
     alreadyAccount: "عندك حساب من قبل؟",
     login: "دخل لحسابك",
     flagAlt: (name: string) => `علم ${name}`,
     acceptTermsPrefix: "بإنشاء حسابك، فإنك توافق على ",
-    acceptTermsCGULink: "الشروط العامة للاستخدام (CGU)",
+    acceptTermsCGULink: "شروط الاستخدام (CGU)",
     acceptTermsAnd: " و ",
     acceptTermsPrivacyLink: "سياسة الخصوصية",
     acceptTermsSuffix: " لـ 7sabek.ma.",
-    tryWithoutAccount: "جرّب بلا حساب",
-    tryWithoutAccountHint: "بلا إيميل، بلا كلمة السر. البيانات ديالك تبقى، وتصاوب حساب فاش بغيتي.",
+    tryWithoutAccount: "جرّب بلا حساب كضيف",
+    tryWithoutAccountHint: "اكتشف 7sabek دابا فوضع الضيف، بلا إيميل وبلا كلمة سر.",
     guestStartError: "ما قدرناش نبداو وضع الاكتشاف. عاود المحاولة.",
+    retryIn: "كاين بزاف ديال المحاولات. عاود ف",
+    trustFeature1: "100% فابور ومصمم للمغرب",
+    trustFeature2: "نظام أظرفة الميزانية الذكي",
+    trustFeature3: "حماية وتشفير عالي الأمان",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
@@ -567,38 +567,40 @@ type RegisterPrefillPayload = {
 export default function RegisterPage() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const inputClass =
-    "h-[50px] rounded-xl border-[#E3E8DF] bg-white text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-medium placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0";
+
   const [locale, setLocale] = useState<FloussyLocale>("fr");
   const [introReady, setIntroReady] = useState(false);
 
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const status = usePlatformStatus();
 
+  // Step 1: Account & Credentials
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordFieldActive, setPasswordFieldActive] = useState(false);
+  const [country, setCountry] = useState<CountryName>("Maroc");
+  const [city, setCity] = useState("Casablanca");
+  const [currency, setCurrency] = useState<CurrencyCode>("MAD");
+
+  // Step 2: Profile & Verification
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaWidgetRef = useRef<number | null>(null);
   const recaptchaNodeRef = useRef<HTMLDivElement | null>(null);
   const [recaptchaScriptLoaded, setRecaptchaScriptLoaded] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordFieldActive, setPasswordFieldActive] = useState(false);
-  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [country, setCountry] = useState<CountryName | "">("");
-  const [city, setCity] = useState("");
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
-  const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null);
-  const [currency, setCurrency] = useState<CurrencyCode | "">("");
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [registerOnboardingPayload, setRegisterOnboardingPayload] =
     useState<RegisterOnboardingPayload | null>(null);
   const [registrationLeadId, setRegistrationLeadId] = useState<string>("");
@@ -607,55 +609,33 @@ export default function RegisterPage() {
   const passwordFieldRef = useRef<HTMLDivElement | null>(null);
   const profilePhotoBlobUrlRef = useRef<string | null>(null);
   const submitInFlightRef = useRef(false);
+
   const maintenanceActive = Boolean(status?.maintenance_mode);
   const registrationBlocked = maintenanceActive || Boolean(retryAfterSeconds);
-  const supportEmail = status?.support_email || "elidryssi@gmail.com";
-  const isOnboardingStep = !user && step === 4;
   const copy = REGISTER_COPY[locale];
-
-  const [guestLoading, setGuestLoading] = useState(false);
-  const handleGuestStart = async () => {
-    setError(null);
-    setGuestLoading(true);
-    try {
-      resetAuthClientState();
-      const guest = await startGuestSession();
-      markAuthSessionHint();
-      router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
-    } catch {
-      setError(copy.guestStartError);
-    } finally {
-      setGuestLoading(false);
-    }
-  };
-  // A tab opened in the background freezes CSS animations at frame 0, which would
-  // leave the panel invisible. Only arm the one-shot intro when the page is on screen.
-  useEffect(() => {
-    if (reduceMotion) return;
-    if (typeof document === "undefined") return;
-    if (document.visibilityState === "visible") setIntroReady(true);
-  }, [reduceMotion]);
-
+  const countryLabels = COUNTRY_LABELS[locale];
   const pageDir = getLocaleDirection(locale);
   const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "register-arabic-font" : ""}`;
   const headingClass = arabicFont.className;
   const copyClass = locale === "ar" ? "register-copy" : "";
-  const countryLabels = COUNTRY_LABELS[locale];
+
+  const [guestLoading, setGuestLoading] = useState(false);
+
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
   const isDevEnvironment = process.env.NODE_ENV !== "production";
-  // Only skip the client-side reCAPTCHA gate in dev. A production build that
-  // ships without NEXT_PUBLIC_RECAPTCHA_SITE_KEY should fail closed (block the
-  // form) rather than silently disable bot protection. The backend still
-  // enforces the token regardless.
   const allowRecaptchaBypass = isDevEnvironment && !recaptchaSiteKey;
+
+  // Visual Input classes matching modern fintech aesthetic
+  const inputClass =
+    "h-[50px] w-full rounded-xl border-[#E3E8DF] bg-white ps-11 text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-normal placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0 transition-all";
+  const ICON_WRAP =
+    "pointer-events-none absolute inset-y-0 start-0 flex w-11 items-center justify-center text-[#7C8D86] transition-colors";
 
   const formatDuration = (seconds: number) => {
     const total = Math.max(seconds, 0);
     const mins = Math.floor(total / 60);
     const secs = total % 60;
-    if (mins <= 0) {
-      return `${secs}s`;
-    }
+    if (mins <= 0) return `${secs}s`;
     return `${mins}m ${secs.toString().padStart(2, "0")}s`;
   };
 
@@ -675,12 +655,26 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
+    if (reduceMotion) return;
+    if (typeof document === "undefined") return;
+    if (document.visibilityState === "visible") setIntroReady(true);
+  }, [reduceMotion]);
+
+  useEffect(() => {
     setLocale(getBrowserLocalePreference() ?? "fr");
     const syncLocale = () => setLocale(getBrowserLocalePreference() ?? "fr");
     window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
     return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
   }, []);
 
+  // Fetch logged in user to prevent double register
+  useEffect(() => {
+    fetchMe()
+      .then((me) => setUser(me))
+      .catch(() => setUser(null));
+  }, []);
+
+  // Prefill restore
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -703,23 +697,16 @@ export default function RegisterPage() {
       }
 
       const raw = window.localStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as RegisterOnboardingPayload;
-      if (parsed?.answers && parsed?.draft_objects) {
-        setRegisterOnboardingPayload(parsed);
-        if (
-          new URLSearchParams(window.location.search).get("resume") === "1" &&
-          window.localStorage.getItem(REGISTER_ONBOARDING_COMPLETED_KEY) === "1"
-        ) {
-          setStep(5);
-          setError(null);
-          router.replace("/register");
+      if (raw) {
+        const parsed = JSON.parse(raw) as RegisterOnboardingPayload;
+        if (parsed?.answers && parsed?.draft_objects) {
+          setRegisterOnboardingPayload(parsed);
         }
       }
     } catch {
       return;
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -762,22 +749,6 @@ export default function RegisterPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const listener = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (!event.data || event.data.type !== REGISTER_ONBOARDING_MESSAGE_TYPE) return;
-      const payload = event.data.payload as RegisterOnboardingPayload | undefined;
-      if (!payload?.answers || !payload?.draft_objects) return;
-      window.localStorage.setItem(REGISTER_ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
-      setRegisterOnboardingPayload(payload);
-      setError(null);
-      setStep(5);
-    };
-    window.addEventListener("message", listener);
-    return () => window.removeEventListener("message", listener);
-  }, []);
-
-  useEffect(() => {
     if (!retryAfterSeconds || retryAfterSeconds <= 0) return;
     const timer = setInterval(() => {
       setRetryAfterSeconds((prev) => {
@@ -789,6 +760,7 @@ export default function RegisterPage() {
     return () => clearInterval(timer);
   }, [retryAfterSeconds]);
 
+  // reCAPTCHA Script loader
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!recaptchaSiteKey || allowRecaptchaBypass) return;
@@ -834,10 +806,6 @@ export default function RegisterPage() {
       if (node) {
         renderRecaptchaWidget(node);
       } else {
-        // The step-2 container was unmounted (e.g. navigating to another
-        // step). Only forget the widget instance so a fresh one renders
-        // next time step 2 is shown — keep any solved token, since it's
-        // still needed later at final submission even after leaving step 2.
         recaptchaWidgetRef.current = null;
       }
     },
@@ -845,10 +813,10 @@ export default function RegisterPage() {
   );
 
   useEffect(() => {
-    if (recaptchaScriptLoaded && recaptchaNodeRef.current) {
+    if (step === 2 && recaptchaScriptLoaded && recaptchaNodeRef.current) {
       renderRecaptchaWidget(recaptchaNodeRef.current);
     }
-  }, [recaptchaScriptLoaded, renderRecaptchaWidget]);
+  }, [step, recaptchaScriptLoaded, renderRecaptchaWidget]);
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -879,58 +847,82 @@ export default function RegisterPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleRemovePhoto = () => {
+    if (profilePhotoPreviewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(profilePhotoPreviewUrl);
+    }
+    setProfilePhotoPreviewUrl(null);
+    setProfilePhotoUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const citiesForCountry = useMemo(
     () => (country && country in CITIES_BY_COUNTRY ? CITIES_BY_COUNTRY[country] : []),
     [country]
   );
 
-  const passwordRules = useMemo(
-    () => [
-      { label: copy.passwordRuleMinLength, ok: password.length >= EASY_MIN_PASSWORD_LENGTH },
-      { label: copy.passwordRuleLetter, ok: PASSWORD_HAS_LETTER_RE.test(password) },
-      { label: copy.passwordRuleDigit, ok: PASSWORD_HAS_DIGIT_RE.test(password) },
-      { label: copy.passwordRuleNotCompromised, ok: !COMPROMISED_PASSWORDS.has(password.trim().toLowerCase()) },
-    ],
-    [copy.passwordRuleDigit, copy.passwordRuleLetter, copy.passwordRuleMinLength, copy.passwordRuleNotCompromised, password]
-  );
-
   useEffect(() => {
-    if (!country) {
-      setCity("");
-      setCurrency("");
-      return;
-    }
-    if (!citiesForCountry.includes(city)) {
-      setCity("");
-    }
-    const nextCurrency = CURRENCY_BY_COUNTRY[country as CountryName];
+    if (!country) return;
+    const nextCurrency = CURRENCY_BY_COUNTRY[country];
     if (nextCurrency && nextCurrency !== currency) {
       setCurrency(nextCurrency);
     }
+    if (!citiesForCountry.includes(city)) {
+      setCity(citiesForCountry[0] || "");
+    }
   }, [country, city, citiesForCountry, currency]);
 
-  const validateCredentialsStep = () => {
+  // Password rules validation
+  const passwordRules = useMemo(() => {
+    const minLength = password.length >= EASY_MIN_PASSWORD_LENGTH;
+    const hasLetter = PASSWORD_HAS_LETTER_RE.test(password);
+    const hasDigit = PASSWORD_HAS_DIGIT_RE.test(password);
+    const notCompromised = !COMPROMISED_PASSWORDS.has(password.trim().toLowerCase());
+    return [
+      { label: copy.passwordRuleMinLength, ok: minLength },
+      { label: copy.passwordRuleLetter, ok: hasLetter },
+      { label: copy.passwordRuleDigit, ok: hasDigit },
+      { label: copy.passwordRuleNotCompromised, ok: notCompromised },
+    ];
+  }, [copy, password]);
+
+  const passwordScore = useMemo(() => {
+    let score = 0;
+    if (password.length >= EASY_MIN_PASSWORD_LENGTH) score += 1;
+    if (PASSWORD_HAS_LETTER_RE.test(password)) score += 1;
+    if (PASSWORD_HAS_DIGIT_RE.test(password)) score += 1;
+    if (password.length >= 10) score += 1;
+    return score;
+  }, [password]);
+
+  const maxBirthDate = useMemo(() => {
+    const today = new Date();
+    const max = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+    return max.toISOString().slice(0, 10);
+  }, []);
+
+  const validateStep1 = () => {
     if (retryAfterSeconds) {
       setError(copy.waitBeforeRetry);
       return false;
     }
-    if (!email.trim() || !password || !confirmPassword) {
+    if (!firstName.trim() || !lastName.trim()) {
       setError(copy.allFieldsRequired);
       return false;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(copy.validEmail);
+      return false;
+    }
+    if (!password || !confirmPassword) {
+      setError(copy.allFieldsRequired);
       return false;
     }
     if (password !== confirmPassword) {
       setError(copy.passwordsMismatch);
       return false;
     }
-    if (password.length < EASY_MIN_PASSWORD_LENGTH) {
-      setError(copy.weakPasswordRule);
-      return false;
-    }
-    if (!PASSWORD_HAS_LETTER_RE.test(password) || !PASSWORD_HAS_DIGIT_RE.test(password)) {
+    if (password.length < EASY_MIN_PASSWORD_LENGTH || !PASSWORD_HAS_LETTER_RE.test(password) || !PASSWORD_HAS_DIGIT_RE.test(password)) {
       setError(copy.weakPasswordRule);
       return false;
     }
@@ -938,36 +930,21 @@ export default function RegisterPage() {
       setError(copy.compromisedPassword);
       return false;
     }
-    if (!recaptchaSiteKey && !allowRecaptchaBypass) {
-      setError(copy.recaptchaMissingConfig);
-      return false;
-    }
-    if (!allowRecaptchaBypass && !recaptchaToken) {
-      setError(copy.recaptchaRequired);
+    if (!country || !city) {
+      setError(copy.chooseCountryCity);
       return false;
     }
     setError(null);
     return true;
   };
 
-  const maxBirthDate = (() => {
-    const today = new Date();
-    const max = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
-    return max.toISOString().slice(0, 10);
-  })();
-
-  const validateProfileStep = () => {
-    if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !phoneNumber.trim() ||
-      !birthDate
-    ) {
-      setError(copy.completeInfo);
+  const validateStep2 = () => {
+    if (!phoneNumber.trim() || phoneNumber.trim().length < 8) {
+      setError(copy.phoneTooShort);
       return false;
     }
-    if (phoneNumber.trim().length < 6) {
-      setError(copy.phoneTooShort);
+    if (!birthDate) {
+      setError(copy.invalidBirthDate);
       return false;
     }
     const birth = new Date(birthDate);
@@ -981,17 +958,12 @@ export default function RegisterPage() {
       setError(copy.minAge);
       return false;
     }
-    setError(null);
-    return true;
-  };
-
-  const validateLocationStep = () => {
-    if (!country.trim() || !city.trim()) {
-      setError(copy.chooseCountryCity);
+    if (!recaptchaSiteKey && !allowRecaptchaBypass) {
+      setError(copy.recaptchaMissingConfig);
       return false;
     }
-    if (country && !citiesForCountry.includes(city)) {
-      setError(copy.validCity);
+    if (!allowRecaptchaBypass && !recaptchaToken) {
+      setError(copy.recaptchaRequired);
       return false;
     }
     setError(null);
@@ -1031,42 +1003,37 @@ export default function RegisterPage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNextToStep2 = () => {
     if (loading || submitInFlightRef.current) return;
-    if (step === 1 && !validateProfileStep()) return;
-    if (step === 2 && !validateCredentialsStep()) return;
-    if (step === 3 && !validateLocationStep()) return;
-    if (step === 1) {
-      void captureLeadSafe({
-        lead_id: registrationLeadId || undefined,
-        first_name: firstName.trim() || undefined,
-        last_name: lastName.trim() || undefined,
-        phone: phoneNumber.trim() || undefined,
-        birth_date: birthDate || undefined,
-        language: locale,
-        current_step: 1,
-        event: "step1_saved",
-      });
-    }
-    if (step === 3) {
-      persistRegisterOnboardingPrefill();
-      setError(null);
-      setStep(4);
-      router.push("/onboarding?register=1");
-      return;
-    }
-    if (step === 4 && !registerOnboardingPayload) {
-      persistRegisterOnboardingPrefill();
-      setError(null);
-      router.push("/onboarding?register=1");
-      return;
-    }
-    setStep((prev) => (prev < 5 ? ((prev + 1) as 1 | 2 | 3 | 4 | 5) : prev));
+    if (!validateStep1()) return;
+
+    void captureLeadSafe({
+      lead_id: registrationLeadId || undefined,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: email.trim().toLowerCase(),
+      country,
+      city,
+      language: locale,
+      current_step: 1,
+      event: "step1_completed",
+    });
+
+    setError(null);
+    setStep(2);
   };
 
-  const handleRegisterAndStartOnboarding = async () => {
+  const handlePrevToStep1 = () => {
+    setError(null);
+    setStep(1);
+  };
+
+  const handleRegisterAndStartOnboarding = async (event?: React.FormEvent) => {
+    if (event) event.preventDefault();
     if (loading || submitInFlightRef.current) return;
-    if (!validateProfileStep() || !validateCredentialsStep() || !validateLocationStep()) {
+    if (maintenanceActive) return;
+
+    if (!validateStep1() || !validateStep2()) {
       return;
     }
     if (!currency) {
@@ -1077,11 +1044,13 @@ export default function RegisterPage() {
     if (!allowRecaptchaBypass && !currentRecaptchaToken) {
       return;
     }
+
     persistRegisterOnboardingPrefill();
     setLoading(true);
     submitInFlightRef.current = true;
     setRetryAfterSeconds(null);
     setError(null);
+
     try {
       const normalizedEmail = email.trim().toLowerCase();
       await apiFetch("/auth/register", {
@@ -1100,16 +1069,24 @@ export default function RegisterPage() {
           profile_photo_url: profilePhotoUrl,
           mfa_consent: true,
           defer_onboarding_v2: true,
+          ...(registerOnboardingPayload?.answers
+            ? { onboarding_v2_answers: registerOnboardingPayload.answers }
+            : {}),
+          ...(registerOnboardingPayload?.draft_objects
+            ? { onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects }
+            : {}),
           recaptcha_token: currentRecaptchaToken,
           lead_id: registrationLeadId || undefined,
         },
       });
+
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(REGISTER_LEAD_ID_KEY);
         window.localStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
         window.localStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
         window.localStorage.setItem(REGISTER_FORCE_ONBOARDING_KEY, "1");
       }
+
       await refreshAuthSession();
       router.push("/onboarding?post_register=1");
     } catch (err) {
@@ -1130,18 +1107,16 @@ export default function RegisterPage() {
         setError(message);
       } else if (lower.includes("maintenance")) {
         setError(message);
-      } else if (lower.includes("recaptcha_required")) {
+      } else if (lower.includes("recaptcha_required") || message.includes("أكد أنك ماشي روبوت")) {
         setError(copy.recaptchaRequired);
-      } else if (message.includes("أكد أنك ماشي روبوت")) {
-        setError(copy.recaptchaRequired);
-      } else if (lower.includes("recaptcha_failed")) {
-        setError(copy.recaptchaFailed);
-      } else if (message.includes("ما قدرناش نتحققو")) {
+      } else if (lower.includes("recaptcha_failed") || message.includes("ما قدرناش نتحققو")) {
         setError(copy.recaptchaFailed);
       } else if (lower.includes("exists") || lower.includes("already")) {
         setError(copy.accountExists);
+        setStep(1);
       } else if (lower.includes("password")) {
         setError(copy.weakPassword);
+        setStep(1);
       } else {
         setError(copy.createAccountFailed);
       }
@@ -1152,116 +1127,18 @@ export default function RegisterPage() {
     }
   };
 
-  const handlePrev = () => {
+  const handleGuestStart = async () => {
     setError(null);
-    setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4 | 5) : prev));
-  };
-
-  const handleRegister = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (loading || submitInFlightRef.current) return;
-    if (maintenanceMessage) {
-      setError(maintenanceMessage);
-      return;
-    }
-    if (step === 3) {
-      await handleRegisterAndStartOnboarding();
-      return;
-    }
-    if (step !== 5) {
-      handleNext();
-      return;
-    }
-    if (!validateProfileStep() || !validateCredentialsStep() || !validateLocationStep()) return;
-    if (!registerOnboardingPayload) {
-      setError(copy.onboardingRequired);
-      return;
-    }
-    if (!currency) {
-      setError(copy.currencyUnavailable);
-      return;
-    }
-    const currentRecaptchaToken2 = getRecaptchaToken();
-    if (!allowRecaptchaBypass && !currentRecaptchaToken2) {
-      return;
-    }
-    setLoading(true);
-    submitInFlightRef.current = true;
-    setRetryAfterSeconds(null);
-    setError(null);
+    setGuestLoading(true);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-      await apiFetch("/auth/register", {
-        method: "POST",
-        body: {
-          email: normalizedEmail,
-          password,
-          currency,
-          sweep_interval_days: DEFAULT_SWEEP_INTERVAL_DAYS,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone_number: phoneNumber.trim(),
-          birth_date: birthDate,
-          country: country.trim(),
-          city: city.trim(),
-          profile_photo_url: profilePhotoUrl,
-          mfa_consent: true,
-          onboarding_v2_answers: registerOnboardingPayload.answers,
-          onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects,
-          recaptcha_token: currentRecaptchaToken2,
-          lead_id: registrationLeadId || undefined,
-        },
-      });
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(REGISTER_LEAD_ID_KEY);
-        window.localStorage.removeItem(REGISTER_ONBOARDING_PREFILL_KEY);
-        window.localStorage.removeItem(REGISTER_ONBOARDING_DRAFT_KEY);
-        window.localStorage.removeItem(REGISTER_ONBOARDING_COMPLETED_KEY);
-      }
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(REGISTER_FORCE_ONBOARDING_KEY);
-      }
-      await refreshAuthSession();
-      router.push("/dashboard");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.createAccountFailed;
-      const lower = message.toLowerCase();
-      if (lower.includes("too many") || lower.includes("trop de tentatives")) {
-        const retryAfter = parseRetryAfter(null, message);
-        if (retryAfter) setRetryAfterSeconds(retryAfter);
-        setError(copy.tooManyAttempts);
-        return;
-      }
-      if (
-        lower.includes("compte supprim") ||
-        lower.includes("récupération") ||
-        lower.includes("recuperation") ||
-        lower.includes("suppression définitive")
-      ) {
-        setError(message);
-      } else if (lower.includes("maintenance")) {
-        setError(message);
-      } else if (lower.includes("onboarding")) {
-        setError(copy.onboardingRequired);
-      } else if (lower.includes("recaptcha_required")) {
-        setError(copy.recaptchaRequired);
-      } else if (message.includes("أكد أنك ماشي روبوت")) {
-        setError(copy.recaptchaRequired);
-      } else if (lower.includes("recaptcha_failed")) {
-        setError(copy.recaptchaFailed);
-      } else if (message.includes("ما قدرناش نتحققو")) {
-        setError(copy.recaptchaFailed);
-      } else if (lower.includes("exists") || lower.includes("already")) {
-        setError(copy.accountExists);
-      } else if (lower.includes("password")) {
-        setError(copy.weakPassword);
-      } else {
-        setError(copy.createAccountFailed);
-      }
+      resetAuthClientState();
+      const guest = await startGuestSession();
+      markAuthSessionHint();
+      router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
+    } catch {
+      setError(copy.guestStartError);
     } finally {
-      setLoading(false);
-      submitInFlightRef.current = false;
-      resetRecaptcha();
+      setGuestLoading(false);
     }
   };
 
@@ -1269,47 +1146,23 @@ export default function RegisterPage() {
     ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email
     : null;
   const maintenanceMessage =
-    status?.maintenance_mode && status.maintenance_message
-      ? status.maintenance_message
-      : "";
+    status?.maintenance_mode && status.maintenance_message ? status.maintenance_message : "";
   const maintenancePlacements = status?.maintenance_placements ?? [];
   const showMaintenanceBanner =
-    Boolean(maintenanceMessage.trim()) &&
-    maintenancePlacements.includes("register");
+    Boolean(maintenanceMessage.trim()) && maintenancePlacements.includes("register");
   const registerAnnouncements = getVisibleAnnouncements(status, user, "register");
   const showAnnouncementBanner = registerAnnouncements.length > 0;
-
-  useEffect(() => {
-    if (step !== 2) return;
-    const normalized = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return;
-    const timer = window.setTimeout(() => {
-      void captureLeadSafe({
-        lead_id: registrationLeadId || undefined,
-        email: normalized,
-        language: locale,
-        current_step: 2,
-        event: "email_entered",
-      });
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [step, email, locale, registrationLeadId, captureLeadSafe]);
 
   return (
     <div
       className={`rg-root relative min-h-screen bg-[#F6F8F4] ${pageFontClass} ${introReady ? "rg-intro" : ""}`}
       dir={pageDir}
-      style={{ fontFamily: `"Cairo", var(--font-cairo), sans-serif` }}
+      data-register-locale={locale}
     >
-      <div
-        className={`grid min-h-screen grid-cols-1 ${
-          isOnboardingStep ? "" : "lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
-        }`}
-      >
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+        {/* ---------------- LEFT BRAND PANEL ---------------- */}
         <aside
-          className={`rg-panel relative hidden flex-col justify-between gap-7 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-11 text-[#EAF4EF] ${copyClass} ${
-            isOnboardingStep ? "" : "lg:flex"
-          }`}
+          className={`rg-panel relative hidden flex-col justify-between gap-8 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-10 text-[#EAF4EF] lg:flex ${copyClass}`}
           onPointerMove={(event) => {
             if (reduceMotion) return;
             const target = event.currentTarget;
@@ -1322,42 +1175,112 @@ export default function RegisterPage() {
           <span className="rg-blob rg-blob-b" aria-hidden="true" />
           <span className="rg-spot" aria-hidden="true" />
 
+          {/* Logo */}
           <div className="relative z-10">
-            {/* The brand PNGs are square with wide transparent padding, so the box
-                has to be ~2.4x the intended visual height. */}
             <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
           </div>
 
-          <div className="relative z-10">
-            <h2
-              className={`${headingClass} rg-rise text-[2rem] font-extrabold leading-[1.1] text-white`}
-              style={{ "--d": ".18s" } as React.CSSProperties}
+          {/* Center Showcase: Ba Omar Card + Interactive Envelope Widget */}
+          <div className="relative z-10 space-y-6">
+            <div className="rg-rise space-y-2" style={{ "--d": ".15s" } as React.CSSProperties}>
+              <h2 className={`${headingClass} text-[2.1rem] font-extrabold leading-[1.18] text-white`}>
+                {copy.heroTitle}
+              </h2>
+              <p className="max-w-[40ch] text-[0.93rem] leading-relaxed text-[#B9CFC5]">
+                {copy.heroSubtitle}
+              </p>
+            </div>
+
+            {/* BA OMAR WELCOME CARD */}
+            <div
+              className="rg-rise relative overflow-hidden rounded-2xl border border-[#17C777]/30 bg-gradient-to-br from-white/[0.12] to-white/[0.04] p-4 shadow-xl backdrop-blur-md"
+              style={{ "--d": ".28s" } as React.CSSProperties}
             >
-              {copy.mobileTitle}
-            </h2>
-            <p
-              className="rg-rise mt-3.5 max-w-[38ch] text-[0.95rem] leading-relaxed text-[#B9CFC5]"
-              style={{ "--d": ".3s" } as React.CSSProperties}
-            >
-              {copy.createAccountSubtitle}
-            </p>
-            <div className="mt-7 flex flex-col gap-3">
-              {[copy.heroPoint1, copy.heroPoint2, copy.heroPoint3].map((point, index) => (
-                <div
-                  key={point}
-                  className="rg-rise flex items-start gap-3 text-[0.87rem] font-semibold text-[#DCEAE3]"
-                  style={{ "--d": `${0.42 + index * 0.08}s` } as React.CSSProperties}
-                >
-                  <span className="mt-px flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full bg-[#17C777]/20 text-[#17C777]">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              <div className="flex items-start gap-3.5">
+                <div className="relative flex-none">
+                  <div className="relative h-14 w-14 overflow-hidden rounded-2xl border-2 border-[#17C777]/50 shadow-md">
+                    <Image
+                      src="/landing/ai/ba-omar-avatar.png"
+                      alt={copy.baOmarName}
+                      width={56}
+                      height={56}
+                      className="h-full w-full object-cover object-top"
+                      priority
+                    />
+                  </div>
+                  <span className="absolute -bottom-1 -end-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#17C777] text-[10px] text-white ring-2 ring-[#0A241D]">
+                    <Sparkles className="h-2.5 w-2.5" />
                   </span>
-                  <span>{point}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-extrabold text-white">{copy.baOmarName}</span>
+                    <span className="rounded-full bg-[#17C777]/20 px-2 py-0.5 text-[0.68rem] font-bold text-[#17C777]">
+                      {copy.baOmarRole}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs italic leading-relaxed text-[#DCEAE3]">
+                    {copy.baOmarQuote}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* INTERACTIVE ENVELOPE PREVIEW WIDGET */}
+            <div
+              className="rg-rise w-full max-w-[360px] rounded-2xl border border-white/15 bg-white/[0.08] p-5 shadow-2xl backdrop-blur-md transition-transform hover:scale-[1.02]"
+              style={{ "--d": ".4s" } as React.CSSProperties}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F59E0B]/20 text-[#F59E0B]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="16" x="2" y="4" rx="2" />
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#B9CFC5]">{copy.envelopeLabel}</p>
+                    <p className="text-sm font-extrabold text-white">{copy.envelopeCategory}</p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-[#F59E0B]/20 px-2.5 py-0.5 text-[0.74rem] font-extrabold text-[#F59E0B]">
+                  80%
+                </span>
+              </div>
+              <div className="mt-3.5">
+                <div className="flex justify-between text-xs font-bold text-[#DCEAE3]">
+                  <span>4 000 DH</span>
+                  <span className="text-[#8FAEA0]">5 000 DH</span>
+                </div>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#F97316]" style={{ width: "80%" }} />
+                </div>
+              </div>
+              <div className="mt-3.5 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#17C777]/20 text-xs font-bold text-[#17C777]">+</span>
+                  <span className="text-[13px] font-extrabold tracking-wide text-white" dir="ltr">
+                    0.00 DH
+                  </span>
+                </div>
+                <span className="text-[0.72rem] font-bold text-[#8FAEA0]">{copy.addExpenseQuick}</span>
+              </div>
+            </div>
+
+            {/* TRUST HIGHLIGHTS */}
+            <div className="rg-rise space-y-2 pt-1" style={{ "--d": ".52s" } as React.CSSProperties}>
+              {[copy.trustFeature1, copy.trustFeature2, copy.trustFeature3].map((feat) => (
+                <div key={feat} className="flex items-center gap-2.5 text-xs font-semibold text-[#B9CFC5]">
+                  <CheckCircle2 className="h-4 w-4 flex-none text-[#17C777]" />
+                  <span>{feat}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".72s" } as React.CSSProperties}>
+          {/* Floating stat chips */}
+          <div className="rg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".65s" } as React.CSSProperties}>
             {[
               { label: copy.chipSalary, value: "+12 400", dot: "#17C777", up: true },
               { label: copy.chipRent, value: "-3 200", dot: "#0A241D", up: false },
@@ -1365,7 +1288,7 @@ export default function RegisterPage() {
             ].map((chip) => (
               <span
                 key={chip.label}
-                className="rg-chip flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-2 text-[0.76rem] font-bold text-[#DCEAE3] backdrop-blur"
+                className="rg-chip flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-1.5 text-[0.76rem] font-bold text-[#DCEAE3] backdrop-blur"
               >
                 <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: chip.dot }} />
                 <span>{chip.label}</span>
@@ -1377,704 +1300,825 @@ export default function RegisterPage() {
           </div>
         </aside>
 
-        <main className={`flex flex-col px-5 pb-12 pt-6 sm:px-8 lg:px-14 lg:pt-8 ${copyClass}`}>
+        {/* ---------------- RIGHT FORM PANEL ---------------- */}
+        <main className={`flex flex-col px-5 pb-12 pt-6 sm:px-8 lg:px-12 lg:pt-8 ${copyClass}`}>
+          {/* Top navigation row */}
           <div className="flex items-center justify-between gap-3">
             <Link
               href="/"
-              aria-label="7sabek"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] transition hover:border-[#17C777] hover:text-[#0B8F53]"
+              aria-label="Accueil 7sabek"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] shadow-sm transition hover:border-[#17C777] hover:text-[#0B8F53]"
             >
               <Home className="h-4 w-4" />
             </Link>
-            <span className="text-[0.7rem] font-semibold text-[#7C8D86]">7sabek</span>
+
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="text-xs font-bold text-[#0B8F53] hover:underline"
+              >
+                {copy.login}
+              </Link>
+              <span className="text-[0.72rem] font-extrabold tracking-wide text-[#7C8D86]">7sabek.ma</span>
+            </div>
           </div>
 
-          <div className="flex flex-1 justify-center pt-8">
+          <div className="flex flex-1 items-center justify-center pt-4">
             <motion.div
-              className={`w-full ${isOnboardingStep ? "max-w-none" : "max-w-[520px]"}`}
-              initial={reduceMotion ? undefined : { opacity: 0, y: 22 }}
+              className="w-full max-w-[500px]"
+              initial={reduceMotion ? undefined : { opacity: 0, y: 18 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             >
-            <div className={`mb-7 flex flex-col items-center gap-2 text-center lg:hidden ${copyClass} ${isOnboardingStep ? "hidden" : ""}`}>
-              <BrandLogo locale={locale} className="h-20 w-auto object-contain" />
-            </div>
+              {/* Mobile Brand Logo */}
+              <div className="mb-6 flex flex-col items-center gap-2 text-center lg:hidden">
+                <BrandLogo locale={locale} className="h-14 w-auto object-contain" />
+              </div>
 
-            {!isOnboardingStep && !user ? (
-              <div className="mb-6">
-                <div className="flex items-center justify-between gap-3 text-[0.78rem] font-extrabold text-[#7C8D86]">
-                  <span>{copy.stepBadge(step)}</span>
-                </div>
-                <div className="rg-bar mt-2.5 h-[5px] overflow-hidden rounded-full bg-[#EEF1EA]">
-                  <span
-                    className="block h-full rounded-full bg-[linear-gradient(90deg,#17C777,#0B8F53)] transition-[width] duration-500 ease-out"
-                    style={{ width: `${step * 20}%` }}
+              {/* Maintenance / Announcements */}
+              {showMaintenanceBanner ? (
+                <div className="mb-4">
+                  <SystemMessageCard
+                    variant="maintenance"
+                    message={maintenanceMessage}
+                    suffix={copy.maintenanceSuffix}
                   />
                 </div>
-                <div className="mt-3.5 flex gap-[7px]">
-                  {[1, 2, 3, 4, 5].map((index) => (
-                    <span
-                      key={index}
-                      className={`flex h-[30px] flex-1 items-center justify-center rounded-[9px] text-[0.72rem] font-extrabold transition ${
-                        index === step
-                          ? "scale-[1.06] bg-[#0A241D] text-white"
-                          : index < step
-                            ? "bg-[#E2F7EC] text-[#0B8F53]"
-                            : "bg-[#EEF1EA] text-[#7C8D86]"
-                      }`}
-                    >
-                      {index}
-                    </span>
+              ) : null}
+              {showAnnouncementBanner ? (
+                <div className="mb-4 space-y-2">
+                  {registerAnnouncements.map((announcement) => (
+                    <SystemMessageCard
+                      key={announcement.id}
+                      variant="announcement"
+                      message={announcement.message}
+                      announcementType={announcement.type}
+                    />
                   ))}
                 </div>
-              </div>
-            ) : null}
-        <Card
-          className={`w-full border-0 bg-transparent p-0 shadow-none ${copyClass} ${
-            isOnboardingStep ? "space-y-4" : "space-y-5"
-          }`}
-        >
-          <motion.div
-            className="space-y-1"
-            initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-          >
-            {isOnboardingStep ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-emerald-100 bg-emerald-50/80 px-4 py-3">
-                <div>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-emerald-700">
-                    {copy.stepBadge(4)}
-                  </span>
-                  <h1
-                    className={`${headingClass} mt-3 text-3xl font-semibold tracking-tight text-gray-900`}
-                  >
-                    {copy.onboardingTitle}
-                  </h1>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {copy.onboardingBody}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <h1
-                  className={`${headingClass} text-[clamp(1.7rem,3vw,2.2rem)] font-extrabold tracking-tight text-[#0A241D]`}
-                >
-                  {copy.createAccount}
-                </h1>
-                <p className="mt-2.5 text-[0.96rem] leading-relaxed text-[#4E625A]">
-                  {copy.createAccountSubtitle}
-                </p>
-              </>
-            )}
-          </motion.div>
-          {showMaintenanceBanner ? (
-            <SystemMessageCard
-              variant="maintenance"
-              message={maintenanceMessage}
-              suffix={copy.maintenanceSuffix}
-            />
-          ) : null}
-          {showAnnouncementBanner ? (
-            registerAnnouncements.map((announcement) => (
-              <SystemMessageCard
-                key={announcement.id}
-                variant="announcement"
-                message={announcement.message}
-                announcementType={announcement.type}
-              />
-            ))
-          ) : null}
-
-          {user ? (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                {copy.alreadyLoggedIn}{" "}
-                <span className="font-medium text-gray-900">
-                  {displayName}
-                </span>
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() =>
-                    router.push(
-                      user.role === "superadmin" ? "/superadmin" : "/dashboard"
-                    )
-                  }
-                  className="bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
-                >
-                  {copy.goDashboard}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    logout()
-                      .catch(() => null)
-                      .finally(() => setUser(null));
-                  }}
-                  className="border-gray-200 text-gray-700 hover:border-emerald-500 hover:text-emerald-500"
-                >
-                  {copy.logout}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <motion.form
-              onSubmit={handleRegister}
-              className="space-y-4"
-              initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.45 }}
-            >
-              {step === 1 ? (
-                <>
-                  <div className="flex flex-col items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-dashed border-emerald-200 bg-emerald-50 text-emerald-600"
-                    >
-                      {profilePhotoPreviewUrl || profilePhotoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={profilePhotoPreviewUrl ?? profilePhotoUrl ?? undefined}
-                          alt={copy.profilePhoto}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <Camera className="h-8 w-8" />
-                      )}
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handlePhotoChange}
-                    />
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="first-name">{copy.firstName}</Label>
-                      <Input
-                        id="first-name"
-                        required
-                        autoComplete="given-name"
-                        data-clarity-mask="true"
-                        value={firstName}
-                        onChange={(event) => setFirstName(event.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last-name">{copy.lastName}</Label>
-                      <Input
-                        id="last-name"
-                        required
-                        autoComplete="family-name"
-                        data-clarity-mask="true"
-                        value={lastName}
-                        onChange={(event) => setLastName(event.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">{copy.phone}</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        required
-                        autoComplete="tel"
-                        data-clarity-mask="true"
-                        value={phoneNumber}
-                        onChange={(event) => setPhoneNumber(event.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="birth-date">{copy.birthDate}</Label>
-                      <Input
-                        id="birth-date"
-                        type="date"
-                        required
-                        max={maxBirthDate}
-                        autoComplete="bday"
-                        data-clarity-mask="true"
-                        value={birthDate}
-                        onChange={(event) => setBirthDate(event.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="text-center text-xs text-gray-500 mt-4 px-2 select-none leading-relaxed">
-                    {copy.acceptTermsPrefix}
-                    <Link
-                      href="/cgu"
-                      target="_blank"
-                      className="font-semibold text-emerald-600 hover:text-emerald-700 underline transition-colors"
-                    >
-                      {copy.acceptTermsCGULink}
-                    </Link>
-                    {copy.acceptTermsAnd}
-                    <Link
-                      href="/privacy"
-                      target="_blank"
-                      className="font-semibold text-emerald-600 hover:text-emerald-700 underline transition-colors"
-                    >
-                      {copy.acceptTermsPrivacyLink}
-                    </Link>
-                    {copy.acceptTermsSuffix}
-                  </div>
-                </>
-              ) : step === 2 ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">{copy.email}</Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      data-clarity-mask="true"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      onBlur={() => {
-                        const normalized = email.trim().toLowerCase();
-                        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return;
-                        void captureLeadSafe({
-                          lead_id: registrationLeadId || undefined,
-                          email: normalized,
-                          language: locale,
-                          current_step: 2,
-                          event: "email_entered",
-                        });
-                      }}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div
-                    ref={passwordFieldRef}
-                    className="space-y-2"
-                    onFocusCapture={() => setPasswordFieldActive(true)}
-                    onBlurCapture={(event) => {
-                      const nextFocused = event.relatedTarget as Node | null;
-                      if (nextFocused && passwordFieldRef.current?.contains(nextFocused)) return;
-                      setPasswordFieldActive(false);
-                    }}
-                  >
-                    <Label htmlFor="reg-password">{copy.password}</Label>
-                    <div className="relative">
-                      <Input
-                        id="reg-password"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        autoComplete="new-password"
-                        data-clarity-mask="true"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        className={`${inputClass} pr-10`}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full p-0 text-gray-500 hover:text-emerald-600"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        aria-label={
-                          showPassword
-                            ? copy.hidePassword
-                            : copy.showPassword
-                        }
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      {copy.passwordHint}
-                    </p>
-                    {passwordFieldActive ? (
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
-                        <ul className="space-y-1 text-xs">
-                          {passwordRules.map((rule) => (
-                            <li
-                              key={rule.label}
-                              className={rule.ok ? "text-emerald-700" : "text-red-600"}
-                            >
-                              {rule.ok ? "✓" : "•"} {rule.label}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-password-confirm">
-                      {copy.confirmPassword}
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="reg-password-confirm"
-                        type={showConfirmPassword ? "text" : "password"}
-                        required
-                        autoComplete="new-password"
-                        data-clarity-mask="true"
-                        value={confirmPassword}
-                        onChange={(event) =>
-                          setConfirmPassword(event.target.value)
-                        }
-                        className={`${inputClass} pr-10`}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full p-0 text-gray-500 hover:text-emerald-600"
-                        onClick={() => setShowConfirmPassword((prev) => !prev)}
-                        aria-label={
-                          showConfirmPassword
-                            ? copy.hidePassword
-                            : copy.showPassword
-                        }
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  {recaptchaSiteKey ? (
-                    <div className="space-y-2">
-                      <Label>{copy.antiSpam}</Label>
-                      <div ref={recaptchaContainerRef} />
-                    </div>
-                  ) : isDevEnvironment ? (
-                    <div className="space-y-2">
-                      <Label>{copy.antiSpam}</Label>
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        {copy.recaptchaDevBypass}
-                      </p>
-                    </div>
-                  ) : null}
-                  <div className="text-right text-xs text-gray-500">
-                    <a
-                      href={`mailto:${supportEmail}`}
-                      className="font-medium text-emerald-600 hover:text-emerald-700"
-                    >
-                      {copy.support}
-                    </a>
-                  </div>
-                </>
-              ) : step === 3 ? (
-                <>
-                  <div className="space-y-2">
-                    <Label>{copy.country}</Label>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {COUNTRY_OPTIONS.map((item) => {
-                        const selected = country === item.name;
-                        return (
-                          <button
-                            key={item.name}
-                            type="button"
-                            onClick={() => setCountry(item.name)}
-                            className={`flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm transition ${
-                              selected
-                                ? "border-emerald-200 bg-emerald-50"
-                                : "border-gray-100 bg-[var(--surface)] hover:border-emerald-200"
-                            }`}
-                            aria-pressed={selected}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/flags/${item.code}.png`}
-                              alt={copy.flagAlt(countryLabels[item.name])}
-                              className="h-6 w-8 rounded-sm border border-gray-100 object-cover"
-                              loading="lazy"
-                            />
-                            <span className="font-medium text-gray-900">
-                              {countryLabels[item.name]}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="city">{copy.city}</Label>
-                    <select
-                      id="city"
-                      required
-                      value={city}
-                      onChange={(event) => setCity(event.target.value)}
-                      className="h-10 w-full rounded-2xl border border-gray-200 bg-[var(--surface)] px-3 text-sm text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={!country}
-                    >
-                      <option value="" disabled>
-                        {country ? copy.selectCity : copy.chooseCountryFirst}
-                      </option>
-                      {citiesForCountry.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : step === 4 ? (
-                <>
-                  <div className="rounded-[28px] border border-emerald-100 bg-emerald-50/70 px-5 py-6 text-sm text-emerald-950">
-                    <p className="text-lg font-semibold">
-                      {copy.onboardingTitle}
-                    </p>
-                    <p className="mt-2">
-                      {copy.onboardingBody}
-                    </p>
-                    <div className="mt-4">
-                      <Button
-                        type="button"
-                        onClick={() => router.push("/onboarding?register=1")}
-                        className="bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600"
-                      >
-                        {copy.onboardingOpen}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-dashed border-gray-200 bg-[#fafaf8] px-4 py-4 text-sm text-gray-700">
-                    {registerOnboardingPayload ? (
-                      <p className="font-medium text-emerald-700">
-                        {copy.onboardingDone}
-                      </p>
-                    ) : (
-                      <p>
-                        {copy.onboardingWaiting}
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="rounded-2xl border border-gray-100 bg-[var(--surface)] px-4 py-4 text-sm text-gray-700">
-                    <p className="text-base font-semibold text-gray-900">{copy.summaryTitle}</p>
-                    <p className="mt-2">
-                      {copy.summaryBody}
-                    </p>
-                    <div className="mt-2 space-y-1">
-                      <p>1. {copy.profileLine}: <strong>{firstName} {lastName}</strong></p>
-                      <p>2. {copy.emailLine}: <strong>{email.trim().toLowerCase()}</strong></p>
-                      <p>3. {copy.countryCityLine}: <strong>{country ? countryLabels[country] : ""}</strong>{city ? ` · ${city}` : ""}</p>
-                      <p>4. {copy.onboardingLine}: <strong>{registerOnboardingPayload ? copy.completed : copy.missing}</strong></p>
-                    </div>
-                    <p className="mt-2">
-                      {copy.defaultEnvelopes} : <strong>Epargnes</strong> et <strong>Cash</strong>.
-                    </p>
-                    {currency ? (
-                      <p className="mt-2">
-                        {copy.selectedCurrency} : <strong>{currency}</strong>
-                      </p>
-                    ) : null}
-                    {country ? (
-                      <p className="mt-2">
-                        {copy.countryLine} : <strong>{countryLabels[country]}</strong>
-                        {city ? ` · ${copy.city} : ${city}` : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                  {recaptchaSiteKey ? (
-                    <div className="space-y-2">
-                      <Label>{copy.antiSpam}</Label>
-                      {recaptchaToken ? (
-                        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                          {copy.recaptchaChecking}
-                        </p>
-                      ) : (
-                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                          {copy.recaptchaRequired}
-                        </p>
-                      )}
-                    </div>
-                  ) : isDevEnvironment ? (
-                    <div className="space-y-2">
-                      <Label>{copy.antiSpam}</Label>
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        {copy.recaptchaDevBypass}
-                      </p>
-                    </div>
-                  ) : null}
-                </>
-              )}
-
-              {retryAfterSeconds ? (
-                <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {copy.retryIn}{" "}
-                  <span className="font-semibold">
-                    {formatDuration(retryAfterSeconds)}
-                  </span>
-                  .
-                </p>
-              ) : error ? (
-                <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </p>
               ) : null}
 
-              <div className={`flex flex-wrap items-center justify-between gap-3 ${isOnboardingStep ? "hidden" : ""}`}>
-                {step > 1 ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handlePrev}
-                    className="h-[50px] rounded-xl border-[#E3E8DF] bg-white px-6 font-bold text-[#0A241D] hover:border-[#0A241D]"
-                  >
-                    {copy.back}
-                  </Button>
-                ) : (
-                  <span />
-                )}
-              {step < 5 ? (
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (step === 3) {
-                        void handleRegisterAndStartOnboarding();
-                        return;
+              {/* Already logged-in state */}
+              {user ? (
+                <div className="space-y-4 rounded-2xl border border-[#E3E8DF] bg-white p-6 shadow-sm">
+                  <p className="text-sm font-medium text-[#4E625A]">
+                    {copy.alreadyLoggedIn}{" "}
+                    <span className="font-extrabold text-[#0A241D]">{displayName}</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2.5">
+                    <Button
+                      onClick={() =>
+                        router.push(user.role === "superadmin" ? "/superadmin" : "/dashboard")
                       }
-                      handleNext();
+                      className="h-[46px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-sm hover:bg-[#0B8F53] hover:text-white"
+                    >
+                      {copy.goDashboard}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        logout()
+                          .catch(() => null)
+                          .finally(() => setUser(null));
+                      }}
+                      className="h-[46px] rounded-xl border-[#E3E8DF] bg-white px-5 font-bold text-[#0A241D] hover:border-[#0A241D]"
+                    >
+                      {copy.logout}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Two-step Header & Visual Stepper */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <h1 className={`${headingClass} text-[clamp(1.6rem,2.8vw,2.1rem)] font-extrabold tracking-tight text-[#0A241D]`}>
+                        {step === 1 ? copy.step1Title : copy.step2Title}
+                      </h1>
+                      <span className="rounded-full bg-[#E2F7EC] px-3 py-1 text-xs font-extrabold text-[#0B8F53]">
+                        {step === 1 ? "1 / 2" : "2 / 2"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[0.92rem] text-[#4E625A]">
+                      {step === 1 ? copy.step1Subtitle : copy.step2Subtitle}
+                    </p>
+
+                    {/* Stepper Progress Bar */}
+                    <div className="mt-4">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E3E8DF]">
+                        <div
+                          className="h-full rounded-full bg-[linear-gradient(90deg,#17C777,#0B8F53)] transition-all duration-500 ease-out"
+                          style={{ width: step === 1 ? "50%" : "100%" }}
+                        />
+                      </div>
+                      <div className="mt-2.5 flex items-center justify-between text-xs font-extrabold">
+                        <button
+                          type="button"
+                          onClick={() => setStep(1)}
+                          className={`flex items-center gap-1.5 transition-colors ${
+                            step === 1 ? "text-[#0B8F53]" : "text-[#4E625A] hover:text-[#0B8F53]"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
+                              step === 1
+                                ? "bg-[#0B8F53] text-white"
+                                : "bg-[#E2F7EC] text-[#0B8F53]"
+                            }`}
+                          >
+                            1
+                          </span>
+                          <span>{copy.step1Pill}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (validateStep1()) setStep(2);
+                          }}
+                          className={`flex items-center gap-1.5 transition-colors ${
+                            step === 2 ? "text-[#0B8F53]" : "text-[#7C8D86]"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
+                              step === 2
+                                ? "bg-[#0B8F53] text-white"
+                                : "bg-[#E3E8DF] text-[#7C8D86]"
+                            }`}
+                          >
+                            2
+                          </span>
+                          <span>{copy.step2Pill}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Errors */}
+                  {retryAfterSeconds ? (
+                    <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700">
+                      <AlertCircle className="h-4 w-4 flex-none" />
+                      <span>
+                        {copy.retryIn} {formatDuration(retryAfterSeconds)}
+                      </span>
+                    </div>
+                  ) : error ? (
+                    <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700">
+                      <AlertCircle className="h-4 w-4 flex-none" />
+                      <span>{error}</span>
+                    </div>
+                  ) : null}
+
+                  {/* FORM BODY */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (step === 1) {
+                        handleNextToStep2();
+                      } else {
+                        void handleRegisterAndStartOnboarding(e);
+                      }
                     }}
-                    isLoading={loading && step === 3}
-                    disabled={registrationBlocked || loading}
-                    className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
+                    className="space-y-4"
                   >
-                    {step === 3 ? copy.createAndStartOnboarding : step === 4 ? copy.onboardingOpen : copy.continue}
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    isLoading={loading}
-                    disabled={registrationBlocked || loading}
-                    className="rg-cta h-[50px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
-                  >
-                    {copy.createFinalAccount}
-                  </Button>
-                )}
-              </div>
+                    {step === 1 ? (
+                      /* ================= STEP 1: COMPTE & IDENTIFIANTS ================= */
+                      <motion.div
+                        key="step-1"
+                        initial={reduceMotion ? undefined : { opacity: 0, x: -14 }}
+                        animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, x: 14 }}
+                        transition={{ duration: 0.35 }}
+                        className="space-y-4"
+                      >
+                        {/* First name & Last name grid */}
+                        <div className="grid gap-3.5 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="reg-first-name" className="text-xs font-extrabold text-[#4E625A]">
+                              {copy.firstName} *
+                            </Label>
+                            <div className="relative flex items-center">
+                              <span className={ICON_WRAP}>
+                                <User className="h-4 w-4" />
+                              </span>
+                              <Input
+                                id="reg-first-name"
+                                required
+                                autoComplete="given-name"
+                                placeholder={copy.firstNamePlaceholder}
+                                value={firstName}
+                                onChange={(e) => {
+                                  setFirstName(e.target.value);
+                                  setError(null);
+                                }}
+                                className={inputClass}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="reg-last-name" className="text-xs font-extrabold text-[#4E625A]">
+                              {copy.lastName} *
+                            </Label>
+                            <div className="relative flex items-center">
+                              <span className={ICON_WRAP}>
+                                <User className="h-4 w-4" />
+                              </span>
+                              <Input
+                                id="reg-last-name"
+                                required
+                                autoComplete="family-name"
+                                placeholder={copy.lastNamePlaceholder}
+                                value={lastName}
+                                onChange={(e) => {
+                                  setLastName(e.target.value);
+                                  setError(null);
+                                }}
+                                className={inputClass}
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-              <div className={`flex flex-wrap items-center justify-center gap-2 text-center text-[0.87rem] font-semibold text-[#4E625A] ${isOnboardingStep ? "hidden" : ""}`}>
-                <span>{copy.alreadyAccount}</span>
-                <Link href="/login" className="font-extrabold text-[#0B8F53] hover:underline">
-                  {copy.login}
-                </Link>
-                <span className="rg-sticker inline-flex items-center gap-1.5 rounded-full bg-[#F2A93B] px-3 py-1.5 text-[0.78rem] font-extrabold text-[#3A2400] shadow-[0_8px_18px_-8px_rgba(242,169,59,0.8)]">
-                  <span aria-hidden="true">✦</span>
-                  {copy.fabor}
-                </span>
-              </div>
+                        {/* Email */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="reg-email" className="text-xs font-extrabold text-[#4E625A]">
+                            {copy.email} *
+                          </Label>
+                          <div className="relative flex items-center">
+                            <span className={ICON_WRAP}>
+                              <Mail className="h-4 w-4" />
+                            </span>
+                            <Input
+                              id="reg-email"
+                              type="email"
+                              required
+                              autoComplete="email"
+                              placeholder={copy.emailPlaceholder}
+                              value={email}
+                              onChange={(e) => {
+                                setEmail(e.target.value);
+                                setError(null);
+                              }}
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
 
-              <div className={`mt-4 ${isOnboardingStep ? "hidden" : ""}`}>
-                <GuestModeButton
-                  status={status}
-                  locale={locale}
-                  dir={pageDir}
-                  placement="register"
-                  loading={guestLoading}
-                  onStart={handleGuestStart}
-                  label={copy.tryWithoutAccount}
-                  hint={copy.tryWithoutAccountHint}
-                  className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] hover:bg-[#0B8F53]/10"
-                  hintClassName="mt-2 text-center text-[0.78rem] font-medium text-[#4E625A]"
-                />
-              </div>
-            </motion.form>
-          )}
-        </Card>
+                        {/* Password & Confirm Password */}
+                        <div className="grid gap-3.5 sm:grid-cols-2">
+                          <div
+                            ref={passwordFieldRef}
+                            className="space-y-1.5"
+                            onFocusCapture={() => setPasswordFieldActive(true)}
+                            onBlurCapture={(e) => {
+                              const nextFocused = e.relatedTarget as Node | null;
+                              if (nextFocused && passwordFieldRef.current?.contains(nextFocused)) return;
+                              setPasswordFieldActive(false);
+                            }}
+                          >
+                            <Label htmlFor="reg-password" className="text-xs font-extrabold text-[#4E625A]">
+                              {copy.password} *
+                            </Label>
+                            <div className="relative flex items-center">
+                              <span className={ICON_WRAP}>
+                                <Lock className="h-4 w-4" />
+                              </span>
+                              <Input
+                                id="reg-password"
+                                type={showPassword ? "text" : "password"}
+                                required
+                                autoComplete="new-password"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => {
+                                  setPassword(e.target.value);
+                                  setError(null);
+                                }}
+                                className={`${inputClass} pe-11`}
+                              />
+                              <button
+                                type="button"
+                                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#7C8D86] hover:bg-[#EEF1EA] hover:text-[#0A241D]"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+                              >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="reg-password-confirm" className="text-xs font-extrabold text-[#4E625A]">
+                              {copy.confirmPassword} *
+                            </Label>
+                            <div className="relative flex items-center">
+                              <span className={ICON_WRAP}>
+                                <Lock className="h-4 w-4" />
+                              </span>
+                              <Input
+                                id="reg-password-confirm"
+                                type={showConfirmPassword ? "text" : "password"}
+                                required
+                                autoComplete="new-password"
+                                placeholder="••••••••"
+                                value={confirmPassword}
+                                onChange={(e) => {
+                                  setConfirmPassword(e.target.value);
+                                  setError(null);
+                                }}
+                                className={`${inputClass} pe-11`}
+                              />
+                              <button
+                                type="button"
+                                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#7C8D86] hover:bg-[#EEF1EA] hover:text-[#0A241D]"
+                                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
+                              >
+                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Password strength mini indicator */}
+                        {password ? (
+                          <div className="rounded-xl border border-[#E3E8DF] bg-white p-3 shadow-xs">
+                            <div className="mb-2 flex items-center justify-between text-xs">
+                              <span className="font-bold text-[#7C8D86]">Force du mot de passe :</span>
+                              <span
+                                className={`font-extrabold ${
+                                  passwordScore <= 1
+                                    ? "text-red-500"
+                                    : passwordScore <= 3
+                                    ? "text-amber-500"
+                                    : "text-[#0B8F53]"
+                                }`}
+                              >
+                                {passwordScore <= 1
+                                  ? copy.passwordStrengthWeak
+                                  : passwordScore <= 3
+                                  ? copy.passwordStrengthMedium
+                                  : copy.passwordStrengthStrong}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEF1EA]">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  passwordScore <= 1
+                                    ? "bg-red-500"
+                                    : passwordScore <= 3
+                                    ? "bg-amber-500"
+                                    : "bg-[#17C777]"
+                                }`}
+                                style={{ width: `${(passwordScore / 4) * 100}%` }}
+                              />
+                            </div>
+                            {passwordFieldActive ? (
+                              <ul className="mt-2.5 grid grid-cols-2 gap-1.5 text-[0.72rem]">
+                                {passwordRules.map((rule) => (
+                                  <li
+                                    key={rule.label}
+                                    className={`flex items-center gap-1.5 font-bold ${
+                                      rule.ok ? "text-[#0B8F53]" : "text-[#7C8D86]"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] ${
+                                        rule.ok ? "bg-[#17C777] text-white" : "bg-[#EEF1EA] text-[#7C8D86]"
+                                      }`}
+                                    >
+                                      ✓
+                                    </span>
+                                    <span>{rule.label}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {/* Country selection cards */}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-extrabold text-[#4E625A]">
+                            {copy.country} *
+                          </Label>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {COUNTRY_OPTIONS.map((item) => {
+                              const isSelected = country === item.name;
+                              return (
+                                <button
+                                  key={item.name}
+                                  type="button"
+                                  onClick={() => {
+                                    setCountry(item.name);
+                                    setCurrency(item.defaultCurrency);
+                                  }}
+                                  className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all ${
+                                    isSelected
+                                      ? "border-[#17C777] bg-[#E2F7EC]/60 text-[#06301F] shadow-xs ring-1 ring-[#17C777]"
+                                      : "border-[#E3E8DF] bg-white text-[#4E625A] hover:border-[#17C777]/50"
+                                  }`}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={`/flags/${item.code}.png`}
+                                    alt={copy.flagAlt(countryLabels[item.name])}
+                                    className="h-4 w-5 rounded-xs object-cover shadow-xs"
+                                    loading="lazy"
+                                  />
+                                  <span>{countryLabels[item.name]}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* City select dropdown */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="reg-city" className="text-xs font-extrabold text-[#4E625A]">
+                            {copy.city} *
+                          </Label>
+                          <div className="relative flex items-center">
+                            <span className={ICON_WRAP}>
+                              <MapPin className="h-4 w-4" />
+                            </span>
+                            <select
+                              id="reg-city"
+                              required
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              className="h-[50px] w-full rounded-xl border border-[#E3E8DF] bg-white ps-11 pe-4 text-[14px] font-semibold text-[#0A241D] shadow-none focus-visible:border-[#17C777] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC]"
+                            >
+                              <option value="" disabled>
+                                {copy.selectCity}
+                              </option>
+                              {citiesForCountry.map((item) => (
+                                <option key={item} value={item}>
+                                  {item}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Step 1 Next Button */}
+                        <div className="pt-2">
+                          <Button
+                            type="button"
+                            onClick={handleNextToStep2}
+                            className="rg-cta flex h-[50px] w-full items-center justify-center gap-2 rounded-xl bg-[#17C777] font-extrabold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
+                          >
+                            <span>{copy.continueToStep2}</span>
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      /* ================= STEP 2: PROFIL & FINALISATION ================= */
+                      <motion.div
+                        key="step-2"
+                        initial={reduceMotion ? undefined : { opacity: 0, x: 14 }}
+                        animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, x: -14 }}
+                        transition={{ duration: 0.35 }}
+                        className="space-y-4"
+                      >
+                        {/* Profile Photo Uploader */}
+                        <div className="rounded-2xl border border-[#E3E8DF] bg-white p-4 shadow-xs">
+                          <div className="flex items-center gap-4">
+                            <div className="relative flex-none">
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-[#17C777] bg-[#E2F7EC] text-[#0B8F53] transition hover:opacity-90"
+                              >
+                                {profilePhotoPreviewUrl || profilePhotoUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={profilePhotoPreviewUrl ?? profilePhotoUrl ?? undefined}
+                                    alt={copy.profilePhoto}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <Camera className="h-6 w-6" />
+                                )}
+                              </button>
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handlePhotoChange}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-extrabold text-[#0A241D]">{copy.profilePhoto}</p>
+                              <p className="mt-0.5 text-[0.75rem] text-[#7C8D86]">PNG, JPG, WebP (max 13 Mo)</p>
+                              <div className="mt-2 flex gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="h-7 rounded-lg border-[#E3E8DF] px-2.5 text-[0.72rem] font-bold text-[#0A241D]"
+                                >
+                                  {copy.profilePhotoChange}
+                                </Button>
+                                {profilePhotoPreviewUrl || profilePhotoUrl ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleRemovePhoto}
+                                    className="h-7 rounded-lg px-2 text-[0.72rem] font-bold text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  >
+                                    <Trash2 className="me-1 h-3 w-3" />
+                                    {copy.profilePhotoRemove}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Phone Number */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="reg-phone" className="text-xs font-extrabold text-[#4E625A]">
+                            {copy.phone} *
+                          </Label>
+                          <div className="relative flex items-center">
+                            <span className={ICON_WRAP}>
+                              <Phone className="h-4 w-4" />
+                            </span>
+                            <Input
+                              id="reg-phone"
+                              type="tel"
+                              required
+                              autoComplete="tel"
+                              placeholder={copy.phonePlaceholder}
+                              value={phoneNumber}
+                              onChange={(e) => {
+                                setPhoneNumber(e.target.value);
+                                setError(null);
+                              }}
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Birth Date */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="reg-birth-date" className="text-xs font-extrabold text-[#4E625A]">
+                            {copy.birthDate} *
+                          </Label>
+                          <div className="relative flex items-center">
+                            <span className={ICON_WRAP}>
+                              <Calendar className="h-4 w-4" />
+                            </span>
+                            <Input
+                              id="reg-birth-date"
+                              type="date"
+                              required
+                              max={maxBirthDate}
+                              autoComplete="bday"
+                              value={birthDate}
+                              onChange={(e) => {
+                                setBirthDate(e.target.value);
+                                setError(null);
+                              }}
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+
+                        {/* reCAPTCHA Anti-spam */}
+                        {recaptchaSiteKey ? (
+                          <div className="space-y-1.5">
+                            <div ref={recaptchaContainerRef} className="flex justify-center" />
+                          </div>
+                        ) : isDevEnvironment ? (
+                          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+                            <ShieldCheck className="h-4 w-4 flex-none text-amber-600" />
+                            <span>{copy.recaptchaDevBypass}</span>
+                          </div>
+                        ) : null}
+
+                        {/* CGU & Privacy acceptance text */}
+                        <div className="text-center text-[0.76rem] leading-relaxed text-[#7C8D86]">
+                          {copy.acceptTermsPrefix}
+                          <Link
+                            href="/cgu"
+                            target="_blank"
+                            className="font-bold text-[#0B8F53] underline hover:text-[#06301F]"
+                          >
+                            {copy.acceptTermsCGULink}
+                          </Link>
+                          {copy.acceptTermsAnd}
+                          <Link
+                            href="/privacy"
+                            target="_blank"
+                            className="font-bold text-[#0B8F53] underline hover:text-[#06301F]"
+                          >
+                            {copy.acceptTermsPrivacyLink}
+                          </Link>
+                          {copy.acceptTermsSuffix}
+                        </div>
+
+                        {/* Action buttons (Back to 1 & Submit) */}
+                        <div className="flex items-center gap-3 pt-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={handlePrevToStep1}
+                            className="flex h-[50px] items-center gap-1.5 rounded-xl border-[#E3E8DF] bg-white px-5 font-bold text-[#0A241D] hover:border-[#0A241D]"
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                            <span>{copy.backToStep1}</span>
+                          </Button>
+                          <Button
+                            type="submit"
+                            isLoading={loading}
+                            disabled={registrationBlocked || loading}
+                            className="rg-cta flex h-[50px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#17C777] font-extrabold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
+                          >
+                            <span>{loading ? copy.creatingAccount : copy.createFinalAccount}</span>
+                            {!loading && <Check className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </form>
+
+                  {/* Footer link: Already have an account */}
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">
+                    <span>{copy.alreadyAccount}</span>
+                    <Link href="/login" className="font-extrabold text-[#0B8F53] hover:underline">
+                      {copy.login}
+                    </Link>
+                    <span className="rg-sticker inline-flex items-center gap-1.5 rounded-full bg-[#F2A93B] px-3 py-1 text-[0.74rem] font-extrabold text-[#3A2400] shadow-sm">
+                      <span aria-hidden="true">✦</span>
+                      {copy.fabor}
+                    </span>
+                  </div>
+
+                  {/* Guest mode trigger */}
+                  <div className="pt-1">
+                    <GuestModeButton
+                      status={status}
+                      locale={locale}
+                      dir={pageDir}
+                      placement="register"
+                      loading={guestLoading}
+                      onStart={handleGuestStart}
+                      label={copy.tryWithoutAccount}
+                      hint={copy.tryWithoutAccountHint}
+                      className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] transition hover:bg-[#0B8F53]/10"
+                      hintClassName="mt-1.5 text-center text-[0.76rem] font-medium text-[#7C8D86]"
+                    />
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         </main>
       </div>
 
       <style jsx global>{`
-        .rg-blob { position: absolute; border-radius: 9999px; filter: blur(70px); pointer-events: none; }
+        .rg-blob {
+          position: absolute;
+          border-radius: 9999px;
+          filter: blur(75px);
+          pointer-events: none;
+        }
         .rg-blob-a {
-          width: 420px; height: 420px; background: rgba(23,199,119,0.32);
-          top: -150px; inset-inline-start: -140px; animation: rgDrift 18s ease-in-out infinite;
+          width: 440px;
+          height: 440px;
+          background: rgba(23, 199, 119, 0.32);
+          top: -150px;
+          inset-inline-start: -140px;
+          animation: rgDrift 18s ease-in-out infinite;
         }
         .rg-blob-b {
-          width: 340px; height: 340px; background: rgba(76,126,255,0.22);
-          bottom: -130px; inset-inline-end: -110px; animation: rgDrift 23s ease-in-out infinite reverse;
+          width: 360px;
+          height: 360px;
+          background: rgba(76, 126, 255, 0.22);
+          bottom: -130px;
+          inset-inline-end: -110px;
+          animation: rgDrift 23s ease-in-out infinite reverse;
         }
         @keyframes rgDrift {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(50px, 44px) scale(1.12); }
+          0%,
+          100% {
+            transform: translate(0, 0) scale(1);
+          }
+          50% {
+            transform: translate(50px, 44px) scale(1.12);
+          }
         }
         .rg-spot {
-          position: absolute; inset: 0; pointer-events: none; opacity: 0;
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0;
           transition: opacity 0.45s ease;
-          background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 30%), rgba(23,199,119,0.16), transparent 66%);
+          background: radial-gradient(
+            380px circle at var(--mx, 50%) var(--my, 30%),
+            rgba(23, 199, 119, 0.18),
+            transparent 66%
+          );
         }
-        .rg-panel:hover .rg-spot { opacity: 1; }
-        .rg-chip { animation: rgFloat 5.6s ease-in-out infinite; }
-        .rg-chip:nth-child(2) { animation-delay: 0.9s; }
-        .rg-chip:nth-child(3) { animation-delay: 1.8s; }
+        .rg-panel:hover .rg-spot {
+          opacity: 1;
+        }
+        .rg-chip {
+          animation: rgFloat 5.6s ease-in-out infinite;
+        }
+        .rg-chip:nth-child(2) {
+          animation-delay: 0.9s;
+        }
+        .rg-chip:nth-child(3) {
+          animation-delay: 1.8s;
+        }
         @keyframes rgFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-7px); }
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-6px);
+          }
         }
         .rg-intro .rg-rise {
-          opacity: 0; transform: translateY(16px);
+          opacity: 0;
+          transform: translateY(16px);
           animation: rgRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
           animation-delay: var(--d, 0s);
         }
-        @keyframes rgRise { to { opacity: 1; transform: none; } }
-        [dir="rtl"] .rg-bar { transform: scaleX(-1); }
-        .rg-cta { position: relative; overflow: hidden; }
+        @keyframes rgRise {
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        .rg-cta {
+          position: relative;
+          overflow: hidden;
+        }
         .rg-cta::after {
-          content: ""; position: absolute; top: 0; left: -140%; width: 60%; height: 100%;
-          background: linear-gradient(100deg, transparent, rgba(255,255,255,0.5), transparent);
-          transform: skewX(-18deg); transition: left 0.65s ease;
+          content: "";
+          position: absolute;
+          top: 0;
+          left: -140%;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+          transform: skewX(-18deg);
+          transition: left 0.65s ease;
         }
-        .rg-cta:hover::after { left: 150%; }
-        .rg-sticker { transform: rotate(-4deg); animation: rgWob 4.2s ease-in-out infinite; }
+        .rg-cta:hover::after {
+          left: 150%;
+        }
+        .rg-sticker {
+          transform: rotate(-4deg);
+          animation: rgWob 4.2s ease-in-out infinite;
+        }
         @keyframes rgWob {
-          0%, 100% { transform: rotate(-4deg) scale(1); }
-          50% { transform: rotate(3deg) scale(1.05); }
+          0%,
+          100% {
+            transform: rotate(-4deg) scale(1);
+          }
+          50% {
+            transform: rotate(3deg) scale(1.05);
+          }
         }
-
         [data-register-locale="ar"],
         [data-register-locale="ar"] *,
         .register-arabic-font,
         .register-arabic-font * {
           font-family: "Cairo", sans-serif !important;
-          font-optical-sizing: auto;
           letter-spacing: 0 !important;
         }
         [data-register-locale="ar"] svg,
-        .register-arabic-font svg { font-family: initial !important; }
-        [data-register-locale="ar"] .register-title,
-        .register-arabic-font .register-title {
-          font-family: "Cairo", sans-serif !important;
-          font-weight: 800 !important;
-          letter-spacing: 0 !important;
+        .register-arabic-font svg {
+          font-family: initial !important;
         }
-
         @media (prefers-reduced-motion: reduce) {
-          .rg-blob, .rg-chip, .rg-sticker { animation: none !important; }
-          .rg-intro .rg-rise { animation: none !important; opacity: 1 !important; transform: none !important; }
-          .rg-cta::after { display: none; }
-          .rg-spot { display: none; }
+          .rg-blob,
+          .rg-chip,
+          .rg-sticker {
+            animation: none !important;
+          }
+          .rg-intro .rg-rise {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+          }
+          .rg-cta::after {
+            display: none;
+          }
+          .rg-spot {
+            display: none;
+          }
         }
       `}</style>
     </div>

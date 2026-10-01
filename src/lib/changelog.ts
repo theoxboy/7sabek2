@@ -31,12 +31,32 @@ export const CHANGELOG: Release[] = [
     date: "2026-09-30",
     groups: [
       {
+        kind: "improved",
+        items: [
+          {
+            fr: "L'assistant s'appelle maintenant Ba Omar, avec son portrait dans le chat et dans le menu.",
+            en: "The assistant is now called Ba Omar, with his portrait in the chat and the menu.",
+            ar: "المساعد دابا سميتو با عمر، والصورة ديالو كتبان فالشات وفالقائمة.",
+          },
+          {
+            fr: "Refonte de la page d'inscription en 2 étapes fluides avec Ba Omar et aperçu interactif des enveloppes.",
+            en: "Redesigned registration page into 2 smooth steps featuring Ba Omar and interactive envelope preview.",
+            ar: "تحديث وتطوير صفحة التسجيل لخطوتين سريعتين مع حضور با عمر ومحاكي الأظرفة التفاعلي.",
+          },
+        ],
+      },
+      {
         kind: "fixed",
         items: [
           {
             fr: "En français et en anglais, la première question et le nom de l'étape « Revenu » s'affichaient encore en darija.",
             en: "In French and English, the first question and the \"Income\" step name were still shown in Darija.",
             ar: "بالفرنسية والإنجليزية، السؤال الأول وسمية مرحلة « الدخل » كانو باقين كيبانو بالدارجة.",
+          },
+          {
+            fr: "En français et en anglais, certains noms d'enveloppes et de groupes restaient en darija ou en français au lieu de la langue choisie.",
+            en: "In French and English, some envelope and group names stayed in Darija or French instead of the chosen language.",
+            ar: "بالفرنسية والإنجليزية، شي سميات ديال الأظرفة والمجموعات كانو باقين بالدارجة ولا بالفرنسية.",
           },
         ],
       },
