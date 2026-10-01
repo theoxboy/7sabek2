@@ -1226,50 +1226,8 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* INTERACTIVE ENVELOPE PREVIEW WIDGET */}
-            <div
-              className="rg-rise w-full max-w-[360px] rounded-2xl border border-white/15 bg-white/[0.08] p-5 shadow-2xl backdrop-blur-md transition-transform hover:scale-[1.02]"
-              style={{ "--d": ".4s" } as React.CSSProperties}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F59E0B]/20 text-[#F59E0B]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect width="20" height="16" x="2" y="4" rx="2" />
-                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#B9CFC5]">{copy.envelopeLabel}</p>
-                    <p className="text-sm font-extrabold text-white">{copy.envelopeCategory}</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-[#F59E0B]/20 px-2.5 py-0.5 text-[0.74rem] font-extrabold text-[#F59E0B]">
-                  80%
-                </span>
-              </div>
-              <div className="mt-3.5">
-                <div className="flex justify-between text-xs font-bold text-[#DCEAE3]">
-                  <span>4 000 DH</span>
-                  <span className="text-[#8FAEA0]">5 000 DH</span>
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#F97316]" style={{ width: "80%" }} />
-                </div>
-              </div>
-              <div className="mt-3.5 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#17C777]/20 text-xs font-bold text-[#17C777]">+</span>
-                  <span className="text-[13px] font-extrabold tracking-wide text-white" dir="ltr">
-                    0.00 DH
-                  </span>
-                </div>
-                <span className="text-[0.72rem] font-bold text-[#8FAEA0]">{copy.addExpenseQuick}</span>
-              </div>
-            </div>
-
             {/* TRUST HIGHLIGHTS */}
-            <div className="rg-rise space-y-2 pt-1" style={{ "--d": ".52s" } as React.CSSProperties}>
+            <div className="rg-rise space-y-2 pt-2" style={{ "--d": ".42s" } as React.CSSProperties}>
               {[copy.trustFeature1, copy.trustFeature2, copy.trustFeature3].map((feat) => (
                 <div key={feat} className="flex items-center gap-2.5 text-xs font-semibold text-[#B9CFC5]">
                   <CheckCircle2 className="h-4 w-4 flex-none text-[#17C777]" />
