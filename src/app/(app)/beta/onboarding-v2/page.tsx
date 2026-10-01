@@ -17907,8 +17907,12 @@ export function BetaOnboardingV2PageContent({
     if (field.kind === "input") {
       const isMoney = field.inputType === "number" && isMoneyLikeQuestion(field.id);
       return (
-        <div className="relative">
-          <Input
+        <div
+          className={`flex h-12 w-full items-center rounded-2xl border bg-[var(--surface)] transition-all focus-within:ring-2 focus-within:ring-[#111111] focus-within:border-transparent ${
+            fieldErrors[field.id] ? "border-[#ff3b30]" : "border-[#d1d1d6]"
+          }`}
+        >
+          <input
             id={`onboarding-input-${field.id}`}
             aria-labelledby={labelId}
             aria-invalid={Boolean(fieldErrors[field.id])}
@@ -17929,13 +17933,14 @@ export function BetaOnboardingV2PageContent({
                 nextInput.focus();
               }
             }}
-            className={`h-12 w-full min-w-0 rounded-2xl px-4 text-[17px] shadow-none placeholder:text-[#8e8e93] focus-visible:ring-[#111111] ${
-              isMoney ? "pe-16" : ""
-            } ${fieldErrors[field.id] ? "border-[#ff3b30]" : "border-[#d1d1d6]"}`}
+            className="h-full flex-1 min-w-0 border-0 bg-transparent px-4 text-[17px] text-[#111111] shadow-none placeholder:text-[#8e8e93] focus:outline-none focus:ring-0"
+            dir={locale === "ar" ? "rtl" : "ltr"}
           />
           {isMoney ? (
-            <span className="pointer-events-none absolute inset-y-0 end-4 flex items-center text-[13px] font-semibold text-[#6e6e73]" dir="ltr">
-              MAD
+            <span
+              className="flex-none px-3.5 text-[13px] font-bold text-[#6e6e73] border-s border-[#e5e5ea] bg-[#f9f9fb] h-full flex items-center select-none"
+            >
+              {locale === "ar" ? "درهم" : "DH"}
             </span>
           ) : null}
         </div>
@@ -19960,7 +19965,7 @@ export function BetaOnboardingV2PageContent({
                                 <p className="text-[13px] font-medium text-[#111111]">{t("شحال باقي عليك؟", "Combien reste-t-il à payer ?", "How much is left to pay?")}</p>
                                 <Input
                                   type="number"
-                                  placeholder="0 MAD"
+                                  placeholder="0"
                                   value={getString(answers, `D3_debt_remaining_amount_${debtIndex}`)}
                                   onChange={(event) =>
                                     setInputAnswer(`D3_debt_remaining_amount_${debtIndex}`, event.target.value)
@@ -19986,7 +19991,7 @@ export function BetaOnboardingV2PageContent({
                                 <div className="grid gap-2 md:grid-cols-2">
                                   <Input
                                     type="number"
-                                    placeholder="0 MAD"
+                                    placeholder="0"
                                     value={getString(answers, `D4_debt_native_amount_${debtIndex}`)}
                                     onChange={(event) =>
                                       setInputAnswer(`D4_debt_native_amount_${debtIndex}`, event.target.value)
@@ -20537,7 +20542,7 @@ export function BetaOnboardingV2PageContent({
                                     <p className="text-[12px] font-medium text-[#111111]">{t("شحال باغي توصل؟", "Quel montant vises-tu ?", "How much are you aiming for?")}</p>
                                     <Input
                                       type="number"
-                                      placeholder="0 MAD"
+                                      placeholder="0"
                                       value={getString(answers, `G1_goal_target_amount_${goalIndex}`)}
                                       onChange={(event) =>
                                         setInputAnswer(`G1_goal_target_amount_${goalIndex}`, event.target.value)
@@ -20584,7 +20589,7 @@ export function BetaOnboardingV2PageContent({
                                       <div className="space-y-2">
                                         <Input
                                           type="number"
-                                          placeholder="0 MAD"
+                                          placeholder="0"
                                           value={getString(answers, `G1_goal_current_amount_${goalIndex}`)}
                                           onChange={(event) =>
                                             setInputAnswer(`G1_goal_current_amount_${goalIndex}`, event.target.value)
