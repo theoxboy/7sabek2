@@ -696,41 +696,6 @@ export default function LoginPage() {
             <h2 className={`${headingClass} lg-rise text-[2.1rem] font-extrabold leading-[1.15] text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
               {copy.heroTitle}
             </h2>
-
-            {/* Micro-composant visuel interactif : Enveloppe dynamique avec jauge orange (80%) et ajout direct 0.00 DH */}
-            <div className="lg-rise w-full max-w-[340px] rounded-2xl border border-white/15 bg-white/[0.08] p-5 shadow-2xl backdrop-blur-md transition-transform hover:scale-[1.02]" style={{ "--d": ".32s" } as React.CSSProperties}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F59E0B]/20 text-[#F59E0B]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#B9CFC5]">{copy.envelopeLabel}</p>
-                    <p className="text-sm font-extrabold text-white">{copy.envelopeCategory}</p>
-                  </div>
-                </div>
-                {/* حالة الظرف : شريط بلون برتقالي مع نسبة 80% */}
-                <span className="rounded-full bg-[#F59E0B]/20 px-2.5 py-0.5 text-[0.74rem] font-extrabold text-[#F59E0B]">80%</span>
-              </div>
-              <div className="mt-3.5">
-                <div className="flex justify-between text-xs font-bold text-[#DCEAE3]">
-                  <span>4 000 DH</span>
-                  <span className="text-[#8FAEA0]">5 000 DH</span>
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#F97316]" style={{ width: "80%" }} />
-                </div>
-              </div>
-
-              {/* إضافة مصروف : حقل برمز العملة 0.00 DH مباشرة */}
-              <div className="mt-3.5 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#17C777]/20 text-xs font-bold text-[#17C777]">+</span>
-                  <span className="text-[13px] font-extrabold tracking-wide text-white" dir="ltr">0.00 DH</span>
-                </div>
-                <span className="text-[0.72rem] font-bold text-[#8FAEA0]">{copy.addExpenseQuick}</span>
-              </div>
-            </div>
           </div>
 
           <div className="lg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".5s" } as React.CSSProperties}>
