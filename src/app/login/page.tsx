@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
+import { getAppVersionLabel } from "@/lib/app-version";
 
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700"] });
 
@@ -231,6 +232,7 @@ export default function LoginPage() {
   const status = usePlatformStatus();
   const supportEmail = status?.support_email || "elidryssi@gmail.com";
   const copy = LOGIN_COPY[locale];
+  const appVersionLabel = getAppVersionLabel();
   const pageDir = getLocaleDirection(locale);
   const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "login-arabic-font" : ""}`;
   const headingClass = arabicFont.className;
@@ -724,9 +726,17 @@ export default function LoginPage() {
             <Link
               href="/"
               aria-label={copy.backHome}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] transition hover:border-[#17C777] hover:text-[#0B8F53]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
             >
               <Home className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/releases"
+              title="Journal des versions 7sabek"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#E3E8DF] bg-white px-3 py-1 text-[0.72rem] font-extrabold text-[#7C8D86] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#17C777]" />
+              <span>7sabek {appVersionLabel}</span>
             </Link>
           </div>
 

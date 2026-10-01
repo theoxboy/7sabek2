@@ -42,6 +42,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
+import { getAppVersionLabel } from "@/lib/app-version";
 
 declare global {
   interface Window {
@@ -613,6 +614,7 @@ export default function RegisterPage() {
   const maintenanceActive = Boolean(status?.maintenance_mode);
   const registrationBlocked = maintenanceActive || Boolean(retryAfterSeconds);
   const copy = REGISTER_COPY[locale];
+  const appVersionLabel = getAppVersionLabel();
   const countryLabels = COUNTRY_LABELS[locale];
   const pageDir = getLocaleDirection(locale);
   const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "register-arabic-font" : ""}`;
@@ -1277,7 +1279,14 @@ export default function RegisterPage() {
               >
                 {copy.login}
               </Link>
-              <span className="text-[0.72rem] font-extrabold tracking-wide text-[#7C8D86]">7sabek.ma</span>
+              <Link
+                href="/releases"
+                title="Journal des versions 7sabek"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#E3E8DF] bg-white px-3 py-1 text-[0.72rem] font-extrabold text-[#7C8D86] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[#17C777]" />
+                <span>7sabek {appVersionLabel}</span>
+              </Link>
             </div>
           </div>
 
