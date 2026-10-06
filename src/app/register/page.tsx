@@ -296,9 +296,6 @@ const REGISTER_COPY = {
     envelopeLabel: "Enveloppe Active",
     envelopeCategory: "Alimentation & Courses",
     addExpenseQuick: "Ajout rapide",
-    chipSalary: "Salaire",
-    chipRent: "Loyer",
-    chipDebt: "Crédit",
     fabor: "c’est faboooor",
     step1Pill: "1. Compte & Accès",
     step2Pill: "2. Profil & Finalisation",
@@ -391,9 +388,6 @@ const REGISTER_COPY = {
     envelopeLabel: "Active Envelope",
     envelopeCategory: "Groceries & Food",
     addExpenseQuick: "Quick add",
-    chipSalary: "Salary",
-    chipRent: "Rent",
-    chipDebt: "Loan",
     fabor: "it’s freeeee",
     step1Pill: "1. Account & Credentials",
     step2Pill: "2. Profile & Complete",
@@ -486,9 +480,6 @@ const REGISTER_COPY = {
     envelopeLabel: "الظرف النشط",
     envelopeCategory: "التغذية والتقدية",
     addExpenseQuick: "إضافة سريعة",
-    chipSalary: "السالير",
-    chipRent: "الكراء",
-    chipDebt: "كريدي",
     fabor: "فابووووور",
     step1Pill: "1. الحساب والدخول",
     step2Pill: "2. البروفايل والتأكيد",
@@ -1239,25 +1230,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Floating stat chips */}
-          <div className="rg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".65s" } as React.CSSProperties}>
-            {[
-              { label: copy.chipSalary, value: "+12 400", dot: "#17C777", up: true },
-              { label: copy.chipRent, value: "-3 200", dot: "#0A241D", up: false },
-              { label: copy.chipDebt, value: "-2 100", dot: "#8B7CF6", up: false },
-            ].map((chip) => (
-              <span
-                key={chip.label}
-                className="rg-chip flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-1.5 text-[0.76rem] font-bold text-[#DCEAE3] backdrop-blur"
-              >
-                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: chip.dot }} />
-                <span>{chip.label}</span>
-                <span className={`tabular-nums font-extrabold ${chip.up ? "text-[#17C777]" : ""}`} dir="ltr">
-                  {chip.value}
-                </span>
-              </span>
-            ))}
-          </div>
+
         </aside>
 
         {/* ---------------- RIGHT FORM PANEL ---------------- */}
@@ -1997,24 +1970,6 @@ export default function RegisterPage() {
         .rg-panel:hover .rg-spot {
           opacity: 1;
         }
-        .rg-chip {
-          animation: rgFloat 5.6s ease-in-out infinite;
-        }
-        .rg-chip:nth-child(2) {
-          animation-delay: 0.9s;
-        }
-        .rg-chip:nth-child(3) {
-          animation-delay: 1.8s;
-        }
-        @keyframes rgFloat {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-6px);
-          }
-        }
         .rg-intro .rg-rise {
           opacity: 0;
           transform: translateY(16px);
@@ -2071,7 +2026,6 @@ export default function RegisterPage() {
         }
         @media (prefers-reduced-motion: reduce) {
           .rg-blob,
-          .rg-chip,
           .rg-sticker {
             animation: none !important;
           }
