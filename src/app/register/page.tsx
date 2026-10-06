@@ -1163,7 +1163,7 @@ export default function RegisterPage() {
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
         {/* ---------------- LEFT BRAND PANEL ---------------- */}
         <aside
-          className={`rg-panel relative hidden flex-col justify-between gap-8 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-10 text-[#EAF4EF] lg:flex ${copyClass}`}
+          className={`rg-panel relative hidden flex-col gap-8 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-10 text-[#EAF4EF] lg:flex ${copyClass}`}
           onPointerMove={(event) => {
             if (reduceMotion) return;
             const target = event.currentTarget;
@@ -1182,7 +1182,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Center Showcase: Ba Omar Card + Interactive Envelope Widget */}
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 my-auto space-y-6">
             <div className="rg-rise space-y-2" style={{ "--d": ".15s" } as React.CSSProperties}>
               <h2 className={`${headingClass} text-[2.1rem] font-extrabold leading-[1.18] text-white`}>
                 {copy.heroTitle}
