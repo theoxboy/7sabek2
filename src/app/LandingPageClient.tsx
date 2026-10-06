@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, Chrome, Globe } from "lucide-react";
+import { Apple, Chrome, Globe, Compass, Target, ShieldCheck, TrendingUp, Sparkles } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { apiFetch, resetAuthClientState } from "@/lib/api";
@@ -49,7 +49,7 @@ function detectHeroInstallKind(ua: string): HeroInstallKind {
   return isChromiumDesktop ? "chromium-desktop" : "none";
 }
 
-type Duo = { t: string; d: string };
+type Duo = { t: string; d: string; tag?: string };
 type Copy = {
   nav: { sim: string; who: string; cgu: string; priv: string; contact: string };
   cta: { start: string; login: string; logout: string; dashboard: string; free: string; installAndroid: string; installIOS: string; installChrome: string; tryWithoutAccount: string };
@@ -58,7 +58,7 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  ai: { badge: string; title: string; desc: string };
+  ai: { badge: string; title: string; desc: string; prompts: string[] };
   why: { kicker: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
@@ -80,54 +80,55 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     ai: {
-      badge: "✨ Assistant IA",
-      title: "Ba Omar veille sur tes flouss",
-      desc: "Décris ta dépense, pose-lui une question — il connaît ton budget mieux que personne.",
+      badge: "✨ Assistant Vocal & Chat",
+      title: "Ba Omar pilote votre budget",
+      desc: "Dictez vos dépenses en Darija ou posez une question : votre budget se met à jour instantanément.",
+      prompts: ["« 120 DH courses BIM »", "« Reste-t-il pour les sorties ? »", "« +500 DH épargne »"],
     },
     why: {
-      kicker: "Étape par étape",
+      kicker: "Méthode simple en 4 étapes",
       items: [
-        { t: "On regarde qui tu es et où part ton argent", d: "Un état des lieux rapide de tes revenus et de tes dépenses, pour partir d’une base claire." },
-        { t: "On te propose ta répartition", d: "Un programme de répartition pensé pour ton salaire, que tu ajustes avant de valider." },
-        { t: "On suit tes dépenses avec toi", d: "Chaque dépense est enregistrée et rattachée à la bonne enveloppe, en temps réel." },
-        { t: "On t’aide à aller jusqu’au bout", d: "Organise tes finances, rembourse tes crédits et atteins tes objectifs, mois après mois." },
+        { t: "État des lieux en 2 min", d: "Revenus et charges fixes configurés dès l'inscription." },
+        { t: "Répartition sur-mesure", d: "Chaque dirham a une mission claire avant le début du mois." },
+        { t: "Suivi en direct", d: "Dépenses classées dans la bonne enveloppe sans calcul manuel." },
+        { t: "Objectifs & Zéro dette", d: "Épargne sécurisée et crédits soldés avec sérénité." },
       ],
     },
     sim: {
-      kicker: "Essaie maintenant",
-      income: "Ton salaire mensuel",
-      left: "Ce qui part à l’épargne",
+      kicker: "Simulateur express",
+      income: "Salaire mensuel net",
+      left: "Épargne projetée",
       fixed: "Fixe",
-      fixedHint: "un montant qui reste le même chaque mois",
-      pctHint: "une part de ton salaire qui s’ajuste toute seule",
+      fixedHint: "Montant garanti",
+      pctHint: "Ajusté au salaire",
     },
     cmp: {
-      kicker: "Comparatif",
-      title: "Plus qu’un tracker. Un vrai système budgétaire.",
+      kicker: "Pourquoi 7sabek",
+      title: "Bien plus qu'un relevé. Un système complet.",
       a: "Tracker classique",
       b: "7sabek",
       rows: [
-        ["Montre un historique", "Construit un plan financier dès l’inscription"],
-        ["Un seul solde global", "Cash + enveloppes + objectifs + dettes, séparés"],
-        ["Répartition manuelle", "Distribution automatique, simulée avant application"],
-        ["Calendrier générique", "Cycle basé sur ta vraie date de paie"],
-        ["Saisie au clavier, champ par champ", "Une phrase en langage naturel suffit"],
+        ["Historique passif", "Plan financier proactif dès J1"],
+        ["Un seul solde confus", "Cash, enveloppes, épargne & dettes isolés"],
+        ["Calculs manuels lourds", "Distribution automatique selon vos priorités"],
+        ["Calendrier rigide", "Cycles calés sur votre vraie date de paie"],
+        ["Saisie fastidieuse", "Une phrase en langage naturel ou à la voix"],
       ],
     },
     who: {
       kicker: "Pour qui",
-      title: "Conçu pour ceux qui veulent gérer leur argent avec méthode.",
+      title: "Une méthode claire pour chaque situation.",
       items: [
-        { t: "Reprendre le contrôle", d: "Arrête de te demander où est parti ton argent à la fin du mois." },
-        { t: "Financer des objectifs", d: "Voyage, fonds d’urgence, projet personnel ou achat important." },
-        { t: "Rembourser des dettes", d: "Garde une vision claire des remboursements sans casser ton budget courant." },
-        { t: "Revenus irréguliers", d: "Freelance, artisan ou revenus mixtes : le plan s’adapte à ta réalité, pas l’inverse." },
+        { t: "Fin de mois sereine", d: "Fini le stress : sachez exactement ce qu'il vous reste chaque jour.", tag: "Visibilité" },
+        { t: "Projets & Cagnottes", d: "Voyage, fonds d'urgence ou achats : financez vos objectifs à votre rythme.", tag: "Épargne" },
+        { t: "Remboursement de crédits", d: "Une trajectoire claire pour vous désendetter sans vous priver.", tag: "Priorité" },
+        { t: "Revenus variables", d: "Freelances et commerçants : le plan s'adapte à vos rentrées réelles.", tag: "Flexibilité" },
       ],
     },
     fin: {
-      title: "Prêt à donner une mission claire à ton argent ?",
-      alt: "Découvrir les fonctionnalités",
-      micro: "Zéro dirham à sortir. Faboooor, vraiment.",
+      title: "Prêt à reprendre le contrôle de votre argent ?",
+      alt: "Découvrir la méthode",
+      micro: "100% gratuit · Sans engagement · Données privées",
     },
     foot: "© 2026 7sabek. Tous droits réservés.",
   },
@@ -144,54 +145,55 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     ai: {
-      badge: "✨ AI assistant",
-      title: "Ba Omar’s got your money’s back",
-      desc: "Describe an expense or ask him anything — he knows your budget better than anyone.",
+      badge: "✨ Voice & Chat AI",
+      title: "Ba Omar manages your cash",
+      desc: "Speak in Darija or type a message: your budget updates instantly without effort.",
+      prompts: ["“120 DH BIM groceries”", "“Any fun budget left?”", "“+500 DH savings”"],
     },
     why: {
-      kicker: "Step by step",
+      kicker: "Simple 4-Step Method",
       items: [
-        { t: "We look at who you are and where your money goes", d: "A quick snapshot of your income and spending, to start from a clear picture." },
-        { t: "We suggest your split", d: "A distribution plan built for your salary, which you adjust before confirming." },
-        { t: "We track your spending with you", d: "Every expense is logged and linked to the right envelope, in real time." },
-        { t: "We help you see it through", d: "Organize your finances, pay off your debts, and reach your goals, month after month." },
+        { t: "2-Minute Baseline", d: "Income and fixed commitments locked in from day one." },
+        { t: "Tailored Split", d: "Every dirham gets a designated role before the month starts." },
+        { t: "Live Tracking", d: "Expenses assigned to the right envelope without spreadsheets." },
+        { t: "Goals & Zero Debt", d: "Safeguard savings and clear debt smoothly month after month." },
       ],
     },
     sim: {
-      kicker: "Try it now",
-      income: "Your monthly salary",
-      left: "What goes to savings",
+      kicker: "Quick Simulator",
+      income: "Net monthly salary",
+      left: "Projected savings",
       fixed: "Fixed",
-      fixedHint: "an amount that stays the same every month",
-      pctHint: "a share of your salary that adjusts on its own",
+      fixedHint: "Locked amount",
+      pctHint: "Adjusts with salary",
     },
     cmp: {
-      kicker: "Comparison",
-      title: "More than a tracker. A real budgeting system.",
+      kicker: "Why 7sabek",
+      title: "Beyond a tracker. A full financial system.",
       a: "Classic tracker",
       b: "7sabek",
       rows: [
-        ["Shows a history", "Builds a financial plan from sign-up"],
-        ["A single global balance", "Cash + envelopes + goals + debt, kept separate"],
-        ["Manual splitting", "Automatic distribution, simulated before applying"],
-        ["Generic calendar", "Cycle based on your real payday"],
-        ["Typing field by field", "One plain sentence is enough"],
+        ["Passive history log", "Proactive financial plan from Day 1"],
+        ["Single confusing balance", "Cash, envelopes, goals & debt segregated"],
+        ["Tedious manual calculations", "Automatic split based on your priorities"],
+        ["Rigid monthly calendar", "Cycle aligned with your real payday"],
+        ["Clunky field typing", "One natural phrase by voice or text"],
       ],
     },
     who: {
-      kicker: "Who it’s for",
-      title: "Built for people who want to manage money with method.",
+      kicker: "Who It's For",
+      title: "A clear system for every financial situation.",
       items: [
-        { t: "Take back control", d: "Stop wondering where your money went at the end of the month." },
-        { t: "Fund your goals", d: "Travel, emergency fund, personal project or a big purchase." },
-        { t: "Pay off debt", d: "Keep repayments clear without breaking your everyday budget." },
-        { t: "Irregular income", d: "Freelance, craftsperson or mixed income: the plan adapts to you, not the reverse." },
+        { t: "Month-End Peace", d: "No more stress: know your safe spending limit every single day.", tag: "Clarity" },
+        { t: "Goals & Savings", d: "Vacation, emergency buffer or big purchase: reach milestones steadily.", tag: "Growth" },
+        { t: "Debt Elimination", d: "Structured repayment roadmap without breaking daily living needs.", tag: "Freedom" },
+        { t: "Variable Incomes", d: "Freelancers and business owners: allocations adapt to cash flow.", tag: "Dynamic" },
       ],
     },
     fin: {
-      title: "Ready to give your money a clear mission?",
-      alt: "Explore the features",
-      micro: "Not one dirham to pay. Freeeee, really.",
+      title: "Ready to take control of your money?",
+      alt: "Explore the system",
+      micro: "100% free · No commitment · Private data",
     },
     foot: "© 2026 7sabek. All rights reserved.",
   },
@@ -208,54 +210,55 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     ai: {
-      badge: "✨ مساعد ذكي",
-      title: "با عمر ساهر على الفلوس ديالك",
-      desc: "وصف مصروفك، ولا سولو شي سؤال — كيعرف الميزانية ديالك أحسن من أي واحد.",
+      badge: "✨ مساعد ذكي بالصوت والشات",
+      title: "با عمر ساهر على فلوسك",
+      desc: "قل جملة وحدة بالصوت بالدارجة ولا كتبها، وبا عمر كيقاد ليك الحساب فالبلاصة.",
+      prompts: ["« 120 درهم تقضية بيم »", "« شحال باقي فـ أظرفة الخرجات؟ »", "« +500 درهم توفير »"],
     },
     why: {
-      kicker: "خطوة بخطوة",
+      kicker: "طريقة بسيطة فـ 4 خطوات",
       items: [
-        { t: "كنشوفو شكون نتا وفين كيمشيو الفلوس ديالك", d: "نظرة سريعة على الدخل والمصاريف ديالك، باش نبداو من صورة واضحة." },
-        { t: "كنقترحو عليك برنامج التوزيع ديالك", d: "برنامج توزيع مبني على السالير ديالك، كتعدلو قبل ما تأكد." },
-        { t: "كنتبعو معاك المصاريف ديالك", d: "كل مصروف كيتسجل وكيتربط بالظرف الصحيح، فالبلاصة." },
-        { t: "كنعاونوك تكمل الشهر مرتاح", d: "نظم فلوسك، خلص الكريديات ديالك، ووصل لأهدافك، شهر مورا شهر." },
+        { t: "نظرة واضحة فـ 2 دقايق", d: "الدخل والمصاريف الثابتة مضبوطين من الدقة الأولى." },
+        { t: "توزيع مفصل على قياسك", d: "كل درهم عندو هدف واضح قبل ما يبدا الشهر." },
+        { t: "تتبع المصاريف فالحين", d: "المصاريف كتمشي للظرف الصحيح بلا حسابات معقدة." },
+        { t: "أهداف محققة وديون مخلصة", d: "وفّر لـ دواير الزمان وتهنى من الكريديات بكل راحة." },
       ],
     },
     sim: {
       kicker: "جرب دابا",
-      income: "السالير ديالك فالشهر",
-      left: "اللي كيمشي للادخار",
+      income: "الصالير الصافي فالشهر",
+      left: "الادخار المتوقع",
       fixed: "ثابت",
-      fixedHint: "مبلغ ما كيتبدلش كل شهر",
-      pctHint: "نسبة من السالير كتتبدل معاه بوحدها",
+      fixedHint: "مبلغ مضمون",
+      pctHint: "كيتبدل مع الصالير",
     },
     cmp: {
-      kicker: "مقارنة",
-      title: "ماشي غير تطبيق تتبع. نظام ميزانية كامل.",
+      kicker: "علاش 7sabek",
+      title: "ماشي غير تطبيق تتبع. نظام ميزانية متكامل.",
       a: "تطبيق تتبع عادي",
       b: "7sabek",
       rows: [
-        ["كيوريك غير التاريخ", "كيبني خطة فلوس من أول تسجيل"],
-        ["رصيد واحد عام", "الكاش + الأظرفة + الأهداف + الديون، مفرقين"],
-        ["تقسيم باليد", "توزيع أوتوماتيكي، كتجرب قبل ما تطبق"],
-        ["كالوندييه عادي", "دورة على أساس تاريخ الخلاص الحقيقي ديالك"],
-        ["كتابة خانة بخانة", "جملة وحدة بلغة عادية كافية"],
+        ["كيوريك غير الماضي", "خطة استباقية من أول نهار"],
+        ["رصيد واحد مخلط", "كاش، أظرفة، ادخار وديون مفرقين بدقة"],
+        ["حسابات يدوية معقدة", "توزيع أوتوماتيكي على حسب أولوياتك"],
+        ["كالوندييه عادي وجامد", "دورة فلوس مضبوطة على تاريخ الصالير ديالك"],
+        ["كتابة خانة بخانة", "جملة وحدة بالصوت ولا بالكتابة فثانية"],
       ],
     },
     who: {
       kicker: "لشكون",
-      title: "مصمم للي باغي يسير الفلوس ديالو بطريقة واضحة.",
+      title: "نظام واضح لكل وضعية مالية.",
       items: [
-        { t: "ترجع التحكم", d: "ماتبقاش تسول راسك فين مشاو الفلوس فآخر الشهر." },
-        { t: "تموّل الأهداف ديالك", d: "سفر، دواير الزمان، مشروع شخصي ولا تشري شي حاجة مهمة." },
-        { t: "تخلص الكريديات", d: "بقا شايف الخلاص بوضوح بلا ما تخربق الميزانية اليومية." },
-        { t: "مداخيل متقلبة", d: "فريلانس، حرفي ولا مداخيل مخلوطة: الخطة كتأقلم مع الواقع ديالك، ماشي العكس." },
+        { t: "راحة البال فآخر الشهر", d: "ماتبقاش تلفان: عارف شحال تقدر تصرف كل نهار بلا ما تخاف.", tag: "وضوح" },
+        { t: "المشاريع ودواير الزمان", d: "سفر، مشروع شخصي ولا صندوق طوارئ: جمع فلوسك بطريقة ذكية.", tag: "توفير" },
+        { t: "تصفية الكريديات", d: "خطة واضحة باش تتهنى من الديون بلا ما تضيق على مصاريفك.", tag: "حرية" },
+        { t: "المداخيل المتغيرة", d: "فريلانس وتجار: الحساب كيتأقلم أوتوماتيك مع دخل كل شهر.", tag: "مرونة" },
       ],
     },
     fin: {
-      title: "مستعد تعطي لفلوسك مهمة واضحة؟",
-      alt: "اكتشف الخصائص",
-      micro: "حتى درهم ما غادي تخلص. فابووووور بصح.",
+      title: "مستعد تاخد التحكم فالفلوس ديالك؟",
+      alt: "اكتشف الطريقة",
+      micro: "100% فابور · بلا التزام · بياناتك محمية",
     },
     foot: "© 2026 7sabek. جميع الحقوق محفوظة.",
   },
@@ -605,26 +608,26 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
               {/* Main Headline */}
               <h3 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight mb-2">
-                {isArabic ? "7sabek في جيبك أينما كنت !" : "7sabek sur votre smartphone"}
+                {isArabic ? "7sabek فـ جيبك فين ما كنت !" : "Votre budget toujours dans votre poche"}
               </h3>
 
               {/* Concise 1-sentence description */}
               <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-5 max-w-sm mx-auto">
                 {isArabic
-                  ? "أظرفة الميزانية 100% بدون إنترنت، تسجيل بالدارجة بالصوت وحماية فورية بالبصمة."
-                  : "Budget par enveloppes 100% hors-ligne, saisie vocale en Darija et verrouillage biométrique."}
+                  ? "تحكم فـ أظرفة الفلوس ديالك فـ ثانية وبكل سرية، حتى بلا إنترنت."
+                  : "Gérez vos enveloppes instantanément et en toute confidentialité."}
               </p>
 
               {/* 3 Sleek Highlight Pills */}
               <div className="flex items-center justify-center gap-2 mb-6 flex-wrap">
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
-                  ⚡ {isArabic ? "بدون إنترنت" : "Hors-Ligne"}
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-900">
+                  ⚡ {isArabic ? "100% بلا إنترنت" : "100% Hors-Ligne"}
                 </span>
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
-                  🎙️ {isArabic ? "صوت بالدارجة" : "Voix Darija"}
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-900">
+                  🎙️ {isArabic ? "صوت بالدارجة" : "Voix en Darija"}
                 </span>
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
-                  🛡️ {isArabic ? "بصمة" : "Biométrie"}
+                <span className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-900">
+                  🛡️ {isArabic ? "حماية بالبصمة" : "Verrouillage Biométrique"}
                 </span>
               </div>
 
@@ -883,6 +886,19 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 <span className="lp-aibadge">{copy.ai.badge}</span>
                 <h3 className={headingClass}>{copy.ai.title}</h3>
                 <p>{copy.ai.desc}</p>
+                {copy.ai.prompts && (
+                  <div className="flex flex-wrap gap-2 mt-3.5">
+                    {copy.ai.prompts.map((p) => (
+                      <span
+                        key={p}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-white/80 border border-emerald-500/20 text-emerald-950 shadow-xs backdrop-blur-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{p}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1013,12 +1029,26 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               <h2 className={`${headingClass} lp-h2`}>{copy.who.title}</h2>
             </div>
             <div className="lp-grid2">
-              {copy.who.items.map((item, index) => (
-                <div key={item.t} className="lp-card" style={{ "--d": `${index * 0.07}s` } as React.CSSProperties}>
-                  <h3>{item.t}</h3>
-                  <p>{item.d}</p>
-                </div>
-              ))}
+              {copy.who.items.map((item, index) => {
+                const whoIcons = [Compass, Target, ShieldCheck, TrendingUp];
+                const IconComp = whoIcons[index % whoIcons.length];
+                return (
+                  <div key={item.t} className="lp-card" style={{ "--d": `${index * 0.07}s` } as React.CSSProperties}>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                        <IconComp className="w-5 h-5 stroke-[2.2]" />
+                      </div>
+                      {item.tag && (
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                          {item.tag}
+                        </span>
+                      )}
+                    </div>
+                    <h3>{item.t}</h3>
+                    <p>{item.d}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
