@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Cairo, Manrope } from "next/font/google";
+import { motion, useReducedMotion } from "framer-motion";
+import { Cairo } from "next/font/google";
+import { ArrowLeft, Home, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { requestPasswordReset } from "@/lib/auth";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
+import { getAppVersionLabel } from "@/lib/app-version";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import BrandLogo from "@/components/BrandLogo";
 
-const bodyFont = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
 
 const COPY: Record<
@@ -27,6 +28,7 @@ const COPY: Record<
     send: string;
     sending: string;
     backToLogin: string;
+    backHome: string;
     requestFailed: string;
     rateLimited: string;
     blockedPermanent: string;
@@ -35,14 +37,15 @@ const COPY: Record<
 > = {
   fr: {
     brand: "7sabek",
-    title: "Mot de passe oublié",
-    subtitle: "Entre ton email, on t'envoie un lien de réinitialisation.",
-    email: "Email",
+    title: "Mot de passe oublié ?",
+    subtitle: "Entre ton adresse email pour recevoir un lien sécurisé de réinitialisation.",
+    email: "Adresse email",
     successFallback: "Si le compte existe, un email de réinitialisation a été envoyé.",
-    send: "Envoyer le lien",
-    sending: "Envoi...",
+    send: "Envoyer le lien de réinitialisation",
+    sending: "Envoi en cours...",
     backToLogin: "Retour à la connexion",
-    requestFailed: "Requête échouée",
+    backHome: "Retour à l’accueil",
+    requestFailed: "Requête échouée. Réessaie.",
     rateLimited: "Trop de tentatives. Réessaie plus tard.",
     blockedPermanent:
       "La réinitialisation du mot de passe est bloquée pour ce compte. Contacte le support.",
@@ -51,14 +54,15 @@ const COPY: Record<
   },
   en: {
     brand: "7sabek",
-    title: "Forgot password",
-    subtitle: "Enter your email and we will send you a reset link.",
-    email: "Email",
+    title: "Forgot your password?",
+    subtitle: "Enter your email address to receive a secure password reset link.",
+    email: "Email address",
     successFallback: "If the account exists, a reset email has been sent.",
     send: "Send reset link",
-    sending: "Sending...",
-    backToLogin: "Back to login",
-    requestFailed: "Request failed",
+    sending: "Sending link...",
+    backToLogin: "Back to sign in",
+    backHome: "Back to home",
+    requestFailed: "Request failed. Please try again.",
     rateLimited: "Too many attempts. Please try again later.",
     blockedPermanent:
       "Password reset is blocked for this account. Contact support.",
@@ -67,12 +71,13 @@ const COPY: Record<
   ar: {
     brand: "حسابك",
     title: "نسيتي كلمة السر؟",
-    subtitle: "دخل الإيميل ديالك، وغادي نصيفطو ليك رابط باش تبدل كلمة السر.",
-    email: "الإيميل",
+    subtitle: "دخل الإيميل ديالك، وغادي نصيفطو ليك رابط آمن باش تبدل كلمة السر.",
+    email: "البريد الإلكتروني",
     successFallback: "إلا كان الحساب موجود، غادي يتصيفط ليه رابط تغيير كلمة السر.",
     send: "صيفط رابط تغيير كلمة السر",
     sending: "جاري الإرسال…",
     backToLogin: "رجوع لتسجيل الدخول",
+    backHome: "الرجوع للرئيسية",
     requestFailed: "وقع مشكل فالطلب. عاود المحاولة.",
     rateLimited: "كاين بزاف ديال المحاولات. عاود من بعد.",
     blockedPermanent:
@@ -107,12 +112,21 @@ function localizeResetRequestMessage(raw: string | undefined, localeCopy: (typeo
 export default function ForgotPasswordPage() {
   const { locale, dir } = useAppLocale("fr");
   useForceArabicDocumentFont(locale === "ar", "forgot-password-ar-body");
+  const reduceMotion = useReducedMotion();
   const copy = COPY[locale];
+  const appVersionLabel = getAppVersionLabel();
   const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "forgot-arabic-font" : ""}`;
+  const headingClass = arabicFont.className;
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const inputClass =
+    "h-[50px] w-full rounded-xl border-[#E3E8DF] bg-white ps-11 text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-normal placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0 transition-all";
+  const ICON_WRAP =
+    "pointer-events-none absolute inset-y-0 start-0 flex w-11 items-center justify-center text-[#7C8D86] transition-colors";
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -132,57 +146,119 @@ export default function ForgotPasswordPage() {
 
   return (
     <main
-      className={`relative min-h-screen overflow-hidden bg-[#f6f0e4] ${pageFontClass}`}
+      className={`relative min-h-screen overflow-hidden bg-[#F4F6F2] ${pageFontClass}`}
       dir={dir}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(249,115,22,0.14),_transparent_26%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(255,255,255,0.22))]" />
-      <div className="pointer-events-none absolute left-[-8rem] top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
-      <div className="pointer-events-none absolute right-[-6rem] top-40 h-80 w-80 rounded-full bg-orange-300/20 blur-3xl" />
+      {/* Background ambient lighting matching login & register */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_rgba(23,199,119,0.12),_transparent_40%),radial-gradient(circle_at_80%_80%,_rgba(11,143,83,0.08),_transparent_40%)]" />
+      <div className="pointer-events-none absolute -start-24 top-20 h-80 w-80 rounded-full bg-emerald-400/15 blur-3xl" />
+      <div className="pointer-events-none absolute -end-24 bottom-20 h-80 w-80 rounded-full bg-emerald-600/10 blur-3xl" />
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-12">
-        <Card className="w-full rounded-[30px] border border-white/80 bg-[var(--surface)]/85 p-7 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="mb-3">
-            <BrandLogo locale={locale} className="h-28 w-auto object-contain" />
-          </div>
-          <h1 className="text-3xl font-semibold text-slate-900">{copy.title}</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{copy.subtitle}</p>
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{copy.email}</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="border-slate-200 bg-[var(--surface)]/95 focus-visible:ring-emerald-500"
-              />
+      <div className="relative z-10 flex min-h-screen flex-col px-5 py-6 sm:px-8 lg:px-12">
+        {/* Top navigation row identical to login/register */}
+        <header className="flex items-center justify-between">
+          <Link
+            href="/"
+            aria-label={copy.backHome}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
+          >
+            <Home className="h-4 w-4" />
+          </Link>
+
+          <Link
+            href="/releases"
+            title="Journal des versions 7sabek"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E3E8DF] bg-white px-3 py-1 text-[0.72rem] font-extrabold text-[#7C8D86] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#17C777]" />
+            <span>7sabek {appVersionLabel}</span>
+          </Link>
+        </header>
+
+        {/* Centered card container */}
+        <div className="flex flex-1 items-center justify-center py-8">
+          <motion.div
+            className="w-full max-w-[440px]"
+            initial={reduceMotion ? undefined : { opacity: 0, y: 20 }}
+            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="rounded-[28px] border border-[#E3E8DF] bg-white p-7 shadow-[0_24px_54px_-20px_rgba(10,36,29,0.08)] sm:p-9">
+              {/* Brand Logo */}
+              <div className="mb-5 flex justify-center">
+                <BrandLogo locale={locale} className="h-14 w-auto object-contain" />
+              </div>
+
+              <div className="text-center">
+                <h1 className={`${headingClass} text-[1.65rem] font-extrabold tracking-tight text-[#0A241D]`}>
+                  {copy.title}
+                </h1>
+                <p className="mt-2 text-sm leading-relaxed text-[#5A6E65]">
+                  {copy.subtitle}
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="block text-start text-[0.8rem] font-extrabold text-[#4E625A]">
+                    {copy.email}
+                  </Label>
+                  <div className="relative flex items-center">
+                    <span className={ICON_WRAP}>
+                      <Mail className="h-4 w-4" />
+                    </span>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      placeholder="nom@exemple.ma"
+                      value={email}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setError(null);
+                      }}
+                      className={`${inputClass} ${error ? "border-[#F2686B] ring-2 ring-[#F2686B]/20" : ""}`}
+                    />
+                  </div>
+                </div>
+
+                {message ? (
+                  <p className="flex items-center gap-2 rounded-xl border border-[#17C777]/30 bg-[#E8F8F0] px-3.5 py-2.5 text-xs font-bold text-[#0B8F53]">
+                    <CheckCircle2 className="h-4 w-4 flex-none" />
+                    <span>{message}</span>
+                  </p>
+                ) : null}
+
+                {error ? (
+                  <p className="flex items-center gap-2 rounded-xl border border-[#F2686B]/30 bg-[#FDECEC] px-3.5 py-2.5 text-xs font-bold text-[#B33A3D]">
+                    <AlertCircle className="h-4 w-4 flex-none" />
+                    <span>{error}</span>
+                  </p>
+                ) : null}
+
+                <Button
+                  type="submit"
+                  isLoading={loading}
+                  disabled={loading}
+                  className="h-[50px] w-full rounded-xl bg-[#17C777] text-[15px] font-extrabold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.7)] transition-all hover:bg-[#0B8F53] hover:text-white"
+                >
+                  {loading ? copy.sending : copy.send}
+                </Button>
+              </form>
+
+              <div className="mt-6 border-t border-[#EEF2EC] pt-5 text-center">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B8F53] transition hover:underline"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+                  <span>{copy.backToLogin}</span>
+                </Link>
+              </div>
             </div>
-            {message ? (
-              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {message}
-              </p>
-            ) : null}
-            {error ? (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="h-11 w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600"
-            >
-              {loading ? copy.sending : copy.send}
-            </Button>
-          </form>
-          <div className="mt-4 text-sm">
-            <Link href="/login" className="font-medium text-emerald-700 hover:underline">
-              {copy.backToLogin}
-            </Link>
-          </div>
-        </Card>
+          </motion.div>
+        </div>
       </div>
     </main>
   );
