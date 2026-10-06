@@ -1,22 +1,60 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 
-const MENU_ITEMS = [
-  { label: "HOME", bgIndex: 1 },
-  { label: "ABOUT US", bgIndex: 2 },
-  { label: "EXPLORE TRIPS", bgIndex: 3 },
-  { label: "SERVICES", bgIndex: 4 },
-  { label: "CONTACT US", bgIndex: 5 },
+interface MenuItem {
+  labelAr: string;
+  labelFr: string;
+  bgIndex: number;
+  href: string;
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { labelAr: "الرئيسية", labelFr: "ACCUEIL", bgIndex: 1, href: "#top" },
+  { labelAr: "طريقة الأظرفة", labelFr: "MÉTHODE SMART", bgIndex: 2, href: "#method" },
+  { labelAr: "المستشار با عمر", labelFr: "CONSEILLER IA", bgIndex: 3, href: "#ai-advisor" },
+  { labelAr: "مميزات التطبيق", labelFr: "FONCTIONNALITÉS", bgIndex: 4, href: "#features" },
+  { labelAr: "تسجيل الدخول", labelFr: "CONNEXION", bgIndex: 5, href: "/login" },
 ];
 
 const BG_IMAGES = [
-  { src: "https://ik.imagekit.io/kg2nszxjp/travel-menu/bg-1.webp", tag: "default" },
-  { src: "https://ik.imagekit.io/kg2nszxjp/travel-menu/bg-2.webp", tag: "home" },
-  { src: "https://ik.imagekit.io/kg2nszxjp/travel-menu/bg-3.webp", tag: "about" },
-  { src: "https://ik.imagekit.io/kg2nszxjp/travel-menu/bg-4.webp", tag: "explore" },
-  { src: "https://ik.imagekit.io/kg2nszxjp/travel-menu/bg-5.webp", tag: "services" },
-  { src: "https://ik.imagekit.io/kg2nszxjp/travel-menu/bg-6.webp", tag: "contact" },
+  // 0: Default financial hero atmosphere
+  {
+    src: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=2000&q=85",
+    tag: "default",
+    title: "تدبير ذكي للأموال والميزانية",
+  },
+  // 1: Home / Vision
+  {
+    src: "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=2000&q=85",
+    tag: "home",
+    title: "الوضوح المالي والنمو",
+  },
+  // 2: Envelopes Method
+  {
+    src: "https://images.unsplash.com/photo-1607863680198-23d4b2565df0?auto=format&fit=crop&w=2000&q=85",
+    tag: "envelopes",
+    title: "نظام أظرفة الميزانية",
+  },
+  // 3: Ba Omar AI
+  {
+    src: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=2000&q=85",
+    tag: "advisor",
+    title: "ذكاء اصطناعي مغربي",
+  },
+  // 4: Features
+  {
+    src: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=2000&q=85",
+    tag: "security",
+    title: "أمان وحماية قصوى",
+  },
+  // 5: Get Started
+  {
+    src: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=2000&q=85",
+    tag: "start",
+    title: "استقلال وحرية مالية",
+  },
 ];
 
 export default function TravelShowcaseBlock() {
@@ -24,10 +62,10 @@ export default function TravelShowcaseBlock() {
   const [activeBg, setActiveBg] = useState(0);
 
   return (
-    <div className="trv-root">
-      {/* ==================== MENU OVERLAY ==================== */}
-      <div className={`trv-menu-overlay ${isOpen ? "trv-open" : ""}`}>
-        {/* Background images */}
+    <div className="trv-root" dir="rtl">
+      {/* ==================== MENU OVERLAY (FLUID CLIP-PATH) ==================== */}
+      <div className={`trv-menu-overlay ${isOpen ? "trv-open" : ""}`} aria-hidden={!isOpen}>
+        {/* Background images with blur filter and subtle scale transition */}
         <div className="trv-bg-container" aria-hidden="true">
           {BG_IMAGES.map((img, i) => (
             <div key={img.tag} className="trv-bg-img">
@@ -36,36 +74,60 @@ export default function TravelShowcaseBlock() {
                 src={img.src}
                 alt=""
                 className={activeBg === i ? "trv-bg-active" : ""}
+                loading="lazy"
               />
             </div>
           ))}
+          {/* Frosted ambient glass blur overlay on menu images */}
+          <div className="trv-bg-blur-layer" />
         </div>
 
-        {/* Menu content */}
+        {/* Menu content panel with glassmorphism blur */}
         <div className="trv-menu-content">
           <div className="trv-menu-links">
+            <div className="trv-menu-badge">
+              <span>✦ نظام الميزانية الذكية بالمغرب</span>
+            </div>
+
             <div className="trv-menu-main">
               <ul>
                 {MENU_ITEMS.map((item) => (
                   <li
-                    key={item.label}
+                    key={item.labelAr}
                     onMouseEnter={() => setActiveBg(item.bgIndex)}
                     onMouseLeave={() => setActiveBg(0)}
                   >
-                    <a href="#hero-section" onClick={() => setIsOpen(false)}>
-                      {item.label}
+                    <a
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className="trv-menu-link-item"
+                    >
+                      <span className="trv-link-ar">{item.labelAr}</span>
+                      <span className="trv-link-fr">{item.labelFr}</span>
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="trv-menu-socials">
-              <ul>
-                <li><a href="/">Instagram</a></li>
-                <li><a href="/">TikTok</a></li>
-                <li><a href="/">Facebook</a></li>
-              </ul>
+            <div className="trv-menu-footer">
+              <Link
+                href="/register"
+                onClick={() => setIsOpen(false)}
+                className="trv-menu-cta-btn"
+              >
+                <span>ابدأ دابا فابور (100% مجاني)</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" fill="none" viewBox="0 0 18 14">
+                  <path fill="currentColor" d="m17.76 6.857-5.727-5.688a.821.821 0 0 0-1.147.01.81.81 0 0 0-.01 1.139l4.33 4.3H.819a.821.821 0 0 0-.578.238.81.81 0 0 0 .578 1.388h14.389l-4.33 4.3a.813.813 0 0 0-.19.892.813.813 0 0 0 .765.505.824.824 0 0 0 .581-.248l5.727-5.688a.81.81 0 0 0 0-1.148Z" />
+                </svg>
+              </Link>
+              <div className="trv-menu-socials">
+                <a href="#top" onClick={() => setIsOpen(false)}>7sabek.ma</a>
+                <span>•</span>
+                <Link href="/login" onClick={() => setIsOpen(false)}>Connexion</Link>
+                <span>•</span>
+                <Link href="/register" onClick={() => setIsOpen(false)}>Créer un compte</Link>
+              </div>
             </div>
           </div>
         </div>
@@ -75,58 +137,93 @@ export default function TravelShowcaseBlock() {
       <header className={`trv-navbar ${isOpen ? "trv-navbar-open" : ""}`}>
         <nav className="trv-wrapper">
           <div className="trv-menu-bar">
-            <div className="trv-logo-wrapper">
+            {/* 7sabek Brand Logo */}
+            <Link href="#top" className="trv-logo-link" aria-label="7sabek">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://ik.imagekit.io/kg2nszxjp/travel-menu/logo.svg" alt="Travel" />
-            </div>
+              <img
+                src="/brand/logo-fr-en.png"
+                alt="7sabek"
+                className="trv-brand-img"
+              />
+            </Link>
 
+            {/* Menu Hamburger Toggle */}
             <button
               type="button"
               className={`trv-menu-toggle ${isOpen ? "trv-toggle-active" : ""}`}
               onClick={() => setIsOpen((prev) => !prev)}
-              aria-label="Toggle menu"
+              aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
             >
               <span className="trv-toggle-line-top" />
               <span className="trv-toggle-line-bottom" />
             </button>
 
-            <a href="#hero-section" className="trv-navbar-btn trv-btn">
-              <span className="trv-btn-txt">EXPLORE TRIPS</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" fill="none">
+            {/* Direct CTA button to register */}
+            <Link href="/register" className="trv-navbar-btn trv-btn">
+              <span className="trv-btn-txt">ابدأ دابا فابور</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" fill="none" viewBox="0 0 18 14">
                 <path
-                  fill="#2F2411"
+                  fill="currentColor"
                   d="m17.76 6.857-5.727-5.688a.821.821 0 0 0-1.147.01.81.81 0 0 0-.01 1.139l4.33 4.3H.819a.821.821 0 0 0-.578.238.81.81 0 0 0 .578 1.388h14.389l-4.33 4.3a.813.813 0 0 0-.19.892.813.813 0 0 0 .765.505.824.824 0 0 0 .581-.248l5.727-5.688a.81.81 0 0 0 0-1.148Z"
                 />
               </svg>
-            </a>
+            </Link>
           </div>
         </nav>
       </header>
 
       {/* ==================== PAGE CONTENT ==================== */}
       <div className={`trv-page-content ${isOpen ? "trv-content-skewed" : ""}`}>
-        <section id="hero-section" className="trv-hero-section">
-          <div className="trv-wrapper trv-hero-wrapper">
-            <h1 className="trv-hero-header">
-              Find Your Way to Anywhere in the world
-            </h1>
+        <section id="hero-showcase-section" className="trv-hero-section">
+          {/* Frosted Glass Layer over Hero Background Photo */}
+          <div className="trv-hero-blur-overlay" aria-hidden="true" />
 
+          <div className="trv-wrapper trv-hero-wrapper">
+            {/* Main Punchy Financial Title */}
+            <div className="trv-hero-title-group">
+              <div className="trv-hero-pill">
+                <span className="trv-pill-dot" />
+                <span>نظام الميزانية والأظرفة الذكية بالمغرب</span>
+              </div>
+              <h1 className="trv-hero-header">
+                تحكم ففلوسك.. ماشي هي اللي تحكم فيك
+              </h1>
+              <p className="trv-hero-subtitle">
+                كل درهم كيدخل وكيخرج كتعرف بلاصتو. وضوح تام، انضباط مالي، وتوفير حقيقي كل شهر.
+              </p>
+            </div>
+
+            {/* Frosted Glass Floating CTA Box */}
             <div className="trv-hero-cta">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://ik.imagekit.io/kg2nszxjp/travel-menu/accent-element.svg" alt="" />
+              <div className="trv-cta-header">
+                <div className="trv-cta-icon-wrap">
+                  <span className="trv-cta-badge-tag">🇲🇦 مصمم للمغرب</span>
+                </div>
+                <div className="trv-cta-stat">
+                  <strong>+100%</strong>
+                  <span>فابور وشفاف</span>
+                </div>
+              </div>
+
               <p className="trv-cta-txt">
-                From cityscapes to beaches, we guide you. We handle details so you can focus on getting lost in the moment.
+                مع 7sabek، كتفرق ميزانيتك لأظرفة واضحة (الكراء، التقدية، الطوارئ، التوفير) وكتعرف شحال تصرف كل نهار بلا ستريس.
               </p>
 
-              <a href="#" className="trv-cta-btn trv-btn">
-                <span className="trv-btn-txt">EXPLORE TRIPS</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" fill="none">
-                  <path
-                    fill="#fff"
-                    d="m17.76 6.857-5.727-5.688a.821.821 0 0 0-1.147.01.81.81 0 0 0-.01 1.139l4.33 4.3H.819a.821.821 0 0 0-.578.238.81.81 0 0 0 .578 1.388h14.389l-4.33 4.3a.813.813 0 0 0-.19.892.813.813 0 0 0 .765.505.824.824 0 0 0 .581-.248l5.727-5.688a.81.81 0 0 0 0-1.148Z"
-                  />
-                </svg>
-              </a>
+              <div className="trv-cta-actions">
+                <Link href="/register" className="trv-cta-btn trv-btn">
+                  <span className="trv-btn-txt">افتح حسابك مجاناً</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" fill="none" viewBox="0 0 18 14">
+                    <path
+                      fill="#fff"
+                      d="m17.76 6.857-5.727-5.688a.821.821 0 0 0-1.147.01.81.81 0 0 0-.01 1.139l4.33 4.3H.819a.821.821 0 0 0-.578.238.81.81 0 0 0 .578 1.388h14.389l-4.33 4.3a.813.813 0 0 0-.19.892.813.813 0 0 0 .765.505.824.824 0 0 0 .581-.248l5.727-5.688a.81.81 0 0 0 0-1.148Z"
+                    />
+                  </svg>
+                </Link>
+
+                <Link href="/login" className="trv-cta-secondary-link">
+                  عندك حساب ديجا؟ <strong>تسجيل الدخول</strong>
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -134,29 +231,35 @@ export default function TravelShowcaseBlock() {
         <section className="trv-spacer-section" />
       </div>
 
-      {/* Scoped CSS strictly encapsulated inside trv-root */}
+      {/* Scoped CSS with Rich Glassmorphism & Flous/Finance Theme */}
       <style jsx>{`
-        @import url("https://fonts.googleapis.com/css2?family=Anton&family=Mona+Sans:wght@400;600&display=swap");
+        @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Anton&display=swap");
 
         .trv-root {
           position: relative;
           width: 100%;
           overflow: hidden;
-          background: #17140e;
-          font-family: "Mona Sans", sans-serif;
-          color: rgba(255, 255, 255, 0.85);
-          font-size: 18px;
-          line-height: 23px;
-          letter-spacing: -0.36px;
+          background: #061812;
+          font-family: "Cairo", system-ui, -apple-system, sans-serif;
+          color: rgba(255, 255, 255, 0.92);
+          font-size: 17px;
+          line-height: 1.5;
         }
 
         .trv-wrapper {
-          max-width: 1440px;
+          max-width: 1400px;
           padding-inline: 2rem;
           margin-inline: auto;
           width: 100%;
         }
 
+        @media (max-width: 640px) {
+          .trv-wrapper {
+            padding-inline: 1.25rem;
+          }
+        }
+
+        /* ================= NAVBAR ================= */
         .trv-navbar {
           position: absolute;
           top: 18px;
@@ -178,44 +281,91 @@ export default function TravelShowcaseBlock() {
           pointer-events: auto;
         }
 
-        .trv-logo-wrapper img {
-          height: 38px;
+        .trv-logo-link {
+          display: flex;
+          align-items: center;
+          text-decoration: none;
+        }
+
+        .trv-brand-img {
+          height: 48px;
           width: auto;
+          filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
         }
 
         .trv-menu-toggle {
-          width: 44px;
-          height: 44px;
+          width: 46px;
+          height: 46px;
           position: relative;
           display: flex;
           flex-direction: column;
-          gap: 7px;
+          gap: 6px;
           align-items: center;
           justify-content: center;
-          background: #fff0dc;
-          border-radius: 10px;
+          background: rgba(16, 185, 129, 0.2);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(52, 211, 153, 0.35);
+          border-radius: 12px;
           cursor: pointer;
-          border: none;
-          transition: transform 0.2s ease;
+          transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
         }
+
         .trv-menu-toggle:hover {
-          transform: scale(1.05);
+          transform: scale(1.06);
+          background: rgba(16, 185, 129, 0.35);
+          border-color: rgba(52, 211, 153, 0.6);
         }
 
         .trv-menu-toggle span {
-          width: 29px;
-          height: 2px;
-          background: #2f2411;
-          transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+          width: 26px;
+          height: 2.5px;
+          background: #e6fffa;
+          border-radius: 2px;
+          transition: transform 0.35s cubic-bezier(0.68, -0.6, 0.32, 1.6);
         }
 
-        .trv-toggle-active .trv-toggle-line-top {
-          transform: translateY(4.5px) rotate(45deg);
-        }
-        .trv-toggle-active .trv-toggle-line-bottom {
-          transform: translateY(-4.5px) rotate(-45deg);
+        .trv-menu-toggle.trv-toggle-active .trv-toggle-line-top {
+          transform: translateY(4.25px) rotate(45deg);
+          background: #34d399;
         }
 
+        .trv-menu-toggle.trv-toggle-active .trv-toggle-line-bottom {
+          transform: translateY(-4.25px) rotate(-45deg);
+          background: #34d399;
+        }
+
+        .trv-btn {
+          display: inline-flex;
+          gap: 10px;
+          padding: 12px 22px;
+          border-radius: 12px;
+          font-weight: 700;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .trv-btn:hover {
+          transform: translateY(-2px);
+        }
+
+        .trv-navbar-btn {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
+          font-size: 15px;
+        }
+
+        .trv-navbar-btn:hover {
+          box-shadow: 0 6px 24px rgba(16, 185, 129, 0.5);
+        }
+
+        /* ================= MENU OVERLAY ================= */
         .trv-menu-overlay {
           position: fixed;
           inset: 0;
@@ -233,7 +383,7 @@ export default function TravelShowcaseBlock() {
         }
 
         .trv-bg-container {
-          background-color: #ffdcac;
+          background-color: #04140f;
           position: absolute;
           inset: 0;
           width: 100%;
@@ -254,43 +404,67 @@ export default function TravelShowcaseBlock() {
         }
 
         .trv-bg-img img.trv-bg-active {
-          opacity: 1;
-          transform: scale(1.1);
+          opacity: 0.85;
+          transform: scale(1.08);
+        }
+
+        /* Frosted Glass Ambient Blur over the Menu background photos */
+        .trv-bg-blur-layer {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 30% 50%, rgba(16, 185, 129, 0.25) 0%, rgba(4, 15, 11, 0.88) 100%);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
         }
 
         .trv-menu-content {
           width: 100%;
           height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
         }
 
         .trv-menu-links {
-          background: rgba(29, 20, 4, 0.3);
-          backdrop-filter: blur(60px);
-          -webkit-backdrop-filter: blur(60px);
-          width: 50%;
-          min-width: 320px;
+          background: rgba(4, 20, 15, 0.65);
+          backdrop-filter: blur(50px) saturate(160%);
+          -webkit-backdrop-filter: blur(50px) saturate(160%);
+          border-left: 1px solid rgba(52, 211, 153, 0.2);
+          width: 52%;
+          min-width: 340px;
           height: 100%;
-          padding: 44px 30px;
+          padding: 60px 48px;
           display: flex;
-          gap: 20px;
           flex-direction: column;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
-          text-align: center;
+          text-align: right;
+          box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 860px) {
           .trv-menu-links {
             width: 100%;
+            padding: 40px 24px;
+            border-left: none;
           }
         }
 
+        .trv-menu-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+          border-radius: 999px;
+          background: rgba(16, 185, 129, 0.15);
+          border: 1px solid rgba(52, 211, 153, 0.35);
+          color: #34d399;
+          font-size: 13px;
+          font-weight: 700;
+          margin-bottom: 24px;
+        }
+
         .trv-menu-main {
-          color: #fff7e8;
-          font-family: "Anton", sans-serif;
-          font-size: clamp(2rem, 4.86vw + 0.93rem, 5.3rem);
-          line-height: 90%;
-          letter-spacing: -1.2px;
           width: 100%;
         }
 
@@ -301,152 +475,295 @@ export default function TravelShowcaseBlock() {
         }
 
         .trv-menu-main li {
-          margin-bottom: 14px;
+          margin-bottom: 12px;
           transition: opacity 0.3s ease, transform 0.3s ease;
           width: fit-content;
-          margin-inline: auto;
         }
 
         .trv-menu-main ul:hover li:not(:hover) {
-          opacity: 0.45;
+          opacity: 0.4;
         }
 
-        .trv-menu-main a {
+        .trv-menu-link-item {
           text-decoration: none;
-          color: inherit;
-          display: inline-block;
-          transition: transform 0.2s ease;
-        }
-        .trv-menu-main a:hover {
-          transform: scale(1.05);
+          color: #f0fdf4;
+          display: flex;
+          align-items: baseline;
+          gap: 16px;
+          transition: transform 0.2s ease, color 0.2s ease;
         }
 
-        .trv-menu-socials ul {
+        .trv-menu-link-item:hover {
+          transform: translateX(-10px);
+          color: #34d399;
+        }
+
+        .trv-link-ar {
+          font-size: clamp(2rem, 3.8vw + 0.8rem, 3.75rem);
+          font-weight: 900;
+          line-height: 1.1;
+          letter-spacing: -0.5px;
+        }
+
+        .trv-link-fr {
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          color: #6ee7b7;
+          opacity: 0.7;
+          font-family: system-ui, sans-serif;
+        }
+
+        .trv-menu-footer {
+          margin-top: 32px;
+          width: 100%;
+        }
+
+        .trv-menu-cta-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 28px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #ffffff;
+          font-weight: 800;
+          font-size: 16px;
+          text-decoration: none;
+          box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .trv-menu-cta-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 14px 38px rgba(16, 185, 129, 0.55);
+        }
+
+        .trv-menu-socials {
           display: flex;
-          gap: 14px;
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          color: #fff7e8;
-          font-size: clamp(1rem, 0.55vw + 0.88rem, 1.375rem);
-          font-weight: 600;
-          letter-spacing: -0.44px;
+          gap: 12px;
+          align-items: center;
+          margin-top: 18px;
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 13px;
         }
 
         .trv-menu-socials a {
+          color: #a7f3d0;
           text-decoration: none;
-          color: inherit;
-          opacity: 0.8;
-          transition: opacity 0.2s;
+          transition: color 0.2s;
         }
+
         .trv-menu-socials a:hover {
-          opacity: 1;
+          color: #ffffff;
         }
 
-        .trv-btn {
-          display: inline-flex;
-          gap: 10px;
-          padding: 14px 20px;
-          border-radius: 10px;
-          background: #fff0dc;
-          font-family: "Anton", sans-serif;
-          align-items: center;
-          justify-content: center;
-          text-decoration: none;
-          cursor: pointer;
-          transition: transform 0.2s ease, background-color 0.2s ease;
-        }
-        .trv-btn:hover {
-          transform: translateY(-2px);
-        }
-
-        .trv-navbar-btn {
-          color: #2f2411;
-        }
-
+        /* ================= PAGE CONTENT & HERO ================= */
         .trv-page-content {
           height: 100%;
           will-change: transform;
           transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1);
-          transform-origin: left top;
+          transform-origin: right top;
         }
 
         .trv-content-skewed {
-          transform: translateY(20%) rotate(18deg) scale(1.3);
+          transform: translateY(20%) rotate(-14deg) scale(1.25);
         }
 
         .trv-hero-section {
-          background-image: url("https://ik.imagekit.io/kg2nszxjp/travel-menu/home-bg.webp");
+          background-image: url("https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=2200&q=85");
           background-repeat: no-repeat;
           background-position: center;
           background-size: cover;
           height: 100vh;
-          min-height: 700px;
+          min-height: 720px;
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
-          padding-block: 36px;
+          padding-block: 48px;
           position: relative;
         }
 
+        /* Ambient Glassmorphism Blur Filter over Hero Image */
+        .trv-hero-blur-overlay {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.22) 0%, transparent 60%),
+                      linear-gradient(180deg, rgba(6, 24, 18, 0.55) 0%, rgba(4, 18, 13, 0.92) 100%);
+          backdrop-filter: blur(6px) saturate(130%);
+          -webkit-backdrop-filter: blur(6px) saturate(130%);
+          pointer-events: none;
+          z-index: 1;
+        }
+
         .trv-hero-wrapper {
+          position: relative;
+          z-index: 2;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          gap: 20px;
+          gap: 36px;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 980px) {
           .trv-hero-wrapper {
             flex-direction: column;
             align-items: flex-start;
           }
         }
 
+        .trv-hero-title-group {
+          max-width: 780px;
+        }
+
+        .trv-hero-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 999px;
+          background: rgba(16, 185, 129, 0.18);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(52, 211, 153, 0.4);
+          color: #6ee7b7;
+          font-size: 14px;
+          font-weight: 700;
+          margin-bottom: 20px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+
+        .trv-pill-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #34d399;
+          box-shadow: 0 0 10px #34d399;
+        }
+
         .trv-hero-header {
-          font-family: "Anton", sans-serif;
-          font-size: clamp(2.75rem, 7.89vw + 1.02rem, 8.125rem);
-          line-height: 99%;
-          letter-spacing: -2.6px;
-          text-transform: uppercase;
-          max-width: 751px;
-          background: linear-gradient(0deg, #ffd08e 0%, #fff9ee 100%);
+          font-family: "Cairo", sans-serif;
+          font-size: clamp(2.6rem, 5.8vw + 1rem, 5.25rem);
+          font-weight: 900;
+          line-height: 1.15;
+          letter-spacing: -1px;
+          margin: 0;
+          background: linear-gradient(135deg, #ffffff 20%, #a7f3d0 70%, #fde047 100%);
           background-clip: text;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
-          margin: 0;
+          text-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
         }
 
+        .trv-hero-subtitle {
+          margin-top: 18px;
+          font-size: clamp(1rem, 1.2vw + 0.6rem, 1.35rem);
+          color: rgba(220, 252, 231, 0.88);
+          max-width: 650px;
+          line-height: 1.6;
+          font-weight: 500;
+        }
+
+        /* Glassmorphism Floating CTA Box with Blur */
         .trv-hero-cta {
-          border-radius: 20px;
-          background: linear-gradient(
-            180deg,
-            rgba(23, 20, 14, 0.7) 0%,
-            rgba(106, 63, 2, 0.7) 80.77%
-          );
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          max-width: 385px;
-          padding: 22px 18px;
+          border-radius: 24px;
+          background: rgba(6, 24, 18, 0.68);
+          backdrop-filter: blur(24px) saturate(170%);
+          -webkit-backdrop-filter: blur(24px) saturate(170%);
+          border: 1px solid rgba(52, 211, 153, 0.28);
+          box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+          max-width: 420px;
+          width: 100%;
+          padding: 26px 24px;
+          z-index: 2;
+        }
+
+        .trv-cta-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 14px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .trv-cta-badge-tag {
+          font-size: 13px;
+          font-weight: 700;
+          color: #fef08a;
+          background: rgba(234, 179, 8, 0.15);
+          border: 1px solid rgba(250, 204, 21, 0.3);
+          padding: 4px 10px;
+          border-radius: 8px;
+        }
+
+        .trv-cta-stat {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          line-height: 1.1;
+        }
+
+        .trv-cta-stat strong {
+          color: #34d399;
+          font-size: 18px;
+        }
+
+        .trv-cta-stat span {
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 11px;
         }
 
         .trv-cta-txt {
-          margin-block: 12px 14px;
+          margin-block: 12px 18px;
           font-size: 0.95rem;
-          line-height: 1.45;
-          color: rgba(255, 255, 255, 0.9);
+          line-height: 1.6;
+          color: rgba(240, 253, 244, 0.88);
+        }
+
+        .trv-cta-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
         }
 
         .trv-cta-btn {
-          background: #ffad3b;
-          color: #fff;
-          font-size: 20px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #ffffff;
+          font-size: 17px;
+          font-weight: 800;
           width: 100%;
+          padding: 14px 20px;
+          border-radius: 14px;
+          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .trv-cta-btn:hover {
+          box-shadow: 0 12px 30px rgba(16, 185, 129, 0.6);
+        }
+
+        .trv-cta-secondary-link {
+          text-align: center;
+          font-size: 13px;
+          color: rgba(220, 252, 231, 0.75);
+          text-decoration: none;
+          padding-top: 4px;
+          transition: color 0.2s ease;
+        }
+
+        .trv-cta-secondary-link strong {
+          color: #6ee7b7;
+          text-decoration: underline;
+        }
+
+        .trv-cta-secondary-link:hover {
+          color: #ffffff;
         }
 
         .trv-spacer-section {
-          height: 120px;
-          background: #17140e;
+          height: 100px;
+          background: #061812;
         }
       `}</style>
     </div>
