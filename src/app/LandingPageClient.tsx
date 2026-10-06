@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, Chrome, Globe, Compass, Target, ShieldCheck, TrendingUp, Sparkles, Mic, MessageSquare } from "lucide-react";
+import { Apple, Chrome, Globe, Compass, Target, ShieldCheck, TrendingUp } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { apiFetch, resetAuthClientState } from "@/lib/api";
@@ -58,7 +58,7 @@ type Copy = {
   chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
   sc: { cycle: string; cash: string };
   env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  ai: { badge: string; title: string; desc: string; prompts: string[] };
+  ai: { title: string; desc: string };
   why: { kicker: string; items: Duo[] };
   sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
   cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
@@ -80,10 +80,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     ai: {
-      badge: "✨ Assistant Vocal & Chat",
       title: "Ba Omar pilote votre budget",
       desc: "Dictez vos dépenses en Darija ou posez une question : votre budget se met à jour instantanément.",
-      prompts: ["« 120 DH courses BIM »", "« Reste-t-il pour les sorties ? »", "« +500 DH épargne »"],
     },
     why: {
       kicker: "Méthode simple en 4 étapes",
@@ -145,10 +143,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     ai: {
-      badge: "✨ Voice & Chat AI",
       title: "Ba Omar manages your cash",
       desc: "Speak in Darija or type a message: your budget updates instantly without effort.",
-      prompts: ["“120 DH BIM groceries”", "“Any fun budget left?”", "“+500 DH savings”"],
     },
     why: {
       kicker: "Simple 4-Step Method",
@@ -210,10 +206,8 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     ai: {
-      badge: "✨ مساعد ذكي بالصوت والشات",
       title: "با عمر ساهر على فلوسك",
       desc: "قل جملة وحدة بالصوت بالدارجة ولا كتبها، وبا عمر كيقاد ليك الحساب فالبلاصة.",
-      prompts: ["« 120 درهم تقضية بيم »", "« شحال باقي فـ أظرفة الخرجات؟ »", "« +500 درهم توفير »"],
     },
     why: {
       kicker: "طريقة بسيطة فـ 4 خطوات",
@@ -523,6 +517,26 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
     event.currentTarget.querySelectorAll<HTMLElement>(".lp-chip").forEach((chip) => {
       chip.style.removeProperty("transform");
     });
+  };
+
+  const onAiCardMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (reduceMotion) return;
+    const card = event.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const dx = x / rect.width - 0.5;
+    const dy = y / rect.height - 0.5;
+    card.style.transform = `perspective(1000px) rotateY(${(dx * 8).toFixed(2)}deg) rotateX(${(-dy * 8).toFixed(2)}deg) translateY(-4px)`;
+    card.style.setProperty("--mouse-x", `${x}px`);
+    card.style.setProperty("--mouse-y", `${y}px`);
+    card.style.setProperty("--mouse-opacity", "1");
+  };
+
+  const onAiCardLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    const card = event.currentTarget;
+    card.style.transform = "perspective(1000px) rotateY(0deg) rotateX(0deg) translateY(0px)";
+    card.style.setProperty("--mouse-opacity", "0");
   };
 
   const heroChips = [
@@ -878,8 +892,15 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         {/* ============================ BA OMAR (AI) ============================ */}
         <section className="lp-aisection">
           <div className="lp-wrap">
-            <div className="lp-aipanel">
-              {/* Subtle ambient light glows */}
+            <div
+              className="lp-aipanel"
+              onPointerMove={onAiCardMove}
+              onPointerLeave={onAiCardLeave}
+            >
+              {/* Dynamic mouse cursor spotlight glow */}
+              <div className="lp-aipanel-spotlight" aria-hidden="true" />
+
+              {/* Ambient light glows */}
               <div className="lp-aiglow-left" aria-hidden="true" />
               <div className="lp-aiglow-right" aria-hidden="true" />
 
@@ -894,40 +915,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                     className="lp-aiimg"
                     priority
                   />
-                  <div className="lp-aistatus">
-                    <span className="lp-aistatus-dot" />
-                    <span>{isArabic ? "مساعد نشط" : effectiveLocale === "en" ? "Live Assistant" : "IA Active"}</span>
-                  </div>
                 </div>
               </div>
 
               {/* Content Block */}
               <div className="lp-aitext">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="lp-aibadge">{copy.ai.badge}</span>
-                </div>
                 <h3 className={`${headingClass} lp-aititle`}>{copy.ai.title}</h3>
                 <p className="lp-aidesc">{copy.ai.desc}</p>
-
-                {copy.ai.prompts && (
-                  <div className="lp-aiprompts">
-                    {copy.ai.prompts.map((p, idx) => (
-                      <div
-                        key={p}
-                        className="lp-aiprompt-chip"
-                      >
-                        {idx === 0 ? (
-                          <Mic className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        ) : idx === 1 ? (
-                          <MessageSquare className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                        ) : (
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        )}
-                        <span>{p}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1241,7 +1235,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-mqv { font-variant-numeric: tabular-nums; font-weight: 800; }
         .lp-mqv.lp-up { color: var(--accent-deep); }
 
-        .lp-aisection { padding: 48px 0 12px; }
+        .lp-aisection { padding: 48px 0 16px; }
         .lp-aipanel { 
           position: relative; 
           display: grid; 
@@ -1251,11 +1245,27 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           border: 1.5px solid rgba(23, 199, 119, 0.32); 
           border-radius: 32px; 
           overflow: hidden; 
-          padding: 28px 36px; 
-          box-shadow: 0 20px 45px -18px rgba(10, 36, 29, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+          padding: 34px 42px; 
+          box-shadow: 0 20px 45px -18px rgba(10, 36, 29, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
+          transition: transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s ease, border-color .24s ease;
+          transform-style: preserve-3d;
+          cursor: pointer;
         }
-        .lp-aiglow-left { position: absolute; top: -60px; inset-inline-start: -60px; width: 190px; height: 190px; background: rgba(23, 199, 119, 0.2); border-radius: 50%; filter: blur(50px); pointer-events: none; }
-        .lp-aiglow-right { position: absolute; bottom: -60px; inset-inline-end: -60px; width: 190px; height: 190px; background: rgba(76, 126, 255, 0.12); border-radius: 50%; filter: blur(50px); pointer-events: none; }
+        .lp-aipanel:hover {
+          border-color: rgba(23, 199, 119, 0.6);
+          box-shadow: 0 32px 64px -20px rgba(16, 185, 129, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+        }
+        .lp-aipanel-spotlight {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: radial-gradient(360px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(23, 199, 119, 0.22), transparent 75%);
+          opacity: var(--mouse-opacity, 0);
+          transition: opacity .25s ease;
+          z-index: 1;
+        }
+        .lp-aiglow-left { position: absolute; top: -60px; inset-inline-start: -60px; width: 200px; height: 200px; background: rgba(23, 199, 119, 0.2); border-radius: 50%; filter: blur(55px); pointer-events: none; }
+        .lp-aiglow-right { position: absolute; bottom: -60px; inset-inline-end: -60px; width: 200px; height: 200px; background: rgba(76, 126, 255, 0.14); border-radius: 50%; filter: blur(55px); pointer-events: none; }
 
         .lp-aiavatar { 
           display: flex; 
@@ -1267,143 +1277,81 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         }
         .lp-aiavatar-ring { 
           position: relative; 
-          width: 168px; 
-          height: 168px; 
-          border-radius: 28px; 
+          width: 172px; 
+          height: 172px; 
+          border-radius: 30px; 
           background: linear-gradient(145deg, #ffffff, rgba(220, 248, 233, 0.75)); 
-          border: 2px solid rgba(23, 199, 119, 0.4); 
-          box-shadow: 0 14px 30px -10px rgba(11, 143, 83, 0.22), 0 0 0 6px rgba(235, 252, 243, 0.9); 
+          border: 2px solid rgba(23, 199, 119, 0.38); 
+          box-shadow: 0 16px 32px -10px rgba(11, 143, 83, 0.24), 0 0 0 6px rgba(235, 252, 243, 0.9); 
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          overflow: visible;
+          transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s ease, border-color .3s ease;
+        }
+        .lp-aipanel:hover .lp-aiavatar-ring {
+          transform: translateZ(26px) scale(1.05);
+          box-shadow: 0 22px 44px -12px rgba(11, 143, 83, 0.36), 0 0 0 7px rgba(235, 252, 243, 0.95);
+          border-color: rgba(23, 199, 119, 0.65);
         }
         .lp-aiimg { 
-          width: 140px; 
-          height: 140px; 
+          width: 144px; 
+          height: 144px; 
           object-fit: contain; 
           object-position: center; 
           display: block; 
-          filter: drop-shadow(0 8px 16px rgba(10, 36, 29, 0.15));
+          filter: drop-shadow(0 10px 18px rgba(10, 36, 29, 0.16));
           transition: transform .3s cubic-bezier(.22,1,.36,1);
         }
-        .lp-aipanel:hover .lp-aiimg { transform: scale(1.05); }
-
-        .lp-aistatus { 
-          position: absolute; 
-          bottom: -10px; 
-          left: 50%; 
-          transform: translateX(-50%); 
-          background: #ffffff; 
-          border: 1px solid rgba(23, 199, 119, 0.35); 
-          border-radius: 999px; 
-          padding: 3px 10px; 
-          display: inline-flex; 
-          align-items: center; 
-          gap: 6px; 
-          font-size: .68rem; 
-          font-weight: 800; 
-          color: var(--accent-deep); 
-          box-shadow: 0 4px 10px rgba(10, 36, 29, 0.08); 
-          white-space: nowrap; 
-          z-index: 5;
-        }
-        .lp-aistatus-dot { width: 7px; height: 7px; border-radius: 50%; background: #17c777; box-shadow: 0 0 8px #17c777; animation: lpPulse 2s infinite; }
-        @keyframes lpPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.85); } }
+        .lp-aipanel:hover .lp-aiimg { transform: scale(1.07); }
 
         .lp-aitext { 
           position: relative; 
           z-index: 2; 
-          padding-inline-start: 24px; 
+          padding-inline-start: 28px; 
         }
-        .lp-aibadge { 
-          display: inline-flex; 
-          align-items: center; 
-          gap: 7px; 
-          font-size: .74rem; 
-          font-weight: 800; 
-          letter-spacing: .04em; 
-          text-transform: uppercase; 
-          color: var(--accent-deep); 
-          background: rgba(255, 255, 255, 0.92); 
-          border: 1px solid rgba(23, 199, 119, 0.3); 
-          padding: 6px 14px; 
-          border-radius: 999px; 
-          box-shadow: 0 2px 6px rgba(10, 36, 29, 0.04);
-        }
-        .lp-ar .lp-aibadge { letter-spacing: 0; }
         .lp-aititle { 
-          margin: 0 0 8px; 
-          font-size: clamp(1.35rem, 2.6vw, 1.85rem); 
+          margin: 0 0 10px; 
+          font-size: clamp(1.4rem, 2.7vw, 1.95rem); 
           font-weight: 900; 
           line-height: 1.25; 
           color: var(--ink); 
+          transition: color .2s ease;
+        }
+        .lp-aipanel:hover .lp-aititle {
+          color: var(--accent-deep);
         }
         .lp-aidesc { 
           margin: 0; 
-          font-size: .94rem; 
-          line-height: 1.6; 
+          font-size: .98rem; 
+          line-height: 1.65; 
           color: var(--ink-soft); 
           max-width: 58ch; 
-        }
-        .lp-aiprompts { 
-          display: flex; 
-          flex-wrap: wrap; 
-          gap: 9px; 
-          margin-top: 18px; 
-        }
-        .lp-aiprompt-chip { 
-          display: inline-flex; 
-          align-items: center; 
-          gap: 7px; 
-          padding: 7px 14px; 
-          font-size: .78rem; 
-          font-weight: 800; 
-          border-radius: 14px; 
-          background: rgba(255, 255, 255, 0.95); 
-          border: 1px solid rgba(23, 199, 119, 0.28); 
-          color: var(--ink); 
-          box-shadow: 0 2px 8px rgba(10, 36, 29, 0.05); 
-          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; 
-          cursor: default;
-        }
-        .lp-aiprompt-chip:hover { 
-          transform: translateY(-2px); 
-          border-color: var(--accent); 
-          box-shadow: 0 6px 14px -4px rgba(23, 199, 119, 0.3); 
         }
 
         @media (max-width: 780px) {
           .lp-aipanel { 
             grid-template-columns: 1fr; 
             text-align: center; 
-            padding: 32px 20px; 
-            gap: 22px; 
+            padding: 34px 22px; 
+            gap: 20px; 
           }
           .lp-aiavatar { 
             justify-content: center; 
-            margin-bottom: 8px;
           }
           .lp-aiavatar-ring { 
-            width: 144px; 
-            height: 144px; 
-            border-radius: 24px; 
+            width: 150px; 
+            height: 150px; 
+            border-radius: 26px; 
           }
           .lp-aiimg { 
-            width: 120px; 
-            height: 120px; 
+            width: 126px; 
+            height: 126px; 
           }
           .lp-aitext { 
             padding-inline-start: 0; 
           }
-          .lp-aitext .flex {
-            justify-content: center;
-          }
           .lp-aidesc { 
             margin-inline: auto; 
-          }
-          .lp-aiprompts { 
-            justify-content: center; 
           }
         }
 
