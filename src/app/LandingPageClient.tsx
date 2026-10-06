@@ -80,7 +80,7 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
     env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
     ai: {
-      title: "Ba Omar pilote votre budget",
+      title: "Ba Omar (AI) pilote votre budget",
       desc: "Dictez vos dépenses en Darija ou posez une question : votre budget se met à jour instantanément.",
     },
     why: {
@@ -143,7 +143,7 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
     env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
     ai: {
-      title: "Ba Omar manages your cash",
+      title: "Ba Omar (AI) manages your cash",
       desc: "Speak in Darija or type a message: your budget updates instantly without effort.",
     },
     why: {
@@ -206,7 +206,7 @@ const COPY: Record<FloussyLocale, Copy> = {
     sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
     env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
     ai: {
-      title: "با عمر ساهر على فلوسك",
+      title: "با عمر (AI) ساهر على فلوسك",
       desc: "قل جملة وحدة بالصوت بالدارجة ولا كتبها، وبا عمر كيقاد ليك الحساب فالبلاصة.",
     },
     why: {
@@ -525,9 +525,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
     const rect = card.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const dx = x / rect.width - 0.5;
-    const dy = y / rect.height - 0.5;
-    card.style.transform = `perspective(1000px) rotateY(${(dx * 8).toFixed(2)}deg) rotateX(${(-dy * 8).toFixed(2)}deg) translateY(-4px)`;
     card.style.setProperty("--mouse-x", `${x}px`);
     card.style.setProperty("--mouse-y", `${y}px`);
     card.style.setProperty("--mouse-opacity", "1");
@@ -535,7 +532,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
   const onAiCardLeave = (event: React.PointerEvent<HTMLDivElement>) => {
     const card = event.currentTarget;
-    card.style.transform = "perspective(1000px) rotateY(0deg) rotateX(0deg) translateY(0px)";
     card.style.setProperty("--mouse-opacity", "0");
   };
 
@@ -920,7 +916,17 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
               {/* Content Block */}
               <div className="lp-aitext">
-                <h3 className={`${headingClass} lp-aititle`}>{copy.ai.title}</h3>
+                <h3 className={`${headingClass} lp-aititle`}>
+                  {copy.ai.title.includes("(AI)") ? (
+                    <>
+                      {copy.ai.title.split("(AI)")[0]}
+                      <span className="lp-aitag">AI</span>
+                      {copy.ai.title.split("(AI)")[1]}
+                    </>
+                  ) : (
+                    copy.ai.title
+                  )}
+                </h3>
                 <p className="lp-aidesc">{copy.ai.desc}</p>
               </div>
             </div>
@@ -1242,30 +1248,30 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           grid-template-columns: 240px 1fr; 
           align-items: center; 
           background: linear-gradient(135deg, rgba(235, 252, 243, 0.95) 0%, rgba(246, 254, 249, 0.98) 55%, rgba(228, 250, 239, 0.92) 100%); 
-          border: 1.5px solid rgba(23, 199, 119, 0.32); 
+          border: 1.5px solid rgba(23, 199, 119, 0.28); 
           border-radius: 32px; 
           overflow: hidden; 
           padding: 34px 42px; 
-          box-shadow: 0 20px 45px -18px rgba(10, 36, 29, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
-          transition: transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s ease, border-color .24s ease;
-          transform-style: preserve-3d;
-          cursor: pointer;
+          box-shadow: 0 14px 32px -16px rgba(10, 36, 29, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
+          transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease;
+          cursor: default;
         }
         .lp-aipanel:hover {
-          border-color: rgba(23, 199, 119, 0.6);
-          box-shadow: 0 32px 64px -20px rgba(16, 185, 129, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+          transform: translateY(-2px);
+          border-color: rgba(23, 199, 119, 0.48);
+          box-shadow: 0 20px 40px -16px rgba(16, 185, 129, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.95) inset;
         }
         .lp-aipanel-spotlight {
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: radial-gradient(360px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(23, 199, 119, 0.22), transparent 75%);
+          background: radial-gradient(380px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(23, 199, 119, 0.12), transparent 70%);
           opacity: var(--mouse-opacity, 0);
-          transition: opacity .25s ease;
+          transition: opacity .35s ease;
           z-index: 1;
         }
-        .lp-aiglow-left { position: absolute; top: -60px; inset-inline-start: -60px; width: 200px; height: 200px; background: rgba(23, 199, 119, 0.2); border-radius: 50%; filter: blur(55px); pointer-events: none; }
-        .lp-aiglow-right { position: absolute; bottom: -60px; inset-inline-end: -60px; width: 200px; height: 200px; background: rgba(76, 126, 255, 0.14); border-radius: 50%; filter: blur(55px); pointer-events: none; }
+        .lp-aiglow-left { position: absolute; top: -60px; inset-inline-start: -60px; width: 200px; height: 200px; background: rgba(23, 199, 119, 0.16); border-radius: 50%; filter: blur(55px); pointer-events: none; }
+        .lp-aiglow-right { position: absolute; bottom: -60px; inset-inline-end: -60px; width: 200px; height: 200px; background: rgba(76, 126, 255, 0.1); border-radius: 50%; filter: blur(55px); pointer-events: none; }
 
         .lp-aiavatar { 
           display: flex; 
@@ -1281,17 +1287,16 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           height: 172px; 
           border-radius: 30px; 
           background: linear-gradient(145deg, #ffffff, rgba(220, 248, 233, 0.75)); 
-          border: 2px solid rgba(23, 199, 119, 0.38); 
-          box-shadow: 0 16px 32px -10px rgba(11, 143, 83, 0.24), 0 0 0 6px rgba(235, 252, 243, 0.9); 
+          border: 2px solid rgba(23, 199, 119, 0.35); 
+          box-shadow: 0 12px 24px -10px rgba(11, 143, 83, 0.16), 0 0 0 5px rgba(235, 252, 243, 0.85); 
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s ease, border-color .3s ease;
+          transition: border-color .28s ease, box-shadow .28s ease;
         }
         .lp-aipanel:hover .lp-aiavatar-ring {
-          transform: translateZ(26px) scale(1.05);
-          box-shadow: 0 22px 44px -12px rgba(11, 143, 83, 0.36), 0 0 0 7px rgba(235, 252, 243, 0.95);
-          border-color: rgba(23, 199, 119, 0.65);
+          border-color: rgba(23, 199, 119, 0.55);
+          box-shadow: 0 16px 28px -10px rgba(11, 143, 83, 0.22), 0 0 0 5px rgba(235, 252, 243, 0.95);
         }
         .lp-aiimg { 
           width: 144px; 
@@ -1299,10 +1304,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           object-fit: contain; 
           object-position: center; 
           display: block; 
-          filter: drop-shadow(0 10px 18px rgba(10, 36, 29, 0.16));
-          transition: transform .3s cubic-bezier(.22,1,.36,1);
+          filter: drop-shadow(0 8px 14px rgba(10, 36, 29, 0.12));
         }
-        .lp-aipanel:hover .lp-aiimg { transform: scale(1.07); }
 
         .lp-aitext { 
           position: relative; 
@@ -1315,10 +1318,20 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           font-weight: 900; 
           line-height: 1.25; 
           color: var(--ink); 
-          transition: color .2s ease;
         }
-        .lp-aipanel:hover .lp-aititle {
+        .lp-aitag {
+          display: inline-flex;
+          align-items: center;
+          font-size: .6em;
+          font-weight: 900;
+          letter-spacing: .05em;
+          padding: 2px 8px;
+          border-radius: 8px;
+          background: rgba(23, 199, 119, 0.15);
           color: var(--accent-deep);
+          border: 1px solid rgba(23, 199, 119, 0.38);
+          margin-inline: 6px;
+          vertical-align: middle;
         }
         .lp-aidesc { 
           margin: 0; 
