@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, Chrome, Globe, Compass, Target, ShieldCheck, TrendingUp, Sparkles } from "lucide-react";
+import { Apple, Chrome, Globe, Compass, Target, ShieldCheck, TrendingUp, Sparkles, Mic, MessageSquare } from "lucide-react";
 import { Cairo } from "next/font/google";
 
 import { apiFetch, resetAuthClientState } from "@/lib/api";
@@ -879,23 +879,52 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         <section className="lp-aisection">
           <div className="lp-wrap">
             <div className="lp-aipanel">
+              {/* Subtle ambient light glows */}
+              <div className="lp-aiglow-left" aria-hidden="true" />
+              <div className="lp-aiglow-right" aria-hidden="true" />
+
+              {/* Centered Avatar Card */}
               <div className="lp-aiavatar">
-                <Image src="/landing/ai/ba-omar-avatar.png" alt="Ba Omar" width={220} height={220} className="lp-aiimg" />
+                <div className="lp-aiavatar-ring">
+                  <Image
+                    src="/landing/ai/ba-omar-avatar.png"
+                    alt="Ba Omar"
+                    width={180}
+                    height={180}
+                    className="lp-aiimg"
+                    priority
+                  />
+                  <div className="lp-aistatus">
+                    <span className="lp-aistatus-dot" />
+                    <span>{isArabic ? "مساعد نشط" : effectiveLocale === "en" ? "Live Assistant" : "IA Active"}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Content Block */}
               <div className="lp-aitext">
-                <span className="lp-aibadge">{copy.ai.badge}</span>
-                <h3 className={headingClass}>{copy.ai.title}</h3>
-                <p>{copy.ai.desc}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="lp-aibadge">{copy.ai.badge}</span>
+                </div>
+                <h3 className={`${headingClass} lp-aititle`}>{copy.ai.title}</h3>
+                <p className="lp-aidesc">{copy.ai.desc}</p>
+
                 {copy.ai.prompts && (
-                  <div className="flex flex-wrap gap-2 mt-3.5">
-                    {copy.ai.prompts.map((p) => (
-                      <span
+                  <div className="lp-aiprompts">
+                    {copy.ai.prompts.map((p, idx) => (
+                      <div
                         key={p}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-white/80 border border-emerald-500/20 text-emerald-950 shadow-xs backdrop-blur-sm"
+                        className="lp-aiprompt-chip"
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        {idx === 0 ? (
+                          <Mic className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        ) : idx === 1 ? (
+                          <MessageSquare className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        )}
                         <span>{p}</span>
-                      </span>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -1212,21 +1241,170 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-mqv { font-variant-numeric: tabular-nums; font-weight: 800; }
         .lp-mqv.lp-up { color: var(--accent-deep); }
 
-        .lp-aisection { padding: 40px 0 0; }
-        .lp-aipanel { display: grid; grid-template-columns: auto 1fr; align-items: center; background: var(--accent-soft); border-radius: 28px; overflow: hidden; }
-        .lp-aiavatar { display: flex; align-self: stretch; align-items: flex-end; padding-inline-start: 28px; }
-        .lp-aiimg { width: 150px; height: 150px; object-fit: cover; object-position: top center; display: block; margin-bottom: -6px; }
-        .lp-aitext { padding: 30px 28px 30px 18px; }
-        .lp-aibadge { display: inline-flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-deep); background: var(--surface); padding: 5px 12px; border-radius: 999px; margin-bottom: 12px; }
+        .lp-aisection { padding: 48px 0 12px; }
+        .lp-aipanel { 
+          position: relative; 
+          display: grid; 
+          grid-template-columns: 240px 1fr; 
+          align-items: center; 
+          background: linear-gradient(135deg, rgba(235, 252, 243, 0.95) 0%, rgba(246, 254, 249, 0.98) 55%, rgba(228, 250, 239, 0.92) 100%); 
+          border: 1.5px solid rgba(23, 199, 119, 0.32); 
+          border-radius: 32px; 
+          overflow: hidden; 
+          padding: 28px 36px; 
+          box-shadow: 0 20px 45px -18px rgba(10, 36, 29, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+        }
+        .lp-aiglow-left { position: absolute; top: -60px; inset-inline-start: -60px; width: 190px; height: 190px; background: rgba(23, 199, 119, 0.2); border-radius: 50%; filter: blur(50px); pointer-events: none; }
+        .lp-aiglow-right { position: absolute; bottom: -60px; inset-inline-end: -60px; width: 190px; height: 190px; background: rgba(76, 126, 255, 0.12); border-radius: 50%; filter: blur(50px); pointer-events: none; }
+
+        .lp-aiavatar { 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          width: 100%;
+          position: relative;
+          z-index: 2;
+        }
+        .lp-aiavatar-ring { 
+          position: relative; 
+          width: 168px; 
+          height: 168px; 
+          border-radius: 28px; 
+          background: linear-gradient(145deg, #ffffff, rgba(220, 248, 233, 0.75)); 
+          border: 2px solid rgba(23, 199, 119, 0.4); 
+          box-shadow: 0 14px 30px -10px rgba(11, 143, 83, 0.22), 0 0 0 6px rgba(235, 252, 243, 0.9); 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          overflow: visible;
+        }
+        .lp-aiimg { 
+          width: 140px; 
+          height: 140px; 
+          object-fit: contain; 
+          object-position: center; 
+          display: block; 
+          filter: drop-shadow(0 8px 16px rgba(10, 36, 29, 0.15));
+          transition: transform .3s cubic-bezier(.22,1,.36,1);
+        }
+        .lp-aipanel:hover .lp-aiimg { transform: scale(1.05); }
+
+        .lp-aistatus { 
+          position: absolute; 
+          bottom: -10px; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          background: #ffffff; 
+          border: 1px solid rgba(23, 199, 119, 0.35); 
+          border-radius: 999px; 
+          padding: 3px 10px; 
+          display: inline-flex; 
+          align-items: center; 
+          gap: 6px; 
+          font-size: .68rem; 
+          font-weight: 800; 
+          color: var(--accent-deep); 
+          box-shadow: 0 4px 10px rgba(10, 36, 29, 0.08); 
+          white-space: nowrap; 
+          z-index: 5;
+        }
+        .lp-aistatus-dot { width: 7px; height: 7px; border-radius: 50%; background: #17c777; box-shadow: 0 0 8px #17c777; animation: lpPulse 2s infinite; }
+        @keyframes lpPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.85); } }
+
+        .lp-aitext { 
+          position: relative; 
+          z-index: 2; 
+          padding-inline-start: 24px; 
+        }
+        .lp-aibadge { 
+          display: inline-flex; 
+          align-items: center; 
+          gap: 7px; 
+          font-size: .74rem; 
+          font-weight: 800; 
+          letter-spacing: .04em; 
+          text-transform: uppercase; 
+          color: var(--accent-deep); 
+          background: rgba(255, 255, 255, 0.92); 
+          border: 1px solid rgba(23, 199, 119, 0.3); 
+          padding: 6px 14px; 
+          border-radius: 999px; 
+          box-shadow: 0 2px 6px rgba(10, 36, 29, 0.04);
+        }
         .lp-ar .lp-aibadge { letter-spacing: 0; }
-        .lp-aitext h3 { margin: 0 0 6px; font-size: 1.28rem; font-weight: 800; line-height: 1.28; }
-        .lp-aitext p { margin: 0; font-size: .88rem; line-height: 1.55; color: var(--ink-soft); max-width: 42ch; }
-        @media (max-width: 640px) {
-          .lp-aipanel { grid-template-columns: 1fr; text-align: center; }
-          .lp-aiavatar { padding: 18px 0 0; justify-content: center; }
-          .lp-aiimg { width: 120px; height: 120px; margin-bottom: -4px; }
-          .lp-aitext { padding: 12px 20px 26px; }
-          .lp-aitext p { margin-inline: auto; }
+        .lp-aititle { 
+          margin: 0 0 8px; 
+          font-size: clamp(1.35rem, 2.6vw, 1.85rem); 
+          font-weight: 900; 
+          line-height: 1.25; 
+          color: var(--ink); 
+        }
+        .lp-aidesc { 
+          margin: 0; 
+          font-size: .94rem; 
+          line-height: 1.6; 
+          color: var(--ink-soft); 
+          max-width: 58ch; 
+        }
+        .lp-aiprompts { 
+          display: flex; 
+          flex-wrap: wrap; 
+          gap: 9px; 
+          margin-top: 18px; 
+        }
+        .lp-aiprompt-chip { 
+          display: inline-flex; 
+          align-items: center; 
+          gap: 7px; 
+          padding: 7px 14px; 
+          font-size: .78rem; 
+          font-weight: 800; 
+          border-radius: 14px; 
+          background: rgba(255, 255, 255, 0.95); 
+          border: 1px solid rgba(23, 199, 119, 0.28); 
+          color: var(--ink); 
+          box-shadow: 0 2px 8px rgba(10, 36, 29, 0.05); 
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; 
+          cursor: default;
+        }
+        .lp-aiprompt-chip:hover { 
+          transform: translateY(-2px); 
+          border-color: var(--accent); 
+          box-shadow: 0 6px 14px -4px rgba(23, 199, 119, 0.3); 
+        }
+
+        @media (max-width: 780px) {
+          .lp-aipanel { 
+            grid-template-columns: 1fr; 
+            text-align: center; 
+            padding: 32px 20px; 
+            gap: 22px; 
+          }
+          .lp-aiavatar { 
+            justify-content: center; 
+            margin-bottom: 8px;
+          }
+          .lp-aiavatar-ring { 
+            width: 144px; 
+            height: 144px; 
+            border-radius: 24px; 
+          }
+          .lp-aiimg { 
+            width: 120px; 
+            height: 120px; 
+          }
+          .lp-aitext { 
+            padding-inline-start: 0; 
+          }
+          .lp-aitext .flex {
+            justify-content: center;
+          }
+          .lp-aidesc { 
+            margin-inline: auto; 
+          }
+          .lp-aiprompts { 
+            justify-content: center; 
+          }
         }
 
         .lp-section { padding: 86px 0; }
