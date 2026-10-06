@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { getAppVersionLabel } from "@/lib/app-version";
+import { getRandomLoginFact, LOGIN_FACTS } from "@/lib/facts-quotes";
 
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700"] });
 
@@ -170,7 +171,7 @@ const LOGIN_COPY = {
     newPasswordLength: "كلمة السر الجديدة خاصها تكون فيها على الأقل 8 حروف.",
     confirmMismatch: "التأكيد ما مطابقش.",
     welcomeBadge: "مرحبا بيك فـ 7sabek",
-    heroTitle: "رجّع التحكم فالأظرفة ديالك",
+    heroTitle: "فلوسك مضبوطة، وبالك مرتاح",
     envelopeLabel: "ظرف نشط",
     envelopeCategory: "المصاريف اليومية",
     mobileBrand: "حسابك",
@@ -241,6 +242,11 @@ export default function LoginPage() {
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [maintenanceConfirm, setMaintenanceConfirm] = useState(false);
   const [introReady, setIntroReady] = useState(false);
+  const [loginFact, setLoginFact] = useState<string>(() => LOGIN_FACTS[0]);
+
+  useEffect(() => {
+    setLoginFact(getRandomLoginFact());
+  }, []);
 
   const getAuthErrorMessage = (message: string) => {
     const lower = message.toLowerCase();
@@ -684,9 +690,15 @@ export default function LoginPage() {
             <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
           </div>
 
-          <div className="relative z-10 space-y-6">
-            <h2 className={`${headingClass} lg-rise text-[2.1rem] font-extrabold leading-[1.15] text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
-              {copy.heroTitle}
+          <div className="relative z-10 space-y-4">
+            {locale === "ar" && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-1 text-[0.72rem] font-bold text-[#DCEAE3] backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#17C777]" />
+                <span>حقيقة مالية</span>
+              </span>
+            )}
+            <h2 className={`${headingClass} lg-rise ${locale === "ar" ? "text-[1.75rem] leading-[1.38]" : "text-[2.1rem] leading-[1.15]"} font-extrabold text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
+              {locale === "ar" ? loginFact : copy.heroTitle}
             </h2>
           </div>
 

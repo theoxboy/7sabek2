@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { getAppVersionLabel } from "@/lib/app-version";
+import { getTodayRegisterQuote, REGISTER_DAILY_QUOTES } from "@/lib/facts-quotes";
 
 declare global {
   interface Window {
@@ -472,11 +473,11 @@ const REGISTER_COPY = {
     passwordStrengthMedium: "متوسطة",
     passwordStrengthStrong: "قوية ومحمية",
     createAccountFailed: "ما قدرناش نصاوبو الحساب دابا. عاود المحاولة.",
-    heroTitle: "تحكم فمصاريفك وفلوسك مع 7sabek",
-    heroSubtitle: "انضم لآلاف المستعملين اللي كيسيرو ميزانيتهم بسهولة بطريقة الأظرفة الذكية.",
+    heroTitle: "7sabek ماشي مجرد تطبيق..",
+    heroSubtitle: "7sabek هو الديسيبلين اللي كيبدّل مجرى حياتك المالية.",
     baOmarName: "با عمر",
-    baOmarRole: "المستشار المالي الذكي",
-    baOmarQuote: "« مرحباً بك! فثواني معدودة، غادي نصاوبو حسابك باش ترجع تتحكم فمصاريفك وفلوسك بطريقة الأظرفة الذكية. »",
+    baOmarRole: "رفيقك المالي",
+    baOmarQuote: "« مرحباً بك! فثواني معدودة، غادي نصاوبو حسابك باش تبدا صفحة نقية مع فلوسك. »",
     envelopeLabel: "الظرف النشط",
     envelopeCategory: "التغذية والتقدية",
     addExpenseQuick: "إضافة سريعة",
@@ -529,8 +530,8 @@ const REGISTER_COPY = {
     guestStartError: "ما قدرناش نبداو وضع الاكتشاف. عاود المحاولة.",
     retryIn: "كاين بزاف ديال المحاولات. عاود ف",
     trustFeature1: "100% فابور ومصمم للمغرب",
-    trustFeature2: "نظام أظرفة الميزانية الذكي",
-    trustFeature3: "حماية وتشفير عالي الأمان",
+    trustFeature2: "كتعرف شحال باقي تصرف كل نهار",
+    trustFeature3: "بياناتك مشفرة ومحفوظة فسرّية تامة",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
 
@@ -613,6 +614,13 @@ export default function RegisterPage() {
   const copyClass = locale === "ar" ? "register-copy" : "";
 
   const [guestLoading, setGuestLoading] = useState(false);
+  const [todayQuote, setTodayQuote] = useState<string>(
+    () => REGISTER_DAILY_QUOTES[new Date().getDay()] ?? REGISTER_DAILY_QUOTES[1]
+  );
+
+  useEffect(() => {
+    setTodayQuote(getTodayRegisterQuote());
+  }, []);
 
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
   const isDevEnvironment = process.env.NODE_ENV !== "production";
@@ -1213,7 +1221,7 @@ export default function RegisterPage() {
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs italic leading-relaxed text-[#DCEAE3]">
-                    {copy.baOmarQuote}
+                    {locale === "ar" ? `« ${todayQuote} »` : copy.baOmarQuote}
                   </p>
                 </div>
               </div>
