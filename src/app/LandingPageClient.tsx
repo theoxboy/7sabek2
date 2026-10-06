@@ -906,8 +906,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   <Image
                     src="/landing/ai/ba-omar-avatar.png"
                     alt="Ba Omar"
-                    width={180}
-                    height={180}
+                    width={100}
+                    height={100}
                     className="lp-aiimg"
                     priority
                   />
@@ -1241,37 +1241,39 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .lp-mqv { font-variant-numeric: tabular-nums; font-weight: 800; }
         .lp-mqv.lp-up { color: var(--accent-deep); }
 
-        .lp-aisection { padding: 48px 0 16px; }
+        .lp-aisection { padding: 20px 0 10px; }
         .lp-aipanel { 
           position: relative; 
+          max-width: 820px;
+          margin: 0 auto;
           display: grid; 
-          grid-template-columns: 240px 1fr; 
+          grid-template-columns: 110px 1fr; 
           align-items: center; 
           background: linear-gradient(135deg, rgba(235, 252, 243, 0.95) 0%, rgba(246, 254, 249, 0.98) 55%, rgba(228, 250, 239, 0.92) 100%); 
           border: 1.5px solid rgba(23, 199, 119, 0.28); 
-          border-radius: 32px; 
+          border-radius: 22px; 
           overflow: hidden; 
-          padding: 34px 42px; 
-          box-shadow: 0 14px 32px -16px rgba(10, 36, 29, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
+          padding: 16px 24px; 
+          box-shadow: 0 10px 24px -14px rgba(10, 36, 29, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
           transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease;
           cursor: default;
         }
         .lp-aipanel:hover {
           transform: translateY(-2px);
-          border-color: rgba(23, 199, 119, 0.48);
-          box-shadow: 0 20px 40px -16px rgba(16, 185, 129, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+          border-color: rgba(23, 199, 119, 0.45);
+          box-shadow: 0 14px 28px -12px rgba(16, 185, 129, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.95) inset;
         }
         .lp-aipanel-spotlight {
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: radial-gradient(380px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(23, 199, 119, 0.12), transparent 70%);
+          background: radial-gradient(300px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(23, 199, 119, 0.12), transparent 70%);
           opacity: var(--mouse-opacity, 0);
           transition: opacity .35s ease;
           z-index: 1;
         }
-        .lp-aiglow-left { position: absolute; top: -60px; inset-inline-start: -60px; width: 200px; height: 200px; background: rgba(23, 199, 119, 0.16); border-radius: 50%; filter: blur(55px); pointer-events: none; }
-        .lp-aiglow-right { position: absolute; bottom: -60px; inset-inline-end: -60px; width: 200px; height: 200px; background: rgba(76, 126, 255, 0.1); border-radius: 50%; filter: blur(55px); pointer-events: none; }
+        .lp-aiglow-left { position: absolute; top: -45px; inset-inline-start: -45px; width: 130px; height: 130px; background: rgba(23, 199, 119, 0.14); border-radius: 50%; filter: blur(35px); pointer-events: none; }
+        .lp-aiglow-right { position: absolute; bottom: -45px; inset-inline-end: -45px; width: 130px; height: 130px; background: rgba(76, 126, 255, 0.08); border-radius: 50%; filter: blur(35px); pointer-events: none; }
 
         .lp-aiavatar { 
           display: flex; 
@@ -1283,12 +1285,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         }
         .lp-aiavatar-ring { 
           position: relative; 
-          width: 172px; 
-          height: 172px; 
-          border-radius: 30px; 
+          width: 90px; 
+          height: 90px; 
+          border-radius: 20px; 
           background: linear-gradient(145deg, #ffffff, rgba(220, 248, 233, 0.75)); 
-          border: 2px solid rgba(23, 199, 119, 0.35); 
-          box-shadow: 0 12px 24px -10px rgba(11, 143, 83, 0.16), 0 0 0 5px rgba(235, 252, 243, 0.85); 
+          border: 1.5px solid rgba(23, 199, 119, 0.35); 
+          box-shadow: 0 8px 18px -8px rgba(11, 143, 83, 0.14), 0 0 0 4px rgba(235, 252, 243, 0.85); 
           display: flex; 
           align-items: center; 
           justify-content: center; 
@@ -1296,37 +1298,37 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         }
         .lp-aipanel:hover .lp-aiavatar-ring {
           border-color: rgba(23, 199, 119, 0.55);
-          box-shadow: 0 16px 28px -10px rgba(11, 143, 83, 0.22), 0 0 0 5px rgba(235, 252, 243, 0.95);
+          box-shadow: 0 10px 22px -8px rgba(11, 143, 83, 0.2), 0 0 0 4px rgba(235, 252, 243, 0.95);
         }
         .lp-aiimg { 
-          width: 144px; 
-          height: 144px; 
+          width: 76px; 
+          height: 76px; 
           object-fit: contain; 
           object-position: center; 
           display: block; 
-          filter: drop-shadow(0 8px 14px rgba(10, 36, 29, 0.12));
+          filter: drop-shadow(0 6px 10px rgba(10, 36, 29, 0.12));
         }
 
         .lp-aitext { 
           position: relative; 
           z-index: 2; 
-          padding-inline-start: 28px; 
+          padding-inline-start: 18px; 
         }
         .lp-aititle { 
-          margin: 0 0 10px; 
-          font-size: clamp(1.4rem, 2.7vw, 1.95rem); 
-          font-weight: 900; 
+          margin: 0 0 4px; 
+          font-size: clamp(1.1rem, 1.8vw, 1.35rem); 
+          font-weight: 800; 
           line-height: 1.25; 
           color: var(--ink); 
         }
         .lp-aitag {
           display: inline-flex;
           align-items: center;
-          font-size: .6em;
+          font-size: .62em;
           font-weight: 900;
-          letter-spacing: .05em;
-          padding: 2px 8px;
-          border-radius: 8px;
+          letter-spacing: .04em;
+          padding: 1.5px 7px;
+          border-radius: 6px;
           background: rgba(23, 199, 119, 0.15);
           color: var(--accent-deep);
           border: 1px solid rgba(23, 199, 119, 0.38);
@@ -1335,8 +1337,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         }
         .lp-aidesc { 
           margin: 0; 
-          font-size: .98rem; 
-          line-height: 1.65; 
+          font-size: .88rem; 
+          line-height: 1.45; 
           color: var(--ink-soft); 
           max-width: 58ch; 
         }
@@ -1345,20 +1347,20 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           .lp-aipanel { 
             grid-template-columns: 1fr; 
             text-align: center; 
-            padding: 34px 22px; 
-            gap: 20px; 
+            padding: 16px 16px; 
+            gap: 12px; 
           }
           .lp-aiavatar { 
             justify-content: center; 
           }
           .lp-aiavatar-ring { 
-            width: 150px; 
-            height: 150px; 
-            border-radius: 26px; 
+            width: 78px; 
+            height: 78px; 
+            border-radius: 18px; 
           }
           .lp-aiimg { 
-            width: 126px; 
-            height: 126px; 
+            width: 66px; 
+            height: 66px; 
           }
           .lp-aitext { 
             padding-inline-start: 0; 
