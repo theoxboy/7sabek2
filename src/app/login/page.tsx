@@ -242,11 +242,11 @@ export default function LoginPage() {
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [maintenanceConfirm, setMaintenanceConfirm] = useState(false);
   const [introReady, setIntroReady] = useState(false);
-  const [loginFact, setLoginFact] = useState<string>(() => LOGIN_FACTS[0]);
+  const [loginFact, setLoginFact] = useState<string>(() => getRandomLoginFact(locale));
 
   useEffect(() => {
-    setLoginFact(getRandomLoginFact());
-  }, []);
+    setLoginFact(getRandomLoginFact(locale));
+  }, [locale]);
 
   const getAuthErrorMessage = (message: string) => {
     const lower = message.toLowerCase();
@@ -691,8 +691,8 @@ export default function LoginPage() {
           </div>
 
           <div className="relative z-10 my-auto space-y-4">
-            <h2 className={`${headingClass} lg-rise ${locale === "ar" ? "text-[1.75rem] leading-[1.38]" : "text-[2.1rem] leading-[1.15]"} font-extrabold text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
-              {locale === "ar" ? loginFact : copy.heroTitle}
+            <h2 className={`${headingClass} lg-rise ${locale === "ar" ? "text-[1.75rem] leading-[1.38]" : "text-[1.85rem] leading-[1.3]"} font-extrabold text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
+              {loginFact}
             </h2>
           </div>
         </aside>

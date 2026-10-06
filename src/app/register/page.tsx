@@ -289,10 +289,10 @@ const REGISTER_COPY = {
     passwordStrengthMedium: "Moyen",
     passwordStrengthStrong: "Robuste",
     createAccountFailed: "Impossible de créer le compte pour le moment. Réessaie.",
-    heroTitle: "Prends le contrôle de tes finances avec 7sabek",
-    heroSubtitle: "Rejoins des milliers de personnes qui gèrent leur argent facilement avec la méthode des enveloppes.",
+    heroTitle: "7sabek n’est pas juste une application..",
+    heroSubtitle: "7sabek est la discipline qui transforme durablement votre vie financière.",
     baOmarName: "Ba Omar",
-    baOmarRole: "Conseiller Financier IA",
+    baOmarRole: "Votre allié financier",
     baOmarQuote: "« Marhaban bik ! En quelques secondes, créons ton compte pour reprendre le contrôle de ton budget avec la méthode des enveloppes. »",
     envelopeLabel: "Enveloppe Active",
     envelopeCategory: "Alimentation & Courses",
@@ -345,9 +345,9 @@ const REGISTER_COPY = {
     tryWithoutAccountHint: "Découvre 7sabek instantanément en mode invité, sans e-mail ni engagement.",
     guestStartError: "Impossible de démarrer le mode découverte. Réessaie.",
     retryIn: "Trop de tentatives. Réessaie dans",
-    trustFeature1: "100% Gratuit & Conçu pour le Maroc",
-    trustFeature2: "Méthode des Enveloppes Budgétaires",
-    trustFeature3: "Sécurité & Chiffrement de niveau bancaire",
+    trustFeature1: "100% gratuit et pensé pour le Maroc",
+    trustFeature2: "Vous savez quoi dépenser chaque jour sans stress",
+    trustFeature3: "Données chiffrées et protégées en toute confidentialité",
   },
   en: {
     photoMustBeImage: "The file must be an image (PNG, JPG, WebP).",
@@ -381,10 +381,10 @@ const REGISTER_COPY = {
     passwordStrengthMedium: "Medium",
     passwordStrengthStrong: "Strong",
     createAccountFailed: "Unable to create account right now. Please try again.",
-    heroTitle: "Take control of your finances with 7sabek",
-    heroSubtitle: "Join thousands of users budgeting effortlessly with the smart envelope method.",
+    heroTitle: "7sabek is more than just an app..",
+    heroSubtitle: "7sabek is the discipline that transforms your financial trajectory.",
     baOmarName: "Ba Omar",
-    baOmarRole: "AI Financial Advisor",
+    baOmarRole: "Your financial copilot",
     baOmarQuote: "“Welcome! In just a few seconds, let's create your account to take full control of your finances with envelope budgeting.”",
     envelopeLabel: "Active Envelope",
     envelopeCategory: "Groceries & Food",
@@ -437,9 +437,9 @@ const REGISTER_COPY = {
     tryWithoutAccountHint: "Explore 7sabek instantly in guest mode, no email or commitment required.",
     guestStartError: "Unable to start discovery mode. Please try again.",
     retryIn: "Too many attempts. Try again in",
-    trustFeature1: "100% Free & Tailored for Morocco",
-    trustFeature2: "Smart Envelope Budgeting Method",
-    trustFeature3: "Bank-grade Security & Encryption",
+    trustFeature1: "100% free and tailored for Morocco",
+    trustFeature2: "Clear daily spending limit with zero guesswork",
+    trustFeature3: "Bank-grade encryption and total privacy",
   },
   ar: {
     photoMustBeImage: "الملف خاصو يكون صورة (PNG أو JPG أو WebP).",
@@ -615,12 +615,12 @@ export default function RegisterPage() {
 
   const [guestLoading, setGuestLoading] = useState(false);
   const [todayQuote, setTodayQuote] = useState<string>(
-    () => REGISTER_DAILY_QUOTES[new Date().getDay()] ?? REGISTER_DAILY_QUOTES[1]
+    () => getTodayRegisterQuote(locale)
   );
 
   useEffect(() => {
-    setTodayQuote(getTodayRegisterQuote());
-  }, []);
+    setTodayQuote(getTodayRegisterQuote(locale));
+  }, [locale]);
 
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
   const isDevEnvironment = process.env.NODE_ENV !== "production";
@@ -1221,7 +1221,7 @@ export default function RegisterPage() {
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs italic leading-relaxed text-[#DCEAE3]">
-                    {locale === "ar" ? `« ${todayQuote} »` : copy.baOmarQuote}
+                    {`« ${todayQuote} »`}
                   </p>
                 </div>
               </div>
