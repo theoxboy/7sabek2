@@ -93,10 +93,6 @@ const LOGIN_COPY = {
     quickSignInMethod: "Face ID / empreinte",
     quickSignInVerifying: "...",
     quickSignInError:
-      "Connexion rapide impossible. Réessaie.",
-    chipSalary: "Salaire",
-    chipRent: "Loyer",
-    chipDebt: "Crédit",
     addExpenseQuick: "Dépense",
   },
   en: {
@@ -154,9 +150,6 @@ const LOGIN_COPY = {
     quickSignInMethod: "Face ID / fingerprint",
     quickSignInVerifying: "...",
     quickSignInError: "Quick sign-in failed. Try again.",
-    chipSalary: "Salary",
-    chipRent: "Rent",
-    chipDebt: "Loan",
     addExpenseQuick: "Expense",
   },
   ar: {
@@ -213,9 +206,6 @@ const LOGIN_COPY = {
     quickSignInMethod: "Face ID / بصمة",
     quickSignInVerifying: "...",
     quickSignInError: "ما قدرناش ندخلوك بالبصمة. عاود حاول.",
-    chipSalary: "السالير",
-    chipRent: "الكراء",
-    chipDebt: "كريدي",
     addExpenseQuick: "مصروف",
   },
 } satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
@@ -700,24 +690,7 @@ export default function LoginPage() {
             </h2>
           </div>
 
-          <div className="lg-rise relative z-10 flex flex-wrap gap-2" style={{ "--d": ".5s" } as React.CSSProperties}>
-            {[
-              { label: copy.chipSalary, value: "+12 400", dot: "#17C777", up: true },
-              { label: copy.chipRent, value: "-3 200", dot: "#0A241D", up: false },
-              { label: copy.chipDebt, value: "-2 100", dot: "#8B7CF6", up: false },
-            ].map((chip) => (
-              <span
-                key={chip.label}
-                className="lg-chip flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-2 text-[0.76rem] font-bold text-[#DCEAE3] backdrop-blur"
-              >
-                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: chip.dot }} />
-                <span>{chip.label}</span>
-                <span className={`tabular-nums font-extrabold ${chip.up ? "text-[#17C777]" : ""}`} dir="ltr">
-                  {chip.value}
-                </span>
-              </span>
-            ))}
-          </div>
+
         </aside>
 
         {/* ---------------- form panel ---------------- */}
@@ -1026,13 +999,6 @@ export default function LoginPage() {
           background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 30%), rgba(23, 199, 119, 0.16), transparent 66%);
         }
         .lg-panel:hover .lg-spot { opacity: 1; }
-        .lg-chip { animation: lgFloat 5.6s ease-in-out infinite; }
-        .lg-chip:nth-child(2) { animation-delay: 0.9s; }
-        .lg-chip:nth-child(3) { animation-delay: 1.8s; }
-        @keyframes lgFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-7px); }
-        }
         .lg-intro .lg-rise {
           opacity: 0;
           transform: translateY(16px);
@@ -1080,7 +1046,7 @@ export default function LoginPage() {
           letter-spacing: 0 !important;
         }
         @media (prefers-reduced-motion: reduce) {
-          .lg-blob, .lg-chip, .lg-sticker { animation: none !important; }
+          .lg-blob, .lg-sticker { animation: none !important; }
           .lg-intro .lg-rise { animation: none !important; opacity: 1 !important; transform: none !important; }
           .lg-cta::after { display: none; }
           .lg-spot { display: none; }
