@@ -92,7 +92,7 @@ const LOGIN_COPY = {
     quickSignInTitle: "Empreinte",
     quickSignInMethod: "Face ID / empreinte",
     quickSignInVerifying: "...",
-    quickSignInError:
+    quickSignInError: "Connexion rapide impossible. Réessaie.",
     addExpenseQuick: "Dépense",
   },
   en: {
