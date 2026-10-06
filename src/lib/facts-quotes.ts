@@ -29,7 +29,7 @@ export const LOGIN_FACTS: Record<FloussyLocale, string[]> = {
 export const REGISTER_DAILY_QUOTES: Record<FloussyLocale, Record<number, string>> = {
   ar: {
     0: "5 دقايق ديال الترتيب اليوم، كتوفّر عليك شهر كامل ديال الحيرة والتخمام.", // Dimanche
-    1: "7sabek ماشي سحر كيكثر الفلوس.. 7sabek مراية كتعطيك الحقيقة باش تاخد قرارات أصح.", // Lundi
+    1: "7sabek ماشي مجرد تطبيق.. 7sabek هو الديسيبلين اللي كيبدّل مجرى حياتك المالية.", // Lundi
     2: "ضربتي تمارة باش دخلتي داك الدرهم.. أقل حاجة يستاهلها هو تنتبه فين كيمشي.", // Mardi
     3: "التخمام فالحساب كيعيّي كتر من الصرف نيت.. واجه أرقامك وغادي تلقى الأمور أبسط مما كتخيّل.", // Mercredi
     4: "تصرف ونت عارف شحال باقي، حسن بمية مرة من تصرف وعينيك مغمضين.", // Jeudi
@@ -38,7 +38,7 @@ export const REGISTER_DAILY_QUOTES: Record<FloussyLocale, Record<number, string>
   },
   fr: {
     0: "5 minutes d’organisation aujourd’hui vous évitent un mois entier de doutes et de stress.",
-    1: "7sabek n’est pas une formule magique : c’est le miroir lucide qui éclaire vos meilleures décisions.",
+    1: "7sabek n’est pas juste une application : c’est la discipline qui transforme durablement votre vie financière.",
     2: "Chaque dirham est le fruit de vos efforts. Le minimum qu’il mérite, c’est votre attention sur sa destination.",
     3: "Angoisser pour son argent fatigue plus que les dépenses. Posez vos chiffres : tout devient plus simple.",
     4: "Dépenser en sachant exactement ce qu’il reste vaut mille fois mieux que dépenser les yeux fermés.",
@@ -47,7 +47,7 @@ export const REGISTER_DAILY_QUOTES: Record<FloussyLocale, Record<number, string>
   },
   en: {
     0: "5 minutes of planning today saves you a whole month of stress and guesswork.",
-    1: "7sabek isn't financial magic: it's the clear mirror that helps you make sound decisions.",
+    1: "7sabek is more than just an app: it's the discipline that transforms your financial trajectory.",
     2: "You worked hard to earn every dirham. The least it deserves is your attention on where it goes.",
     3: "Worrying about money drains more energy than spending it. Look at your numbers: it's simpler than you think.",
     4: "Spending while knowing what's left is a hundred times better than spending blindly.",

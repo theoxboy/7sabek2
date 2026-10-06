@@ -12,7 +12,6 @@ import {
   Calendar,
   Camera,
   Check,
-  CheckCircle2,
   Eye,
   EyeOff,
   Home,
@@ -21,7 +20,6 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
-  Sparkles,
   Trash2,
   User,
 } from "lucide-react";
@@ -1181,61 +1179,11 @@ export default function RegisterPage() {
             <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
           </div>
 
-          {/* Center Showcase: Ba Omar Card + Interactive Envelope Widget */}
-          <div className="relative z-10 my-auto space-y-6">
-            <div className="rg-rise space-y-2" style={{ "--d": ".15s" } as React.CSSProperties}>
-              <h2 className={`${headingClass} text-[2.1rem] font-extrabold leading-[1.18] text-white`}>
-                {copy.heroTitle}
-              </h2>
-              <p className="max-w-[40ch] text-[0.93rem] leading-relaxed text-[#B9CFC5]">
-                {copy.heroSubtitle}
-              </p>
-            </div>
-
-            {/* BA OMAR WELCOME CARD */}
-            <div
-              className="rg-rise relative overflow-hidden rounded-2xl border border-[#17C777]/30 bg-gradient-to-br from-white/[0.12] to-white/[0.04] p-4 shadow-xl backdrop-blur-md"
-              style={{ "--d": ".28s" } as React.CSSProperties}
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="relative flex-none">
-                  <div className="relative h-14 w-14 overflow-hidden rounded-2xl border-2 border-[#17C777]/50 shadow-md">
-                    <Image
-                      src="/landing/ai/ba-omar-avatar.png"
-                      alt={copy.baOmarName}
-                      width={56}
-                      height={56}
-                      className="h-full w-full object-cover object-top"
-                      priority
-                    />
-                  </div>
-                  <span className="absolute -bottom-1 -end-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#17C777] text-[10px] text-white ring-2 ring-[#0A241D]">
-                    <Sparkles className="h-2.5 w-2.5" />
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-white">{copy.baOmarName}</span>
-                    <span className="rounded-full bg-[#17C777]/20 px-2 py-0.5 text-[0.68rem] font-bold text-[#17C777]">
-                      {copy.baOmarRole}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-xs italic leading-relaxed text-[#DCEAE3]">
-                    {`« ${todayQuote} »`}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* TRUST HIGHLIGHTS */}
-            <div className="rg-rise space-y-2 pt-2" style={{ "--d": ".42s" } as React.CSSProperties}>
-              {[copy.trustFeature1, copy.trustFeature2, copy.trustFeature3].map((feat) => (
-                <div key={feat} className="flex items-center gap-2.5 text-xs font-semibold text-[#B9CFC5]">
-                  <CheckCircle2 className="h-4 w-4 flex-none text-[#17C777]" />
-                  <span>{feat}</span>
-                </div>
-              ))}
-            </div>
+          {/* Centered Daily Quote */}
+          <div className="relative z-10 my-auto space-y-4">
+            <h2 className={`${headingClass} rg-rise ${locale === "ar" ? "text-[1.85rem] leading-[1.38]" : "text-[1.95rem] leading-[1.3]"} font-extrabold text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
+              {`« ${todayQuote} »`}
+            </h2>
           </div>
 
 
