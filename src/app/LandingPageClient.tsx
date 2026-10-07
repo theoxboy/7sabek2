@@ -26,7 +26,6 @@ import {
   isSupportedLocale,
   type FloussyLocale,
 } from "@/lib/localePreference";
-import TravelShowcaseBlock from "@/components/landing/TravelShowcaseBlock";
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "900"] });
@@ -671,9 +670,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       <div className="lp-progress" aria-hidden="true">
         <span style={{ width: `${progress}%` }} />
       </div>
-
-      {/* Travel Showcase Template Block */}
-      <TravelShowcaseBlock />
 
       {/* ============================ HEADER ============================ */}
       <header className={`lp-header ${scrolled ? "lp-scrolled" : ""}`}>
