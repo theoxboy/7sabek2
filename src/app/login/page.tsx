@@ -690,10 +690,45 @@ export default function LoginPage() {
             <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
           </div>
 
-          <div className="relative z-10 my-auto space-y-4">
-            <h2 className={`${headingClass} lg-rise ${locale === "ar" ? "text-[1.75rem] leading-[1.38]" : "text-[1.85rem] leading-[1.3]"} font-extrabold text-white`} style={{ "--d": ".18s" } as React.CSSProperties}>
-              {loginFact}
-            </h2>
+          {/* Centered Aero Glassmorphism Cadran */}
+          <div className="relative z-10 my-auto w-full">
+            <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-white/[0.12] to-white/[0.04] p-7 shadow-[0_20px_50px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.35)] backdrop-blur-2xl sm:p-9">
+              {/* Aero specular reflection & ambient light */}
+              <div className="pointer-events-none absolute -top-12 -start-12 h-36 w-36 rounded-full bg-emerald-400/20 blur-2xl" aria-hidden="true" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent" aria-hidden="true" />
+
+              {/* Aero Badge */}
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-bold text-emerald-300 shadow-xs backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span>
+                  {locale === "ar"
+                    ? "حكمة مالية"
+                    : locale === "fr"
+                    ? "Discipline financière"
+                    : "Financial Wisdom"}
+                </span>
+              </div>
+
+              {/* Quote / Fact */}
+              <h2
+                className={`${headingClass} lg-rise ${
+                  locale === "ar"
+                    ? "text-[1.65rem] leading-[1.45]"
+                    : "text-[1.75rem] leading-[1.35]"
+                } font-extrabold text-white text-balance`}
+                style={{ "--d": ".18s" } as React.CSSProperties}
+              >
+                {loginFact}
+              </h2>
+
+              {/* Aero Card Footer Accent */}
+              <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4 text-xs font-semibold text-emerald-200/70">
+                <span>7sabek</span>
+                <span className="text-[11px] opacity-75">
+                  {locale === "ar" ? "كل درهم فبلاصتو" : "Chaque dirham à sa place"}
+                </span>
+              </div>
+            </div>
           </div>
         </aside>
 
