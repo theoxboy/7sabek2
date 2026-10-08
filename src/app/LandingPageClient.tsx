@@ -89,6 +89,7 @@ type Copy = {
   simYearUnit: string;
   simDisclaimer: string;
   cmpTitle: string;
+  cmpScrollHint: string;
   cmpColCrit: string;
   cmpColOld: string;
   cmpColNew: string;
@@ -177,6 +178,7 @@ const TRANSLATIONS: Record<FloussyLocale, Copy> = {
     simYearUnit: "MAD / an",
     simDisclaimer: "Simulation indicative basée sur une répartition type. Dans l’app, tu fixes tes propres montants.",
     cmpTitle: "Un tracker te dit où est parti ton argent. 7sabek lui donne une mission.",
+    cmpScrollHint: "Glisse pour comparer les colonnes →",
     cmpColCrit: "CRITÈRE",
     cmpColOld: "TRACKER CLASSIQUE",
     cmpColNew: "7SABEK",
@@ -274,6 +276,7 @@ const TRANSLATIONS: Record<FloussyLocale, Copy> = {
     simYearUnit: "درهم / عام",
     simDisclaimer: "محاكاة تقديرية مبنية على توزيع متوازن. فالتطبيق، تقدر تختار المبالغ لي مسلكاك.",
     cmpTitle: "التطبيقات العادية كتقولك فين مشاو فلوسك. 7sabek كيعطي لكل درهم مهمة.",
+    cmpScrollHint: "مرر لمشاهدة المقارنة ←",
     cmpColCrit: "المعيار",
     cmpColOld: "تطبيق عادي",
     cmpColNew: "7SABEK",
@@ -371,6 +374,7 @@ const TRANSLATIONS: Record<FloussyLocale, Copy> = {
     simYearUnit: "MAD / yr",
     simDisclaimer: "Indicative simulation based on typical allocation. Inside the app, you customize your exact amounts.",
     cmpTitle: "A tracker tells you where your money went. 7sabek gives it a mission.",
+    cmpScrollHint: "Swipe to compare columns →",
     cmpColCrit: "CRITERIA",
     cmpColOld: "CLASSIC TRACKER",
     cmpColNew: "7SABEK",
@@ -434,6 +438,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [guestLoading, setGuestLoading] = useState(false);
+
+  // Mobile navigation drawer toggle
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Interactive hero state
   const [mx, setMx] = useState(0);
@@ -530,11 +537,11 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
   // Floating chips
   const floaters = [
-    { x: "-40px", y: "70px", ini: "SA", label: t.floaterSal, amount: "+12 400 MAD", tint: "#E2F1E8", fg: "#0A7A53", d: 1.4, delay: "0s" },
-    { x: "300px", y: "30px", ini: "LO", label: t.floaterRent, amount: "−3 500 MAD", tint: "#EFEDE6", fg: "#0F1A16", d: 1.0, delay: "1.2s" },
-    { x: "-60px", y: "330px", ini: "IN", label: t.floaterNet, amount: "−300 MAD", tint: "#E6EEFA", fg: "#2457A6", d: 1.8, delay: "0.6s" },
-    { x: "310px", y: "400px", ini: "CR", label: t.floaterDebt, amount: "−1 800 MAD", tint: "#EFE7F6", fg: "#6B3FA0", d: 1.2, delay: "2s" },
-    { x: "250px", y: "560px", ini: "EP", label: t.floaterSav, amount: "+1 500 MAD", tint: "#FFF4DC", fg: "#8A5300", d: 1.6, delay: "0.3s" },
+    { x: "-20px", y: "70px", ini: "SA", label: t.floaterSal, amount: "+12 400 MAD", tint: "#E2F1E8", fg: "#0A7A53", d: 1.4, delay: "0s", side: "left" },
+    { x: "240px", y: "40px", ini: "LO", label: t.floaterRent, amount: "−3 500 MAD", tint: "#EFEDE6", fg: "#0F1A16", d: 1.0, delay: "1.2s", side: "right" },
+    { x: "-30px", y: "310px", ini: "IN", label: t.floaterNet, amount: "−300 MAD", tint: "#E6EEFA", fg: "#2457A6", d: 1.8, delay: "0.6s", side: "left" },
+    { x: "230px", y: "370px", ini: "CR", label: t.floaterDebt, amount: "−1 800 MAD", tint: "#EFE7F6", fg: "#6B3FA0", d: 1.2, delay: "2s", side: "right" },
+    { x: "190px", y: "520px", ini: "EP", label: t.floaterSav, amount: "+1 500 MAD", tint: "#FFF4DC", fg: "#8A5300", d: 1.6, delay: "0.3s", side: "right" },
   ];
 
   // Marquee ticker items
@@ -594,9 +601,20 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
+        width: "100%",
       }}
     >
       <style>{`
+        html, body {
+          overflow-x: hidden;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          -webkit-text-size-adjust: 100%;
+        }
+        * {
+          box-sizing: border-box;
+        }
         a { color: #0A7A53; text-decoration: none; }
         a:hover { color: #06402C; }
         @keyframes sbk-marquee {
@@ -610,7 +628,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         .sbk-track {
           display: flex;
           width: max-content;
-          gap: 48px;
+          gap: 36px;
           animation: sbk-marquee 32s linear infinite;
         }
         .sbk-float {
@@ -618,6 +636,253 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         }
         input[type="range"] {
           accent-color: #0A7A53;
+        }
+
+        /* Responsive Layout Utilities */
+        .lp-header-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 12px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+        }
+        @media (min-width: 900px) {
+          .lp-header-container {
+            padding: 14px 24px;
+            gap: 28px;
+          }
+        }
+
+        .lp-desktop-nav {
+          display: none;
+        }
+        @media (min-width: 900px) {
+          .lp-desktop-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+        }
+
+        .lp-mobile-menu-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          border: 1px solid rgba(15, 26, 22, 0.12);
+          background: #FFFFFF;
+          color: #0F1A16;
+          cursor: pointer;
+        }
+        @media (min-width: 900px) {
+          .lp-mobile-menu-btn {
+            display: none !important;
+          }
+        }
+
+        .lp-mobile-drawer {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 16px;
+          background: #FFFFFF;
+          border-bottom: 1px solid rgba(15, 26, 22, 0.08);
+          box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+        }
+
+        .lp-hero-section {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 36px 16px 56px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 40px;
+          width: 100%;
+        }
+        @media (min-width: 900px) {
+          .lp-hero-section {
+            flex-direction: row;
+            padding: 72px 24px 88px;
+            gap: 56px;
+          }
+        }
+
+        .lp-hero-left {
+          flex: 1 1 460px;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 22px;
+          width: 100%;
+        }
+        @media (min-width: 900px) {
+          .lp-hero-left {
+            gap: 26px;
+          }
+        }
+
+        .lp-hero-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          width: 100%;
+        }
+        @media (min-width: 580px) {
+          .lp-hero-buttons {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+          }
+        }
+        .lp-hero-btn-primary, .lp-hero-btn-secondary, .lp-hero-btn-apk {
+          width: 100%;
+          justify-content: center;
+        }
+        @media (min-width: 580px) {
+          .lp-hero-btn-primary, .lp-hero-btn-secondary, .lp-hero-btn-apk {
+            width: auto;
+          }
+        }
+
+        /* 3D Phone Mockup Container on Mobile */
+        .lp-phone-stage {
+          position: relative;
+          width: 360px;
+          max-width: 100%;
+          height: 610px;
+          margin: 0 auto;
+          transform-origin: top center;
+        }
+        @media (max-width: 420px) {
+          .lp-phone-stage {
+            transform: scale(0.88);
+            margin-bottom: -60px;
+          }
+        }
+        @media (max-width: 360px) {
+          .lp-phone-stage {
+            transform: scale(0.78);
+            margin-bottom: -110px;
+          }
+        }
+
+        /* Floater badges responsive placement */
+        @media (max-width: 480px) {
+          .lp-floater-left {
+            left: 4px !important;
+          }
+          .lp-floater-right {
+            left: 170px !important;
+          }
+        }
+
+        /* Section containers */
+        .lp-section-container {
+          max-width: 1200px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 60px 16px 0;
+        }
+        @media (min-width: 900px) {
+          .lp-section-container {
+            padding: 104px 24px 0;
+          }
+        }
+
+        /* Assistant IA card */
+        .lp-omar-card {
+          position: relative;
+          overflow: hidden;
+          border-radius: 24px;
+          background: #06402C;
+          color: #FFFFFF;
+          padding: 28px 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
+          width: 100%;
+        }
+        @media (min-width: 900px) {
+          .lp-omar-card {
+            border-radius: 32px;
+            padding: 56px;
+            flex-direction: row;
+            gap: 48px;
+            align-items: center;
+          }
+        }
+
+        /* Simulator card */
+        .lp-sim-card {
+          background: #FFFFFF;
+          border-radius: 24px;
+          padding: 24px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
+          box-shadow: 0 4px 16px rgba(15, 26, 22, 0.04);
+          width: 100%;
+        }
+        @media (min-width: 900px) {
+          .lp-sim-card {
+            border-radius: 32px;
+            padding: 48px;
+            flex-direction: row;
+            gap: 48px;
+          }
+        }
+
+        /* Final CTA card */
+        .lp-final-card {
+          position: relative;
+          overflow: hidden;
+          border-radius: 24px;
+          background: #0F1A16;
+          color: #FFFFFF;
+          padding: 40px 20px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 20px;
+          text-align: center;
+          width: 100%;
+        }
+        @media (min-width: 900px) {
+          .lp-final-card {
+            border-radius: 32px;
+            padding: 64px 48px;
+            gap: 24px;
+          }
+        }
+        .lp-final-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          width: 100%;
+          align-items: stretch;
+        }
+        @media (min-width: 580px) {
+          .lp-final-buttons {
+            flex-direction: row;
+            width: auto;
+            justify-content: center;
+          }
+        }
+
+        /* Table container */
+        .lp-table-scroll {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          border-radius: 20px;
+          background: #FFFFFF;
+          box-shadow: 0 2px 8px rgba(15, 26, 22, 0.04);
+          width: 100%;
         }
       `}</style>
 
@@ -627,23 +892,14 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           position: "sticky",
           top: 0,
           zIndex: 40,
-          background: "rgba(246, 245, 239, 0.88)",
+          background: "rgba(246, 245, 239, 0.92)",
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
           borderBottom: "1px solid rgba(15, 26, 22, 0.08)",
+          width: "100%",
         }}
       >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "14px 24px",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: "12px 28px",
-          }}
-        >
+        <div className="lp-header-container">
           {/* Logo */}
           <Link
             href="/"
@@ -653,13 +909,14 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               gap: "10px",
               textDecoration: "none",
               color: "#0F1A16",
+              flexShrink: 0,
             }}
           >
             <span
               style={{
-                width: "38px",
-                height: "38px",
-                borderRadius: "11px",
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
                 background: "#0A7A53",
                 display: "flex",
                 alignItems: "center",
@@ -669,8 +926,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               }}
             >
               <svg
-                width="20"
-                height="20"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="#FFFFFF"
@@ -684,7 +941,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </span>
             <span
               style={{
-                fontSize: "22px",
+                fontSize: "21px",
                 fontWeight: 800,
                 letterSpacing: "-0.4px",
                 fontFamily: isAr ? cairo.style.fontFamily : manrope.style.fontFamily,
@@ -694,16 +951,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </span>
           </Link>
 
-          {/* Navigation */}
-          <nav
-            aria-label="Navigation principale"
-            style={{
-              display: "flex",
-              gap: "6px",
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+          {/* Desktop Nav */}
+          <nav className="lp-desktop-nav" aria-label="Navigation principale">
             <a
               href="#simulateur"
               style={{
@@ -713,7 +962,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 fontSize: "15px",
                 fontWeight: 600,
                 textDecoration: "none",
-                transition: "background 0.15s ease",
               }}
             >
               {t.navSim}
@@ -727,7 +975,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 fontSize: "15px",
                 fontWeight: 600,
                 textDecoration: "none",
-                transition: "background 0.15s ease",
               }}
             >
               {t.navWho}
@@ -748,7 +995,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 alignItems: "center",
                 gap: "6px",
                 cursor: "pointer",
-                transition: "background 0.15s ease",
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -762,11 +1008,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           {/* Header Right Actions */}
           <div
             style={{
-              marginInlineStart: "auto",
               display: "flex",
-              flexWrap: "wrap",
               alignItems: "center",
-              gap: "10px",
+              gap: "8px",
             }}
           >
             {/* Lang switcher */}
@@ -775,8 +1019,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               aria-label="Langue"
               style={{
                 display: "flex",
-                padding: "3px",
-                borderRadius: "12px",
+                padding: "2px",
+                borderRadius: "10px",
                 background: "rgba(15, 26, 22, 0.06)",
               }}
             >
@@ -796,19 +1040,18 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                     aria-checked={isActive}
                     onClick={() => changeLocale(id)}
                     style={{
-                      height: "34px",
-                      minWidth: "44px",
-                      padding: "0 10px",
+                      height: "30px",
+                      minWidth: "36px",
+                      padding: "0 6px",
                       border: 0,
-                      borderRadius: "9px",
+                      borderRadius: "8px",
                       background: isActive ? "#FFFFFF" : "transparent",
-                      boxShadow: isActive ? "0 1px 4px rgba(15, 26, 22, 0.12)" : "none",
+                      boxShadow: isActive ? "0 1px 3px rgba(15, 26, 22, 0.12)" : "none",
                       fontFamily: "inherit",
-                      fontSize: "13px",
+                      fontSize: "12px",
                       fontWeight: 700,
                       color: "#0F1A16",
                       cursor: "pointer",
-                      transition: "all 0.15s ease",
                     }}
                   >
                     {label}
@@ -819,60 +1062,39 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
             {/* Auth Buttons */}
             {user ? (
-              <>
-                <Link
-                  href="/dashboard"
-                  style={{
-                    height: "44px",
-                    padding: "0 18px",
-                    borderRadius: "12px",
-                    background: "#0A7A53",
-                    color: "#FFFFFF",
-                    display: "flex",
-                    alignItems: "center",
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    textDecoration: "none",
-                  }}
-                >
-                  {t.dashboard}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void logout().finally(() => setUser(null));
-                  }}
-                  style={{
-                    height: "44px",
-                    padding: "0 14px",
-                    borderRadius: "12px",
-                    border: "1px solid rgba(15, 26, 22, 0.15)",
-                    background: "transparent",
-                    color: "#55645D",
-                    display: "flex",
-                    alignItems: "center",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  {t.logout}
-                </button>
-              </>
+              <Link
+                href="/dashboard"
+                style={{
+                  height: "38px",
+                  padding: "0 14px",
+                  borderRadius: "10px",
+                  background: "#0A7A53",
+                  color: "#FFFFFF",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t.dashboard}
+              </Link>
             ) : (
               <>
                 <Link
                   href="/login"
                   style={{
-                    height: "44px",
-                    padding: "0 16px",
-                    borderRadius: "12px",
+                    height: "38px",
+                    padding: "0 10px",
+                    borderRadius: "10px",
                     display: "flex",
                     alignItems: "center",
-                    fontSize: "15px",
+                    fontSize: "14px",
                     fontWeight: 700,
                     color: "#0F1A16",
                     textDecoration: "none",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {t.login}
@@ -880,25 +1102,107 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 <Link
                   href="/register"
                   style={{
-                    height: "44px",
-                    padding: "0 20px",
-                    borderRadius: "12px",
+                    height: "38px",
+                    padding: "0 14px",
+                    borderRadius: "10px",
                     background: "#0F1A16",
                     color: "#FFFFFF",
                     display: "flex",
                     alignItems: "center",
-                    fontSize: "15px",
+                    fontSize: "14px",
                     fontWeight: 700,
                     textDecoration: "none",
-                    boxShadow: "0 4px 12px rgba(15, 26, 22, 0.15)",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {t.start}
                 </Link>
               </>
             )}
+
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              className="lp-mobile-menu-btn"
+              aria-label="Menu"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <nav className="lp-mobile-drawer" aria-label="Menu mobile">
+            <a
+              href="#simulateur"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "10px 14px",
+                borderRadius: "10px",
+                background: "#F6F5EF",
+                color: "#33423C",
+                fontSize: "15px",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              {t.navSim}
+            </a>
+            <a
+              href="#pour-qui"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "10px 14px",
+                borderRadius: "10px",
+                background: "#F6F5EF",
+                color: "#33423C",
+                fontSize: "15px",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              {t.navWho}
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setApkOpen(true);
+              }}
+              style={{
+                padding: "10px 14px",
+                borderRadius: "10px",
+                border: 0,
+                background: "#E2F1E8",
+                color: "#06402C",
+                fontFamily: "inherit",
+                fontSize: "15px",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                cursor: "pointer",
+                textAlign: "start",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <rect x="6" y="2" width="12" height="20" rx="2.5" />
+                <path d="M11 18h2" />
+              </svg>
+              {t.navApk}
+            </button>
+          </nav>
+        )}
       </header>
 
       {/* HERO SECTION */}
@@ -908,29 +1212,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
         style={{
           position: "relative",
           overflow: "hidden",
+          width: "100%",
         }}
       >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "72px 24px 88px",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: "56px",
-          }}
-        >
+        <div className="lp-hero-section">
           {/* Left Column */}
-          <div
-            style={{
-              flex: "1 1 460px",
-              minWidth: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: "26px",
-            }}
-          >
+          <div className="lp-hero-left">
             {/* Badge */}
             <span
               style={{
@@ -938,11 +1225,11 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                padding: "8px 14px",
+                padding: "6px 12px",
                 borderRadius: "999px",
                 background: "#E2F1E8",
                 color: "#06402C",
-                fontSize: "14px",
+                fontSize: "13px",
                 fontWeight: 700,
               }}
             >
@@ -961,10 +1248,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <h1
               style={{
                 margin: 0,
-                fontSize: "clamp(42px, 5.5vw, 76px)",
-                lineHeight: 1.05,
+                fontSize: "clamp(34px, 7vw, 76px)",
+                lineHeight: 1.06,
                 fontWeight: 800,
-                letterSpacing: "-1.8px",
+                letterSpacing: "-1.5px",
               }}
             >
               {t.h1a}
@@ -977,7 +1264,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               style={{
                 margin: 0,
                 maxWidth: "520px",
-                fontSize: "19px",
+                fontSize: "clamp(16px, 3.5vw, 19px)",
                 lineHeight: 1.6,
                 color: "#4A5A53",
               }}
@@ -986,23 +1273,23 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </p>
 
             {/* CTAs */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+            <div className="lp-hero-buttons">
               <Link
                 href="/register"
+                className="lp-hero-btn-primary"
                 style={{
-                  height: "56px",
-                  padding: "0 26px",
+                  height: "54px",
+                  padding: "0 24px",
                   borderRadius: "14px",
                   background: "#0A7A53",
                   color: "#FFFFFF",
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
-                  fontSize: "17px",
+                  fontSize: "16px",
                   fontWeight: 800,
                   textDecoration: "none",
-                  boxShadow: "0 10px 24px rgba(10, 122, 83, 0.28)",
-                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  boxShadow: "0 8px 20px rgba(10, 122, 83, 0.28)",
                 }}
               >
                 {t.cta1}
@@ -1023,18 +1310,19 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
               <button
                 type="button"
+                className="lp-hero-btn-secondary"
                 onClick={handleGuestStart}
                 disabled={guestLoading}
                 style={{
-                  height: "56px",
-                  padding: "0 22px",
+                  height: "54px",
+                  padding: "0 20px",
                   borderRadius: "14px",
                   border: "1.5px solid #0F1A16",
                   background: "transparent",
                   color: "#0F1A16",
                   display: "flex",
                   alignItems: "center",
-                  fontSize: "17px",
+                  fontSize: "16px",
                   fontWeight: 700,
                   cursor: guestLoading ? "wait" : "pointer",
                   opacity: guestLoading ? 0.7 : 1,
@@ -1046,9 +1334,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
               <button
                 type="button"
+                className="lp-hero-btn-apk"
                 onClick={() => setApkOpen(true)}
                 style={{
-                  height: "56px",
+                  height: "54px",
                   padding: "0 18px",
                   borderRadius: "14px",
                   border: 0,
@@ -1065,8 +1354,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 }}
               >
                 <svg
-                  width="20"
-                  height="20"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="#0A7A53"
@@ -1081,21 +1370,21 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </div>
 
             {/* Trust points */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "18px", fontSize: "14px", color: "#55645D" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px 18px", fontSize: "14px", color: "#55645D" }}>
               <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12l5 5 9-10" />
                 </svg>
                 {t.trust1}
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12l5 5 9-10" />
                 </svg>
                 {t.trust2}
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12l5 5 9-10" />
                 </svg>
                 {t.trust3}
@@ -1106,23 +1395,24 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           {/* Right Column: 3D Tilt Phone Mockup */}
           <div
             style={{
-              flex: "1 1 420px",
+              flex: "1 1 360px",
               minWidth: 0,
+              width: "100%",
               display: "flex",
               justifyContent: "center",
               perspective: "1400px",
             }}
           >
-            <div style={{ position: "relative", width: "420px", maxWidth: "100%", height: "640px" }}>
+            <div className="lp-phone-stage">
               {/* Radial green glow background */}
               <div
                 style={{
                   position: "absolute",
                   left: "50%",
                   top: "50%",
-                  width: "460px",
-                  height: "460px",
-                  margin: "-230px 0 0 -230px",
+                  width: "420px",
+                  height: "420px",
+                  margin: "-210px 0 0 -210px",
                   borderRadius: "50%",
                   background: "radial-gradient(circle, rgba(10, 122, 83, 0.22), rgba(10, 122, 83, 0) 70%)",
                   pointerEvents: "none",
@@ -1135,14 +1425,14 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   position: "absolute",
                   left: "50%",
                   top: "10px",
-                  width: "300px",
-                  marginLeft: "-150px",
-                  height: "620px",
-                  borderRadius: "48px",
+                  width: "280px",
+                  marginLeft: "-140px",
+                  height: "590px",
+                  borderRadius: "44px",
                   background: "#0F1A16",
-                  padding: "12px",
+                  padding: "10px",
                   boxSizing: "border-box",
-                  boxShadow: "0 40px 80px rgba(6, 64, 44, 0.35)",
+                  boxShadow: "0 30px 70px rgba(6, 64, 44, 0.35)",
                   transform: phoneTransform,
                   transition: "transform 0.2s ease-out",
                 }}
@@ -1152,7 +1442,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   style={{
                     width: "100%",
                     height: "100%",
-                    borderRadius: "38px",
+                    borderRadius: "36px",
                     overflow: "hidden",
                     background: "#F4F5F1",
                     display: "flex",
@@ -1160,42 +1450,42 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   }}
                 >
                   {/* Camera pill notch */}
-                  <div style={{ height: "34px", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                    <span style={{ width: "90px", height: "24px", borderRadius: "12px", background: "#0F1A16" }} />
+                  <div style={{ height: "30px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <span style={{ width: "80px", height: "20px", borderRadius: "10px", background: "#0F1A16" }} />
                   </div>
 
                   {/* Phone Screen Content */}
                   <div
                     style={{
-                      padding: "10px 16px",
+                      padding: "8px 14px",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "12px",
+                      gap: "10px",
                       fontFamily: manrope.style.fontFamily,
                     }}
                   >
                     {/* Available Cash Card */}
                     <div
                       style={{
-                        borderRadius: "22px",
+                        borderRadius: "20px",
                         background: "#06402C",
                         color: "#FFFFFF",
-                        padding: "16px",
+                        padding: "14px",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "4px",
+                        gap: "2px",
                       }}
                     >
                       <span style={{ fontSize: "11px", color: "#9FD8BE", fontWeight: 700 }}>
                         {t.cashAvailable}
                       </span>
-                      <span style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "-0.5px" }}>
-                        2 640,00 <span style={{ fontSize: "13px", color: "#9FD8BE" }}>MAD</span>
+                      <span style={{ fontSize: "25px", fontWeight: 800, letterSpacing: "-0.5px" }}>
+                        2 640,00 <span style={{ fontSize: "12px", color: "#9FD8BE" }}>MAD</span>
                       </span>
                     </div>
 
                     {/* Active envelopes header */}
-                    <span style={{ fontSize: "12px", fontWeight: 800, color: "#55645D" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#55645D" }}>
                       {t.activeEnvelopes}
                     </span>
 
@@ -1210,22 +1500,22 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                         key={e.name}
                         style={{
                           background: "#FFFFFF",
-                          borderRadius: "16px",
-                          padding: "12px",
+                          borderRadius: "14px",
+                          padding: "10px 12px",
                           display: "flex",
                           flexDirection: "column",
-                          gap: "8px",
+                          gap: "6px",
                           boxShadow: "0 2px 6px rgba(15, 26, 22, 0.04)",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                           <b>{e.name}</b>
                           <span style={{ color: "#55645D" }}>{e.left}</span>
                         </div>
-                        <div style={{ height: "6px", borderRadius: "3px", background: "#EEF1ED" }}>
+                        <div style={{ height: "5px", borderRadius: "3px", background: "#EEF1ED" }}>
                           <div
                             style={{
-                              height: "6px",
+                              height: "5px",
                               width: e.pct,
                               borderRadius: "3px",
                               background: e.color,
@@ -1242,7 +1532,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               {floaters.map((f, i) => (
                 <div
                   key={i}
-                  className="sbk-float"
+                  className={`sbk-float ${f.side === "left" ? "lp-floater-left" : "lp-floater-right"}`}
                   dir="ltr"
                   style={{
                     position: "absolute",
@@ -1258,34 +1548,34 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                       transition: "transform 0.2s ease-out",
                       display: "flex",
                       alignItems: "center",
-                      gap: "10px",
-                      padding: "10px 14px 10px 10px",
-                      borderRadius: "16px",
+                      gap: "8px",
+                      padding: "8px 12px 8px 8px",
+                      borderRadius: "14px",
                       background: "#FFFFFF",
-                      boxShadow: "0 16px 36px rgba(15, 26, 22, 0.14)",
+                      boxShadow: "0 12px 30px rgba(15, 26, 22, 0.12)",
                       fontFamily: manrope.style.fontFamily,
                       whiteSpace: "nowrap",
                     }}
                   >
                     <span
                       style={{
-                        width: "34px",
-                        height: "34px",
-                        borderRadius: "10px",
+                        width: "30px",
+                        height: "30px",
+                        borderRadius: "8px",
                         background: f.tint,
                         color: f.fg,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "12px",
+                        fontSize: "11px",
                         fontWeight: 800,
                       }}
                     >
                       {f.ini}
                     </span>
                     <span style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ fontSize: "12px", color: "#55645D" }}>{f.label}</span>
-                      <b style={{ fontSize: "15px", color: f.fg }}>{f.amount}</b>
+                      <span style={{ fontSize: "11px", color: "#55645D" }}>{f.label}</span>
+                      <b style={{ fontSize: "13px", color: f.fg }}>{f.amount}</b>
                     </span>
                   </div>
                 </div>
@@ -1302,14 +1592,15 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           overflow: "hidden",
           background: "#0F1A16",
           color: "#FFFFFF",
-          padding: "18px 0",
+          padding: "16px 0",
+          width: "100%",
         }}
         dir="ltr"
       >
-        <div className="sbk-track" style={{ fontFamily: manrope.style.fontFamily, fontSize: "18px", fontWeight: 700 }}>
+        <div className="sbk-track" style={{ fontFamily: manrope.style.fontFamily, fontSize: "16px", fontWeight: 700 }}>
           {[...tickerItems, ...tickerItems, ...tickerItems, ...tickerItems].map((m, index) => (
-            <span key={index} style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap" }}>
-              <span style={{ width: "10px", height: "10px", borderRadius: "5px", background: m.color }} />
+            <span key={index} style={{ display: "flex", alignItems: "center", gap: "10px", whiteSpace: "nowrap" }}>
+              <span style={{ width: "9px", height: "9px", borderRadius: "5px", background: m.color }} />
               {m.name} <span style={{ color: m.color }}>{m.amount}</span>
             </span>
           ))}
@@ -1317,30 +1608,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       </div>
 
       {/* ASSISTANT IA SECTION (BA OMAR) */}
-      <section
-        style={{
-          maxWidth: "1200px",
-          width: "100%",
-          boxSizing: "border-box",
-          margin: "0 auto",
-          padding: "96px 24px 0",
-        }}
-      >
-        <div
-          onMouseMove={onSpot}
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: "32px",
-            background: "#06402C",
-            color: "#FFFFFF",
-            padding: "56px",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "48px",
-            alignItems: "center",
-          }}
-        >
+      <section className="lp-section-container">
+        <div onMouseMove={onSpot} className="lp-omar-card">
           {/* Spotlight background gradient */}
           <div
             style={{
@@ -1359,7 +1628,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              gap: "20px",
+              gap: "18px",
             }}
           >
             <span
@@ -1369,7 +1638,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 borderRadius: "999px",
                 background: "rgba(242, 181, 68, 0.18)",
                 color: "#F2B544",
-                fontSize: "13px",
+                fontSize: "12px",
                 fontWeight: 800,
                 letterSpacing: "1px",
               }}
@@ -1379,25 +1648,25 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <h2
               style={{
                 margin: 0,
-                fontSize: "clamp(32px, 4vw, 48px)",
-                lineHeight: 1.1,
+                fontSize: "clamp(26px, 5.5vw, 48px)",
+                lineHeight: 1.12,
                 fontWeight: 800,
                 letterSpacing: "-1px",
               }}
             >
               {t.omarTitle}
             </h2>
-            <p style={{ margin: 0, fontSize: "18px", lineHeight: 1.6, color: "#CFE6DB" }}>
+            <p style={{ margin: 0, fontSize: "clamp(15px, 3.5vw, 18px)", lineHeight: 1.6, color: "#CFE6DB" }}>
               {t.omarText}
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-              <span style={{ padding: "10px 14px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.08)", fontSize: "15px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              <span style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(255, 255, 255, 0.08)", fontSize: "14px" }}>
                 {t.omarTag1}
               </span>
-              <span style={{ padding: "10px 14px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.08)", fontSize: "15px" }}>
+              <span style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(255, 255, 255, 0.08)", fontSize: "14px" }}>
                 {t.omarTag2}
               </span>
-              <span style={{ padding: "10px 14px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.08)", fontSize: "15px" }}>
+              <span style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(255, 255, 255, 0.08)", fontSize: "14px" }}>
                 {t.omarTag3}
               </span>
             </div>
@@ -1407,8 +1676,9 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           <div
             style={{
               position: "relative",
-              flex: "1 1 380px",
+              flex: "1 1 340px",
               minWidth: 0,
+              width: "100%",
               display: "flex",
               flexDirection: "column",
               gap: "12px",
@@ -1417,26 +1687,26 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <span
                 style={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "26px",
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "24px",
                   background: "#F2B544",
                   color: "#0F1A16",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontFamily: cairo.style.fontFamily,
-                  fontSize: "22px",
+                  fontSize: "20px",
                   fontWeight: 800,
                 }}
               >
                 ع
               </span>
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <b style={{ fontSize: "17px" }}>
+                <b style={{ fontSize: "16px" }}>
                   Ba Omar <span style={{ fontFamily: cairo.style.fontFamily, fontWeight: 600 }}>· با عمر</span>
                 </b>
-                <span style={{ fontSize: "13px", color: "#9FD8BE" }}>{t.omarOnline}</span>
+                <span style={{ fontSize: "12px", color: "#9FD8BE" }}>{t.omarOnline}</span>
               </div>
             </div>
 
@@ -1445,12 +1715,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               dir="rtl"
               style={{
                 alignSelf: isAr ? "flex-start" : "flex-end",
-                maxWidth: "80%",
-                padding: "12px 16px",
-                borderRadius: "18px 18px 4px 18px",
+                maxWidth: "85%",
+                padding: "10px 14px",
+                borderRadius: "16px 16px 4px 16px",
                 background: "#0A7A53",
                 fontFamily: cairo.style.fontFamily,
-                fontSize: "16px",
+                fontSize: "15px",
               }}
             >
               {t.omarUserMsg}
@@ -1460,21 +1730,21 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <div
               style={{
                 alignSelf: isAr ? "flex-end" : "flex-start",
-                maxWidth: "86%",
-                padding: "14px 16px",
-                borderRadius: "18px 18px 18px 4px",
+                maxWidth: "92%",
+                padding: "12px 14px",
+                borderRadius: "16px 16px 16px 4px",
                 background: "rgba(255, 255, 255, 0.1)",
                 display: "flex",
                 flexDirection: "column",
-                gap: "10px",
-                fontSize: "15px",
+                gap: "8px",
+                fontSize: "14px",
               }}
             >
               <span>{t.omarBotMsg}</span>
               <div style={{ height: "6px", borderRadius: "3px", background: "rgba(255, 255, 255, 0.15)" }}>
                 <div style={{ width: "68%", height: "6px", borderRadius: "3px", background: "#7FD3AE" }} />
               </div>
-              <span style={{ fontSize: "13px", color: "#9FD8BE" }}>
+              <span style={{ fontSize: "12px", color: "#9FD8BE" }}>
                 {t.omarBotSub}
               </span>
             </div>
@@ -1483,27 +1753,16 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       </section>
 
       {/* POURQUOI 7SABEK / 4 ETAPES */}
-      <section
-        style={{
-          maxWidth: "1200px",
-          width: "100%",
-          boxSizing: "border-box",
-          margin: "0 auto",
-          padding: "112px 24px 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "40px",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "640px" }}>
-          <span style={{ fontSize: "14px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
+      <section className="lp-section-container" style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "640px" }}>
+          <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
             {t.whyKicker}
           </span>
           <h2
             style={{
               margin: 0,
-              fontSize: "clamp(32px, 4vw, 48px)",
-              lineHeight: 1.1,
+              fontSize: "clamp(26px, 5.5vw, 48px)",
+              lineHeight: 1.12,
               fontWeight: 800,
               letterSpacing: "-1px",
             }}
@@ -1511,26 +1770,25 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             {t.whyTitle}
           </h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))", gap: "14px" }}>
           {t.steps.map((s) => (
             <div
               key={s.n}
               style={{
                 background: "#FFFFFF",
-                borderRadius: "24px",
-                padding: "28px",
+                borderRadius: "20px",
+                padding: "22px 20px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "14px",
-                minHeight: "220px",
+                gap: "12px",
                 boxShadow: "0 2px 8px rgba(15, 26, 22, 0.04)",
               }}
             >
-              <span style={{ fontSize: "44px", fontWeight: 800, color: "#0A7A53", letterSpacing: "-1px" }}>
+              <span style={{ fontSize: "38px", fontWeight: 800, color: "#0A7A53", letterSpacing: "-1px" }}>
                 {s.n}
               </span>
-              <h3 style={{ margin: 0, fontSize: "21px", fontWeight: 800 }}>{s.title}</h3>
-              <p style={{ margin: 0, fontSize: "16px", lineHeight: 1.55, color: "#55645D" }}>
+              <h3 style={{ margin: 0, fontSize: "19px", fontWeight: 800 }}>{s.title}</h3>
+              <p style={{ margin: 0, fontSize: "15px", lineHeight: 1.55, color: "#55645D" }}>
                 {s.text}
               </p>
             </div>
@@ -1539,45 +1797,26 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       </section>
 
       {/* SIMULATEUR */}
-      <section
-        id="simulateur"
-        style={{
-          maxWidth: "1200px",
-          width: "100%",
-          boxSizing: "border-box",
-          margin: "0 auto",
-          padding: "112px 24px 0",
-        }}
-      >
-        <div
-          style={{
-            background: "#FFFFFF",
-            borderRadius: "32px",
-            padding: "48px",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "48px",
-            boxShadow: "0 4px 16px rgba(15, 26, 22, 0.04)",
-          }}
-        >
+      <section id="simulateur" className="lp-section-container">
+        <div className="lp-sim-card">
           {/* Left Controls */}
           <div
             style={{
-              flex: "1 1 380px",
+              flex: "1 1 360px",
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              gap: "24px",
+              gap: "20px",
             }}
           >
-            <span style={{ fontSize: "14px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
+            <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
               {t.simKicker}
             </span>
             <h2
               style={{
                 margin: 0,
-                fontSize: "clamp(30px, 3.5vw, 42px)",
-                lineHeight: 1.1,
+                fontSize: "clamp(26px, 5vw, 42px)",
+                lineHeight: 1.12,
                 fontWeight: 800,
                 letterSpacing: "-1px",
               }}
@@ -1589,8 +1828,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px",
-                fontSize: "15px",
+                gap: "10px",
+                fontSize: "14px",
                 fontWeight: 700,
                 color: "#33423C",
               }}
@@ -1598,14 +1837,14 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               {t.simSalaryLabel}
               <span
                 style={{
-                  fontSize: "44px",
+                  fontSize: "clamp(34px, 8vw, 44px)",
                   fontWeight: 800,
                   color: "#0F1A16",
                   letterSpacing: "-1px",
                 }}
               >
                 {formatMad(salary)}{" "}
-                <span style={{ fontSize: "18px", color: "#55645D" }}>MAD</span>
+                <span style={{ fontSize: "16px", color: "#55645D" }}>MAD</span>
               </span>
               <input
                 type="range"
@@ -1614,19 +1853,19 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 step="100"
                 value={salary}
                 onChange={(e) => setSalary(Number(e.target.value))}
-                style={{ width: "100%", height: "28px", cursor: "pointer" }}
+                style={{ width: "100%", height: "32px", cursor: "pointer" }}
               />
               <span
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  fontSize: "13px",
+                  fontSize: "12px",
                   fontWeight: 600,
                   color: "#55645D",
                 }}
               >
-                <span>3 000</span>
-                <span>40 000</span>
+                <span>3 000 MAD</span>
+                <span>40 000 MAD</span>
               </span>
             </label>
 
@@ -1640,17 +1879,16 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                     type="button"
                     onClick={() => setSalary(p)}
                     style={{
-                      height: "44px",
-                      padding: "0 16px",
-                      borderRadius: "12px",
+                      height: "40px",
+                      padding: "0 14px",
+                      borderRadius: "10px",
                       border: isSelected ? "0" : "1.5px solid #DAD8CF",
                       background: isSelected ? "#0F1A16" : "#FFFFFF",
                       color: isSelected ? "#FFFFFF" : "#0F1A16",
                       fontFamily: "inherit",
-                      fontSize: "15px",
+                      fontSize: "14px",
                       fontWeight: 700,
                       cursor: "pointer",
-                      transition: "all 0.15s ease",
                     }}
                   >
                     {formatMad(p)}
@@ -1659,7 +1897,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               })}
             </div>
 
-            <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.5, color: "#55645D" }}>
+            <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: "#55645D" }}>
               {t.simDisclaimer}
             </p>
           </div>
@@ -1667,21 +1905,21 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
           {/* Right Visual Breakdown */}
           <div
             style={{
-              flex: "1 1 460px",
+              flex: "1 1 420px",
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              gap: "16px",
+              gap: "14px",
             }}
           >
             {/* Visual stacked split bar */}
             <div
               style={{
                 display: "flex",
-                height: "18px",
-                borderRadius: "9px",
+                height: "16px",
+                borderRadius: "8px",
                 overflow: "hidden",
-                gap: "3px",
+                gap: "2px",
               }}
             >
               {splitBars.map((b, i) => (
@@ -1690,24 +1928,24 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </div>
 
             {/* Boxes: Fixed vs Variables */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: "10px" }}>
               {/* Fixed */}
               <div
                 style={{
-                  borderRadius: "20px",
+                  borderRadius: "18px",
                   background: "#F6F5EF",
-                  padding: "18px",
+                  padding: "16px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
                 }}
               >
-                <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1px", color: "#55645D" }}>
+                <span style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", color: "#55645D" }}>
                   {t.simFixedTitle}
                 </span>
                 {fixedConfig.map((r) => (
-                  <div key={r.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px" }}>
-                    <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: r.color }} />
+                  <div key={r.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
+                    <span style={{ width: "9px", height: "9px", borderRadius: "3px", background: r.color, flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>{r.name}</span>
                     <b>{formatMad(salary * r.pct)}</b>
                   </div>
@@ -1717,20 +1955,20 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               {/* Variables */}
               <div
                 style={{
-                  borderRadius: "20px",
+                  borderRadius: "18px",
                   background: "#F6F5EF",
-                  padding: "18px",
+                  padding: "16px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
                 }}
               >
-                <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1px", color: "#55645D" }}>
+                <span style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", color: "#55645D" }}>
                   {t.simVarTitle}
                 </span>
                 {varConfig.map((r) => (
-                  <div key={r.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px" }}>
-                    <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: r.color }} />
+                  <div key={r.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
+                    <span style={{ width: "9px", height: "9px", borderRadius: "3px", background: r.color, flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>{r.name}</span>
                     <b>{formatMad(salary * r.pct)}</b>
                   </div>
@@ -1741,10 +1979,10 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             {/* Projected Savings Banner */}
             <div
               style={{
-                borderRadius: "20px",
+                borderRadius: "18px",
                 background: "#06402C",
                 color: "#FFFFFF",
-                padding: "22px",
+                padding: "20px",
                 display: "flex",
                 flexWrap: "wrap",
                 alignItems: "center",
@@ -1752,23 +1990,23 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 gap: "12px",
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <span style={{ fontSize: "14px", color: "#9FD8BE", fontWeight: 700 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <span style={{ fontSize: "13px", color: "#9FD8BE", fontWeight: 700 }}>
                   {t.simSavingProjected}
                 </span>
-                <span style={{ fontSize: "36px", fontWeight: 800, letterSpacing: "-1px" }}>
+                <span style={{ fontSize: "clamp(26px, 6vw, 36px)", fontWeight: 800, letterSpacing: "-1px" }}>
                   {formatMad(savingAmount)}{" "}
-                  <span style={{ fontSize: "16px", color: "#9FD8BE" }}>{t.simMonthUnit}</span>
+                  <span style={{ fontSize: "14px", color: "#9FD8BE" }}>{t.simMonthUnit}</span>
                 </span>
               </div>
               <span
                 style={{
-                  padding: "10px 14px",
-                  borderRadius: "12px",
+                  padding: "8px 12px",
+                  borderRadius: "10px",
                   background: "rgba(242, 181, 68, 0.18)",
                   color: "#F2B544",
                   fontWeight: 800,
-                  fontSize: "16px",
+                  fontSize: "14px",
                 }}
               >
                 {formatMad(savingYear)} {t.simYearUnit}
@@ -1779,46 +2017,41 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       </section>
 
       {/* TABLEAU COMPARATIF */}
-      <section
-        style={{
-          maxWidth: "1200px",
-          width: "100%",
-          boxSizing: "border-box",
-          margin: "0 auto",
-          padding: "112px 24px 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "32px",
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            maxWidth: "680px",
-            fontSize: "clamp(30px, 3.5vw, 44px)",
-            lineHeight: 1.1,
-            fontWeight: 800,
-            letterSpacing: "-1px",
-          }}
-        >
-          {t.cmpTitle}
-        </h2>
-        <div style={{ overflowX: "auto", borderRadius: "24px", background: "#FFFFFF", boxShadow: "0 2px 8px rgba(15, 26, 22, 0.04)" }}>
-          <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "16px" }}>
+      <section className="lp-section-container" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <h2
+            style={{
+              margin: 0,
+              maxWidth: "680px",
+              fontSize: "clamp(24px, 5vw, 44px)",
+              lineHeight: 1.12,
+              fontWeight: 800,
+              letterSpacing: "-1px",
+            }}
+          >
+            {t.cmpTitle}
+          </h2>
+          <span style={{ fontSize: "13px", color: "#55645D" }}>
+            {t.cmpScrollHint}
+          </span>
+        </div>
+
+        <div className="lp-table-scroll">
+          <table style={{ width: "100%", minWidth: "560px", borderCollapse: "collapse", fontSize: "15px" }}>
             <thead>
               <tr>
-                <th scope="col" style={{ padding: "20px 24px", textAlign: "start", fontSize: "13px", letterSpacing: "1px", color: "#55645D" }}>
+                <th scope="col" style={{ padding: "16px 20px", textAlign: "start", fontSize: "12px", letterSpacing: "1px", color: "#55645D" }}>
                   {t.cmpColCrit}
                 </th>
-                <th scope="col" style={{ padding: "20px 24px", textAlign: "start", fontSize: "13px", letterSpacing: "1px", color: "#55645D" }}>
+                <th scope="col" style={{ padding: "16px 20px", textAlign: "start", fontSize: "12px", letterSpacing: "1px", color: "#55645D" }}>
                   {t.cmpColOld}
                 </th>
                 <th
                   scope="col"
                   style={{
-                    padding: "20px 24px",
+                    padding: "16px 20px",
                     textAlign: "start",
-                    fontSize: "13px",
+                    fontSize: "12px",
                     letterSpacing: "1px",
                     color: "#0A7A53",
                     background: "#E2F1E8",
@@ -1831,20 +2064,20 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             <tbody>
               {t.compare.map((c, i) => (
                 <tr key={i} style={{ borderTop: "1px solid #ECEBE4" }}>
-                  <th scope="row" style={{ padding: "18px 24px", textAlign: "start", fontWeight: 700 }}>
+                  <th scope="row" style={{ padding: "16px 20px", textAlign: "start", fontWeight: 700 }}>
                     {c.k}
                   </th>
-                  <td style={{ padding: "18px 24px", color: "#6B7872" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B4441C" strokeWidth="2.4" strokeLinecap="round">
+                  <td style={{ padding: "16px 20px", color: "#6B7872" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B4441C" strokeWidth="2.4" strokeLinecap="round">
                         <path d="M6 6l12 12M18 6L6 18" />
                       </svg>
                       {c.old}
                     </span>
                   </td>
-                  <td style={{ padding: "18px 24px", background: "#F2F9F5", fontWeight: 600 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                  <td style={{ padding: "16px 20px", background: "#F2F9F5", fontWeight: 600 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12l5 5 9-10" />
                       </svg>
                       {c.neu}
@@ -1858,28 +2091,16 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       </section>
 
       {/* POUR QUI */}
-      <section
-        id="pour-qui"
-        style={{
-          maxWidth: "1200px",
-          width: "100%",
-          boxSizing: "border-box",
-          margin: "0 auto",
-          padding: "112px 24px 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "32px",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <span style={{ fontSize: "14px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
+      <section id="pour-qui" className="lp-section-container" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
             {t.whoKicker}
           </span>
           <h2
             style={{
               margin: 0,
-              fontSize: "clamp(30px, 3.5vw, 44px)",
-              lineHeight: 1.1,
+              fontSize: "clamp(24px, 5vw, 44px)",
+              lineHeight: 1.12,
               fontWeight: 800,
               letterSpacing: "-1px",
             }}
@@ -1887,25 +2108,25 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             {t.whoTitle}
           </h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))", gap: "14px" }}>
           {t.who.map((w, idx) => (
             <div
               key={idx}
               style={{
                 background: "#FFFFFF",
-                borderRadius: "24px",
-                padding: "28px",
+                borderRadius: "20px",
+                padding: "22px 20px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "14px",
+                gap: "12px",
                 boxShadow: "0 2px 8px rgba(15, 26, 22, 0.04)",
               }}
             >
               <span
                 style={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "16px",
+                  width: "46px",
+                  height: "46px",
+                  borderRadius: "14px",
                   background: w.tint,
                   display: "flex",
                   alignItems: "center",
@@ -1913,8 +2134,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 }}
               >
                 <svg
-                  width="26"
-                  height="26"
+                  width="24"
+                  height="24"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke={w.color}
@@ -1925,19 +2146,19 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                   <path d={w.icon} />
                 </svg>
               </span>
-              <h3 style={{ margin: 0, fontSize: "20px", fontWeight: 800 }}>{w.title}</h3>
-              <p style={{ margin: 0, fontSize: "15px", lineHeight: 1.55, color: "#55645D" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>{w.title}</h3>
+              <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.55, color: "#55645D" }}>
                 {w.text}
               </p>
               <span
                 style={{
                   marginTop: "auto",
                   alignSelf: "flex-start",
-                  padding: "6px 12px",
+                  padding: "5px 10px",
                   borderRadius: "999px",
                   background: w.tint,
                   color: w.color,
-                  fontSize: "13px",
+                  fontSize: "12px",
                   fontWeight: 800,
                 }}
               >
@@ -1949,39 +2170,17 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       </section>
 
       {/* FINAL CALL TO ACTION BANNER */}
-      <section
-        style={{
-          maxWidth: "1200px",
-          width: "100%",
-          boxSizing: "border-box",
-          margin: "0 auto",
-          padding: "112px 24px 96px",
-        }}
-      >
-        <div
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: "32px",
-            background: "#0F1A16",
-            color: "#FFFFFF",
-            padding: "64px 48px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "22px",
-            textAlign: "center",
-          }}
-        >
+      <section className="lp-section-container" style={{ paddingBottom: "72px" }}>
+        <div className="lp-final-card">
           {/* Radial emerald glow */}
           <div
             style={{
               position: "absolute",
-              width: "520px",
-              height: "520px",
+              width: "480px",
+              height: "480px",
               left: "50%",
-              top: "-300px",
-              marginLeft: "-260px",
+              top: "-260px",
+              marginLeft: "-240px",
               borderRadius: "50%",
               background: "radial-gradient(circle, rgba(10, 122, 83, 0.55), rgba(10, 122, 83, 0) 70%)",
               pointerEvents: "none",
@@ -1993,8 +2192,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               position: "relative",
               margin: 0,
               maxWidth: "720px",
-              fontSize: "clamp(32px, 4vw, 52px)",
-              lineHeight: 1.08,
+              fontSize: "clamp(26px, 5.5vw, 52px)",
+              lineHeight: 1.1,
               fontWeight: 800,
               letterSpacing: "-1px",
             }}
@@ -2006,7 +2205,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               position: "relative",
               margin: 0,
               maxWidth: "560px",
-              fontSize: "18px",
+              fontSize: "clamp(15px, 3.5vw, 18px)",
               lineHeight: 1.6,
               color: "#B9C6C0",
             }}
@@ -2014,26 +2213,19 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             {t.finSub}
           </p>
 
-          <div
-            style={{
-              position: "relative",
-              display: "flex",
-              flexWrap: "wrap",
-              justifyContent: "center",
-              gap: "12px",
-            }}
-          >
+          <div className="lp-final-buttons">
             <Link
               href="/register"
               style={{
-                height: "56px",
+                height: "54px",
                 padding: "0 28px",
                 borderRadius: "14px",
                 background: "#F2B544",
                 color: "#0F1A16",
                 display: "flex",
                 alignItems: "center",
-                fontSize: "17px",
+                justifyContent: "center",
+                fontSize: "16px",
                 fontWeight: 800,
                 textDecoration: "none",
                 boxShadow: "0 4px 14px rgba(242, 181, 68, 0.3)",
@@ -2047,7 +2239,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               onClick={handleGuestStart}
               disabled={guestLoading}
               style={{
-                height: "56px",
+                height: "54px",
                 padding: "0 24px",
                 borderRadius: "14px",
                 border: "1.5px solid rgba(255, 255, 255, 0.35)",
@@ -2055,7 +2247,8 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 color: "#FFFFFF",
                 display: "flex",
                 alignItems: "center",
-                fontSize: "17px",
+                justifyContent: "center",
+                fontSize: "16px",
                 fontWeight: 700,
                 cursor: guestLoading ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -2065,33 +2258,33 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </button>
           </div>
 
-          <span style={{ position: "relative", fontSize: "14px", color: "#9FB0A8" }}>
+          <span style={{ position: "relative", fontSize: "13px", color: "#9FB0A8" }}>
             {t.finTrust}
           </span>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: "1px solid rgba(15, 26, 22, 0.1)", background: "transparent" }}>
+      <footer style={{ borderTop: "1px solid rgba(15, 26, 22, 0.1)", background: "transparent", width: "100%" }}>
         <div
           style={{
             maxWidth: "1200px",
             margin: "0 auto",
-            padding: "32px 24px",
+            padding: "24px 16px",
             display: "flex",
             flexWrap: "wrap",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: "16px",
+            gap: "14px",
           }}
         >
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span
               style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "9px",
+                width: "30px",
+                height: "30px",
+                borderRadius: "8px",
                 background: "#0A7A53",
                 display: "flex",
                 alignItems: "center",
@@ -2099,31 +2292,31 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 color: "#FFFFFF",
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="6" width="18" height="13" rx="2" />
                 <path d="M3 8l9 6 9-6" />
               </svg>
             </span>
-            <b style={{ fontSize: "18px" }}>{isAr ? "حسابك" : "7sabek"}</b>
+            <b style={{ fontSize: "17px" }}>{isAr ? "حسابك" : "7sabek"}</b>
           </div>
 
           {/* Legal Links */}
-          <nav aria-label="Liens légaux" style={{ display: "flex", flexWrap: "wrap", gap: "4px 20px", fontSize: "15px" }}>
-            <Link href="/cgu" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+          <nav aria-label="Liens légaux" style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", fontSize: "14px" }}>
+            <Link href="/cgu" style={{ color: "#33423C", textDecoration: "none", padding: "6px 0" }}>
               {t.footCgu}
             </Link>
-            <Link href="/privacy" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+            <Link href="/privacy" style={{ color: "#33423C", textDecoration: "none", padding: "6px 0" }}>
               {t.footPrivacy}
             </Link>
-            <Link href="/contact" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+            <Link href="/contact" style={{ color: "#33423C", textDecoration: "none", padding: "6px 0" }}>
               {t.footContact}
             </Link>
-            <Link href="/releases" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+            <Link href="/releases" style={{ color: "#33423C", textDecoration: "none", padding: "6px 0" }}>
               {t.footReleases}
             </Link>
           </nav>
 
-          <span style={{ fontSize: "14px", color: "#55645D" }}>
+          <span style={{ fontSize: "13px", color: "#55645D", width: "100%", textAlign: "center", marginTop: "4px" }}>
             {t.footRights}
           </span>
         </div>
@@ -2138,12 +2331,12 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             position: "fixed",
             inset: 0,
             zIndex: 100,
-            background: "rgba(15, 26, 22, 0.55)",
+            background: "rgba(15, 26, 22, 0.6)",
             backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "24px",
+            padding: "16px",
           }}
         >
           <div
@@ -2153,39 +2346,42 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%",
-              maxWidth: "480px",
-              borderRadius: "28px",
+              maxWidth: "460px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              borderRadius: "24px",
               background: "#FFFFFF",
-              padding: "32px",
+              padding: "24px 20px",
               display: "flex",
               flexDirection: "column",
-              gap: "20px",
+              gap: "18px",
               boxShadow: "0 30px 80px rgba(0, 0, 0, 0.3)",
             }}
           >
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <span
                   style={{
-                    width: "56px",
-                    height: "56px",
-                    borderRadius: "16px",
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "14px",
                     background: "#0A7A53",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     color: "#FFFFFF",
+                    flexShrink: 0,
                   }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="6" width="18" height="13" rx="2" />
                     <path d="M3 8l9 6 9-6" />
                   </svg>
                 </span>
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  <b style={{ fontSize: "20px" }}>{t.apkTitle}</b>
-                  <span style={{ fontSize: "14px", color: "#55645D" }}>{t.apkSub}</span>
+                  <b style={{ fontSize: "18px" }}>{t.apkTitle}</b>
+                  <span style={{ fontSize: "13px", color: "#55645D" }}>{t.apkSub}</span>
                 </div>
               </div>
               <button
@@ -2193,15 +2389,16 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 onClick={() => setApkOpen(false)}
                 aria-label="Fermer"
                 style={{
-                  width: "44px",
-                  height: "44px",
+                  width: "40px",
+                  height: "40px",
                   border: 0,
-                  borderRadius: "22px",
+                  borderRadius: "20px",
                   background: "#F6F5EF",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
+                  flexShrink: 0,
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F1A16" strokeWidth="2.4" strokeLinecap="round">
@@ -2211,13 +2408,13 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </div>
 
             {/* Features */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <span
                   style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "12px",
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
                     background: "#E2F1E8",
                     display: "flex",
                     alignItems: "center",
@@ -2225,20 +2422,20 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                     flexShrink: 0,
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2" strokeLinecap="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2" strokeLinecap="round">
                     <path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01M3 3l18 18" />
                   </svg>
                 </span>
-                <span style={{ fontSize: "15px" }}>
+                <span style={{ fontSize: "14px" }}>
                   <b>{t.apkF1.split("—")[0]}</b> — {t.apkF1.split("—")[1]}
                 </span>
               </div>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <span
                   style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "12px",
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
                     background: "#FFF4DC",
                     display: "flex",
                     alignItems: "center",
@@ -2246,21 +2443,21 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                     flexShrink: 0,
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A5300" strokeWidth="2" strokeLinecap="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A5300" strokeWidth="2" strokeLinecap="round">
                     <rect x="9" y="3" width="6" height="11" rx="3" />
                     <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
                   </svg>
                 </span>
-                <span style={{ fontSize: "15px" }}>
+                <span style={{ fontSize: "14px" }}>
                   <b>{t.apkF2.split("—")[0]}</b> — {t.apkF2.split("—")[1]}
                 </span>
               </div>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <span
                   style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "12px",
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
                     background: "#E6EEFA",
                     display: "flex",
                     alignItems: "center",
@@ -2268,11 +2465,11 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                     flexShrink: 0,
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2457A6" strokeWidth="2" strokeLinecap="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2457A6" strokeWidth="2" strokeLinecap="round">
                     <path d="M12 11v3a8 8 0 0 1-1 4M8 11a4 4 0 0 1 8 0v2a12 12 0 0 1-.6 4M5 10a7 7 0 0 1 14 0v3" />
                   </svg>
                 </span>
-                <span style={{ fontSize: "15px" }}>
+                <span style={{ fontSize: "14px" }}>
                   <b>{t.apkF3.split("—")[0]}</b> — {t.apkF3.split("—")[1]}
                 </span>
               </div>
@@ -2283,7 +2480,7 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
               href="/7sabek_app.apk"
               download="7sabek_app.apk"
               style={{
-                height: "56px",
+                height: "52px",
                 borderRadius: "14px",
                 background: "#0A7A53",
                 color: "#FFFFFF",
@@ -2291,18 +2488,18 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "10px",
-                fontSize: "17px",
+                fontSize: "16px",
                 fontWeight: 800,
                 textDecoration: "none",
                 boxShadow: "0 4px 12px rgba(10, 122, 83, 0.25)",
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
               </svg>
               {t.apkDownload}
             </a>
-            <span style={{ fontSize: "13px", color: "#55645D", textAlign: "center" }}>
+            <span style={{ fontSize: "12px", color: "#55645D", textAlign: "center" }}>
               {t.apkHint}
             </span>
           </div>

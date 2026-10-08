@@ -40,6 +40,16 @@ export const CHANGELOG: Release[] = [
           },
         ],
       },
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "Optimisation de l'affichage mobile : menu responsive, adaptation tactile des boutons et ajustement de la maquette 3D sur petits écrans.",
+            en: "Mobile display optimization: responsive menu, touch-friendly buttons, and 3D mockup scaling on small screens.",
+            ar: "تحسين العرض على الهواتف: قائمة تفاعلية، أزرار مريحة للمس وتكييف مجسم الهاتف على الشاشات الصغيرة.",
+          },
+        ],
+      },
     ],
   },
   {
