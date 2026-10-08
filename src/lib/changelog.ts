@@ -27,6 +27,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.7.0",
+    date: "2026-10-08",
+    groups: [
+      {
+        kind: "added",
+        items: [
+          {
+            fr: "Nouvelle page d'accueil avec simulateur de budget interactif, présentation de Ba Omar et téléchargement direct de l'application Android.",
+            en: "New landing page with an interactive budget simulator, Ba Omar AI showcase, and direct Android app download.",
+            ar: "صفحة رئيسية جديدة بمحاكي ميزانية تفاعلي، تقديم المساعد با عمر وتحميل مباشر لتطبيق أندرويد.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.6.2",
     date: "2026-09-30",
     groups: [

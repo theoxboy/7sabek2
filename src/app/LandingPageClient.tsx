@@ -1,468 +1,495 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Apple, Chrome, Globe, Compass, Target, ShieldCheck, TrendingUp } from "lucide-react";
-import { Cairo } from "next/font/google";
-
-import { apiFetch, resetAuthClientState } from "@/lib/api";
-import { fetchMe, hasAuthSessionHint, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import { usePlatformStatus } from "@/lib/usePlatformStatus";
-import { GuestModeButton } from "@/components/guest/GuestModeButton";
+import { Cairo, Manrope } from "next/font/google";
+
+import { resetAuthClientState } from "@/lib/api";
+import { fetchMe, hasAuthSessionHint, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
 import { startGuestSession } from "@/lib/guestSession";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
-import BrandLogo from "@/components/BrandLogo";
-import { triggerAddToHomeScreenPrompt } from "@/components/pwa/AddToHomeScreenPrompt";
 import {
   getBrowserLocalePreference,
-  getLocaleBadgeLabel,
-  openLanguagePicker,
 } from "@/components/i18n/LanguagePreferenceGate";
 import {
   getLocaleDirection,
   isSupportedLocale,
+  persistLocaleCookie,
   type FloussyLocale,
 } from "@/lib/localePreference";
 
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "900"] });
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice?: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
-
-type HeroInstallKind = "android" | "ios" | "chromium-desktop" | "none";
-
-function detectHeroInstallKind(ua: string): HeroInstallKind {
-  const lowerUA = ua.toLowerCase();
-  const isIOS = /iphone|ipad|ipod/.test(lowerUA);
-  const isAndroid = /android/.test(lowerUA);
-  if (isIOS) return "ios";
-  if (isAndroid) return "android";
-  // Chrome, Brave (which mirrors Chrome's UA) and other Chromium browsers
-  // (Edge, Opera…) all support the beforeinstallprompt install flow.
-  const isChromiumDesktop = /chrome|chromium|crios/.test(lowerUA) && !/firefox|fxios/.test(lowerUA);
-  return isChromiumDesktop ? "chromium-desktop" : "none";
-}
-
-type Duo = { t: string; d: string; tag?: string };
 type Copy = {
-  nav: { sim: string; who: string; cgu: string; priv: string; contact: string };
-  cta: { start: string; login: string; logout: string; dashboard: string; free: string; installAndroid: string; installIOS: string; installChrome: string; tryWithoutAccount: string };
-  hero: { taglineA: string; taglineB: string };
-  trust: string[];
-  chips: { rent: string; rentM: string; sal: string; salM: string; net: string; netM: string; debt: string; debtM: string; sav: string; savM: string };
-  sc: { cycle: string; cash: string };
-  env: { food: string; transport: string; fun: string; save: string; rent: string; net: string; debt: string; sal: string };
-  ai: { title: string; desc: string };
-  why: { kicker: string; items: Duo[] };
-  sim: { kicker: string; income: string; left: string; fixed: string; fixedHint: string; pctHint: string };
-  cmp: { kicker: string; title: string; a: string; b: string; rows: Array<[string, string]> };
-  who: { kicker: string; title: string; items: Duo[] };
-  fin: { title: string; alt: string; micro: string };
-  foot: string;
+  navSim: string;
+  navWho: string;
+  navApk: string;
+  login: string;
+  logout: string;
+  dashboard: string;
+  start: string;
+  badge: string;
+  h1a: string;
+  h1b: string;
+  lead: string;
+  cta1: string;
+  cta2: string;
+  cta3: string;
+  trust1: string;
+  trust2: string;
+  trust3: string;
+  activeEnvelopes: string;
+  cashAvailable: string;
+  floaterSal: string;
+  floaterRent: string;
+  floaterNet: string;
+  floaterDebt: string;
+  floaterSav: string;
+  envFood: string;
+  envTransport: string;
+  envFun: string;
+  envSav: string;
+  envRent: string;
+  envNet: string;
+  envDebt: string;
+  envEid: string;
+  omarBadge: string;
+  omarTitle: string;
+  omarText: string;
+  omarTag1: string;
+  omarTag2: string;
+  omarTag3: string;
+  omarUserMsg: string;
+  omarBotMsg: string;
+  omarBotSub: string;
+  omarOnline: string;
+  whyKicker: string;
+  whyTitle: string;
+  steps: Array<{ n: string; title: string; text: string }>;
+  simKicker: string;
+  simTitle: string;
+  simSalaryLabel: string;
+  simFixedTitle: string;
+  simVarTitle: string;
+  simSavingProjected: string;
+  simMonthUnit: string;
+  simYearUnit: string;
+  simDisclaimer: string;
+  cmpTitle: string;
+  cmpColCrit: string;
+  cmpColOld: string;
+  cmpColNew: string;
+  compare: Array<{ k: string; old: string; neu: string }>;
+  whoKicker: string;
+  whoTitle: string;
+  who: Array<{ title: string; text: string; tag: string; tint: string; color: string; icon: string }>;
+  finTitle: string;
+  finSub: string;
+  finCta1: string;
+  finCta2: string;
+  finTrust: string;
+  footCgu: string;
+  footPrivacy: string;
+  footContact: string;
+  footReleases: string;
+  footRights: string;
+  apkTitle: string;
+  apkSub: string;
+  apkF1: string;
+  apkF2: string;
+  apkF3: string;
+  apkDownload: string;
+  apkHint: string;
 };
 
-const COPY: Record<FloussyLocale, Copy> = {
+const TRANSLATIONS: Record<FloussyLocale, Copy> = {
   fr: {
-    nav: { sim: "Simulateur", who: "Pour qui", cgu: "CGU", priv: "Confidentialité", contact: "Contact" },
-    cta: { start: "Commencer", login: "Connexion", logout: "Déconnexion", dashboard: "Dashboard", free: "Commencer gratuitement", installAndroid: "App Android", installIOS: "Ajouter à l'écran d'accueil", installChrome: "Installer sur Chrome", tryWithoutAccount: "Essayer sans compte" },
-    hero: {
-      taglineA: "Ton budget,",
-      taglineB: "entre tes mains.",
-    },
-    trust: ["Connexion par clé d’accès", "Simulation avant application", "Export de tes données", "Multilingue FR / EN / AR"],
-    chips: { rent: "Loyer", rentM: "Échéance 3j", sal: "Salaire", salM: "Mensuel", net: "Internet", netM: "Renouvellement", debt: "Crédit voiture", debtM: "Priorité 1", sav: "Épargne", savM: "Auto · reliquat" },
-    sc: { cycle: "Cycle 01 → 30", cash: "Cash disponible" },
-    env: { food: "Courses", transport: "Transport", fun: "Sorties", save: "Épargne", rent: "Loyer", net: "Internet", debt: "Crédit voiture", sal: "Salaire" },
-    ai: {
-      title: "Ba Omar (AI) pilote votre budget",
-      desc: "Dictez vos dépenses en Darija ou posez une question : votre budget se met à jour instantanément.",
-    },
-    why: {
-      kicker: "Méthode simple en 4 étapes",
-      items: [
-        { t: "État des lieux en 2 min", d: "Revenus et charges fixes configurés dès l'inscription." },
-        { t: "Répartition sur-mesure", d: "Chaque dirham a une mission claire avant le début du mois." },
-        { t: "Suivi en direct", d: "Dépenses classées dans la bonne enveloppe sans calcul manuel." },
-        { t: "Objectifs & Zéro dette", d: "Épargne sécurisée et crédits soldés avec sérénité." },
-      ],
-    },
-    sim: {
-      kicker: "Simulateur express",
-      income: "Salaire mensuel net",
-      left: "Épargne projetée",
-      fixed: "Fixe",
-      fixedHint: "Montant garanti",
-      pctHint: "Ajusté au salaire",
-    },
-    cmp: {
-      kicker: "Pourquoi 7sabek",
-      title: "Bien plus qu'un relevé. Un système complet.",
-      a: "Tracker classique",
-      b: "7sabek",
-      rows: [
-        ["Historique passif", "Plan financier proactif dès J1"],
-        ["Un seul solde confus", "Cash, enveloppes, épargne & dettes isolés"],
-        ["Calculs manuels lourds", "Distribution automatique selon vos priorités"],
-        ["Calendrier rigide", "Cycles calés sur votre vraie date de paie"],
-        ["Saisie fastidieuse", "Une phrase en langage naturel ou à la voix"],
-      ],
-    },
-    who: {
-      kicker: "Pour qui",
-      title: "Une méthode claire pour chaque situation.",
-      items: [
-        { t: "Fin de mois sereine", d: "Fini le stress : sachez exactement ce qu'il vous reste chaque jour.", tag: "Visibilité" },
-        { t: "Projets & Cagnottes", d: "Voyage, fonds d'urgence ou achats : financez vos objectifs à votre rythme.", tag: "Épargne" },
-        { t: "Remboursement de crédits", d: "Une trajectoire claire pour vous désendetter sans vous priver.", tag: "Priorité" },
-        { t: "Revenus variables", d: "Freelances et commerçants : le plan s'adapte à vos rentrées réelles.", tag: "Flexibilité" },
-      ],
-    },
-    fin: {
-      title: "Prêt à reprendre le contrôle de votre argent ?",
-      alt: "Découvrir la méthode",
-      micro: "100% gratuit · Sans engagement · Données privées",
-    },
-    foot: "© 2026 7sabek. Tous droits réservés.",
+    navSim: "Simulateur",
+    navWho: "Pour qui",
+    navApk: "App Android",
+    login: "Connexion",
+    logout: "Déconnexion",
+    dashboard: "Mon budget",
+    start: "Commencer",
+    badge: "La méthode des enveloppes, en Darija",
+    h1a: "Ton budget,",
+    h1b: "entre tes mains.",
+    lead: "Répartis ton salaire en enveloppes virtuelles avant le début du mois. Zéro tableur, zéro stress : chaque dirham a sa mission.",
+    cta1: "Commencer gratuitement",
+    cta2: "Essayer sans compte",
+    cta3: "Installer l’app",
+    trust1: "Gratuit",
+    trust2: "Aucune banque connectée",
+    trust3: "Données privées",
+    activeEnvelopes: "ENVELOPPES ACTIVES",
+    cashAvailable: "Cash disponible",
+    floaterSal: "Salaire",
+    floaterRent: "Loyer",
+    floaterNet: "Internet",
+    floaterDebt: "Crédit voiture",
+    floaterSav: "Épargne",
+    envFood: "Courses",
+    envTransport: "Transport",
+    envFun: "Sorties",
+    envSav: "Épargne",
+    envRent: "Loyer",
+    envNet: "Internet",
+    envDebt: "Crédit",
+    envEid: "Aïd al-Adha",
+    omarBadge: "ASSISTANT IA",
+    omarTitle: "Ba Omar (IA) pilote votre budget",
+    omarText: "Parlez-lui ou écrivez-lui en Darija marocaine. Il enregistre la dépense dans la bonne enveloppe, sans aucun calcul de votre part.",
+    omarTag1: "Voix ou texte",
+    omarTag2: "Darija, français, anglais",
+    omarTag3: "Classement automatique",
+    omarUserMsg: "خسرت 150 درهم فالمارشي",
+    omarBotMsg: "C’est noté ! 150 MAD retirés de l’enveloppe Courses.",
+    omarBotSub: "Il reste 350 MAD jusqu’à ta prochaine paie.",
+    omarOnline: "En ligne",
+    whyKicker: "POURQUOI 7SABEK",
+    whyTitle: "Une méthode en 4 étapes. Zéro tableur, zéro stress.",
+    steps: [
+      { n: "01", title: "État des lieux en 2 min", text: "Revenus et charges fixes configurés dès l’inscription." },
+      { n: "02", title: "Répartition sur-mesure", text: "Chaque dirham reçoit une mission claire avant le début du mois." },
+      { n: "03", title: "Suivi en direct", text: "Chaque dépense est classée dans la bonne enveloppe, sans calcul manuel." },
+      { n: "04", title: "Objectifs & zéro dette", text: "Épargne sécurisée et crédits soldés, en toute sérénité." },
+    ],
+    simKicker: "SIMULATEUR",
+    simTitle: "Combien peux-tu épargner chaque mois ?",
+    simSalaryLabel: "Ton salaire mensuel",
+    simFixedTitle: "CHARGES FIXES",
+    simVarTitle: "ENVELOPPES VARIABLES",
+    simSavingProjected: "Épargne projetée",
+    simMonthUnit: "MAD / mois",
+    simYearUnit: "MAD / an",
+    simDisclaimer: "Simulation indicative basée sur une répartition type. Dans l’app, tu fixes tes propres montants.",
+    cmpTitle: "Un tracker te dit où est parti ton argent. 7sabek lui donne une mission.",
+    cmpColCrit: "CRITÈRE",
+    cmpColOld: "TRACKER CLASSIQUE",
+    cmpColNew: "7SABEK",
+    compare: [
+      { k: "Approche", old: "Historique passif", neu: "Plan financier proactif dès J1" },
+      { k: "Vision", old: "Un seul solde confus", neu: "Cash, enveloppes, épargne et dettes isolés" },
+      { k: "Calculs", old: "Calculs manuels lourds", neu: "Distribution automatique selon tes priorités" },
+      { k: "Calendrier", old: "Calendrier rigide", neu: "Cycles calés sur ta vraie date de paie" },
+      { k: "Saisie", old: "Saisie fastidieuse", neu: "Une phrase en langage naturel ou à la voix" },
+    ],
+    whoKicker: "POUR QUI",
+    whoTitle: "Pensé pour la vraie vie au Maroc.",
+    who: [
+      { title: "Fin de mois sereine", text: "Savoir à tout moment ce qu’il te reste, enveloppe par enveloppe.", tag: "Visibilité", tint: "#E2F1E8", color: "#0A7A53", icon: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" },
+      { title: "Projets & cagnottes", text: "Aïd, vacances, mariage, apport : une cagnotte par projet.", tag: "Épargne", tint: "#FFF4DC", color: "#8A5300", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" },
+      { title: "Remboursement de crédits", text: "Priorise tes dettes et vois la date où tu seras libéré.", tag: "Priorité", tint: "#EFE7F6", color: "#6B3FA0", icon: "M4 6h16v12H4zM4 10h16M8 15h3" },
+      { title: "Revenus variables", text: "Freelances et commerçants : un budget qui suit tes rentrées réelles.", tag: "Flexibilité", tint: "#E6EEFA", color: "#2457A6", icon: "M3 17l5-5 4 4 8-8M15 8h5v5" },
+    ],
+    finTitle: "Ce mois-ci, chaque dirham aura sa mission.",
+    finSub: "Crée ton compte en 2 minutes ou essaie tout de suite, sans e-mail.",
+    finCta1: "Commencer gratuitement",
+    finCta2: "Essayer sans compte",
+    finTrust: "100 % gratuit · Sans engagement · Données privées",
+    footCgu: "CGU",
+    footPrivacy: "Confidentialité",
+    footContact: "Contact",
+    footReleases: "Nouveautés",
+    footRights: "© 2026 7sabek. Tous droits réservés.",
+    apkTitle: "7sabek pour Android",
+    apkSub: "Version 2.4.0 · APK officiel",
+    apkF1: "100 % hors-ligne — fonctionne sans connexion",
+    apkF2: "Voix en Darija — dicte tes dépenses",
+    apkF3: "Verrouillage biométrique — empreinte ou visage",
+    apkDownload: "Télécharger 7sabek_app.apk",
+    apkHint: "Autorisez l’installation depuis cette source dans les réglages Android.",
   },
-
-  en: {
-    nav: { sim: "Simulator", who: "Who it’s for", cgu: "Terms", priv: "Privacy", contact: "Contact" },
-    cta: { start: "Get started", login: "Log in", logout: "Log out", dashboard: "Dashboard", free: "Start for free", installAndroid: "Android app", installIOS: "Add to Home Screen", installChrome: "Install on Chrome", tryWithoutAccount: "Try without an account" },
-    hero: {
-      taglineA: "Your budget,",
-      taglineB: "in your hands.",
-    },
-    trust: ["Passkey sign-in", "Simulate before applying", "Export your data", "Multilingual FR / EN / AR"],
-    chips: { rent: "Rent", rentM: "Due in 3d", sal: "Salary", salM: "Monthly", net: "Internet", netM: "Renewal", debt: "Car loan", debtM: "Priority 1", sav: "Savings", savM: "Auto · leftover" },
-    sc: { cycle: "Cycle 01 → 30", cash: "Available cash" },
-    env: { food: "Groceries", transport: "Transport", fun: "Going out", save: "Savings", rent: "Rent", net: "Internet", debt: "Car loan", sal: "Salary" },
-    ai: {
-      title: "Ba Omar (AI) manages your cash",
-      desc: "Speak in Darija or type a message: your budget updates instantly without effort.",
-    },
-    why: {
-      kicker: "Simple 4-Step Method",
-      items: [
-        { t: "2-Minute Baseline", d: "Income and fixed commitments locked in from day one." },
-        { t: "Tailored Split", d: "Every dirham gets a designated role before the month starts." },
-        { t: "Live Tracking", d: "Expenses assigned to the right envelope without spreadsheets." },
-        { t: "Goals & Zero Debt", d: "Safeguard savings and clear debt smoothly month after month." },
-      ],
-    },
-    sim: {
-      kicker: "Quick Simulator",
-      income: "Net monthly salary",
-      left: "Projected savings",
-      fixed: "Fixed",
-      fixedHint: "Locked amount",
-      pctHint: "Adjusts with salary",
-    },
-    cmp: {
-      kicker: "Why 7sabek",
-      title: "Beyond a tracker. A full financial system.",
-      a: "Classic tracker",
-      b: "7sabek",
-      rows: [
-        ["Passive history log", "Proactive financial plan from Day 1"],
-        ["Single confusing balance", "Cash, envelopes, goals & debt segregated"],
-        ["Tedious manual calculations", "Automatic split based on your priorities"],
-        ["Rigid monthly calendar", "Cycle aligned with your real payday"],
-        ["Clunky field typing", "One natural phrase by voice or text"],
-      ],
-    },
-    who: {
-      kicker: "Who It's For",
-      title: "A clear system for every financial situation.",
-      items: [
-        { t: "Month-End Peace", d: "No more stress: know your safe spending limit every single day.", tag: "Clarity" },
-        { t: "Goals & Savings", d: "Vacation, emergency buffer or big purchase: reach milestones steadily.", tag: "Growth" },
-        { t: "Debt Elimination", d: "Structured repayment roadmap without breaking daily living needs.", tag: "Freedom" },
-        { t: "Variable Incomes", d: "Freelancers and business owners: allocations adapt to cash flow.", tag: "Dynamic" },
-      ],
-    },
-    fin: {
-      title: "Ready to take control of your money?",
-      alt: "Explore the system",
-      micro: "100% free · No commitment · Private data",
-    },
-    foot: "© 2026 7sabek. All rights reserved.",
-  },
-
   ar: {
-    nav: { sim: "سيميلاسيون", who: "لشكون", cgu: "شروط الاستخدام", priv: "الخصوصية", contact: "اتصل بنا" },
-    cta: { start: "بدا", login: "دخول", logout: "تسجيل الخروج", dashboard: "لوحة التحكم", free: "بدا فابور", installAndroid: "تطبيق أندرويد", installIOS: "زيد للشاشة الرئيسية", installChrome: "ثبت على Chrome", tryWithoutAccount: "جرّب بلا حساب" },
-    hero: {
-      taglineA: "حسابك",
-      taglineB: "بيدك.",
-    },
-    trust: ["دخول بمفتاح الأمان", "محاكاة قبل التطبيق", "تصدير البيانات ديالك", "بثلاث لغات"],
-    chips: { rent: "الكراء", rentM: "باقي 3 أيام", sal: "السالير", salM: "شهري", net: "الأنترنيت", netM: "تجديد", debt: "كريدي الطوموبيل", debtM: "أولوية 1", sav: "الادخار", savM: "أوتوماتيكي · الباقي" },
-    sc: { cycle: "الدورة 01 ← 30", cash: "الكاش المتوفر" },
-    env: { food: "التقضية", transport: "التنقل", fun: "الخرجات", save: "الادخار", rent: "الكراء", net: "الأنترنيت", debt: "كريدي الطوموبيل", sal: "السالير" },
-    ai: {
-      title: "با عمر (AI) ساهر على فلوسك",
-      desc: "قل جملة وحدة بالصوت بالدارجة ولا كتبها، وبا عمر كيقاد ليك الحساب فالبلاصة.",
-    },
-    why: {
-      kicker: "طريقة بسيطة فـ 4 خطوات",
-      items: [
-        { t: "نظرة واضحة فـ 2 دقايق", d: "الدخل والمصاريف الثابتة مضبوطين من الدقة الأولى." },
-        { t: "توزيع مفصل على قياسك", d: "كل درهم عندو هدف واضح قبل ما يبدا الشهر." },
-        { t: "تتبع المصاريف فالحين", d: "المصاريف كتمشي للظرف الصحيح بلا حسابات معقدة." },
-        { t: "أهداف محققة وديون مخلصة", d: "وفّر لـ دواير الزمان وتهنى من الكريديات بكل راحة." },
-      ],
-    },
-    sim: {
-      kicker: "جرب دابا",
-      income: "الصالير الصافي فالشهر",
-      left: "الادخار المتوقع",
-      fixed: "ثابت",
-      fixedHint: "مبلغ مضمون",
-      pctHint: "كيتبدل مع الصالير",
-    },
-    cmp: {
-      kicker: "علاش 7sabek",
-      title: "ماشي غير تطبيق تتبع. نظام ميزانية متكامل.",
-      a: "تطبيق تتبع عادي",
-      b: "7sabek",
-      rows: [
-        ["كيوريك غير الماضي", "خطة استباقية من أول نهار"],
-        ["رصيد واحد مخلط", "كاش، أظرفة، ادخار وديون مفرقين بدقة"],
-        ["حسابات يدوية معقدة", "توزيع أوتوماتيكي على حسب أولوياتك"],
-        ["كالوندييه عادي وجامد", "دورة فلوس مضبوطة على تاريخ الصالير ديالك"],
-        ["كتابة خانة بخانة", "جملة وحدة بالصوت ولا بالكتابة فثانية"],
-      ],
-    },
-    who: {
-      kicker: "لشكون",
-      title: "نظام واضح لكل وضعية مالية.",
-      items: [
-        { t: "راحة البال فآخر الشهر", d: "ماتبقاش تلفان: عارف شحال تقدر تصرف كل نهار بلا ما تخاف.", tag: "وضوح" },
-        { t: "المشاريع ودواير الزمان", d: "سفر، مشروع شخصي ولا صندوق طوارئ: جمع فلوسك بطريقة ذكية.", tag: "توفير" },
-        { t: "تصفية الكريديات", d: "خطة واضحة باش تتهنى من الديون بلا ما تضيق على مصاريفك.", tag: "حرية" },
-        { t: "المداخيل المتغيرة", d: "فريلانس وتجار: الحساب كيتأقلم أوتوماتيك مع دخل كل شهر.", tag: "مرونة" },
-      ],
-    },
-    fin: {
-      title: "مستعد تاخد التحكم فالفلوس ديالك؟",
-      alt: "اكتشف الطريقة",
-      micro: "100% فابور · بلا التزام · بياناتك محمية",
-    },
-    foot: "© 2026 7sabek. جميع الحقوق محفوظة.",
+    navSim: "المحاكي",
+    navWho: "لمن؟",
+    navApk: "تطبيق أندرويد",
+    login: "تسجيل الدخول",
+    logout: "تسجيل الخروج",
+    dashboard: "ميزانيتي",
+    start: "ابدأ",
+    badge: "طريقة الأظرفة، بالدارجة",
+    h1a: "حسابك",
+    h1b: "بيدك.",
+    lead: "قسّم الصالير ديالك على أظرفة قبل ما يبدا الشهر. بلا جداول، بلا ستريس: كل درهم عندو المهمة ديالو.",
+    cta1: "ابدأ مجانًا",
+    cta2: "جرّب بلا حساب",
+    cta3: "ثبّت التطبيق",
+    trust1: "مجاني",
+    trust2: "بلا ربط بالبنك",
+    trust3: "معطيات خاصة",
+    activeEnvelopes: "الأظرفة النشطة",
+    cashAvailable: "الكاش المتوفر",
+    floaterSal: "الصالير",
+    floaterRent: "الكراء",
+    floaterNet: "الأنترنيت",
+    floaterDebt: "كريدي الطوموبيل",
+    floaterSav: "الادخار",
+    envFood: "التقضية",
+    envTransport: "التنقل",
+    envFun: "الخرجات",
+    envSav: "الادخار",
+    envRent: "الكراء",
+    envNet: "الأنترنيت",
+    envDebt: "الكريدي",
+    envEid: "عيد الأضحى",
+    omarBadge: "مساعد ذكي",
+    omarTitle: "با عمر (ذكاء اصطناعي) كيسيّر الميزانية ديالك",
+    omarText: "هضر معاه ولا كتب ليه بالدارجة المغربية. كيسجّل المصروف فالظرف المناسب بلا حتى حساب من جيهتك.",
+    omarTag1: "بالصوت ولا بالكتابة",
+    omarTag2: "دارجة، فرنسية، إنجليزية",
+    omarTag3: "تصنيف تلقائي للمصاريف",
+    omarUserMsg: "خسرت 150 درهم فالمارشي",
+    omarBotMsg: "مقيدة ! نقصت 150 درهم من ظرف التقضية.",
+    omarBotSub: "باقي ليك 350 درهم حتى لتاريخ الصالير الجاي.",
+    omarOnline: "متصل الآن",
+    whyKicker: "علاش 7SABEK",
+    whyTitle: "طريقة بسيطة فـ 4 خطوات. بلا جداول، بلا ستريس.",
+    steps: [
+      { n: "01", title: "نظرة واضحة فـ 2 دقايق", text: "الدخل والمصاريف الثابتة مضبوطين من أول خطوة." },
+      { n: "02", title: "توزيع مفصل على قياسك", text: "كل درهم عندو هدف واضح قبل ما يبدا الشهر." },
+      { n: "03", title: "تتبع المصاريف فالحين", text: "المصاريف كتمشي للظرف الصحيح بلا حسابات يدوية." },
+      { n: "04", title: "أهداف محققة وبلا ديون", text: "ادخار مضمون وتصفية الكريديات بكل راحة بال." },
+    ],
+    simKicker: "المحاكي",
+    simTitle: "شحال تقدر توفر كل شهر ؟",
+    simSalaryLabel: "الصالير الشهري ديالك",
+    simFixedTitle: "المصاريف الثابتة",
+    simVarTitle: "أظرفة المصاريف اليومية",
+    simSavingProjected: "الادخار المتوقع",
+    simMonthUnit: "درهم / شهر",
+    simYearUnit: "درهم / عام",
+    simDisclaimer: "محاكاة تقديرية مبنية على توزيع متوازن. فالتطبيق، تقدر تختار المبالغ لي مسلكاك.",
+    cmpTitle: "التطبيقات العادية كتقولك فين مشاو فلوسك. 7sabek كيعطي لكل درهم مهمة.",
+    cmpColCrit: "المعيار",
+    cmpColOld: "تطبيق عادي",
+    cmpColNew: "7SABEK",
+    compare: [
+      { k: "المنهجية", old: "تتبع الماضي فقط", neu: "خطة استباقية من أول نهار" },
+      { k: "الرؤية", old: "رصيد واحد مخلط", neu: "كاش، أظرفة، ادخار وديون معزولين" },
+      { k: "الحسابات", old: "حسابات يدوية معقدة", neu: "توزيع أوتوماتيكي حسب أولوياتك" },
+      { k: "الروزنامة", old: "تقويم شهري جامد", neu: "دورات مضبوطة على تاريخ الصالير ديالك" },
+      { k: "تسجيل المصاريف", old: "إدخال يدوي طويل", neu: "جملة وحدة بالصوت ولا بالكتابة فثانية" },
+    ],
+    whoKicker: "لشكون",
+    whoTitle: "مصمم للواقع الحقيقي فالمغرب.",
+    who: [
+      { title: "راحة البال فآخر الشهر", text: "تعرف فكل وقت شحال باقي ليك ظرف بظرف.", tag: "وضوح", tint: "#E2F1E8", color: "#0A7A53", icon: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" },
+      { title: "المشاريع ودواير الزمان", text: "العيد، العطلة، العرس ولا الدار: صندوق خاص بكل مشروع.", tag: "توفير", tint: "#FFF4DC", color: "#8A5300", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" },
+      { title: "تصفية الكريديات", text: "رتب ديونك وتعرف على التاريخ لي غتتهنى فيه تمامًا.", tag: "أولوية", tint: "#EFE7F6", color: "#6B3FA0", icon: "M4 6h16v12H4zM4 10h16M8 15h3" },
+      { title: "المداخيل المتغيرة", text: "فريلانس وتجار: ميزانية مرنة كتبع الدخل الحقيقي ديالك.", tag: "مرونة", tint: "#E6EEFA", color: "#2457A6", icon: "M3 17l5-5 4 4 8-8M15 8h5v5" },
+    ],
+    finTitle: "هاد الشهر، كل درهم غتكون عندو مهمة واضحة.",
+    finSub: "قاد حسابك فـ 2 دقايق ولا جرّب دابا مباشرة، بلا إيميل.",
+    finCta1: "ابدأ مجانًا",
+    finCta2: "جرّب بلا حساب",
+    finTrust: "100 % مجاني · بلا التزام · بياناتك محمية",
+    footCgu: "شروط الاستخدام",
+    footPrivacy: "سياسة الخصوصية",
+    footContact: "اتصل بنا",
+    footReleases: "المستجدات",
+    footRights: "© 2026 7sabek. جميع الحقوق محفوظة.",
+    apkTitle: "7sabek لأندرويد",
+    apkSub: "الإصدار 2.4.0 · ملف APK رسمي",
+    apkF1: "100 % بلا أنترنيت — خدام بلا اتصال",
+    apkF2: "بالصوت بالدارجة — ملّي عليه مصاريفك",
+    apkF3: "أمان بيومتري — بالبصمة ولا بالوجه",
+    apkDownload: "تحميل 7sabek_app.apk",
+    apkHint: "فعّل السماح بتثبيت التطبيقات من هذا المصدر في إعدادات أندرويد.",
+  },
+  en: {
+    navSim: "Simulator",
+    navWho: "Who it’s for",
+    navApk: "Android app",
+    login: "Log in",
+    logout: "Log out",
+    dashboard: "My budget",
+    start: "Get started",
+    badge: "The envelope method, in Darija",
+    h1a: "Your budget,",
+    h1b: "in your hands.",
+    lead: "Split your salary into virtual envelopes before the month starts. No spreadsheets, no stress: every dirham gets a job.",
+    cta1: "Start for free",
+    cta2: "Try without an account",
+    cta3: "Install the app",
+    trust1: "Free",
+    trust2: "No bank connection",
+    trust3: "Private data",
+    activeEnvelopes: "ACTIVE ENVELOPES",
+    cashAvailable: "Available cash",
+    floaterSal: "Salary",
+    floaterRent: "Rent",
+    floaterNet: "Internet",
+    floaterDebt: "Car loan",
+    floaterSav: "Savings",
+    envFood: "Groceries",
+    envTransport: "Transport",
+    envFun: "Leisure",
+    envSav: "Savings",
+    envRent: "Rent",
+    envNet: "Internet",
+    envDebt: "Loan",
+    envEid: "Eid al-Adha",
+    omarBadge: "AI ASSISTANT",
+    omarTitle: "Ba Omar (AI) runs your budget",
+    omarText: "Talk or type to him in Moroccan Darija. He files each expense in the right envelope, no maths needed.",
+    omarTag1: "Voice or text",
+    omarTag2: "Darija, French, English",
+    omarTag3: "Automatic categorization",
+    omarUserMsg: "خسرت 150 درهم فالمارشي",
+    omarBotMsg: "Got it! 150 MAD deducted from the Groceries envelope.",
+    omarBotSub: "350 MAD remaining until your next payday.",
+    omarOnline: "Online",
+    whyKicker: "WHY 7SABEK",
+    whyTitle: "A 4-step method. Zero spreadsheets, zero stress.",
+    steps: [
+      { n: "01", title: "2-Min Overview", text: "Income and fixed commitments configured right upon sign-up." },
+      { n: "02", title: "Tailored Split", text: "Every dirham gets a designated role before the month starts." },
+      { n: "03", title: "Live Tracking", text: "Expenses filed into the right envelope with zero manual math." },
+      { n: "04", title: "Goals & Zero Debt", text: "Safe savings growth and loans paid off with complete peace of mind." },
+    ],
+    simKicker: "SIMULATOR",
+    simTitle: "How much can you save every month?",
+    simSalaryLabel: "Your monthly salary",
+    simFixedTitle: "FIXED EXPENSES",
+    simVarTitle: "VARIABLE ENVELOPES",
+    simSavingProjected: "Projected savings",
+    simMonthUnit: "MAD / mo",
+    simYearUnit: "MAD / yr",
+    simDisclaimer: "Indicative simulation based on typical allocation. Inside the app, you customize your exact amounts.",
+    cmpTitle: "A tracker tells you where your money went. 7sabek gives it a mission.",
+    cmpColCrit: "CRITERIA",
+    cmpColOld: "CLASSIC TRACKER",
+    cmpColNew: "7SABEK",
+    compare: [
+      { k: "Approach", old: "Passive history log", neu: "Proactive financial plan from Day 1" },
+      { k: "Visibility", old: "Single confusing balance", neu: "Cash, envelopes, savings and debt separated" },
+      { k: "Calculations", old: "Heavy manual math", neu: "Automatic distribution based on your priorities" },
+      { k: "Calendar", old: "Rigid monthly calendar", neu: "Pay cycles aligned to your real payday" },
+      { k: "Logging", old: "Tedious manual forms", neu: "One natural sentence by voice or text" },
+    ],
+    whoKicker: "WHO IT’S FOR",
+    whoTitle: "Crafted for real everyday life in Morocco.",
+    who: [
+      { title: "Stress-free month-end", text: "Always know exactly what you have left, envelope by envelope.", tag: "Clarity", tint: "#E2F1E8", color: "#0A7A53", icon: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" },
+      { title: "Goals & pots", text: "Eid, holidays, wedding, down payment: a dedicated pot per project.", tag: "Savings", tint: "#FFF4DC", color: "#8A5300", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" },
+      { title: "Debt repayment", text: "Prioritize debt payoffs and track the exact date you’ll be free.", tag: "Priority", tint: "#EFE7F6", color: "#6B3FA0", icon: "M4 6h16v12H4zM4 10h16M8 15h3" },
+      { title: "Variable incomes", text: "Freelancers and merchants: allocations adjust to your real cash flow.", tag: "Flexibility", tint: "#E6EEFA", color: "#2457A6", icon: "M3 17l5-5 4 4 8-8M15 8h5v5" },
+    ],
+    finTitle: "This month, every dirham gets a mission.",
+    finSub: "Create your account in 2 minutes or try right now, no email needed.",
+    finCta1: "Start for free",
+    finCta2: "Try without an account",
+    finTrust: "100% free · No commitment · Private data",
+    footCgu: "Terms",
+    footPrivacy: "Privacy",
+    footContact: "Contact",
+    footReleases: "Releases",
+    footRights: "© 2026 7sabek. All rights reserved.",
+    apkTitle: "7sabek for Android",
+    apkSub: "Version 2.4.0 · Official APK",
+    apkF1: "100% offline — works with zero internet connection",
+    apkF2: "Voice in Darija — dictate your expenses",
+    apkF3: "Biometric lock — fingerprint or face unlock",
+    apkDownload: "Download 7sabek_app.apk",
+    apkHint: "Allow installation from this source in your Android security settings.",
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  Simulator rules — mirrors the backend engine: fixed rules first,    */
-/*  then percent-of-income, and whatever is left goes to savings.       */
-/* ------------------------------------------------------------------ */
-type Rule =
-  // A "fixed" rule still stands for a real-world fixed cost (rent, a loan
-  // installment) that doesn't move month to month — but a fixed cost for a
-  // 3 000 MAD salary isn't the same number as one for a 40 000 MAD salary.
-  // `amount` is the value at REFERENCE_SALARY; min/max keep it inside a
-  // realistic range as the slider moves, instead of a flat 3 200 MAD rent
-  // silently eating a 3 000 MAD income.
-  | { key: keyof Copy["env"]; kind: "fixed"; amount: number; min: number; max: number; color: string }
-  | { key: keyof Copy["env"]; kind: "pct"; pct: number; color: string };
+const PRESET_SALARIES = [6000, 12400, 20000, 32000];
 
-const REFERENCE_SALARY = 12400;
-
-const RULES: Rule[] = [
-  { key: "rent", kind: "fixed", amount: 3200, min: 600, max: 4500, color: "#0A241D" },
-  { key: "debt", kind: "fixed", amount: 2100, min: 0, max: 3200, color: "#8B7CF6" },
-  { key: "net", kind: "fixed", amount: 199, min: 199, max: 199, color: "#123A2E" },
-  { key: "food", kind: "pct", pct: 22, color: "#17C777" },
-  { key: "transport", kind: "pct", pct: 8, color: "#4C7EFF" },
-  { key: "fun", kind: "pct", pct: 6, color: "#F2A93B" },
-];
-
-function scaledFixedAmount(rule: { amount: number; min: number; max: number }, salary: number) {
-  const scaled = Math.round(((rule.amount / REFERENCE_SALARY) * salary) / 100) * 100;
-  return Math.min(rule.max, Math.max(rule.min, scaled));
+function formatMad(n: number) {
+  return Math.round(n)
+    .toLocaleString("fr-FR")
+    .replace(/ | /g, " ");
 }
 
-const MARQUEE: Array<{ key: keyof Copy["env"]; v: string; up: boolean; c: string }> = [
-  { key: "rent", v: "-3 200", up: false, c: "#0A241D" },
-  { key: "sal", v: "+12 400", up: true, c: "#17C777" },
-  { key: "food", v: "-742", up: false, c: "#17C777" },
-  { key: "debt", v: "-2 100", up: false, c: "#8B7CF6" },
-  { key: "transport", v: "-180", up: false, c: "#4C7EFF" },
-  { key: "save", v: "+1 500", up: true, c: "#0B8F53" },
-  { key: "net", v: "-199", up: false, c: "#123A2E" },
-  { key: "fun", v: "-340", up: false, c: "#F2A93B" },
-];
-
-const PRESETS = [6000, 12400, 20000, 32000];
-
-// One custom illustration per copy.why.items entry, in order — kept out of
-// the copy object since assets aren't per-locale content.
-const WHY_IMAGES = [
-  "/landing/why/step-1-diagnostic.png",
-  "/landing/why/step-2-split.png",
-  "/landing/why/step-3-tracking.png",
-  "/landing/why/step-4-goals.png",
-];
-
-function fmt(value: number) {
-  return Math.round(value).toLocaleString("fr-FR").replace(/ | /g, " ");
-}
-
-type LandingPageClientProps = {
+interface LandingPageClientProps {
   initialLocale: FloussyLocale;
-};
+}
 
 export default function LandingPageClient({ initialLocale }: LandingPageClientProps) {
-  const reduceMotion = useReducedMotion();
+  const router = useRouter();
+
+  // Language state
+  const [locale, setLocale] = useState<FloussyLocale>(initialLocale);
+  const isAr = locale === "ar";
+  const dir = isAr ? "rtl" : "ltr";
+  const t = TRANSLATIONS[locale] || TRANSLATIONS.fr;
+
+  // Auth & Guest state
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [locale, setLocale] = useState<FloussyLocale>(initialLocale);
-  const [showGooglePlayPopup, setShowGooglePlayPopup] = useState(false);
-  const [heroInstallKind, setHeroInstallKind] = useState<HeroInstallKind | null>(null);
-  const [chromeDeferredPrompt, setChromeDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-
-  const [salary, setSalary] = useState(12400);
-  const [introReady, setIntroReady] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [mobileNav, setMobileNav] = useState(false);
-  const phoneRef = useRef<HTMLDivElement | null>(null);
-
-  // The Google Play popup is opened on demand only (header button + hero badge).
-  // It used to auto-open 1s after load on every visit, stacking on top of the
-  // language modal and the cookie banner; the PWA prompt already covers the
-  // "install the app" nudge automatically, with proper dismissal memory.
-
-  // The hero install CTA changes with the device: the Android popup on
-  // Android, the "Add to Home Screen" prompt on iOS, and a Chrome-install
-  // button on Chromium desktop browsers — nothing on other desktop browsers,
-  // since they have no install path we can trigger.
-  useEffect(() => {
-    setHeroInstallKind(detectHeroInstallKind(window.navigator.userAgent));
-  }, []);
-
-  useEffect(() => {
-    const onBeforeInstallPrompt = (event: Event) => {
-      const promptEvent = event as BeforeInstallPromptEvent;
-      promptEvent.preventDefault();
-      setChromeDeferredPrompt(promptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-  }, []);
-
-  const handleChromeInstall = useCallback(async () => {
-    if (!chromeDeferredPrompt) return;
-    await chromeDeferredPrompt.prompt();
-    await chromeDeferredPrompt.userChoice;
-    setChromeDeferredPrompt(null);
-  }, [chromeDeferredPrompt]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!hasAuthSessionHint()) {
-        setUser(null);
-        setCheckingAuth(false);
-        return;
-      }
-      try {
-        const me = await fetchMe({ suppressAuthRedirect: true });
-        setUser(me);
-      } catch {
-        setUser(null);
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-    void load();
-  }, []);
-
-  useEffect(() => {
-    const resolveLocale = (): FloussyLocale => {
-      const cookieLocale = getBrowserLocalePreference();
-      if (cookieLocale) return cookieLocale;
-      if (typeof document !== "undefined") {
-        const lang = document.documentElement.lang?.trim().toLowerCase();
-        if (isSupportedLocale(lang)) return lang;
-      }
-      return initialLocale;
-    };
-
-    setLocale(resolveLocale());
-
-    const handleLocaleChanged = (event: Event) => {
-      const customEvent = event as CustomEvent<{ locale?: FloussyLocale }>;
-      if (customEvent.detail?.locale) {
-        setLocale(customEvent.detail.locale);
-        return;
-      }
-      setLocale(resolveLocale());
-    };
-
-    const observer =
-      typeof MutationObserver !== "undefined"
-        ? new MutationObserver(() => {
-            setLocale((previous) => {
-              const next = resolveLocale();
-              return next === previous ? previous : next;
-            });
-          })
-        : null;
-
-    if (observer && typeof document !== "undefined") {
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
-    }
-
-    window.addEventListener(LANGUAGE_CHANGED_EVENT, handleLocaleChanged as EventListener);
-    return () => {
-      window.removeEventListener(LANGUAGE_CHANGED_EVENT, handleLocaleChanged as EventListener);
-      observer?.disconnect();
-    };
-  }, [initialLocale]);
-
-  // A tab opened in the background freezes CSS animations at frame 0, which would
-  // leave sections invisible. Only arm the one-shot intro when the page is on screen.
-  useEffect(() => {
-    if (reduceMotion) return;
-    if (typeof document === "undefined") return;
-    if (document.visibilityState === "visible") setIntroReady(true);
-  }, [reduceMotion]);
-
-  useEffect(() => {
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        setProgress(max > 0 ? Math.min(100, Math.max(0, (window.scrollY / max) * 100)) : 0);
-        setScrolled(window.scrollY > 20);
-        ticking = false;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const handleLogout = () => {
-    void logout().finally(() => setUser(null));
-  };
-
-  const effectiveLocale: FloussyLocale = locale;
-  const copy = COPY[effectiveLocale];
-  const direction = getLocaleDirection(effectiveLocale);
-  const router = useRouter();
-  const status = usePlatformStatus();
   const [guestLoading, setGuestLoading] = useState(false);
 
+  // Interactive hero state
+  const [mx, setMx] = useState(0);
+  const [my, setMy] = useState(0);
+
+  // Interactive assistant spotlight state
+  const [sx, setSx] = useState(70);
+  const [sy, setSy] = useState(30);
+
+  // Simulator state
+  const [salary, setSalary] = useState(12400);
+
+  // APK modal state
+  const [apkOpen, setApkOpen] = useState(false);
+
+  // Check auth on mount
+  useEffect(() => {
+    if (!hasAuthSessionHint()) {
+      setUser(null);
+      setCheckingAuth(false);
+      return;
+    }
+    fetchMe({ suppressAuthRedirect: true })
+      .then((me) => setUser(me))
+      .catch(() => setUser(null))
+      .finally(() => setCheckingAuth(false));
+  }, []);
+
+  // Listen to locale changes
+  useEffect(() => {
+    const syncLocale = () => {
+      const pref = getBrowserLocalePreference();
+      if (pref && isSupportedLocale(pref)) {
+        setLocale(pref);
+      }
+    };
+    syncLocale();
+    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
+    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
+  }, []);
+
+  const changeLocale = (newLocale: FloussyLocale) => {
+    setLocale(newLocale);
+    persistLocaleCookie(newLocale);
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = newLocale;
+      document.documentElement.dir = getLocaleDirection(newLocale);
+    }
+    window.dispatchEvent(
+      new CustomEvent(LANGUAGE_CHANGED_EVENT, { detail: { locale: newLocale } })
+    );
+  };
+
+  // Guest mode action
   const handleGuestStart = async () => {
+    if (guestLoading) return;
     setGuestLoading(true);
     try {
       resetAuthClientState();
@@ -475,1043 +502,1812 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
       setGuestLoading(false);
     }
   };
-  const isArabic = effectiveLocale === "ar";
-  const pageFontClass = `${arabicFont.className} ${isArabic ? "lp-ar" : ""}`;
-  const headingClass = arabicFont.className;
 
-  const allocation = useMemo(() => {
-    let remaining = salary;
-    const rows = RULES.map((rule) => {
-      const want = rule.kind === "fixed" ? scaledFixedAmount(rule, salary) : Math.round((salary * rule.pct) / 100);
-      const got = Math.max(0, Math.min(want, remaining));
-      remaining -= got;
-      return {
-        key: rule.key,
-        color: rule.color,
-        value: got,
-        tag: rule.kind === "fixed" ? copy.sim.fixed : `${rule.pct} %`,
-      };
-    });
-    return { rows, savings: Math.max(0, remaining) };
-  }, [salary, copy.sim.fixed]);
+  // Keyboard accessibility for APK modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && apkOpen) {
+        setApkOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [apkOpen]);
 
-  const onPhoneMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (reduceMotion) return;
-    const scene = event.currentTarget;
-    const phone = phoneRef.current;
-    const rect = scene.getBoundingClientRect();
-    const dx = (event.clientX - rect.left) / rect.width - 0.5;
-    const dy = (event.clientY - rect.top) / rect.height - 0.5;
-    if (phone) {
-      phone.style.transform = `rotateY(${(dx * 13).toFixed(2)}deg) rotateX(${(-dy * 13).toFixed(2)}deg) translateZ(14px)`;
-    }
-    scene.querySelectorAll<HTMLElement>(".lp-chip").forEach((chip, index) => {
-      const depth = 12 + (index % 3) * 7;
-      chip.style.transform = `translate(${(dx * depth).toFixed(1)}px, ${(dy * depth).toFixed(1)}px)`;
-    });
+  // Hero parallax calculations
+  const onHeroMove = (e: React.MouseEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setMx((e.clientX - r.left) / r.width - 0.5);
+    setMy((e.clientY - r.top) / r.height - 0.5);
   };
 
-  const onPhoneLeave = (event: React.PointerEvent<HTMLDivElement>) => {
-    const phone = phoneRef.current;
-    if (phone) phone.style.transform = "";
-    event.currentTarget.querySelectorAll<HTMLElement>(".lp-chip").forEach((chip) => {
-      chip.style.removeProperty("transform");
-    });
+  const onHeroLeave = () => {
+    setMx(0);
+    setMy(0);
   };
 
-  const onAiCardMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (reduceMotion) return;
-    const card = event.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    card.style.setProperty("--mouse-x", `${x}px`);
-    card.style.setProperty("--mouse-y", `${y}px`);
-    card.style.setProperty("--mouse-opacity", "1");
-  };
+  const phoneTransform = `rotateY(${(mx * 16).toFixed(2)}deg) rotateX(${(-my * 12).toFixed(2)}deg)`;
 
-  const onAiCardLeave = (event: React.PointerEvent<HTMLDivElement>) => {
-    const card = event.currentTarget;
-    card.style.setProperty("--mouse-opacity", "0");
-  };
-
-  const heroChips = [
-    { t: copy.chips.rent, a: "-3 200 MAD", m: copy.chips.rentM, up: false, cls: "lp-c1" },
-    { t: copy.chips.sal, a: "+12 400 MAD", m: copy.chips.salM, up: true, cls: "lp-c2" },
-    { t: copy.chips.net, a: "-199 MAD", m: copy.chips.netM, up: false, cls: "lp-c3" },
-    { t: copy.chips.debt, a: "-2 100 MAD", m: copy.chips.debtM, up: false, cls: "lp-c4" },
-    { t: copy.chips.sav, a: "+1 500 MAD", m: copy.chips.savM, up: true, cls: "lp-c5" },
+  // Floating chips
+  const floaters = [
+    { x: "-40px", y: "70px", ini: "SA", label: t.floaterSal, amount: "+12 400 MAD", tint: "#E2F1E8", fg: "#0A7A53", d: 1.4, delay: "0s" },
+    { x: "300px", y: "30px", ini: "LO", label: t.floaterRent, amount: "−3 500 MAD", tint: "#EFEDE6", fg: "#0F1A16", d: 1.0, delay: "1.2s" },
+    { x: "-60px", y: "330px", ini: "IN", label: t.floaterNet, amount: "−300 MAD", tint: "#E6EEFA", fg: "#2457A6", d: 1.8, delay: "0.6s" },
+    { x: "310px", y: "400px", ini: "CR", label: t.floaterDebt, amount: "−1 800 MAD", tint: "#EFE7F6", fg: "#6B3FA0", d: 1.2, delay: "2s" },
+    { x: "250px", y: "560px", ini: "EP", label: t.floaterSav, amount: "+1 500 MAD", tint: "#FFF4DC", fg: "#8A5300", d: 1.6, delay: "0.3s" },
   ];
 
-  const navLinks = [
-    { href: "#simulateur", label: copy.nav.sim },
-    { href: "#pourqui", label: copy.nav.who },
+  // Marquee ticker items
+  const tickerItems = [
+    { name: t.envFood, amount: "1 100 MAD", color: "#7FD3AE" },
+    { name: t.envTransport, amount: "400 MAD", color: "#8FC2F0" },
+    { name: t.envFun, amount: "350 MAD", color: "#F7B58F" },
+    { name: t.envSav, amount: "+1 500 MAD", color: "#F2B544" },
+    { name: t.envRent, amount: "3 500 MAD", color: "#CFE6DB" },
+    { name: t.envEid, amount: "+400 MAD", color: "#F2B544" },
   ];
 
-  const Arrow = () => (
-    <svg className="lp-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
+  // Spotlight on Assistant card
+  const onSpot = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setSx(((e.clientX - r.left) / r.width) * 100);
+    setSy(((e.clientY - r.top) / r.height) * 100);
+  };
 
-  const GooglePlayIcon = ({ className = "w-7 h-7" }: { className?: string }) => (
-    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M47.2 24.3C40.6 31.4 36.8 42.4 36.8 56.4V455.6c0 14 3.8 25 10.4 32.1l1.8 1.7L273.4 265v-4.4L49 22.6l-1.8 1.7z" fill="#00A0FF" />
-      <path d="M352.4 344L273.4 265v-4.4L352.4 182l2.4 1.4 93.6 53.2c26.7 15.2 26.7 40.1 0 55.3l-93.6 53.2-2.4 1.3z" fill="#FFC107" />
-      <path d="M354.8 342.7L273.4 261.3 47.2 487.7c8.8 9.3 23.3 10.5 39.8 1.1l267.8-146.1" fill="#FF3D00" />
-      <path d="M354.8 171.3L87 25.2C70.5 15.8 56 17 47.2 26.3L273.4 252.7l81.4-81.4z" fill="#4CAF50" />
-    </svg>
-  );
+  // Simulator computations
+  const fixedConfig = useMemo(() => [
+    { name: t.envRent, pct: 0.28, color: "#06402C" },
+    { name: t.envNet, pct: 0.03, color: "#2457A6" },
+    { name: t.envDebt, pct: 0.12, color: "#6B3FA0" },
+  ], [t]);
+
+  const varConfig = useMemo(() => [
+    { name: t.envFood, pct: 0.15, color: "#0A7A53" },
+    { name: t.envTransport, pct: 0.06, color: "#5AA9E6" },
+    { name: t.envFun, pct: 0.06, color: "#B4441C" },
+  ], [t]);
+
+  const usedRatio = useMemo(() => {
+    return [...fixedConfig, ...varConfig].reduce((acc, item) => acc + item.pct, 0);
+  }, [fixedConfig, varConfig]);
+
+  const savingRatio = Math.max(0, 1 - usedRatio);
+  const savingAmount = salary * savingRatio;
+  const savingYear = savingAmount * 12;
+
+  const splitBars = useMemo(() => {
+    return [
+      ...fixedConfig.map((item) => ({ pct: `${(item.pct * 100).toFixed(1)}%`, color: item.color })),
+      ...varConfig.map((item) => ({ pct: `${(item.pct * 100).toFixed(1)}%`, color: item.color })),
+      { pct: `${(savingRatio * 100).toFixed(1)}%`, color: "#F2B544" },
+    ];
+  }, [fixedConfig, varConfig, savingRatio]);
 
   return (
     <div
-      className={`lp-root ${pageFontClass} ${introReady ? "lp-intro" : ""}`}
-      dir={direction}
-      lang={effectiveLocale}
-      data-landing-locale={effectiveLocale}
+      dir={dir}
+      className={isAr ? cairo.className : manrope.className}
+      style={{
+        minHeight: "100vh",
+        background: "#F6F5EF",
+        color: "#0F1A16",
+        display: "flex",
+        flexDirection: "column",
+        overflowX: "hidden",
+      }}
     >
-      {/* 🚀 GOOGLE PLAY / ANDROID POPUP MODAL (LIGHT THEME) */}
-      <AnimatePresence>
-        {showGooglePlayPopup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
-            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => setShowGooglePlayPopup(false)}
+      <style>{`
+        a { color: #0A7A53; text-decoration: none; }
+        a:hover { color: #06402C; }
+        @keyframes sbk-marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        @keyframes sbk-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        .sbk-track {
+          display: flex;
+          width: max-content;
+          gap: 48px;
+          animation: sbk-marquee 32s linear infinite;
+        }
+        .sbk-float {
+          animation: sbk-float 6s ease-in-out infinite;
+        }
+        input[type="range"] {
+          accent-color: #0A7A53;
+        }
+      `}</style>
+
+      {/* HEADER */}
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+          background: "rgba(246, 245, 239, 0.88)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid rgba(15, 26, 22, 0.08)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            padding: "14px 24px",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "12px 28px",
+          }}
+        >
+          {/* Logo */}
+          <Link
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              textDecoration: "none",
+              color: "#0F1A16",
+            }}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] text-slate-900 overflow-hidden text-center"
-              onClick={(e) => e.stopPropagation()}
+            <span
+              style={{
+                width: "38px",
+                height: "38px",
+                borderRadius: "11px",
+                background: "#0A7A53",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#FFFFFF",
+                boxShadow: "0 2px 8px rgba(10, 122, 83, 0.25)",
+              }}
             >
-              {/* Subtle ambient light glows */}
-              <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
-
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={() => setShowGooglePlayPopup(false)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
-                aria-label="Fermer"
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#FFFFFF"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              {/* Logo Emblem */}
-              <div className="mx-auto mb-3.5 w-16 h-16 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-center shadow-sm">
-                <GooglePlayIcon className="w-9 h-9 flex-shrink-0" />
-              </div>
-
-              {/* Status Badge */}
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11.5px] font-bold text-emerald-800 bg-emerald-100/70 border border-emerald-300/70 rounded-full mb-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                {isArabic ? "تطبيق أندرويد الرسمي" : "Disponible sur Android"}
-              </span>
-
-              {/* Main Headline */}
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight mb-2">
-                {isArabic ? "7sabek فـ جيبك فين ما كنت !" : "Votre budget toujours dans votre poche"}
-              </h3>
-
-              {/* Concise 1-sentence description */}
-              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-5 max-w-sm mx-auto">
-                {isArabic
-                  ? "تحكم فـ أظرفة الفلوس ديالك فـ ثانية وبكل سرية، حتى بلا إنترنت."
-                  : "Gérez vos enveloppes instantanément et en toute confidentialité."}
-              </p>
-
-              {/* 3 Sleek Highlight Pills */}
-              <div className="flex items-center justify-center gap-2 mb-6 flex-wrap">
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-900">
-                  ⚡ {isArabic ? "100% بلا إنترنت" : "100% Hors-Ligne"}
-                </span>
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-900">
-                  🎙️ {isArabic ? "صوت بالدارجة" : "Voix en Darija"}
-                </span>
-                <span className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-900">
-                  🛡️ {isArabic ? "حماية بالبصمة" : "Verrouillage Biométrique"}
-                </span>
-              </div>
-
-              {/* High-Impact CTA Button */}
-              <motion.a
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                href="/7sabek_app.apk"
-                download="7sabek_app.apk"
-                onClick={() => setShowGooglePlayPopup(false)}
-                className="w-full inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-600/25 transition-all text-sm cursor-pointer"
-              >
-                <GooglePlayIcon className="w-5 h-5 flex-shrink-0" />
-                <span>{isArabic ? "تحميل التطبيق مجاناً (APK)" : "Télécharger l'Application (APK)"}</span>
-              </motion.a>
-
-              {/* Secondary Action Link */}
-              <button
-                type="button"
-                onClick={() => setShowGooglePlayPopup(false)}
-                className="mt-3 text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer py-1 block w-full text-center"
-              >
-                {isArabic ? "المتابعة على الموقع" : "Continuer sur le Web"}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="lp-progress" aria-hidden="true">
-        <span style={{ width: `${progress}%` }} />
-      </div>
-
-      {/* ============================ HEADER ============================ */}
-      <header className={`lp-header ${scrolled ? "lp-scrolled" : ""}`}>
-        <div className="lp-wrap lp-headrow">
-          <Link href="#top" aria-label="7sabek">
-            {/* The brand PNGs are square with wide transparent padding, so the box
-                has to be ~2.4x the intended visual height. */}
-            <BrandLogo locale={effectiveLocale} className="lp-logo" priority />
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 8l9 6 9-6" />
+              </svg>
+            </span>
+            <span
+              style={{
+                fontSize: "22px",
+                fontWeight: 800,
+                letterSpacing: "-0.4px",
+                fontFamily: isAr ? cairo.style.fontFamily : manrope.style.fontFamily,
+              }}
+            >
+              {isAr ? "حسابك" : "7sabek"}
+            </span>
           </Link>
 
-          <nav className="lp-nav">
-            {navLinks.map((link) => (
-              <a key={link.href} href={link.href}>{link.label}</a>
-            ))}
+          {/* Navigation */}
+          <nav
+            aria-label="Navigation principale"
+            style={{
+              display: "flex",
+              gap: "6px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <a
+              href="#simulateur"
+              style={{
+                padding: "8px 12px",
+                borderRadius: "10px",
+                color: "#33423C",
+                fontSize: "15px",
+                fontWeight: 600,
+                textDecoration: "none",
+                transition: "background 0.15s ease",
+              }}
+            >
+              {t.navSim}
+            </a>
+            <a
+              href="#pour-qui"
+              style={{
+                padding: "8px 12px",
+                borderRadius: "10px",
+                color: "#33423C",
+                fontSize: "15px",
+                fontWeight: 600,
+                textDecoration: "none",
+                transition: "background 0.15s ease",
+              }}
+            >
+              {t.navWho}
+            </a>
+            <button
+              type="button"
+              onClick={() => setApkOpen(true)}
+              style={{
+                padding: "8px 12px",
+                border: 0,
+                borderRadius: "10px",
+                background: "transparent",
+                color: "#33423C",
+                fontFamily: "inherit",
+                fontSize: "15px",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                cursor: "pointer",
+                transition: "background 0.15s ease",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <rect x="6" y="2" width="12" height="20" rx="2.5" />
+                <path d="M11 18h2" />
+              </svg>
+              {t.navApk}
+            </button>
           </nav>
 
-          <div className="lp-actions">
-            <button
-              type="button"
-              onClick={() => setShowGooglePlayPopup(true)}
-              className="lp-btn lp-btn-ghost lp-btn-sm inline-flex items-center gap-1.5 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-950/40 cursor-pointer"
-              title={isArabic ? "تطبيق أندرويد" : "App Android"}
+          {/* Header Right Actions */}
+          <div
+            style={{
+              marginInlineStart: "auto",
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            {/* Lang switcher */}
+            <div
+              role="radiogroup"
+              aria-label="Langue"
+              style={{
+                display: "flex",
+                padding: "3px",
+                borderRadius: "12px",
+                background: "rgba(15, 26, 22, 0.06)",
+              }}
             >
-              <GooglePlayIcon className="w-4 h-4" />
-              <span className="lp-hide-sm">{isArabic ? "تطبيق أندرويد" : "App Android"}</span>
-            </button>
-            <button
-              type="button"
-              onClick={openLanguagePicker}
-              className="lp-lang lp-hide-sm"
-              aria-label={isArabic ? "تغيير اللغة" : "Changer de langue"}
-              title={isArabic ? "تغيير اللغة" : "Changer de langue"}
-            >
-              <Globe size={15} />
-              <span>{getLocaleBadgeLabel(locale)}</span>
-            </button>
-            {checkingAuth ? null : user ? (
+              {(
+                [
+                  ["fr", "FR"],
+                  ["ar", "AR"],
+                  ["en", "EN"],
+                ] as const
+              ).map(([id, label]) => {
+                const isActive = locale === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    onClick={() => changeLocale(id)}
+                    style={{
+                      height: "34px",
+                      minWidth: "44px",
+                      padding: "0 10px",
+                      border: 0,
+                      borderRadius: "9px",
+                      background: isActive ? "#FFFFFF" : "transparent",
+                      boxShadow: isActive ? "0 1px 4px rgba(15, 26, 22, 0.12)" : "none",
+                      fontFamily: "inherit",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: "#0F1A16",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Auth Buttons */}
+            {user ? (
               <>
-                <Link href={user.role === "superadmin" ? "/superadmin" : "/dashboard"} className="lp-btn lp-btn-accent lp-btn-sm">
-                  {copy.cta.dashboard}
+                <Link
+                  href="/dashboard"
+                  style={{
+                    height: "44px",
+                    padding: "0 18px",
+                    borderRadius: "12px",
+                    background: "#0A7A53",
+                    color: "#FFFFFF",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  {t.dashboard}
                 </Link>
-                <button type="button" onClick={handleLogout} className="lp-btn lp-btn-ghost lp-btn-sm">
-                  {copy.cta.logout}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout().finally(() => setUser(null));
+                  }}
+                  style={{
+                    height: "44px",
+                    padding: "0 14px",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(15, 26, 22, 0.15)",
+                    background: "transparent",
+                    color: "#55645D",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t.logout}
                 </button>
               </>
             ) : (
               <>
-                <Link href="/login" className="lp-btn lp-btn-ghost lp-btn-sm lp-hide-sm">{copy.cta.login}</Link>
-                <Link href="/register" className="lp-btn lp-btn-accent lp-btn-sm">{copy.cta.start}</Link>
+                <Link
+                  href="/login"
+                  style={{
+                    height: "44px",
+                    padding: "0 16px",
+                    borderRadius: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    color: "#0F1A16",
+                    textDecoration: "none",
+                  }}
+                >
+                  {t.login}
+                </Link>
+                <Link
+                  href="/register"
+                  style={{
+                    height: "44px",
+                    padding: "0 20px",
+                    borderRadius: "12px",
+                    background: "#0F1A16",
+                    color: "#FFFFFF",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 4px 12px rgba(15, 26, 22, 0.15)",
+                  }}
+                >
+                  {t.start}
+                </Link>
               </>
             )}
-            <button
-              type="button"
-              className="lp-burger"
-              aria-label="Menu"
-              aria-expanded={mobileNav}
-              onClick={() => setMobileNav((prev) => !prev)}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
           </div>
         </div>
-
-        {mobileNav ? (
-          <div className="lp-mobilenav">
-            <div className="lp-wrap">
-              {navLinks.map((link) => (
-                <a key={link.href} href={link.href} onClick={() => setMobileNav(false)}>{link.label}</a>
-              ))}
-              <Link href="/login" onClick={() => setMobileNav(false)}>{copy.cta.login}</Link>
-
-              {/* 🌍 Language switcher inside mobile lateral menu */}
-              <div className="flex items-center justify-between pt-3 mt-1 border-t border-[var(--line)]">
-                <span className="text-sm font-semibold text-[var(--ink-soft)]">
-                  {isArabic ? "اللغة" : "Langue"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileNav(false);
-                    openLanguagePicker();
-                  }}
-                  className="lp-lang inline-flex items-center gap-2"
-                  aria-label={isArabic ? "تغيير اللغة" : "Changer de langue"}
-                >
-                  <Globe size={15} />
-                  <span>{getLocaleBadgeLabel(locale)}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </header>
 
-      <main id="top">
-        {/* ============================ HERO ============================ */}
-        <section className="lp-hero">
-          <div className="lp-herobg" aria-hidden="true">
-            <span className="lp-blob lp-blob-a" />
-            <span className="lp-blob lp-blob-b" />
-          </div>
+      {/* HERO SECTION */}
+      <section
+        onMouseMove={onHeroMove}
+        onMouseLeave={onHeroLeave}
+        style={{
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            padding: "72px 24px 88px",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "56px",
+          }}
+        >
+          {/* Left Column */}
+          <div
+            style={{
+              flex: "1 1 460px",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "26px",
+            }}
+          >
+            {/* Badge */}
+            <span
+              style={{
+                alignSelf: "flex-start",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background: "#E2F1E8",
+                color: "#06402C",
+                fontSize: "14px",
+                fontWeight: 700,
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "4px",
+                  background: "#0A7A53",
+                }}
+              />
+              {t.badge}
+            </span>
 
-          <div className="lp-wrap lp-herogrid">
-            <div>
-              <h1 className={`${headingClass} lp-h1`}>
-                <span className="lp-tagAccent">{copy.hero.taglineA}</span>{" "}
-                <span className="lp-tagInk">{copy.hero.taglineB}</span>
-              </h1>
-              <div className="lp-ctarow">
-                <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
+            {/* Heading */}
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "clamp(42px, 5.5vw, 76px)",
+                lineHeight: 1.05,
+                fontWeight: 800,
+                letterSpacing: "-1.8px",
+              }}
+            >
+              {t.h1a}
+              <br />
+              <span style={{ color: "#0A7A53" }}>{t.h1b}</span>
+            </h1>
 
-                <GuestModeButton
-                  status={status}
-                  locale={effectiveLocale}
-                  dir={direction}
-                  placement="landing"
-                  loading={guestLoading}
-                  onStart={handleGuestStart}
-                  label={copy.cta.tryWithoutAccount}
-                  className="lp-btn lp-btn-ghost"
-                />
+            {/* Subtitle */}
+            <p
+              style={{
+                margin: 0,
+                maxWidth: "520px",
+                fontSize: "19px",
+                lineHeight: 1.6,
+                color: "#4A5A53",
+              }}
+            >
+              {t.lead}
+            </p>
 
-                {/* Device-aware install CTA: Android → Play/APK popup, iOS →
-                    the existing "Add to Home Screen" prompt, Chromium desktop
-                    → the browser's own PWA install prompt. Nothing on other
-                    desktop browsers (no install path to trigger). Each one
-                    keeps that platform's own brand color instead of a flat
-                    black pill. */}
-                {heroInstallKind === "android" ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowGooglePlayPopup(true)}
-                    className="lp-btn lp-btn-ghost lp-install lp-install-android"
-                  >
-                    <GooglePlayIcon className="w-[18px] h-[18px] flex-shrink-0" />
-                    <span>{copy.cta.installAndroid}</span>
-                  </button>
-                ) : heroInstallKind === "ios" ? (
-                  <button
-                    type="button"
-                    onClick={() => triggerAddToHomeScreenPrompt()}
-                    className="lp-btn lp-btn-ghost lp-install lp-install-ios"
-                  >
-                    <Apple className="w-4 h-4 flex-shrink-0" />
-                    <span>{copy.cta.installIOS}</span>
-                  </button>
-                ) : heroInstallKind === "chromium-desktop" && chromeDeferredPrompt ? (
-                  <button
-                    type="button"
-                    onClick={handleChromeInstall}
-                    className="lp-btn lp-btn-ghost lp-install lp-install-chrome"
-                  >
-                    <Chrome className="w-4 h-4 flex-shrink-0" />
-                    <span>{copy.cta.installChrome}</span>
-                  </button>
-                ) : null}
-              </div>
+            {/* CTAs */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+              <Link
+                href="/register"
+                style={{
+                  height: "56px",
+                  padding: "0 26px",
+                  borderRadius: "14px",
+                  background: "#0A7A53",
+                  color: "#FFFFFF",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  fontSize: "17px",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  boxShadow: "0 10px 24px rgba(10, 122, 83, 0.28)",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                }}
+              >
+                {t.cta1}
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ transform: isAr ? "scaleX(-1)" : "none" }}
+                >
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleGuestStart}
+                disabled={guestLoading}
+                style={{
+                  height: "56px",
+                  padding: "0 22px",
+                  borderRadius: "14px",
+                  border: "1.5px solid #0F1A16",
+                  background: "transparent",
+                  color: "#0F1A16",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "17px",
+                  fontWeight: 700,
+                  cursor: guestLoading ? "wait" : "pointer",
+                  opacity: guestLoading ? 0.7 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                {guestLoading ? "..." : t.cta2}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setApkOpen(true)}
+                style={{
+                  height: "56px",
+                  padding: "0 18px",
+                  borderRadius: "14px",
+                  border: 0,
+                  background: "#FFFFFF",
+                  color: "#0F1A16",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  fontFamily: "inherit",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 1px 4px rgba(15, 26, 22, 0.08)",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0A7A53"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+                </svg>
+                {t.cta3}
+              </button>
             </div>
 
-            <div className="lp-visual" onPointerMove={onPhoneMove} onPointerLeave={onPhoneLeave}>
-              {heroChips.map((chip) => (
-                <div key={chip.t} className={`lp-chip ${chip.cls} ${chip.up ? "lp-pos" : ""}`}>
-                  <div className="lp-chipt">{chip.t}</div>
-                  <div className="lp-chipa" dir="ltr">{chip.a}</div>
-                  <div className="lp-chipm">{chip.m}</div>
+            {/* Trust points */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "18px", fontSize: "14px", color: "#55645D" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12l5 5 9-10" />
+                </svg>
+                {t.trust1}
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12l5 5 9-10" />
+                </svg>
+                {t.trust2}
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12l5 5 9-10" />
+                </svg>
+                {t.trust3}
+              </span>
+            </div>
+          </div>
+
+          {/* Right Column: 3D Tilt Phone Mockup */}
+          <div
+            style={{
+              flex: "1 1 420px",
+              minWidth: 0,
+              display: "flex",
+              justifyContent: "center",
+              perspective: "1400px",
+            }}
+          >
+            <div style={{ position: "relative", width: "420px", maxWidth: "100%", height: "640px" }}>
+              {/* Radial green glow background */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: "460px",
+                  height: "460px",
+                  margin: "-230px 0 0 -230px",
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(10, 122, 83, 0.22), rgba(10, 122, 83, 0) 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* The Phone */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "10px",
+                  width: "300px",
+                  marginLeft: "-150px",
+                  height: "620px",
+                  borderRadius: "48px",
+                  background: "#0F1A16",
+                  padding: "12px",
+                  boxSizing: "border-box",
+                  boxShadow: "0 40px 80px rgba(6, 64, 44, 0.35)",
+                  transform: phoneTransform,
+                  transition: "transform 0.2s ease-out",
+                }}
+              >
+                <div
+                  dir="ltr"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "38px",
+                    overflow: "hidden",
+                    background: "#F4F5F1",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {/* Camera pill notch */}
+                  <div style={{ height: "34px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <span style={{ width: "90px", height: "24px", borderRadius: "12px", background: "#0F1A16" }} />
+                  </div>
+
+                  {/* Phone Screen Content */}
+                  <div
+                    style={{
+                      padding: "10px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px",
+                      fontFamily: manrope.style.fontFamily,
+                    }}
+                  >
+                    {/* Available Cash Card */}
+                    <div
+                      style={{
+                        borderRadius: "22px",
+                        background: "#06402C",
+                        color: "#FFFFFF",
+                        padding: "16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                      }}
+                    >
+                      <span style={{ fontSize: "11px", color: "#9FD8BE", fontWeight: 700 }}>
+                        {t.cashAvailable}
+                      </span>
+                      <span style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "-0.5px" }}>
+                        2 640,00 <span style={{ fontSize: "13px", color: "#9FD8BE" }}>MAD</span>
+                      </span>
+                    </div>
+
+                    {/* Active envelopes header */}
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: "#55645D" }}>
+                      {t.activeEnvelopes}
+                    </span>
+
+                    {/* 4 Envelope items */}
+                    {[
+                      { name: t.envFood, left: "1 100 MAD", pct: "62%", color: "#0A7A53" },
+                      { name: t.envTransport, left: "400 MAD", pct: "45%", color: "#2457A6" },
+                      { name: t.envFun, left: "350 MAD", pct: "80%", color: "#B4441C" },
+                      { name: t.envSav, left: "+1 500 MAD", pct: "35%", color: "#C98A1A" },
+                    ].map((e) => (
+                      <div
+                        key={e.name}
+                        style={{
+                          background: "#FFFFFF",
+                          borderRadius: "16px",
+                          padding: "12px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                          boxShadow: "0 2px 6px rgba(15, 26, 22, 0.04)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                          <b>{e.name}</b>
+                          <span style={{ color: "#55645D" }}>{e.left}</span>
+                        </div>
+                        <div style={{ height: "6px", borderRadius: "3px", background: "#EEF1ED" }}>
+                          <div
+                            style={{
+                              height: "6px",
+                              width: e.pct,
+                              borderRadius: "3px",
+                              background: e.color,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating badges around the phone */}
+              {floaters.map((f, i) => (
+                <div
+                  key={i}
+                  className="sbk-float"
+                  dir="ltr"
+                  style={{
+                    position: "absolute",
+                    left: f.x,
+                    top: f.y,
+                    animationDelay: f.delay,
+                    zIndex: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      transform: `translate(${(mx * 30 * f.d).toFixed(1)}px, ${(my * 24 * f.d).toFixed(1)}px)`,
+                      transition: "transform 0.2s ease-out",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "10px 14px 10px 10px",
+                      borderRadius: "16px",
+                      background: "#FFFFFF",
+                      boxShadow: "0 16px 36px rgba(15, 26, 22, 0.14)",
+                      fontFamily: manrope.style.fontFamily,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: "34px",
+                        height: "34px",
+                        borderRadius: "10px",
+                        background: f.tint,
+                        color: f.fg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {f.ini}
+                    </span>
+                    <span style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: "12px", color: "#55645D" }}>{f.label}</span>
+                      <b style={{ fontSize: "15px", color: f.fg }}>{f.amount}</b>
+                    </span>
+                  </div>
                 </div>
               ))}
-
-              <div className="lp-phone" ref={phoneRef}>
-                <div className="lp-screen">
-                  <div className="lp-sctop"><span>7sabek</span><span>{copy.sc.cycle}</span></div>
-                  <div className="lp-sccash">
-                    <div className="lp-sclbl">{copy.sc.cash}</div>
-                    <div className="lp-scamt" dir="ltr">2 640,00 MAD</div>
-                  </div>
-                  <div className="lp-scenvs">
-                    {[
-                      { n: copy.env.food, v: "640 / 1 100", w: "58%", c: "#17C777" },
-                      { n: copy.env.transport, v: "210 / 400", w: "52%", c: "#17C777" },
-                      { n: copy.env.fun, v: "340 / 350", w: "97%", c: "#F2A93B" },
-                      { n: copy.env.save, v: "1 500 / 1 500", w: "100%", c: "#17C777" },
-                    ].map((row, index) => (
-                      <div key={row.n} className="lp-scenv">
-                        <div className="lp-scrow"><span>{row.n}</span><span dir="ltr">{row.v}</span></div>
-                        <div className="lp-bar">
-                          <span style={{ width: row.w, background: row.c, transitionDelay: `${0.25 + index * 0.12}s` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
-          </div>
-        </section>
-
-        {/* ============================ MARQUEE ============================ */}
-        <div className="lp-marquee" aria-hidden="true">
-          <div className="lp-mqtrack">
-            {[0, 1].map((pass) => (
-              <div key={pass} className="lp-mqgroup">
-                {MARQUEE.map((item) => (
-                  <span key={`${pass}-${item.key}-${item.v}`} className="lp-mqitem">
-                    <span className="lp-mqdot" style={{ background: item.c }} />
-                    <span>{copy.env[item.key]}</span>
-                    <span className={`lp-mqv ${item.up ? "lp-up" : ""}`} dir="ltr">{item.v} MAD</span>
-                  </span>
-                ))}
-              </div>
-            ))}
           </div>
         </div>
+      </section>
 
-        {/* ============================ BA OMAR (AI) ============================ */}
-        <section className="lp-aisection">
-          <div className="lp-wrap">
-            <div
-              className="lp-aipanel"
-              onPointerMove={onAiCardMove}
-              onPointerLeave={onAiCardLeave}
+      {/* TICKER / MARQUEE BANNER */}
+      <div
+        aria-label="Mouvements typiques des enveloppes"
+        style={{
+          overflow: "hidden",
+          background: "#0F1A16",
+          color: "#FFFFFF",
+          padding: "18px 0",
+        }}
+        dir="ltr"
+      >
+        <div className="sbk-track" style={{ fontFamily: manrope.style.fontFamily, fontSize: "18px", fontWeight: 700 }}>
+          {[...tickerItems, ...tickerItems, ...tickerItems, ...tickerItems].map((m, index) => (
+            <span key={index} style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap" }}>
+              <span style={{ width: "10px", height: "10px", borderRadius: "5px", background: m.color }} />
+              {m.name} <span style={{ color: m.color }}>{m.amount}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ASSISTANT IA SECTION (BA OMAR) */}
+      <section
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "96px 24px 0",
+        }}
+      >
+        <div
+          onMouseMove={onSpot}
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: "32px",
+            background: "#06402C",
+            color: "#FFFFFF",
+            padding: "56px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "48px",
+            alignItems: "center",
+          }}
+        >
+          {/* Spotlight background gradient */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `radial-gradient(420px circle at ${sx.toFixed(0)}% ${sy.toFixed(0)}%, rgba(127, 211, 174, 0.22), rgba(127, 211, 174, 0) 70%)`,
+              pointerEvents: "none",
+            }}
+          />
+
+          {/* Left Text */}
+          <div
+            style={{
+              position: "relative",
+              flex: "1 1 420px",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+            }}
+          >
+            <span
+              style={{
+                alignSelf: "flex-start",
+                padding: "6px 12px",
+                borderRadius: "999px",
+                background: "rgba(242, 181, 68, 0.18)",
+                color: "#F2B544",
+                fontSize: "13px",
+                fontWeight: 800,
+                letterSpacing: "1px",
+              }}
             >
-              {/* Dynamic mouse cursor spotlight glow */}
-              <div className="lp-aipanel-spotlight" aria-hidden="true" />
-
-              {/* Ambient light glows */}
-              <div className="lp-aiglow-left" aria-hidden="true" />
-              <div className="lp-aiglow-right" aria-hidden="true" />
-
-              {/* Centered Avatar Card */}
-              <div className="lp-aiavatar">
-                <div className="lp-aiavatar-ring">
-                  <Image
-                    src="/landing/ai/ba-omar-avatar.png"
-                    alt="Ba Omar"
-                    width={100}
-                    height={100}
-                    className="lp-aiimg"
-                    priority
-                  />
-                </div>
-              </div>
-
-              {/* Content Block */}
-              <div className="lp-aitext">
-                <h3 className={`${headingClass} lp-aititle`}>
-                  {copy.ai.title.includes("(AI)") ? (
-                    <>
-                      {copy.ai.title.split("(AI)")[0]}
-                      <span className="lp-aitag">AI</span>
-                      {copy.ai.title.split("(AI)")[1]}
-                    </>
-                  ) : (
-                    copy.ai.title
-                  )}
-                </h3>
-                <p className="lp-aidesc">{copy.ai.desc}</p>
-              </div>
+              {t.omarBadge}
+            </span>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "clamp(32px, 4vw, 48px)",
+                lineHeight: 1.1,
+                fontWeight: 800,
+                letterSpacing: "-1px",
+              }}
+            >
+              {t.omarTitle}
+            </h2>
+            <p style={{ margin: 0, fontSize: "18px", lineHeight: 1.6, color: "#CFE6DB" }}>
+              {t.omarText}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+              <span style={{ padding: "10px 14px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.08)", fontSize: "15px" }}>
+                {t.omarTag1}
+              </span>
+              <span style={{ padding: "10px 14px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.08)", fontSize: "15px" }}>
+                {t.omarTag2}
+              </span>
+              <span style={{ padding: "10px 14px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.08)", fontSize: "15px" }}>
+                {t.omarTag3}
+              </span>
             </div>
           </div>
-        </section>
 
-        {/* ============================ WHY 7SABEK ============================ */}
-        <section id="pourquoi" className="lp-section">
-          <div className="lp-wrap">
-            <div className="lp-head lp-center">
-              <span className="lp-kicker">{copy.why.kicker}</span>
+          {/* Right Simulated Chat Card */}
+          <div
+            style={{
+              position: "relative",
+              flex: "1 1 380px",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "26px",
+                  background: "#F2B544",
+                  color: "#0F1A16",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: cairo.style.fontFamily,
+                  fontSize: "22px",
+                  fontWeight: 800,
+                }}
+              >
+                ع
+              </span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <b style={{ fontSize: "17px" }}>
+                  Ba Omar <span style={{ fontFamily: cairo.style.fontFamily, fontWeight: 600 }}>· با عمر</span>
+                </b>
+                <span style={{ fontSize: "13px", color: "#9FD8BE" }}>{t.omarOnline}</span>
+              </div>
             </div>
-            <div className="lp-whygrid">
-              {copy.why.items.map((item, index) => {
+
+            {/* User message in Darija */}
+            <div
+              dir="rtl"
+              style={{
+                alignSelf: isAr ? "flex-start" : "flex-end",
+                maxWidth: "80%",
+                padding: "12px 16px",
+                borderRadius: "18px 18px 4px 18px",
+                background: "#0A7A53",
+                fontFamily: cairo.style.fontFamily,
+                fontSize: "16px",
+              }}
+            >
+              {t.omarUserMsg}
+            </div>
+
+            {/* Bot response */}
+            <div
+              style={{
+                alignSelf: isAr ? "flex-end" : "flex-start",
+                maxWidth: "86%",
+                padding: "14px 16px",
+                borderRadius: "18px 18px 18px 4px",
+                background: "rgba(255, 255, 255, 0.1)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                fontSize: "15px",
+              }}
+            >
+              <span>{t.omarBotMsg}</span>
+              <div style={{ height: "6px", borderRadius: "3px", background: "rgba(255, 255, 255, 0.15)" }}>
+                <div style={{ width: "68%", height: "6px", borderRadius: "3px", background: "#7FD3AE" }} />
+              </div>
+              <span style={{ fontSize: "13px", color: "#9FD8BE" }}>
+                {t.omarBotSub}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* POURQUOI 7SABEK / 4 ETAPES */}
+      <section
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "112px 24px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: "40px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "640px" }}>
+          <span style={{ fontSize: "14px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
+            {t.whyKicker}
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "clamp(32px, 4vw, 48px)",
+              lineHeight: 1.1,
+              fontWeight: 800,
+              letterSpacing: "-1px",
+            }}
+          >
+            {t.whyTitle}
+          </h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+          {t.steps.map((s) => (
+            <div
+              key={s.n}
+              style={{
+                background: "#FFFFFF",
+                borderRadius: "24px",
+                padding: "28px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                minHeight: "220px",
+                boxShadow: "0 2px 8px rgba(15, 26, 22, 0.04)",
+              }}
+            >
+              <span style={{ fontSize: "44px", fontWeight: 800, color: "#0A7A53", letterSpacing: "-1px" }}>
+                {s.n}
+              </span>
+              <h3 style={{ margin: 0, fontSize: "21px", fontWeight: 800 }}>{s.title}</h3>
+              <p style={{ margin: 0, fontSize: "16px", lineHeight: 1.55, color: "#55645D" }}>
+                {s.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SIMULATEUR */}
+      <section
+        id="simulateur"
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "112px 24px 0",
+        }}
+      >
+        <div
+          style={{
+            background: "#FFFFFF",
+            borderRadius: "32px",
+            padding: "48px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "48px",
+            boxShadow: "0 4px 16px rgba(15, 26, 22, 0.04)",
+          }}
+        >
+          {/* Left Controls */}
+          <div
+            style={{
+              flex: "1 1 380px",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "24px",
+            }}
+          >
+            <span style={{ fontSize: "14px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
+              {t.simKicker}
+            </span>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "clamp(30px, 3.5vw, 42px)",
+                lineHeight: 1.1,
+                fontWeight: 800,
+                letterSpacing: "-1px",
+              }}
+            >
+              {t.simTitle}
+            </h2>
+
+            <label
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                fontSize: "15px",
+                fontWeight: 700,
+                color: "#33423C",
+              }}
+            >
+              {t.simSalaryLabel}
+              <span
+                style={{
+                  fontSize: "44px",
+                  fontWeight: 800,
+                  color: "#0F1A16",
+                  letterSpacing: "-1px",
+                }}
+              >
+                {formatMad(salary)}{" "}
+                <span style={{ fontSize: "18px", color: "#55645D" }}>MAD</span>
+              </span>
+              <input
+                type="range"
+                min="3000"
+                max="40000"
+                step="100"
+                value={salary}
+                onChange={(e) => setSalary(Number(e.target.value))}
+                style={{ width: "100%", height: "28px", cursor: "pointer" }}
+              />
+              <span
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#55645D",
+                }}
+              >
+                <span>3 000</span>
+                <span>40 000</span>
+              </span>
+            </label>
+
+            {/* Presets */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {PRESET_SALARIES.map((p) => {
+                const isSelected = salary === p;
                 return (
-                  <div key={item.t} className="lp-whycard">
-                    <span className="lp-whyblob">
-                      <Image src={WHY_IMAGES[index]} alt={item.t} width={176} height={176} className="lp-whyimg" />
-                      <span className="lp-whystep" dir="ltr">{`0${index + 1}`}</span>
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setSalary(p)}
+                    style={{
+                      height: "44px",
+                      padding: "0 16px",
+                      borderRadius: "12px",
+                      border: isSelected ? "0" : "1.5px solid #DAD8CF",
+                      background: isSelected ? "#0F1A16" : "#FFFFFF",
+                      color: isSelected ? "#FFFFFF" : "#0F1A16",
+                      fontFamily: "inherit",
+                      fontSize: "15px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {formatMad(p)}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.5, color: "#55645D" }}>
+              {t.simDisclaimer}
+            </p>
+          </div>
+
+          {/* Right Visual Breakdown */}
+          <div
+            style={{
+              flex: "1 1 460px",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            {/* Visual stacked split bar */}
+            <div
+              style={{
+                display: "flex",
+                height: "18px",
+                borderRadius: "9px",
+                overflow: "hidden",
+                gap: "3px",
+              }}
+            >
+              {splitBars.map((b, i) => (
+                <div key={i} style={{ width: b.pct, background: b.color }} />
+              ))}
+            </div>
+
+            {/* Boxes: Fixed vs Variables */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px" }}>
+              {/* Fixed */}
+              <div
+                style={{
+                  borderRadius: "20px",
+                  background: "#F6F5EF",
+                  padding: "18px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1px", color: "#55645D" }}>
+                  {t.simFixedTitle}
+                </span>
+                {fixedConfig.map((r) => (
+                  <div key={r.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px" }}>
+                    <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: r.color }} />
+                    <span style={{ flex: 1 }}>{r.name}</span>
+                    <b>{formatMad(salary * r.pct)}</b>
+                  </div>
+                ))}
+              </div>
+
+              {/* Variables */}
+              <div
+                style={{
+                  borderRadius: "20px",
+                  background: "#F6F5EF",
+                  padding: "18px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1px", color: "#55645D" }}>
+                  {t.simVarTitle}
+                </span>
+                {varConfig.map((r) => (
+                  <div key={r.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px" }}>
+                    <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: r.color }} />
+                    <span style={{ flex: 1 }}>{r.name}</span>
+                    <b>{formatMad(salary * r.pct)}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Projected Savings Banner */}
+            <div
+              style={{
+                borderRadius: "20px",
+                background: "#06402C",
+                color: "#FFFFFF",
+                padding: "22px",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "14px", color: "#9FD8BE", fontWeight: 700 }}>
+                  {t.simSavingProjected}
+                </span>
+                <span style={{ fontSize: "36px", fontWeight: 800, letterSpacing: "-1px" }}>
+                  {formatMad(savingAmount)}{" "}
+                  <span style={{ fontSize: "16px", color: "#9FD8BE" }}>{t.simMonthUnit}</span>
+                </span>
+              </div>
+              <span
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "12px",
+                  background: "rgba(242, 181, 68, 0.18)",
+                  color: "#F2B544",
+                  fontWeight: 800,
+                  fontSize: "16px",
+                }}
+              >
+                {formatMad(savingYear)} {t.simYearUnit}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* TABLEAU COMPARATIF */}
+      <section
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "112px 24px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: "32px",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            maxWidth: "680px",
+            fontSize: "clamp(30px, 3.5vw, 44px)",
+            lineHeight: 1.1,
+            fontWeight: 800,
+            letterSpacing: "-1px",
+          }}
+        >
+          {t.cmpTitle}
+        </h2>
+        <div style={{ overflowX: "auto", borderRadius: "24px", background: "#FFFFFF", boxShadow: "0 2px 8px rgba(15, 26, 22, 0.04)" }}>
+          <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "16px" }}>
+            <thead>
+              <tr>
+                <th scope="col" style={{ padding: "20px 24px", textAlign: "start", fontSize: "13px", letterSpacing: "1px", color: "#55645D" }}>
+                  {t.cmpColCrit}
+                </th>
+                <th scope="col" style={{ padding: "20px 24px", textAlign: "start", fontSize: "13px", letterSpacing: "1px", color: "#55645D" }}>
+                  {t.cmpColOld}
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: "20px 24px",
+                    textAlign: "start",
+                    fontSize: "13px",
+                    letterSpacing: "1px",
+                    color: "#0A7A53",
+                    background: "#E2F1E8",
+                  }}
+                >
+                  {t.cmpColNew}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {t.compare.map((c, i) => (
+                <tr key={i} style={{ borderTop: "1px solid #ECEBE4" }}>
+                  <th scope="row" style={{ padding: "18px 24px", textAlign: "start", fontWeight: 700 }}>
+                    {c.k}
+                  </th>
+                  <td style={{ padding: "18px 24px", color: "#6B7872" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B4441C" strokeWidth="2.4" strokeLinecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                      {c.old}
                     </span>
-                    <h3>{item.t}</h3>
-                    <p>{item.d}</p>
-                  </div>
-                );
-              })}
+                  </td>
+                  <td style={{ padding: "18px 24px", background: "#F2F9F5", fontWeight: 600 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12l5 5 9-10" />
+                      </svg>
+                      {c.neu}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* POUR QUI */}
+      <section
+        id="pour-qui"
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "112px 24px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: "32px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <span style={{ fontSize: "14px", fontWeight: 800, letterSpacing: "1.5px", color: "#0A7A53" }}>
+            {t.whoKicker}
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "clamp(30px, 3.5vw, 44px)",
+              lineHeight: 1.1,
+              fontWeight: 800,
+              letterSpacing: "-1px",
+            }}
+          >
+            {t.whoTitle}
+          </h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px" }}>
+          {t.who.map((w, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: "#FFFFFF",
+                borderRadius: "24px",
+                padding: "28px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                boxShadow: "0 2px 8px rgba(15, 26, 22, 0.04)",
+              }}
+            >
+              <span
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "16px",
+                  background: w.tint,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={w.color}
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d={w.icon} />
+                </svg>
+              </span>
+              <h3 style={{ margin: 0, fontSize: "20px", fontWeight: 800 }}>{w.title}</h3>
+              <p style={{ margin: 0, fontSize: "15px", lineHeight: 1.55, color: "#55645D" }}>
+                {w.text}
+              </p>
+              <span
+                style={{
+                  marginTop: "auto",
+                  alignSelf: "flex-start",
+                  padding: "6px 12px",
+                  borderRadius: "999px",
+                  background: w.tint,
+                  color: w.color,
+                  fontSize: "13px",
+                  fontWeight: 800,
+                }}
+              >
+                {w.tag}
+              </span>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FINAL CALL TO ACTION BANNER */}
+      <section
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "112px 24px 96px",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: "32px",
+            background: "#0F1A16",
+            color: "#FFFFFF",
+            padding: "64px 48px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "22px",
+            textAlign: "center",
+          }}
+        >
+          {/* Radial emerald glow */}
+          <div
+            style={{
+              position: "absolute",
+              width: "520px",
+              height: "520px",
+              left: "50%",
+              top: "-300px",
+              marginLeft: "-260px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(10, 122, 83, 0.55), rgba(10, 122, 83, 0) 70%)",
+              pointerEvents: "none",
+            }}
+          />
+
+          <h2
+            style={{
+              position: "relative",
+              margin: 0,
+              maxWidth: "720px",
+              fontSize: "clamp(32px, 4vw, 52px)",
+              lineHeight: 1.08,
+              fontWeight: 800,
+              letterSpacing: "-1px",
+            }}
+          >
+            {t.finTitle}
+          </h2>
+          <p
+            style={{
+              position: "relative",
+              margin: 0,
+              maxWidth: "560px",
+              fontSize: "18px",
+              lineHeight: 1.6,
+              color: "#B9C6C0",
+            }}
+          >
+            {t.finSub}
+          </p>
+
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              gap: "12px",
+            }}
+          >
+            <Link
+              href="/register"
+              style={{
+                height: "56px",
+                padding: "0 28px",
+                borderRadius: "14px",
+                background: "#F2B544",
+                color: "#0F1A16",
+                display: "flex",
+                alignItems: "center",
+                fontSize: "17px",
+                fontWeight: 800,
+                textDecoration: "none",
+                boxShadow: "0 4px 14px rgba(242, 181, 68, 0.3)",
+              }}
+            >
+              {t.finCta1}
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleGuestStart}
+              disabled={guestLoading}
+              style={{
+                height: "56px",
+                padding: "0 24px",
+                borderRadius: "14px",
+                border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                background: "transparent",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                fontSize: "17px",
+                fontWeight: 700,
+                cursor: guestLoading ? "wait" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {guestLoading ? "..." : t.finCta2}
+            </button>
           </div>
-        </section>
 
-        {/* ============================ SIMULATOR ============================ */}
-        <section id="simulateur" className="lp-section lp-pt0">
-          <div className="lp-wrap">
-            <div className="lp-head lp-center">
-              <span className="lp-kicker">{copy.sim.kicker}</span>
-            </div>
+          <span style={{ position: "relative", fontSize: "14px", color: "#9FB0A8" }}>
+            {t.finTrust}
+          </span>
+        </div>
+      </section>
 
-            <div className="lp-simcard">
-              <div className="lp-simgrid">
-                <div>
-                  <div className="lp-simlbl">{copy.sim.income}</div>
-                  <div className={`${headingClass} lp-simamt`}>
-                    <span dir="ltr">{fmt(salary)}</span><span className="lp-cur">MAD</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={3000}
-                    max={40000}
-                    step={100}
-                    value={salary}
-                    onChange={(event) => setSalary(Number(event.target.value))}
-                    aria-label={copy.sim.income}
-                  />
-                  <div className="lp-simscale"><span dir="ltr">3 000</span><span dir="ltr">40 000</span></div>
-                  <div className="lp-presets">
-                    {PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        className="lp-preset"
-                        aria-pressed={salary === preset}
-                        onClick={() => setSalary(preset)}
-                      >
-                        <span dir="ltr">{fmt(preset)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="lp-simlegend">
-                    <span className="lp-legendtag">{copy.sim.fixed}</span> {copy.sim.fixedHint}
-                    <span className="lp-legendsep" aria-hidden="true">·</span>
-                    <span className="lp-legendtag">%</span> {copy.sim.pctHint}
-                  </p>
-                  <div className="lp-alloc">
-                    {allocation.rows.map((row) => (
-                      <div key={row.key} className="lp-allocrow">
-                        <div className="lp-allocname">
-                          <span className="lp-allocdot" style={{ background: row.color }} />
-                          <span>{copy.env[row.key]}</span>
-                          <span className="lp-alloctag">{row.tag}</span>
-                        </div>
-                        <div className="lp-allocval" dir="ltr">{fmt(row.value)} MAD</div>
-                        <div className="lp-allocbar">
-                          <span style={{ width: `${Math.min(100, (row.value / Math.max(salary, 1)) * 100)}%`, background: row.color }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="lp-alloctotal">
-                    <span className="lp-k">{copy.sim.left}</span>
-                    <span className={`${headingClass} lp-v`} dir="ltr">{fmt(allocation.savings)} MAD</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* FOOTER */}
+      <footer style={{ borderTop: "1px solid rgba(15, 26, 22, 0.1)", background: "transparent" }}>
+        <div
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            padding: "32px 24px",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "9px",
+                background: "#0A7A53",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#FFFFFF",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 8l9 6 9-6" />
+              </svg>
+            </span>
+            <b style={{ fontSize: "18px" }}>{isAr ? "حسابك" : "7sabek"}</b>
           </div>
-        </section>
 
-        {/* ============================ COMPARE ============================ */}
-        <section className="lp-section">
-          <div className="lp-wrap">
-            <div className="lp-head">
-              <span className="lp-kicker">{copy.cmp.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.cmp.title}</h2>
-            </div>
-            <div className="lp-comparewrap">
-              <div className="lp-tscroll">
-                <table className="lp-compare">
-                  <thead>
-                    <tr><th>{copy.cmp.a}</th><th className="lp-win">{copy.cmp.b}</th></tr>
-                  </thead>
-                  <tbody>
-                    {copy.cmp.rows.map(([a, b]) => (
-                      <tr key={a}><td>{a}</td><td className="lp-win">{b}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
+          {/* Legal Links */}
+          <nav aria-label="Liens légaux" style={{ display: "flex", flexWrap: "wrap", gap: "4px 20px", fontSize: "15px" }}>
+            <Link href="/cgu" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+              {t.footCgu}
+            </Link>
+            <Link href="/privacy" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+              {t.footPrivacy}
+            </Link>
+            <Link href="/contact" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+              {t.footContact}
+            </Link>
+            <Link href="/releases" style={{ color: "#33423C", textDecoration: "none", padding: "8px 0" }}>
+              {t.footReleases}
+            </Link>
+          </nav>
 
-        {/* ============================ AUDIENCE ============================ */}
-        <section id="pourqui" className="lp-section lp-surface lp-band">
-          <div className="lp-wrap">
-            <div className="lp-head">
-              <span className="lp-kicker">{copy.who.kicker}</span>
-              <h2 className={`${headingClass} lp-h2`}>{copy.who.title}</h2>
-            </div>
-            <div className="lp-grid2">
-              {copy.who.items.map((item, index) => {
-                const whoIcons = [Compass, Target, ShieldCheck, TrendingUp];
-                const IconComp = whoIcons[index % whoIcons.length];
-                return (
-                  <div key={item.t} className="lp-card" style={{ "--d": `${index * 0.07}s` } as React.CSSProperties}>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                        <IconComp className="w-5 h-5 stroke-[2.2]" />
-                      </div>
-                      {item.tag && (
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                          {item.tag}
-                        </span>
-                      )}
-                    </div>
-                    <h3>{item.t}</h3>
-                    <p>{item.d}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* ============================ FINAL ============================ */}
-        <section className="lp-section">
-          <div className="lp-wrap">
-            <div className="lp-dark lp-final">
-              <h2 className={`${headingClass} lp-white`}>{copy.fin.title}</h2>
-              <div className="lp-ctarow lp-centerrow">
-                <Link href="/register" className="lp-btn lp-btn-accent">{copy.cta.free}<Arrow /></Link>
-                <a href="#pourquoi" className="lp-btn lp-btn-ghostdark">{copy.fin.alt}</a>
-              </div>
-              <p className="lp-finmicro">{copy.fin.micro}</p>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer className="lp-footer">
-        <div className="lp-wrap">
-          <div className="lp-footrow">
-            <BrandLogo locale={effectiveLocale} className="lp-logo lp-logofoot" />
-            <div className="lp-footlinks">
-              <Link href="/cgu">{copy.nav.cgu}</Link>
-              <Link href="/privacy">{copy.nav.priv}</Link>
-              <Link href="/contact">{copy.nav.contact}</Link>
-            </div>
-          </div>
-          <div className="lp-footcopy">{copy.foot}</div>
+          <span style={{ fontSize: "14px", color: "#55645D" }}>
+            {t.footRights}
+          </span>
         </div>
       </footer>
 
-      <style jsx global>{`
-        .lp-root {
-          --ink: #0a241d; --paper: #f6f8f4; --surface: #fff;
-          --ink-soft: #4e625a; --ink-mute: #7c8d86;
-          --accent: #17c777; --accent-deep: #0b8f53; --accent-soft: #e2f7ec;
-          --amber: #f2a93b; --sky: #4c7eff; --rose: #f2686b;
-          --line: #e3e8df; --line2: #eef1ea;
-          --shadow: 0 1px 2px rgba(10,36,29,.04), 0 18px 40px -22px rgba(10,36,29,.22);
-          background: var(--paper); color: var(--ink); overflow-x: hidden;
-          font-family: "Cairo", var(--font-cairo), sans-serif !important;
-        }
-        .lp-root, .lp-root * {
-          font-family: "Cairo", var(--font-cairo), sans-serif !important;
-        }
-        .lp-root svg, .lp-root button svg, .lp-root a svg {
-          font-family: initial !important;
-        }
-        .lp-root h1, .lp-root h2, .lp-root h3, .lp-root h4 { margin: 0; letter-spacing: -.01em; text-wrap: balance; font-family: "Cairo", var(--font-cairo), sans-serif !important; }
-        .lp-ar h1, .lp-ar h2, .lp-ar h3, .lp-ar h4, .lp-ar .lp-title { letter-spacing: 0 !important; }
-        .lp-root p { margin: 0; }
-        .lp-root a { color: inherit; text-decoration: none; }
-        .lp-wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
-        @media (max-width: 640px) { .lp-wrap { padding: 0 18px; } }
+      {/* APK MODAL DIALOG */}
+      {apkOpen && (
+        <div
+          role="presentation"
+          onClick={() => setApkOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(15, 26, 22, 0.55)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.apkTitle}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "480px",
+              borderRadius: "28px",
+              background: "#FFFFFF",
+              padding: "32px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+              boxShadow: "0 30px 80px rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <span
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "16px",
+                    background: "#0A7A53",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="6" width="18" height="13" rx="2" />
+                    <path d="M3 8l9 6 9-6" />
+                  </svg>
+                </span>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <b style={{ fontSize: "20px" }}>{t.apkTitle}</b>
+                  <span style={{ fontSize: "14px", color: "#55645D" }}>{t.apkSub}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApkOpen(false)}
+                aria-label="Fermer"
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  border: 0,
+                  borderRadius: "22px",
+                  background: "#F6F5EF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F1A16" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
 
-        .lp-progress { position: fixed; top: 0; inset-inline: 0; height: 3px; z-index: 80; pointer-events: none; }
-        .lp-progress > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--sky)); box-shadow: 0 0 12px rgba(23,199,119,.6); }
-        [dir="rtl"] .lp-progress > span { margin-inline-start: auto; }
+            {/* Features */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <span
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "12px",
+                    background: "#E2F1E8",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A7A53" strokeWidth="2" strokeLinecap="round">
+                    <path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01M3 3l18 18" />
+                  </svg>
+                </span>
+                <span style={{ fontSize: "15px" }}>
+                  <b>{t.apkF1.split("—")[0]}</b> — {t.apkF1.split("—")[1]}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <span
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "12px",
+                    background: "#FFF4DC",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A5300" strokeWidth="2" strokeLinecap="round">
+                    <rect x="9" y="3" width="6" height="11" rx="3" />
+                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+                  </svg>
+                </span>
+                <span style={{ fontSize: "15px" }}>
+                  <b>{t.apkF2.split("—")[0]}</b> — {t.apkF2.split("—")[1]}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <span
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "12px",
+                    background: "#E6EEFA",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2457A6" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 11v3a8 8 0 0 1-1 4M8 11a4 4 0 0 1 8 0v2a12 12 0 0 1-.6 4M5 10a7 7 0 0 1 14 0v3" />
+                  </svg>
+                </span>
+                <span style={{ fontSize: "15px" }}>
+                  <b>{t.apkF3.split("—")[0]}</b> — {t.apkF3.split("—")[1]}
+                </span>
+              </div>
+            </div>
 
-        .lp-header { position: sticky; top: 0; z-index: 60; background: rgba(246,248,244,.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); transition: box-shadow .3s ease, background .3s ease; }
-        .lp-header.lp-scrolled { box-shadow: 0 8px 30px -18px rgba(10,36,29,.35); background: rgba(246,248,244,.95); }
-        .lp-headrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 78px; transition: height .3s ease; }
-        .lp-scrolled .lp-headrow { height: 66px; }
-        .lp-logo { height: 72px; width: auto; transition: height .3s ease; }
-        .lp-scrolled .lp-logo { height: 60px; }
-        .lp-nav { display: none; align-items: center; gap: 28px; font-size: .9rem; font-weight: 600; color: var(--ink-soft); }
-        .lp-nav a { position: relative; padding: 4px 0; }
-        .lp-nav a::after { content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: inline-start; transition: transform .22s ease; }
-        .lp-nav a:hover { color: var(--ink); } .lp-nav a:hover::after { transform: scaleX(1); }
-        @media (min-width: 1040px) { .lp-nav { display: flex; } }
-        .lp-actions { display: flex; align-items: center; gap: 8px; }
-        .lp-lang { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-family: inherit; font-size: .82rem; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
-        .lp-lang:hover { border-color: var(--accent); color: var(--accent-deep); }
-        .lp-burger { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--surface); cursor: pointer; color: var(--ink); }
-        @media (min-width: 1040px) { .lp-burger { display: none; } }
-        @media (max-width: 520px) { 
-          .lp-hide-sm { display: none; } 
-          .lp-lang { padding: 0 10px; min-width: 38px; justify-content: center; gap: 0; }
-        }
-        .lp-mobilenav { border-top: 1px solid var(--line); background: var(--paper); }
-        .lp-mobilenav .lp-wrap { padding-block: 14px 16px; display: flex; flex-direction: column; gap: 13px; font-weight: 700; font-size: .95rem; }
-
-        .lp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-weight: 700; font-size: .92rem; border-radius: 12px; padding: 11px 20px; border: 1px solid transparent; cursor: pointer; transition: transform .16s, box-shadow .16s, background .16s, border-color .16s; white-space: nowrap; }
-        .lp-btn:hover { transform: translateY(-1px); }
-        .lp-btn-sm { padding: 9px 15px; font-size: .83rem; }
-        .lp-btn-accent { background: var(--accent); color: #06301f; box-shadow: 0 10px 22px -10px rgba(23,199,119,.6); position: relative; overflow: hidden; }
-        .lp-btn-accent:hover { background: var(--accent-deep); color: #fff; }
-        .lp-btn-accent::after { content: ""; position: absolute; top: 0; left: -140%; width: 60%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.5), transparent); transform: skewX(-18deg); transition: left .65s ease; }
-        .lp-btn-accent:hover::after { left: 150%; }
-        .lp-btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
-        .lp-btn-ghost:hover { border-color: var(--ink); }
-        .lp-install { border-width: 1.5px; }
-        .lp-install-android { border-color: #34a853; color: #1e7e34; }
-        .lp-install-android:hover { background: #eefaf1; border-color: #1e7e34; }
-        .lp-install-ios { border-color: #1d1d1f; color: #1d1d1f; }
-        .lp-install-ios:hover { background: #f2f2f3; border-color: #000; }
-        .lp-install-chrome { border-color: #4285f4; color: #1a56c4; }
-        .lp-install-chrome:hover { background: #eef4ff; border-color: #1a56c4; }
-        .lp-btn-ghostdark { background: transparent; color: #fff; border-color: rgba(255,255,255,.26); }
-        .lp-btn-ghostdark:hover { border-color: #fff; background: rgba(255,255,255,.06); }
-        [dir="rtl"] .lp-arrow { transform: scaleX(-1); }
-
-        .lp-hero { position: relative; padding: 60px 0 30px; }
-        .lp-herobg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-        .lp-blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .5; }
-        .lp-blob-a { width: 460px; height: 460px; background: rgba(23,199,119,.34); top: -160px; inset-inline-start: -120px; animation: lpDrift1 17s ease-in-out infinite; }
-        .lp-blob-b { width: 400px; height: 400px; background: rgba(76,126,255,.2); top: -80px; inset-inline-end: -100px; animation: lpDrift2 21s ease-in-out infinite; }
-        @keyframes lpDrift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(60px,50px) scale(1.12); } }
-        @keyframes lpDrift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,60px) scale(1.08); } }
-        .lp-herogrid { position: relative; display: grid; gap: 44px; align-items: center; }
-        @media (min-width: 980px) { .lp-herogrid { grid-template-columns: 1.02fr .98fr; gap: 24px; } }
-        .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-deep); font-size: .79rem; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
-        .lp-sq { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); flex: none; }
-        .lp-h1 { font-size: clamp(2.1rem, 4.4vw, 3.6rem); line-height: 1.08; font-weight: 800; margin-top: 20px; }
-        .lp-tagAccent { color: var(--accent-deep); }
-        .lp-tagInk { color: var(--ink); }
-        .lp-ctarow { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
-        .lp-centerrow { justify-content: center; }
-        .lp-trust { margin-top: 34px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px 18px; max-width: 470px; }
-        .lp-trustitem { display: flex; align-items: center; gap: 8px; font-size: .79rem; font-weight: 600; color: var(--ink-soft); }
-        .lp-tick { width: 16px; height: 16px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); display: flex; align-items: center; justify-content: center; flex: none; }
-
-        .lp-visual { position: relative; min-height: 470px; display: flex; align-items: center; justify-content: center; perspective: 1100px; }
-        .lp-phone { position: relative; width: min(100%, 296px); border-radius: 38px; background: linear-gradient(160deg,#153b30,#0a241d); padding: 9px; box-shadow: 0 30px 60px -24px rgba(10,36,29,.45); transform-style: preserve-3d; transition: transform .5s cubic-bezier(.22,1,.36,1); }
-        .lp-screen { background: var(--surface); border-radius: 30px; padding: 26px 15px 18px; overflow: hidden; }
-        .lp-sctop { display: flex; align-items: center; justify-content: space-between; font-size: .66rem; font-weight: 700; color: var(--ink-mute); }
-        .lp-sccash { margin-top: 13px; }
-        .lp-sclbl { font-size: .63rem; font-weight: 800; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .06em; }
-        .lp-scamt { font-weight: 800; font-size: 1.75rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
-        .lp-scenvs { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-        .lp-scenv { background: var(--paper); border-radius: 13px; padding: 9px 11px; }
-        .lp-scrow { display: flex; align-items: center; justify-content: space-between; font-size: .72rem; font-weight: 700; }
-        .lp-bar { margin-top: 6px; height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
-        .lp-bar > span { display: block; height: 100%; border-radius: 4px; }
-        .lp-intro .lp-bar > span { transform: scaleX(0); transform-origin: inline-start; animation: lpFill 1.1s cubic-bezier(.22,1,.36,1) forwards; animation-delay: inherit; }
-        @keyframes lpFill { to { transform: scaleX(1); } }
-
-        .lp-chip { position: absolute; background: var(--surface); border-radius: 15px; padding: 9px 13px; box-shadow: var(--shadow); border: 1px solid var(--line2); font-size: .76rem; min-width: 126px; z-index: 2; animation: lpFloat 6s ease-in-out infinite; }
-        .lp-chipt { font-weight: 800; font-size: .74rem; }
-        .lp-chipa { font-weight: 800; margin-top: 1px; font-size: .86rem; font-variant-numeric: tabular-nums; }
-        .lp-chipm { margin-top: 1px; font-size: .63rem; color: var(--ink-mute); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-        .lp-pos .lp-chipa { color: var(--accent-deep); }
-        @keyframes lpFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
-        .lp-c1 { top: 2%; inset-inline-start: -4%; } .lp-c2 { top: 14%; inset-inline-end: -6%; animation-delay: .9s; }
-        .lp-c3 { top: 50%; inset-inline-start: -12%; animation-delay: 1.7s; } .lp-c4 { bottom: 16%; inset-inline-end: -9%; animation-delay: 2.4s; }
-        .lp-c5 { bottom: -1%; inset-inline-start: 2%; animation-delay: 3.1s; }
-        @media (max-width: 1100px) { .lp-c3 { inset-inline-start: -4%; } .lp-c4 { inset-inline-end: -2%; } .lp-c2 { inset-inline-end: 0; } }
-        @media (max-width: 520px) { .lp-c2, .lp-c3, .lp-c4 { display: none; } .lp-c1, .lp-c5 { inset-inline-start: 0; } }
-
-        .lp-marquee { overflow: hidden; border-block: 1px solid var(--line); background: var(--surface); padding: 18px 0; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-        .lp-mqtrack { display: flex; width: max-content; animation: lpMq 46s linear infinite; }
-        .lp-marquee:hover .lp-mqtrack { animation-play-state: paused; }
-        .lp-mqgroup { display: flex; gap: 12px; padding-inline-end: 12px; }
-        @keyframes lpMq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        [dir="rtl"] .lp-mqtrack { animation-name: lpMqR; }
-        @keyframes lpMqR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
-        .lp-mqitem { display: flex; align-items: center; gap: 9px; background: var(--paper); border: 1px solid var(--line); border-radius: 99px; padding: 9px 16px; white-space: nowrap; font-size: .82rem; font-weight: 700; }
-        .lp-mqdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-        .lp-mqv { font-variant-numeric: tabular-nums; font-weight: 800; }
-        .lp-mqv.lp-up { color: var(--accent-deep); }
-
-        .lp-aisection { padding: 20px 0 10px; }
-        .lp-aipanel { 
-          position: relative; 
-          max-width: 820px;
-          margin: 0 auto;
-          display: grid; 
-          grid-template-columns: 110px 1fr; 
-          align-items: center; 
-          background: linear-gradient(135deg, rgba(235, 252, 243, 0.95) 0%, rgba(246, 254, 249, 0.98) 55%, rgba(228, 250, 239, 0.92) 100%); 
-          border: 1.5px solid rgba(23, 199, 119, 0.28); 
-          border-radius: 22px; 
-          overflow: hidden; 
-          padding: 16px 24px; 
-          box-shadow: 0 10px 24px -14px rgba(10, 36, 29, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
-          transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease;
-          cursor: default;
-        }
-        .lp-aipanel:hover {
-          transform: translateY(-2px);
-          border-color: rgba(23, 199, 119, 0.45);
-          box-shadow: 0 14px 28px -12px rgba(16, 185, 129, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.95) inset;
-        }
-        .lp-aipanel-spotlight {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          background: radial-gradient(300px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(23, 199, 119, 0.12), transparent 70%);
-          opacity: var(--mouse-opacity, 0);
-          transition: opacity .35s ease;
-          z-index: 1;
-        }
-        .lp-aiglow-left { position: absolute; top: -45px; inset-inline-start: -45px; width: 130px; height: 130px; background: rgba(23, 199, 119, 0.14); border-radius: 50%; filter: blur(35px); pointer-events: none; }
-        .lp-aiglow-right { position: absolute; bottom: -45px; inset-inline-end: -45px; width: 130px; height: 130px; background: rgba(76, 126, 255, 0.08); border-radius: 50%; filter: blur(35px); pointer-events: none; }
-
-        .lp-aiavatar { 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          width: 100%;
-          position: relative;
-          z-index: 2;
-        }
-        .lp-aiavatar-ring { 
-          position: relative; 
-          width: 90px; 
-          height: 90px; 
-          border-radius: 20px; 
-          background: linear-gradient(145deg, #ffffff, rgba(220, 248, 233, 0.75)); 
-          border: 1.5px solid rgba(23, 199, 119, 0.35); 
-          box-shadow: 0 8px 18px -8px rgba(11, 143, 83, 0.14), 0 0 0 4px rgba(235, 252, 243, 0.85); 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          transition: border-color .28s ease, box-shadow .28s ease;
-        }
-        .lp-aipanel:hover .lp-aiavatar-ring {
-          border-color: rgba(23, 199, 119, 0.55);
-          box-shadow: 0 10px 22px -8px rgba(11, 143, 83, 0.2), 0 0 0 4px rgba(235, 252, 243, 0.95);
-        }
-        .lp-aiimg { 
-          width: 76px; 
-          height: 76px; 
-          object-fit: contain; 
-          object-position: center; 
-          display: block; 
-          filter: drop-shadow(0 6px 10px rgba(10, 36, 29, 0.12));
-        }
-
-        .lp-aitext { 
-          position: relative; 
-          z-index: 2; 
-          padding-inline-start: 18px; 
-        }
-        .lp-aititle { 
-          margin: 0 0 4px; 
-          font-size: clamp(1.1rem, 1.8vw, 1.35rem); 
-          font-weight: 800; 
-          line-height: 1.25; 
-          color: var(--ink); 
-        }
-        .lp-aitag {
-          display: inline-flex;
-          align-items: center;
-          font-size: .62em;
-          font-weight: 900;
-          letter-spacing: .04em;
-          padding: 1.5px 7px;
-          border-radius: 6px;
-          background: rgba(23, 199, 119, 0.15);
-          color: var(--accent-deep);
-          border: 1px solid rgba(23, 199, 119, 0.38);
-          margin-inline: 6px;
-          vertical-align: middle;
-        }
-        .lp-aidesc { 
-          margin: 0; 
-          font-size: .88rem; 
-          line-height: 1.45; 
-          color: var(--ink-soft); 
-          max-width: 58ch; 
-        }
-
-        @media (max-width: 780px) {
-          .lp-aipanel { 
-            grid-template-columns: 1fr; 
-            text-align: center; 
-            padding: 16px 16px; 
-            gap: 12px; 
-          }
-          .lp-aiavatar { 
-            justify-content: center; 
-          }
-          .lp-aiavatar-ring { 
-            width: 78px; 
-            height: 78px; 
-            border-radius: 18px; 
-          }
-          .lp-aiimg { 
-            width: 66px; 
-            height: 66px; 
-          }
-          .lp-aitext { 
-            padding-inline-start: 0; 
-          }
-          .lp-aidesc { 
-            margin-inline: auto; 
-          }
-        }
-
-        .lp-section { padding: 86px 0; }
-        .lp-pt0 { padding-top: 0; }
-        .lp-surface { background: var(--surface); }
-        .lp-band { border-block: 1px solid var(--line); }
-        .lp-head { max-width: 660px; }
-        .lp-center { margin: 0 auto; text-align: center; }
-        .lp-center .lp-text { margin-inline: auto; }
-        .lp-kicker { font-size: .75rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--accent-deep); }
-        .lp-ar .lp-kicker { letter-spacing: 0; }
-        .lp-h2 { font-size: clamp(1.85rem, 3.3vw, 2.6rem); font-weight: 800; margin-top: 10px; line-height: 1.1; }
-        .lp-text { margin-top: 15px; font-size: 1rem; line-height: 1.65; color: var(--ink-soft); max-width: 62ch; }
-        .lp-white { color: #fff !important; }
-
-        .lp-simcard { margin-top: 38px; border: 1px solid var(--line); background: var(--surface); border-radius: 34px; padding: 26px; box-shadow: var(--shadow); }
-        @media (min-width: 900px) { .lp-simcard { padding: 36px; } }
-        .lp-simgrid { display: grid; gap: 32px; }
-        @media (min-width: 880px) { .lp-simgrid { grid-template-columns: .85fr 1.15fr; gap: 44px; } }
-        .lp-simlbl { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); }
-        .lp-ar .lp-simlbl { letter-spacing: 0; }
-        .lp-simamt { font-size: clamp(2.1rem, 4.6vw, 2.9rem); font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums; }
-        .lp-cur { font-size: .44em; color: var(--ink-mute); font-weight: 700; margin-inline-start: 6px; }
-        .lp-simcard input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 99px; background: var(--line); margin-top: 22px; outline: none; }
-        .lp-simcard input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 4px solid #fff; box-shadow: 0 3px 10px rgba(11,143,83,.4); cursor: pointer; }
-        .lp-simcard input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 4px solid #fff; box-shadow: 0 3px 10px rgba(11,143,83,.4); cursor: pointer; }
-        .lp-simscale { display: flex; justify-content: space-between; margin-top: 9px; font-size: .71rem; color: var(--ink-mute); font-weight: 600; }
-        .lp-presets { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 7px; }
-        .lp-preset { font-family: inherit; font-size: .76rem; font-weight: 700; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer; transition: all .16s ease; }
-        .lp-preset:hover { border-color: var(--accent); color: var(--accent-deep); }
-        .lp-preset[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-        .lp-simlegend { margin: 0 0 14px; font-size: .76rem; line-height: 1.6; color: var(--ink-mute); }
-        .lp-legendtag { font-weight: 800; color: var(--ink); }
-        .lp-legendsep { margin: 0 7px; opacity: .5; }
-        .lp-alloc { display: flex; flex-direction: column; gap: 11px; }
-        .lp-allocrow { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
-        .lp-allocname { font-size: .87rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-        .lp-allocdot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
-        .lp-alloctag { font-size: .63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-mute); background: var(--paper); border: 1px solid var(--line); padding: 2px 7px; border-radius: 99px; }
-        .lp-ar .lp-alloctag { letter-spacing: 0; }
-        .lp-allocval { font-size: .9rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-        .lp-allocbar { grid-column: 1/-1; height: 8px; border-radius: 5px; background: var(--line2); overflow: hidden; }
-        .lp-allocbar > span { display: block; height: 100%; border-radius: 5px; transition: width .7s cubic-bezier(.22,1,.36,1); }
-        .lp-alloctotal { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); display: flex; justify-content: space-between; align-items: baseline; }
-        .lp-alloctotal .lp-k { font-size: .8rem; font-weight: 700; color: var(--ink-soft); }
-        .lp-alloctotal .lp-v { font-size: 1.35rem; font-weight: 800; color: var(--accent-deep); font-variant-numeric: tabular-nums; }
-
-        .lp-ckgrid { margin-top: 36px; display: grid; gap: 12px; grid-template-columns: 1fr; }
-        @media (min-width: 760px) { .lp-ckgrid { grid-template-columns: repeat(2,1fr); } }
-        .lp-ck { display: flex; align-items: flex-start; gap: 13px; text-align: start; width: 100%; font-family: inherit; font-size: .93rem; font-weight: 600; line-height: 1.45; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; cursor: pointer; transition: border-color .2s, background .2s, transform .2s, box-shadow .2s; }
-        .lp-ck:hover { border-color: var(--accent); transform: translateY(-2px); }
-        .lp-ckbox { flex: none; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; color: transparent; font-size: .8rem; font-weight: 900; transition: all .2s ease; margin-top: 1px; }
-        .lp-ck[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
-        .lp-ck[aria-pressed="true"] .lp-ckbox { background: var(--accent); border-color: var(--accent); color: #06301f; }
-        .lp-ckresult { margin-top: 26px; border: 1px solid var(--line); background: var(--surface); border-radius: 26px; padding: 26px; display: grid; gap: 22px; box-shadow: var(--shadow); }
-        @media (min-width: 860px) { .lp-ckresult { grid-template-columns: auto 1fr; align-items: start; padding: 32px; gap: 34px; } }
-        .lp-ckgauge { text-align: center; min-width: 150px; }
-        .lp-cknum { font-size: 3.4rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; transition: color .3s ease; }
-        .lp-ckden { font-size: 1.3rem; font-weight: 700; color: var(--ink-mute); }
-        .lp-cksegs { display: flex; gap: 5px; justify-content: center; margin-top: 14px; }
-        .lp-ckseg { width: 19px; height: 7px; border-radius: 99px; background: var(--line); transition: background .35s ease; }
-        .lp-ckverdict { font-size: 1.24rem; font-weight: 800; }
-        .lp-ckadvice { margin-top: 8px; font-size: .93rem; line-height: 1.6; color: var(--ink-soft); }
-        .lp-cksol { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
-        .lp-ckchip { display: inline-flex; align-items: center; gap: 7px; background: var(--paper); border: 1px solid var(--line); border-radius: 99px; padding: 7px 14px; font-size: .79rem; font-weight: 700; animation: lpChipIn .35s cubic-bezier(.22,1,.36,1); }
-        .lp-ckcd { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
-        @keyframes lpChipIn { from { opacity: 0; transform: translateY(6px) scale(.94); } to { opacity: 1; transform: none; } }
-        .lp-ckactions { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-
-        .lp-dark { background: linear-gradient(155deg,#123a2e 0%,#0a241d 60%); color: #eaf4ef; border-radius: 34px; padding: 52px 28px; position: relative; overflow: hidden; }
-        @media (min-width: 1000px) { .lp-dark { padding: 70px 60px; } }
-        .lp-kaccent { color: var(--accent) !important; }
-        .lp-plangrid { display: grid; gap: 40px; }
-        @media (min-width: 900px) { .lp-plangrid { grid-template-columns: 1fr 1fr; align-items: center; } }
-        .lp-planstep { display: flex; gap: 16px; padding: 17px 0; border-top: 1px solid rgba(255,255,255,.11); }
-        .lp-planstep:first-child { border-top: none; }
-        .lp-planN { font-weight: 800; font-size: 1.05rem; color: var(--accent); flex: none; width: 30px; font-variant-numeric: tabular-nums; }
-        .lp-planstep h4 { font-size: .95rem; font-weight: 800; color: #fff; }
-        .lp-planstep p { margin-top: 4px; font-size: .84rem; color: #a9c2b7; line-height: 1.5; }
-
-        .lp-tabs { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-        .lp-tab { font-family: inherit; font-size: .85rem; font-weight: 700; padding: 10px 18px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); cursor: pointer; transition: all .18s ease; }
-        .lp-tab:hover { border-color: var(--accent); color: var(--accent-deep); }
-        .lp-tab[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-        .lp-stage { margin-top: 28px; border: 1px solid var(--line); background: var(--surface); border-radius: 34px; padding: 16px; box-shadow: var(--shadow); }
-        @media (min-width: 820px) { .lp-stage { padding: 26px; } }
-        .lp-shot { animation: lpFade .5s ease; }
-        @keyframes lpFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        /* Mock screens use an LTR grid: keep text-anchor start/end meaning left/right in RTL. */
-        .lp-shot svg { width: 100%; height: auto; border-radius: 18px; display: block; direction: ltr; }
-        .lp-ar .lp-shot svg text { font-family: "Cairo", sans-serif !important; }
-        [dir="rtl"] .lp-shot svg text.lp-capsm { transform: translateY(7px); }
-        .lp-shotcap { margin-top: 16px; text-align: center; font-size: .87rem; color: var(--ink-soft); line-height: 1.55; max-width: 60ch; margin-inline: auto; }
-
-        .lp-grid2 { margin-top: 40px; display: grid; gap: 16px; grid-template-columns: 1fr; }
-        @media (min-width: 720px) { .lp-grid2 { grid-template-columns: repeat(2,1fr); } }
-        .lp-card { position: relative; border: 1px solid var(--line); background: var(--surface); border-radius: 26px; padding: 24px; transition: border-color .18s, transform .18s, box-shadow .18s; }
-        .lp-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: var(--shadow); }
-        .lp-card h3 { margin-top: 12px; font-size: 1.02rem; font-weight: 800; }
-        .lp-card p { margin-top: 7px; font-size: .87rem; color: var(--ink-soft); line-height: 1.56; }
-        .lp-whygrid { margin-top: 44px; display: grid; gap: 32px 20px; grid-template-columns: 1fr; text-align: center; }
-        @media (min-width: 640px) { .lp-whygrid { grid-template-columns: repeat(2,1fr); } }
-        @media (min-width: 1060px) { .lp-whygrid { grid-template-columns: repeat(4,1fr); } }
-        .lp-whyblob { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 176px; height: 176px; margin-bottom: 14px; }
-        .lp-whystep { position: absolute; top: 4px; inset-inline-end: 4px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 999px; background: var(--accent-deep); color: #fff; font-size: .76rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--surface); }
-        .lp-whyimg { width: 176px; height: 176px; }
-        .lp-whycard h3 { font-size: 1.04rem; font-weight: 800; }
-        .lp-whycard p { margin-top: 8px; font-size: .87rem; line-height: 1.58; color: var(--ink-soft); }
-
-        .lp-comparewrap { margin-top: 38px; border: 1px solid var(--line); border-radius: 26px; overflow: hidden; background: var(--surface); }
-        .lp-tscroll { overflow-x: auto; }
-        .lp-compare { width: 100%; border-collapse: collapse; font-size: .91rem; min-width: 520px; }
-        .lp-compare th { text-align: start; padding: 15px 20px; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); font-weight: 800; background: var(--paper); }
-        .lp-ar .lp-compare th { letter-spacing: 0; }
-        .lp-compare th.lp-win { color: var(--accent-deep); }
-        .lp-compare td { padding: 15px 20px; border-top: 1px solid var(--line); color: var(--ink-soft); }
-        .lp-compare td.lp-win { font-weight: 700; color: var(--ink); }
-        .lp-compare td.lp-win::before { content: "✓"; color: var(--accent); font-weight: 900; margin-inline-end: 8px; }
-
-        .lp-final { text-align: center; }
-        .lp-final h2 { font-size: clamp(1.95rem, 4vw, 3rem); font-weight: 800; }
-        .lp-final p { margin: 15px auto 0; max-width: 52ch; }
-        .lp-finmicro { margin-top: 18px; font-size: .86rem; color: #9fbaae !important; font-weight: 700; }
-
-        .lp-footer { padding: 46px 0 40px; border-top: 1px solid var(--line); }
-        .lp-footrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; }
-        .lp-logofoot { height: 60px; }
-        .lp-footlinks { display: flex; flex-wrap: wrap; gap: 22px; font-size: .84rem; font-weight: 700; color: var(--ink-soft); }
-        .lp-footlinks a:hover { color: var(--accent-deep); }
-        .lp-footcopy { margin-top: 20px; font-size: .77rem; color: var(--ink-mute); }
-
-        [data-landing-locale="ar"],
-        [data-landing-locale="ar"] *,
-        .lp-ar, .lp-ar * { font-family: "Cairo", sans-serif !important; letter-spacing: 0 !important; }
-        [data-landing-locale="ar"] svg, .lp-ar svg { font-family: initial !important; }
-
-        @media (prefers-reduced-motion: reduce) {
-          .lp-blob, .lp-chip, .lp-mqtrack { animation: none !important; }
-          .lp-intro .lp-bar > span { animation: none !important; opacity: 1 !important; transform: none !important; }
-          .lp-shot { animation: none; }
-          .lp-btn-accent::after { display: none; }
-          .lp-phone { transition: none; }
-        }
-      `}</style>
+            {/* Download CTA */}
+            <a
+              href="/7sabek_app.apk"
+              download="7sabek_app.apk"
+              style={{
+                height: "56px",
+                borderRadius: "14px",
+                background: "#0A7A53",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                fontSize: "17px",
+                fontWeight: 800,
+                textDecoration: "none",
+                boxShadow: "0 4px 12px rgba(10, 122, 83, 0.25)",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+              </svg>
+              {t.apkDownload}
+            </a>
+            <span style={{ fontSize: "13px", color: "#55645D", textAlign: "center" }}>
+              {t.apkHint}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
