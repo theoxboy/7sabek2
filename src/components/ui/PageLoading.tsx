@@ -1,15 +1,38 @@
-export function PageLoading() {
+import { SbkWLoader, type SbkWLoaderMode, type SbkWLoaderTheme, type SbkWLoaderSpeed } from "@/components/ui/SbkWLoader";
+import type { FloussyLocale } from "@/lib/localePreference";
+
+export interface PageLoadingProps {
+  /** Mode d'animation: 'loop' (par défaut pour les chargements de page) ou 'complete' */
+  mode?: SbkWLoaderMode;
+  theme?: SbkWLoaderTheme;
+  locale?: FloussyLocale | "fr" | "ar" | "en";
+  speed?: SbkWLoaderSpeed;
+  onComplete?: () => void;
+  showControls?: boolean;
+  fullscreen?: boolean;
+}
+
+export function PageLoading({
+  mode = "loop",
+  theme = "light",
+  locale = "fr",
+  speed = "normal",
+  onComplete,
+  showControls = false,
+  fullscreen = true,
+}: PageLoadingProps) {
   return (
-    <div className="page-loading" role="status" aria-live="polite" aria-label="Page loading">
-      <div className="page-loading__pencil" aria-hidden="true">
-        <div className="page-loading__ball-point" />
-        <div className="page-loading__cap" />
-        <div className="page-loading__cap-base" />
-        <div className="page-loading__middle" />
-        <div className="page-loading__eraser" />
-      </div>
-      <div className="page-loading__line" aria-hidden="true" />
-      <h2 className="page-loading__title">Page Loading...Please Wait</h2>
-    </div>
+    <SbkWLoader
+      mode={mode}
+      theme={theme}
+      locale={locale}
+      speed={speed}
+      onComplete={onComplete}
+      showControls={showControls}
+      fullscreen={fullscreen}
+    />
   );
 }
+
+export { SbkWLoader };
+
