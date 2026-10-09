@@ -2101,11 +2101,11 @@ function AppLayoutContent({
                   sidebarCollapsed ? "closed" : ""
                 } min-h-screen ${
                   isDashboardPage
-                    ? "p-0 m-0 w-full max-w-full overflow-x-hidden"
+                    ? "p-0 overflow-x-hidden"
                     : "px-4 pb-12 pt-4 sm:px-6 lg:px-8"
                 }`}
               >
-                <div className={isDashboardPage ? "w-full max-w-full" : "mx-auto w-full max-w-[1240px]"}>
+                <div className={isDashboardPage ? "w-full" : "mx-auto w-full max-w-[1240px]"}>
                   {user?.role === "superadmin" && actAsId ? (
                     <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
                       <span className="flex items-center gap-2">

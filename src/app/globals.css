@@ -263,17 +263,18 @@ body.onboarding-route-ar-body a svg {
   --sb-word: #EAF7F1;
 }
 
-/* Floating Island Sidebar container */
+/* Sidebar container: integrated seamlessly into the same application sheet */
 .sb-island {
   position: fixed;
-  top: 12px;
-  bottom: 12px;
-  left: 12px;
-  width: 248px;
-  border-radius: 24px;
-  border: 1px solid var(--sb-line);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  height: 100vh;
+  width: 256px;
+  border-radius: 0;
+  border: 0;
+  border-right: 1px solid var(--sb-line);
   background: var(--sb-card);
-  box-shadow: 0 18px 40px -18px rgba(15, 26, 22, 0.25);
   padding: 0 10px;
   z-index: 45;
   display: flex;
@@ -285,7 +286,9 @@ body.onboarding-route-ar-body a svg {
 
 [dir="rtl"] .sb-island {
   left: auto;
-  right: 12px;
+  right: 0;
+  border-right: 0;
+  border-left: 1px solid var(--sb-line);
 }
 
 .sb-island.closed {
@@ -340,24 +343,24 @@ body.onboarding-route-ar-body a svg {
   transform: translate(-648px, -40px);
 }
 
-/* Floating knob toggle button on the card edge */
+/* Knob toggle button on the card edge */
 .sb-knob {
   position: absolute;
-  right: -24px;
+  right: -14px;
   top: 25px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
   background: var(--sb-card);
   border: 1px solid var(--sb-line);
-  box-shadow: 0 6px 14px -6px rgba(15, 26, 22, 0.35);
+  box-shadow: 0 4px 12px rgba(15, 26, 22, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   color: var(--sb-navInk);
   cursor: pointer;
-  z-index: 20;
+  z-index: 50;
   transition: transform 0.45s var(--sb-spring), color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -372,7 +375,7 @@ body.onboarding-route-ar-body a svg {
 
 [dir="rtl"] .sb-knob {
   right: auto;
-  left: -24px;
+  left: -14px;
   transform: rotate(180deg);
 }
 
@@ -608,25 +611,35 @@ body.onboarding-route-ar-body a svg {
   text-overflow: ellipsis;
 }
 
-/* Main Content Wrapper matching floating island margin */
+/* Main Content Wrapper - seamlessly docked into the same application sheet */
 .sb-main-island {
-  margin-left: 272px;
-  transition: margin-left 0.45s var(--sb-spring) 0.03s;
+  margin-left: 256px;
+  width: calc(100% - 256px);
+  max-width: calc(100% - 256px);
+  min-width: 0;
+  box-sizing: border-box;
+  transition: margin-left 0.45s var(--sb-spring) 0.03s, width 0.45s var(--sb-spring) 0.03s, max-width 0.45s var(--sb-spring) 0.03s;
 }
 
 .sb-main-island.closed {
-  margin-left: 96px;
+  margin-left: 72px;
+  width: calc(100% - 72px);
+  max-width: calc(100% - 72px);
 }
 
 [dir="rtl"] .sb-main-island {
   margin-left: 0 !important;
-  margin-right: 272px;
-  transition: margin-right 0.45s var(--sb-spring) 0.03s;
+  margin-right: 256px;
+  width: calc(100% - 256px);
+  max-width: calc(100% - 256px);
+  transition: margin-right 0.45s var(--sb-spring) 0.03s, width 0.45s var(--sb-spring) 0.03s, max-width 0.45s var(--sb-spring) 0.03s;
 }
 
 [dir="rtl"] .sb-main-island.closed {
   margin-left: 0 !important;
-  margin-right: 96px;
+  margin-right: 72px;
+  width: calc(100% - 72px);
+  max-width: calc(100% - 72px);
 }
 
 @media (max-width: 1023px) {
@@ -639,6 +652,8 @@ body.onboarding-route-ar-body a svg {
   [dir="rtl"] .sb-main-island.closed {
     margin-left: 0 !important;
     margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
   .sb-island.is-mobile {
     display: flex;
