@@ -5,9 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 
-const DistributionPageContent = dynamic(
+const DistributionPageContent = dynamic<{ journeyMode?: string }>(
   () =>
-    import("../beta/onboarding-v2/page").then((module) => module.BetaOnboardingV2PageContent),
+    import("../beta/onboarding-v2/page").then(
+      (module: any) =>
+        module.BetaOnboardingV2PageContent ||
+        module.default?.BetaOnboardingV2PageContent ||
+        module.default
+    ),
   {
     ssr: false,
     loading: () => <DistributionLoadingCard />,

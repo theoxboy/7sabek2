@@ -5,9 +5,14 @@ import { useEffect, useState } from "react";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 
-const MoneyPlanPageContent = dynamic(
+const MoneyPlanPageContent = dynamic<{ journeyMode?: string }>(
   () =>
-    import("../beta/onboarding-v2/page").then((module) => module.BetaOnboardingV2PageContent),
+    import("../beta/onboarding-v2/page").then(
+      (module: any) =>
+        module.BetaOnboardingV2PageContent ||
+        module.default?.BetaOnboardingV2PageContent ||
+        module.default
+    ),
   {
     ssr: false,
     loading: () => <MoneyPlanLoadingCard />,

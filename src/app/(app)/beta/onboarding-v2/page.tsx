@@ -11215,7 +11215,7 @@ function buildDraftObjects(
   };
 }
 
-export function BetaOnboardingV2PageContent({
+function BetaOnboardingV2PageContent({
   journeyMode = "onboarding",
 }: {
   journeyMode?: JourneyMode;
@@ -23823,7 +23823,7 @@ export function BetaOnboardingV2PageContent({
   );
 }
 
-export default function BetaOnboardingV2Page() {
+function BetaOnboardingV2Page() {
   const pathname = usePathname();
   const mode: JourneyMode =
     pathname === MONEY_PLAN_ROUTE ||
@@ -23834,3 +23834,7 @@ export default function BetaOnboardingV2Page() {
       : "onboarding";
   return <BetaOnboardingV2PageContent journeyMode={mode} />;
 }
+
+BetaOnboardingV2Page.BetaOnboardingV2PageContent = BetaOnboardingV2PageContent;
+
+export default BetaOnboardingV2Page;

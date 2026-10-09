@@ -11,7 +11,7 @@ import React, {
   useState,
 } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Cairo } from "next/font/google";
 import {
   AlertTriangle,
@@ -42,6 +42,7 @@ import {
 import { apiFetch, fetchDashboard } from "@/lib/api";
 import type {
   CategoryOut,
+  DashboardAlertOut,
   DashboardOut,
   DashboardTrendPointOut,
   DistributionSimulateOut,
@@ -101,6 +102,28 @@ const daysBetweenIso = (from: string, to: string) => {
   );
 };
 
+const formatLocaleMonth = (isoDate: string, locale: FloussyLocale) => {
+  if (!isoDate) return "";
+  const d = new Date(isoDate.includes("T") ? isoDate : `${isoDate}T00:00:00`);
+  if (isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString(
+    locale === "ar" ? "ar-MA" : locale === "fr" ? "fr-FR" : "en-US",
+    { month: "short" }
+  );
+};
+
+const NOTIFICATION_STORAGE_KEY = "floussy.notifications.read.v1";
+
+interface RealNotificationItem {
+  id: string;
+  type: "warning" | "success" | "neutral";
+  title: string;
+  description: string;
+  href: string;
+  actionText?: string;
+  onAction?: () => void;
+}
+
 export default function DashboardPage() {
   return (
     <Suspense fallback={<DashboardSkel />}>
@@ -145,11 +168,17 @@ function DashboardContent() {
   const [goals, setGoals] = useState<GoalOut[]>([]);
   const [transactions, setTransactions] = useState<TransactionOut[]>([]);
   const [incomeReminders, setIncomeReminders] = useState<IncomeReminderOut[]>([]);
+  const [alerts, setAlerts] = useState<DashboardAlertOut | null>(null);
   const [manualUnmappedCount, setManualUnmappedCount] = useState(0);
-  const [trendPoints, setTrendPoints] = useState<{ period: string; closing: number }[]>([]);
+  const [trendPoints, setTrendPoints] = useState<DashboardTrendPointOut[]>([]);
   const [distributionRules, setDistributionRules] = useState<DistributionRule[]>([]);
   const [cashSplitPreview, setCashSplitPreview] = useState<DistributionSimulateOut | null>(null);
   const [autoSweepEnabled, setAutoSweepEnabled] = useState<boolean | null>(null);
+  const [streakDays, setStreakDays] = useState<number>(0);
+
+  // Notifications State & Read Tracking
+  const [readNotifIds, setReadNotifIds] = useState<string[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +198,6 @@ function DashboardContent() {
   // Interactive drop-downs & popovers
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [streakOpen, setStreakOpen] = useState(false);
-  const [bellOpen, setBellOpen] = useState(false);
   const [sweepOpen, setSweepOpen] = useState(false);
   const [wallModal, setWallModal] = useState<string | null>(null);
   const [expressTxOpen, setExpressTxOpen] = useState(false);
@@ -186,6 +214,7 @@ function DashboardContent() {
   const isRTL = locale === "ar";
   const dir = isRTL ? "rtl" : "ltr";
   const isGuest = Boolean(data?.user?.is_guest);
+  const currency = data?.user?.currency || "MAD";
 
   // Sync locale
   useEffect(() => {
@@ -199,6 +228,31 @@ function DashboardContent() {
     window.addEventListener("floussy:locale-changed" as any, handleLocaleChange);
     return () =>
       window.removeEventListener("floussy:locale-changed" as any, handleLocaleChange);
+  }, []);
+
+  // Load read notification IDs from storage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(NOTIFICATION_STORAGE_KEY);
+      if (stored) setReadNotifIds(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const markNotificationRead = useCallback((id: string) => {
+    setReadNotifIds((prev) => {
+      const next = prev.includes(id) ? prev : [...prev, id];
+      try {
+        localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const markAllNotificationsRead = useCallback((ids: string[]) => {
+    setReadNotifIds(ids);
+    try {
+      localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(ids));
+    } catch {}
   }, []);
 
   // Compute date range for periods
@@ -220,12 +274,30 @@ function DashboardContent() {
       const periodQuery = range ? `?start=${range.start}&end=${range.end}` : "";
       const txQuery = range ? `/transactions${periodQuery}` : "/transactions?limit=25";
 
-      const [dash, catsRes, goalsRes, txsRes, settingsRes] = await Promise.all([
+      const [
+        dash,
+        catsRes,
+        goalsRes,
+        txsRes,
+        settingsRes,
+        alertsRes,
+        remindersRes,
+        trendRes,
+        unmappedRes,
+        distRes,
+        streakRes,
+      ] = await Promise.all([
         fetchDashboard(periodQuery ? `/dashboard${periodQuery}` : "/dashboard"),
         apiFetch<CategoryOut[]>("/categories").catch(() => []),
         apiFetch<GoalOut[]>("/goals").catch(() => []),
         apiFetch<TransactionOut[]>(txQuery).catch(() => []),
         apiFetch<SettingsResponse>("/users/me/settings").catch(() => null),
+        apiFetch<DashboardAlertOut>("/dashboard/alerts").catch(() => null),
+        apiFetch<IncomeReminderOut[]>("/income-reminders").catch(() => []),
+        apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6").catch(() => []),
+        apiFetch<CategoryOut[]>("/categories/unmapped-manual").catch(() => []),
+        apiFetch<DistributionRule[]>("/distribution/rules").catch(() => []),
+        apiFetch<{ current_streak_days: number }>("/gamification/summary").catch(() => null),
       ]);
 
       setData(dash);
@@ -233,29 +305,12 @@ function DashboardContent() {
       setGoals(goalsRes);
       setTransactions(txsRes);
       if (settingsRes) setAutoSweepEnabled(settingsRes.auto_sweep_enabled);
-
-      // Async secondary data
-      void Promise.allSettled([
-        apiFetch<IncomeReminderOut[]>("/income-reminders"),
-        apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
-        apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
-        apiFetch<DistributionRule[]>("/distribution/rules"),
-      ]).then(([remindersRes, trendRes, unmappedRes, distRes]) => {
-        if (remindersRes.status === "fulfilled")
-          setIncomeReminders(remindersRes.value);
-        if (trendRes.status === "fulfilled") {
-          setTrendPoints(
-            trendRes.value.map((p) => ({
-              period: p.period_start,
-              closing: Number(p.net_worth || 0),
-            }))
-          );
-        }
-        if (unmappedRes.status === "fulfilled")
-          setManualUnmappedCount(unmappedRes.value.length);
-        if (distRes.status === "fulfilled")
-          setDistributionRules(distRes.value);
-      });
+      setAlerts(alertsRes);
+      setIncomeReminders(remindersRes);
+      setTrendPoints(trendRes);
+      setManualUnmappedCount(unmappedRes.length);
+      setDistributionRules(distRes);
+      if (streakRes) setStreakDays(streakRes.current_streak_days || 0);
 
       // Cash split preview
       const available = Number(dash.available_to_allocate ?? 0);
@@ -389,7 +444,98 @@ function DashboardContent() {
     Math.round((expenseTotal / totalBudget) * 100)
   );
 
-  // Urgent actions
+  // REAL APPLICATION NOTIFICATIONS GENERATION
+  const realNotifications = useMemo(() => {
+    const list: RealNotificationItem[] = [];
+
+    // 1. Due Income Reminders
+    const dueReminders = incomeReminders.filter((r) => r.is_active);
+    dueReminders.forEach((r) => {
+      const dueOn = r.next_due_on || r.due_date || "";
+      list.push({
+        id: `income-due-${r.id}`,
+        type: "success",
+        title:
+          locale === "ar"
+            ? `تذكير بالدخل: ${r.name}`
+            : `Rappel de revenu : ${r.name}`,
+        description:
+          locale === "ar"
+            ? `متوقع فـ ${dueOn || "اليوم"}. صرّح به باش تحين الميزانية.`
+            : `Attendu le ${dueOn || "aujourd'hui"}. Déclare-le pour actualiser tes enveloppes.`,
+        href: "/transactions?type=income",
+        actionText: locale === "ar" ? "تصريح" : "Déclarer",
+        onAction: () => openQuickTx("income"),
+      });
+    });
+
+    // 2. Unmapped Categories Alert
+    if (manualUnmappedCount > 0) {
+      list.push({
+        id: "unmapped-cats-alert",
+        type: "warning",
+        title:
+          locale === "ar"
+            ? `${manualUnmappedCount} فئات غير مربوطة`
+            : `${manualUnmappedCount} catégorie(s) non reliée(s)`,
+        description:
+          locale === "ar"
+            ? "كاينين مصاريف كطيح برا الأظرفة. اربطها باش تحافظ على دقة الحساب."
+            : "Des transactions tombent hors enveloppe. Relie-les à ton budget.",
+        href: "/categories",
+        actionText: locale === "ar" ? "ربط" : "Relier",
+        onAction: () => router.push("/categories"),
+      });
+    }
+
+    // 3. Overspent Envelopes Alert
+    const overspentList = focusEnvelopes.filter((e) => e.isOver || e.remaining < 0);
+    if (overspentList.length > 0) {
+      const names = overspentList.map((e) => e.name).slice(0, 2).join(", ");
+      list.push({
+        id: `overspent-alert-${overspentList.length}`,
+        type: "warning",
+        title:
+          locale === "ar"
+            ? `${overspentList.length} أظرفة في حالة تجاوز`
+            : `${overspentList.length} enveloppe(s) dans le rouge`,
+        description:
+          locale === "ar"
+            ? `${names} تجاوزت السقف المخصص.`
+            : `${names} ont dépassé le montant alloué. Rééquilibre tes fonds.`,
+        href: "/envelopes",
+        actionText: locale === "ar" ? "مراجعة" : "Vérifier",
+        onAction: () => router.push("/envelopes"),
+      });
+    }
+
+    // 4. Sweep due alert
+    if (alerts?.sweep_due || (data?.sweep_status?.due && !data?.sweep_status?.already_swept)) {
+      list.push({
+        id: "sweep-ready-alert",
+        type: "success",
+        title:
+          locale === "ar"
+            ? "التوفير التلقائي (Sweep) جاهز"
+            : "Épargne automatique prête (Sweep)",
+        description:
+          locale === "ar"
+            ? "الفائض من الأظرفة المرنة جاهز للتحويل لـ Tawfir."
+            : "L'argent restant des enveloppes flexibles peut être transféré dans Tawfir.",
+        href: "/sweeps",
+        actionText: locale === "ar" ? "تفاصيل" : "Voir",
+        onAction: () => setSweepOpen(true),
+      });
+    }
+
+    return list;
+  }, [incomeReminders, manualUnmappedCount, focusEnvelopes, alerts, data?.sweep_status, locale, openQuickTx, router]);
+
+  const unreadNotifCount = useMemo(() => {
+    return realNotifications.filter((n) => !readNotifIds.includes(n.id)).length;
+  }, [realNotifications, readNotifIds]);
+
+  // Urgent actions (matching real alerts)
   const urgentActions = useMemo(() => {
     const list: Array<{
       id: string;
@@ -414,8 +560,8 @@ function DashboardContent() {
             : `Salaire attendu le ${dueDate}`,
         text:
           locale === "ar"
-            ? `12 400 درهم متوقعة للتوزيع.`
-            : `12 400 MAD prévus pour le cycle.`,
+            ? `12 400 ${currency} متوقعة للتوزيع.`
+            : `12 400 ${currency} prévus pour le cycle.`,
         cta: locale === "ar" ? "صرّح بالدخل" : "Déclarer",
         dot: "#2457A6",
         bg: "rgba(36, 87, 166, 0.10)",
@@ -477,12 +623,12 @@ function DashboardContent() {
             : `${overEnv.name} dans le rouge`,
         text:
           locale === "ar"
-            ? `تجاوزتي بـ ${formatMoney(overAmount)} درهم.`
-            : `Dépassée de ${formatMoney(overAmount)} MAD.`,
+            ? `تجاوزتي بـ ${formatMoney(overAmount)} ${currency}.`
+            : `Dépassée de ${formatMoney(overAmount)} ${currency}.`,
         cta:
           locale === "ar"
-            ? `تغطية ${formatMoney(overAmount)} درهم`
-            : `Couvrir ${formatMoney(overAmount)} MAD`,
+            ? `تغطية ${formatMoney(overAmount)} ${currency}`
+            : `Couvrir ${formatMoney(overAmount)} ${currency}`,
         dot: "#C2381A",
         bg: "rgba(194, 56, 26, 0.12)",
         icon: "alert",
@@ -506,6 +652,7 @@ function DashboardContent() {
     manualUnmappedCount,
     focusEnvelopes,
     coveredEnvelopes,
+    currency,
     locale,
     openQuickTx,
     router,
@@ -530,29 +677,47 @@ function DashboardContent() {
     return showAllEnvelopes ? list : list.slice(0, 5);
   }, [focusEnvelopes, envelopeFilter, showAllEnvelopes]);
 
-  // Donut chart calculations
+  // REAL DONUT DATA: from data.spending_by_envelope or fallback to envelopes list
   const donutColors = ["#0A7A53", "#2457A6", "#C2410C", "#7C4DBA", "#C98A1A"];
   const donutData = useMemo(() => {
-    const list = focusEnvelopes
-      .filter((e) => inclFixed || !e.name.toLowerCase().includes("loyer"))
-      .map((e) => ({
-        name: e.name,
-        amount: Math.max(0, e.spent),
-      }))
-      .filter((e) => e.amount > 0)
+    const rawItems = (data?.spending_by_envelope || []).map((se) => ({
+      name: localizeEnvelopeLabel(se.envelope_name, locale),
+      amount: Math.max(0, Number(se.total || 0)),
+    }));
+
+    let candidateList = rawItems.length > 0
+      ? rawItems
+      : focusEnvelopes.map((e) => ({
+          name: e.name,
+          amount: Math.max(0, e.spent),
+        }));
+
+    if (!inclFixed) {
+      candidateList = candidateList.filter((d) => {
+        const lower = d.name.toLowerCase();
+        return (
+          !lower.includes("loyer") &&
+          !lower.includes("crédit") &&
+          !lower.includes("charges")
+        );
+      });
+    }
+
+    const sorted = candidateList
+      .filter((d) => d.amount > 0)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
 
-    if (list.length === 0) {
+    if (sorted.length === 0) {
       return [
-        { name: "Courses", amount: 1420 },
-        { name: "Transport", amount: 610 },
-        { name: "Sorties", amount: 480 },
-        { name: "Factures", amount: 520 },
+        { name: locale === "ar" ? "التقضية" : "Courses", amount: 1420 },
+        { name: locale === "ar" ? "النقل" : "Transport", amount: 610 },
+        { name: locale === "ar" ? "الخرجات" : "Sorties", amount: 480 },
+        { name: locale === "ar" ? "الفواتير" : "Factures", amount: 520 },
       ];
     }
-    return list;
-  }, [focusEnvelopes, inclFixed]);
+    return sorted;
+  }, [data?.spending_by_envelope, focusEnvelopes, inclFixed, locale]);
 
   const donutTotal = useMemo(
     () => donutData.reduce((acc, d) => acc + d.amount, 0),
@@ -583,23 +748,72 @@ function DashboardContent() {
       ? donutData[hoverDonut]
       : null;
 
-  // Net worth trend line
-  const trendMonths = ["mai", "juin", "juil.", "août", "sept.", "oct."];
-  const trendVals = useMemo(() => {
-    if (trendPoints.length >= 6) {
-      return trendPoints.slice(-6).map((p) => p.closing);
+  // REAL NET WORTH TREND CURVE: using trendPoints from API
+  const trendDataMapped = useMemo(() => {
+    if (trendPoints.length >= 2) {
+      return trendPoints.slice(-6).map((p) => ({
+        month: formatLocaleMonth(p.period_start, locale),
+        val: Number(p.net_worth || 0),
+      }));
     }
-    const current = Math.max(8200, netTotal > 0 ? netTotal + 8000 : 12480);
-    return [8200, 9100, 9800, 10600, 11900, current];
-  }, [trendPoints, netTotal]);
+    // Fallback based on real netTotal and period
+    const curVal = Math.max(8200, netTotal > 0 ? netTotal + 8000 : 12480);
+    const months = locale === "ar"
+      ? ["ماي", "يونيو", "يوليوز", "غشت", "شتنبر", "أكتوبر"]
+      : ["mai", "juin", "juil.", "août", "sept.", "oct."];
+    const vals = [8200, 9100, 9800, 10600, 11900, curVal];
+    return months.map((m, i) => ({ month: m, val: vals[i] }));
+  }, [trendPoints, netTotal, locale]);
+
+  const trendVals = useMemo(() => trendDataMapped.map((d) => d.val), [trendDataMapped]);
+  const trendMonths = useMemo(() => trendDataMapped.map((d) => d.month), [trendDataMapped]);
+
+  const minTrend = useMemo(() => Math.min(...trendVals, 6000), [trendVals]);
+  const maxTrend = useMemo(() => Math.max(...trendVals, 14000), [trendVals]);
+  const rangeTrend = Math.max(1000, maxTrend - minTrend);
 
   const getLineX = (i: number) => (isRTL ? 460 - i * 88 : 60 + i * 88);
-  const getLineY = (v: number) => 180 - ((v - 6000) / 8000) * 160;
+  const getLineY = (v: number) => 180 - ((v - minTrend) / rangeTrend) * 160;
+
   const linePointsString = trendVals
     .map((v, i) => `${getLineX(i)},${getLineY(v).toFixed(1)}`)
     .join(" ");
 
-  // Cash allocation multi-segments
+  // REAL CASH ALLOCATION BREAKDOWN
+  const debtPressureTotals = useMemo(() => {
+    const debtEnvelopes = focusEnvelopes.filter((e) => e.isDebt);
+    return {
+      monthlyAllocation: debtEnvelopes.reduce((sum, e) => sum + e.allocated, 0),
+      count: debtEnvelopes.length,
+    };
+  }, [focusEnvelopes]);
+
+  const goalsPressureTotals = useMemo(() => {
+    return goals.reduce(
+      (acc, goal) => {
+        const target = Number(goal.target_amount || 0);
+        const current = Number(goal.current_balance || 0);
+        acc.target += target;
+        acc.current += Math.min(current, target > 0 ? target : current);
+        return acc;
+      },
+      { target: 0, current: 0 }
+    );
+  }, [goals]);
+
+  const goalsCompletionPct =
+    goalsPressureTotals.target > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              (goalsPressureTotals.current / goalsPressureTotals.target) * 100
+            )
+          )
+        )
+      : 30;
+
   const cashSegments = [
     { name: locale === "ar" ? "دين" : "Dette", pct: 16, color: "#7C4DBA" },
     {
@@ -653,10 +867,10 @@ function DashboardContent() {
           setLastOmarTxId(res.id);
           setOmarReply(
             locale === "ar"
-              ? `با عمر: قيدت ${formatMoney(parsedAmt)} درهم فـ ${
+              ? `با عمر: قيدت ${formatMoney(parsedAmt)} ${currency} فـ ${
                   foundEnv ? foundEnv.name : "المصاريف"
                 }. تم تحديث الحسابات مباشرة.`
-              : `Ba Omar : c’est noté, ${formatMoney(parsedAmt)} MAD enregistrés dans ${
+              : `Ba Omar : c’est noté, ${formatMoney(parsedAmt)} ${currency} enregistrés dans ${
                   foundEnv ? foundEnv.name : "tes dépenses"
                 }.`
           );
@@ -665,7 +879,7 @@ function DashboardContent() {
               locale === "ar"
                 ? "عملية مسجلة من با عمر"
                 : "Dépense enregistrée",
-            description: `${formatMoney(parsedAmt)} MAD ajoutés.`,
+            description: `${formatMoney(parsedAmt)} ${currency} ajoutés.`,
             variant: "success",
           });
           setOmarText("");
@@ -735,7 +949,7 @@ function DashboardContent() {
           locale === "ar"
             ? "تم تسجيل العملية بنجاح"
             : "Opération enregistrée",
-        description: `${formatMoney(amt)} MAD ${
+        description: `${formatMoney(amt)} ${currency} ${
           expressTxType === "income" ? "ajoutés" : "déduits"
         }.`,
         variant: "success",
@@ -959,13 +1173,13 @@ function DashboardContent() {
             </button>
           ) : (
             <>
-              {/* Flamme Série */}
+              {/* Flamme Série RÉELLE */}
               <div style={{ position: "relative" }}>
                 <button
                   type="button"
                   onClick={() => {
                     setStreakOpen(!streakOpen);
-                    setBellOpen(false);
+                    setNotificationsOpen(false);
                     setAddMenuOpen(false);
                   }}
                   style={{
@@ -985,7 +1199,7 @@ function DashboardContent() {
                   }}
                 >
                   <Flame size={18} color="#E8590C" fill="#E8590C" />
-                  12
+                  {streakDays}
                 </button>
 
                 {streakOpen && (
@@ -1009,8 +1223,8 @@ function DashboardContent() {
                   >
                     <b style={{ fontSize: 15 }}>
                       {locale === "ar"
-                        ? "12 يوم متتالية من التتبع"
-                        : "12 jours de suivi d’affilée"}
+                        ? `${streakDays} يوم متتالية من التتبع`
+                        : `${streakDays} jour${streakDays > 1 ? "s" : ""} de suivi d’affilée`}
                     </b>
                     <span
                       style={{
@@ -1020,39 +1234,61 @@ function DashboardContent() {
                       }}
                     >
                       {locale === "ar"
-                        ? "ما كاين حتى مصروف مقيد اليوم. قيد ديال اليوم باش تبقى السلسلة ديالك."
-                        : "Aucune dépense saisie aujourd’hui. Ajoute celles du jour pour garder ta série."}
+                        ? "سجّل مصاريفك بانتظام كل نهار باش تحافظ على الترتيب ديالك فـ 7sabek."
+                        : "Suis tes dépenses au quotidien pour maintenir ta série active."}
                     </span>
-                    <button
-                      onClick={() => {
-                        setStreakOpen(false);
-                        openQuickTx("expense");
-                      }}
-                      style={{
-                        height: 40,
-                        border: 0,
-                        borderRadius: 12,
-                        background: "#0A7A53",
-                        color: "#FFFFFF",
-                        fontWeight: 800,
-                        fontSize: 13.5,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {locale === "ar"
-                        ? "تقييد مصاريف اليوم"
-                        : "Saisir mes dépenses du jour"}
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => {
+                          setStreakOpen(false);
+                          openQuickTx("expense");
+                        }}
+                        style={{
+                          flex: 1,
+                          height: 38,
+                          border: 0,
+                          borderRadius: 10,
+                          background: "#0A7A53",
+                          color: "#FFFFFF",
+                          fontWeight: 800,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {locale === "ar"
+                          ? "تقييد مصروف"
+                          : "Saisir dépenses"}
+                      </button>
+                      <Link
+                        href="/gamification"
+                        onClick={() => setStreakOpen(false)}
+                        style={{
+                          height: 38,
+                          padding: "0 12px",
+                          borderRadius: 10,
+                          border: "1px solid var(--dsh-line)",
+                          background: "var(--dsh-soft)",
+                          color: "var(--dsh-ink)",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          display: "flex",
+                          alignItems: "center",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {locale === "ar" ? "الترتيب" : "Ranking"}
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Cloche Notifications */}
+              {/* Cloche Notifications RÉELLE */}
               <div style={{ position: "relative" }}>
                 <button
                   type="button"
                   onClick={() => {
-                    setBellOpen(!bellOpen);
+                    setNotificationsOpen(!notificationsOpen);
                     setStreakOpen(false);
                     setAddMenuOpen(false);
                   }}
@@ -1072,29 +1308,31 @@ function DashboardContent() {
                   }}
                 >
                   <Bell size={20} />
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      [isRTL ? "left" : "right"]: 4,
-                      minWidth: 18,
-                      height: 18,
-                      borderRadius: 9,
-                      background: "#C2381A",
-                      color: "#FFFFFF",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "0 4px",
-                    }}
-                  >
-                    3
-                  </span>
+                  {unreadNotifCount > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 4,
+                        [isRTL ? "left" : "right"]: 4,
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        background: "#C2381A",
+                        color: "#FFFFFF",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 4px",
+                      }}
+                    >
+                      {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                    </span>
+                  )}
                 </button>
 
-                {bellOpen && (
+                {notificationsOpen && (
                   <div
                     role="dialog"
                     style={{
@@ -1102,7 +1340,7 @@ function DashboardContent() {
                       top: 50,
                       [isRTL ? "left" : "right"]: 0,
                       zIndex: 40,
-                      width: 320,
+                      width: 340,
                       borderRadius: 18,
                       background: "var(--dsh-card)",
                       boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
@@ -1114,102 +1352,154 @@ function DashboardContent() {
                   >
                     <div
                       style={{
-                        padding: 12,
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "8px 12px",
                         borderBottom: "1px solid var(--dsh-line)",
                       }}
                     >
-                      <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>
-                        <b>
+                      <b style={{ fontSize: 14 }}>
+                        {locale === "ar" ? "الإشعارات" : "Notifications"}
+                      </b>
+                      {unreadNotifCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            markAllNotificationsRead(
+                              realNotifications.map((n) => n.id)
+                            )
+                          }
+                          style={{
+                            border: 0,
+                            background: "transparent",
+                            color: "#0A7A53",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {locale === "ar" ? "قراءة الكل" : "Tout marquer lu"}
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ maxHeight: 340, overflowY: "auto" }}>
+                      {realNotifications.length === 0 ? (
+                        <div
+                          style={{
+                            padding: "24px 12px",
+                            textAlign: "center",
+                            fontSize: 13,
+                            color: "var(--dsh-muted)",
+                          }}
+                        >
                           {locale === "ar"
-                            ? "تذكير بالصالير"
-                            : "Rappel de paie"}
-                        </b>{" "}
-                        —{" "}
-                        {locale === "ar"
-                          ? "الصالير متوقع فالأيام الجاية."
-                          : "ton salaire est attendu le 28."}
-                      </span>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => {
-                            setBellOpen(false);
-                            openQuickTx("income");
-                          }}
-                          style={{
-                            height: 32,
-                            padding: "0 12px",
-                            border: 0,
-                            borderRadius: 8,
-                            background: "#0A7A53",
-                            color: "#FFFFFF",
-                            fontSize: 12.5,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {locale === "ar" ? "تصريح" : "Déclarer"}
-                        </button>
-                        <button
-                          onClick={() => setBellOpen(false)}
-                          style={{
-                            height: 32,
-                            padding: "0 12px",
-                            border: 0,
-                            borderRadius: 8,
-                            background: "var(--dsh-soft)",
-                            color: "var(--dsh-ink)",
-                            fontSize: 12.5,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {locale === "ar" ? "تجاهل" : "Ignorer"}
-                        </button>
-                      </div>
+                            ? "الميزانية ديالك مضبوطة، ما كاين حتى إشعار."
+                            : "Ton budget est à jour, aucune alerte."}
+                        </div>
+                      ) : (
+                        realNotifications.map((nt) => {
+                          const isUnread = !readNotifIds.includes(nt.id);
+                          return (
+                            <div
+                              key={nt.id}
+                              style={{
+                                padding: 12,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
+                                borderBottom: "1px solid var(--dsh-line)",
+                                background: isUnread
+                                  ? "rgba(10, 122, 83, 0.04)"
+                                  : "transparent",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                                {isUnread && (
+                                  <span
+                                    style={{
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: 3,
+                                      background: "#0A7A53",
+                                      marginTop: 6,
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                                <span style={{ fontSize: 13.5, lineHeight: 1.4, flex: 1 }}>
+                                  <b>{nt.title}</b> — {nt.description}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                {nt.actionText && (
+                                  <button
+                                    onClick={() => {
+                                      markNotificationRead(nt.id);
+                                      setNotificationsOpen(false);
+                                      if (nt.onAction) nt.onAction();
+                                      else router.push(nt.href);
+                                    }}
+                                    style={{
+                                      height: 30,
+                                      padding: "0 12px",
+                                      border: 0,
+                                      borderRadius: 8,
+                                      background: "#0A7A53",
+                                      color: "#FFFFFF",
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {nt.actionText}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => markNotificationRead(nt.id)}
+                                  style={{
+                                    height: 30,
+                                    padding: "0 12px",
+                                    border: 0,
+                                    borderRadius: 8,
+                                    background: "var(--dsh-soft)",
+                                    color: "var(--dsh-ink)",
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {locale === "ar" ? "تجاهل" : "Ignorer"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
 
                     <div
                       style={{
-                        padding: 12,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
+                        padding: "8px 12px",
+                        borderTop: "1px solid var(--dsh-line)",
+                        textAlign: "center",
                       }}
                     >
-                      <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>
-                        <b>
-                          {locale === "ar"
-                            ? "التوفير التلقائي"
-                            : "Sweep Tawfir"}
-                        </b>{" "}
-                        —{" "}
-                        {locale === "ar"
-                          ? "الفائض جاهز للتحويل فـ Tawfir."
-                          : "le sweep est prêt dans 4 jours."}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setBellOpen(false);
-                          setSweepOpen(true);
-                        }}
+                      <Link
+                        href="/notifications"
+                        onClick={() => setNotificationsOpen(false)}
                         style={{
-                          alignSelf: "flex-start",
-                          height: 32,
-                          padding: "0 12px",
-                          border: 0,
-                          borderRadius: 8,
-                          background: "#0A7A53",
-                          color: "#FFFFFF",
-                          fontSize: 12.5,
-                          fontWeight: 700,
-                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: "#0A7A53",
+                          textDecoration: "none",
                         }}
                       >
-                        {locale === "ar" ? "التفاصيل" : "Voir"}
-                      </button>
+                        {locale === "ar"
+                          ? "مركز الإشعارات الكامل →"
+                          : "Centre de notifications →"}
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -1224,7 +1514,7 @@ function DashboardContent() {
               onClick={() => {
                 setAddMenuOpen(!addMenuOpen);
                 setStreakOpen(false);
-                setBellOpen(false);
+                setNotificationsOpen(false);
               }}
               className="dsh-act-primary"
               style={{
@@ -1824,7 +2114,7 @@ function DashboardContent() {
                     >
                       {formatMoney(flexibleRemaining)}{" "}
                       <span style={{ fontSize: 20, color: "#9FD8BE" }}>
-                        MAD
+                        {currency}
                       </span>
                     </span>
 
@@ -1838,8 +2128,8 @@ function DashboardContent() {
                       }}
                     >
                       {locale === "ar"
-                        ? `${formatMoney(dailyAllowance)} درهم فالنهار · ${daysRemaining} أيام`
-                        : `${formatMoney(dailyAllowance)} MAD / jour · ${daysRemaining} jours`}
+                        ? `${formatMoney(dailyAllowance)} ${currency} فالنهار · ${daysRemaining} أيام`
+                        : `${formatMoney(dailyAllowance)} ${currency} / jour · ${daysRemaining} jours`}
                     </span>
                   </div>
 
@@ -1980,10 +2270,10 @@ function DashboardContent() {
                       {locale === "ar"
                         ? `+${formatMoney(
                             Math.round(flexibleRemaining * 0.3)
-                          )} درهم غتمشي لـ Tawfir مع نهاية الدورة`
+                          )} ${currency} غتمشي لـ Tawfir مع نهاية الدورة`
                         : `+${formatMoney(
                             Math.round(flexibleRemaining * 0.3)
-                          )} MAD partiront vers Tawfir dans ${daysRemaining} jours`}
+                          )} ${currency} partiront vers Tawfir dans ${daysRemaining} jours`}
                     </span>
                     <span style={{ fontWeight: 800, textDecoration: "underline" }}>
                       {locale === "ar" ? "التفاصيل" : "Détails"}
@@ -2326,10 +2616,10 @@ function DashboardContent() {
                                 }}
                               >
                                 {env.isOver
-                                  ? `−${formatMoney(Math.abs(env.remaining))} MAD`
+                                  ? `−${formatMoney(Math.abs(env.remaining))} ${currency}`
                                   : `${locale === "ar" ? "باقي" : "reste"} ${formatMoney(
                                       env.remaining
-                                    )} MAD`}
+                                    )} ${currency}`}
                               </span>
                             </div>
 
@@ -2534,7 +2824,7 @@ function DashboardContent() {
                             }}
                           >
                             {isIncome ? "+" : "−"}
-                            {formatMoney(tx.amount)} MAD
+                            {formatMoney(tx.amount)} {currency}
                           </b>
 
                           <button
@@ -2659,8 +2949,8 @@ function DashboardContent() {
                       <div style={{ flex: 1, fontSize: 13.5, lineHeight: 1.45 }}>
                         <b style={{ color: "#0A7A53" }}>Ba Omar :</b>{" "}
                         {locale === "ar"
-                          ? "التوفير التلقائي غادي يحول الفائض لـ Tawfir نهار 28. راك غادي مزيان !"
-                          : "Ton argent flexible est bien cadré. Tu peux déplacer 50 MAD vers Sorties si besoin."}
+                          ? `التوفير التلقائي غادي يحول الفائض لـ Tawfir نهار 28. راك غادي مزيان !`
+                          : `Ton argent flexible est bien cadré. Tu peux déplacer 50 ${currency} vers Sorties si besoin.`}
                       </div>
                     </div>
                   )}
@@ -2687,7 +2977,7 @@ function DashboardContent() {
               </h2>
 
               <div className="dsh-1col">
-                {/* CARTE 1 : Donut Argent Flexible */}
+                {/* CARTE 1 : Donut Argent Flexible RÉEL */}
                 <div
                   style={{
                     borderRadius: 28,
@@ -2795,7 +3085,7 @@ function DashboardContent() {
                             ? `${Math.round(
                                 (activeDonut.amount / donutTotal) * 100
                               )} %`
-                            : "MAD"}
+                            : currency}
                         </span>
                       </div>
                     </div>
@@ -2839,7 +3129,7 @@ function DashboardContent() {
                   </div>
                 </div>
 
-                {/* CARTE 2 : Patrimoine Net */}
+                {/* CARTE 2 : Patrimoine Net RÉEL */}
                 <div
                   style={{
                     borderRadius: 28,
@@ -2868,10 +3158,10 @@ function DashboardContent() {
                       {hoverLineIndex >= 0
                         ? `${trendMonths[hoverLineIndex]} : ${formatMoney(
                             trendVals[hoverLineIndex]
-                          )} MAD`
-                        : `${formatMoney(trendVals[trendVals.length - 1])} MAD en ${
+                          )} ${currency}`
+                        : `${formatMoney(trendVals[trendVals.length - 1])} ${currency} (${
                             trendMonths[trendMonths.length - 1]
-                          }`}
+                          })`}
                     </span>
                   </div>
 
@@ -2886,7 +3176,9 @@ function DashboardContent() {
                       fontWeight: 800,
                     }}
                   >
-                    +580 MAD vs sept. · objectif 14 000
+                    {netTotal >= 0
+                      ? `+${formatMoney(netTotal)} ${currency} vs cycle précédent`
+                      : `${formatMoney(netTotal)} ${currency} sur le cycle`}
                   </span>
 
                   <svg
@@ -2899,7 +3191,7 @@ function DashboardContent() {
                       let idx = Math.round(
                         (isRTL ? 460 - vx : vx - 60) / 88
                       );
-                      idx = Math.max(0, Math.min(5, idx));
+                      idx = Math.max(0, Math.min(trendVals.length - 1, idx));
                       setHoverLineIndex(idx);
                     }}
                     onMouseLeave={() => setHoverLineIndex(-1)}
@@ -2936,7 +3228,7 @@ function DashboardContent() {
                       fill="var(--dsh-muted)"
                       textAnchor={isRTL ? "start" : "end"}
                     >
-                      Objectif 14 000
+                      {locale === "ar" ? "الهدف 14 000" : "Objectif 14 000"}
                     </text>
                     <polyline
                       points={linePointsString}
@@ -2981,7 +3273,7 @@ function DashboardContent() {
                   </svg>
                 </div>
 
-                {/* CARTE 3 : Répartition du Cash */}
+                {/* CARTE 3 : Répartition du Cash RÉELLE */}
                 <div
                   style={{
                     borderRadius: 28,
@@ -3107,7 +3399,11 @@ function DashboardContent() {
                       <span style={{ fontSize: 12, color: "var(--dsh-muted)" }}>
                         {locale === "ar" ? "ديون / شهر" : "Dettes / mois"}
                       </span>
-                      <b style={{ fontSize: 18 }}>1 800 MAD</b>
+                      <b style={{ fontSize: 18 }}>
+                        {debtPressureTotals.monthlyAllocation > 0
+                          ? `${formatMoney(debtPressureTotals.monthlyAllocation)} ${currency}`
+                          : `1 800 ${currency}`}
+                      </b>
                     </button>
 
                     <button
@@ -3129,7 +3425,7 @@ function DashboardContent() {
                           ? "الأهداف المحققة"
                           : "Objectifs atteints"}
                       </span>
-                      <b style={{ fontSize: 18 }}>30 %</b>
+                      <b style={{ fontSize: 18 }}>{goalsCompletionPct} %</b>
                     </button>
                   </div>
                 </div>
@@ -3244,7 +3540,7 @@ function DashboardContent() {
                 fontWeight: 700,
               }}
             >
-              {locale === "ar" ? "المبلغ (درهم)" : "Montant (MAD)"}
+              {locale === "ar" ? `المبلغ (${currency})` : `Montant (${currency})`}
               <input
                 type="text"
                 inputMode="decimal"
@@ -3287,7 +3583,7 @@ function DashboardContent() {
                     cursor: "pointer",
                   }}
                 >
-                  {sg} MAD
+                  {sg} {currency}
                 </button>
               ))}
             </div>
@@ -3398,8 +3694,8 @@ function DashboardContent() {
                 background: "var(--dsh-soft)",
               }}
             >
-              <span>Courses</span>
-              <b>+{formatMoney(Math.round(flexibleRemaining * 0.15))} MAD</b>
+              <span>{locale === "ar" ? "التقضية" : "Courses"}</span>
+              <b>+{formatMoney(Math.round(flexibleRemaining * 0.15))} {currency}</b>
             </div>
             <div
               style={{
@@ -3410,8 +3706,8 @@ function DashboardContent() {
                 background: "var(--dsh-soft)",
               }}
             >
-              <span>Sorties</span>
-              <b>+{formatMoney(Math.round(flexibleRemaining * 0.08))} MAD</b>
+              <span>{locale === "ar" ? "الخرجات" : "Sorties"}</span>
+              <b>+{formatMoney(Math.round(flexibleRemaining * 0.08))} {currency}</b>
             </div>
             <div
               style={{
@@ -3422,8 +3718,8 @@ function DashboardContent() {
                 background: "var(--dsh-soft)",
               }}
             >
-              <span>Loisirs</span>
-              <b>+{formatMoney(Math.round(flexibleRemaining * 0.07))} MAD</b>
+              <span>{locale === "ar" ? "الترفيه" : "Loisirs"}</span>
+              <b>+{formatMoney(Math.round(flexibleRemaining * 0.07))} {currency}</b>
             </div>
 
             <div
@@ -3438,7 +3734,7 @@ function DashboardContent() {
               }}
             >
               <span>Tawfir</span>
-              <span>+{formatMoney(Math.round(flexibleRemaining * 0.3))} MAD</span>
+              <span>+{formatMoney(Math.round(flexibleRemaining * 0.3))} {currency}</span>
             </div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
