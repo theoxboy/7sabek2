@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useReducedMotion } from "framer-motion";
 
 export function PageTransition({
@@ -15,7 +15,59 @@ export function PageTransition({
   const [transitionCount, setTransitionCount] = useState(0);
   const isFirstMount = useRef(true);
   const prevRouteKey = useRef(routeKey);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const startTransition = useCallback(() => {
+    if (reduced) return;
+    setTransitioning(true);
+    setTransitionCount((c) => c + 1);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setTransitioning(false);
+    }, 820);
+  }, [reduced]);
+
+  // Écoute immédiate des clics sur les liens internes pour lancer la transition à la milliseconde près
+  useEffect(() => {
+    const handleLinkClick = (e: MouseEvent) => {
+      if (reduced) return;
+      const target = (e.target as HTMLElement)?.closest("a");
+      if (!target) return;
+      const href = target.getAttribute("href");
+      if (
+        !href ||
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        target.getAttribute("target") === "_blank" ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
+        return;
+      }
+
+      try {
+        const url = new URL(href, window.location.href);
+        if (
+          url.origin === window.location.origin &&
+          url.pathname !== window.location.pathname
+        ) {
+          startTransition();
+        }
+      } catch {
+        // Ignorer URLs non valides
+      }
+    };
+
+    document.addEventListener("click", handleLinkClick, { capture: true });
+    return () => {
+      document.removeEventListener("click", handleLinkClick, { capture: true });
+    };
+  }, [reduced, startTransition]);
+
+  // Synchronisation lors du changement effectif de la route
   useEffect(() => {
     if (isFirstMount.current) {
       isFirstMount.current = false;
@@ -25,16 +77,15 @@ export function PageTransition({
 
     if (prevRouteKey.current !== routeKey) {
       prevRouteKey.current = routeKey;
-      if (!reduced) {
-        setTransitioning(true);
-        setTransitionCount((c) => c + 1);
-        const timer = setTimeout(() => {
-          setTransitioning(false);
-        }, 820);
-        return () => clearTimeout(timer);
-      }
+      startTransition();
     }
-  }, [routeKey, reduced]);
+  }, [routeKey, startTransition]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   return (
     <>

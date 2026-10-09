@@ -1707,7 +1707,9 @@ html[dir="rtl"] .tr-fast-bar {
   animation: tr-veil-fast 0.8s ease forwards;
 }
 
-[data-theme="dark"] .tr-fast-veil {
+.dark .tr-fast-veil,
+[data-theme="dark"] .tr-fast-veil,
+.t-dark .tr-fast-veil {
   background: rgba(7, 26, 23, 0.90);
 }
 
@@ -1726,7 +1728,9 @@ html[dir="rtl"] .tr-fast-bar {
   fill: #083D36;
 }
 
-[data-theme="dark"] .tr-fast-mark .tr-txt {
+.dark .tr-fast-mark .tr-txt,
+[data-theme="dark"] .tr-fast-mark .tr-txt,
+.t-dark .tr-fast-mark .tr-txt {
   fill: #EAF7F1;
 }
 

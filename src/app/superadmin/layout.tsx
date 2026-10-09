@@ -47,6 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { PageTransition } from "@/components/motion/PageTransition";
+import { PageLoading } from "@/components/ui/PageLoading";
 
 const isBrowser = typeof window !== "undefined";
 const isLoopbackHost =
@@ -539,11 +540,7 @@ export default function SuperAdminLayout({
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--surface)] px-6 py-10 text-sm text-[var(--muted)]">
-        {copy.loading}
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (!user) return null;

@@ -54,6 +54,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
+import { PageLoading } from "@/components/ui/PageLoading";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import {
   Dialog,
@@ -2518,7 +2519,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--surface)]" />}>
+    <Suspense fallback={<PageLoading />}>
       <QuickTxProvider>
         <AppLayoutContent>{children}</AppLayoutContent>
       </QuickTxProvider>
