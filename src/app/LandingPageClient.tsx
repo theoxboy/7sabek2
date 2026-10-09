@@ -18,7 +18,6 @@ import {
   persistLocaleCookie,
   type FloussyLocale,
 } from "@/lib/localePreference";
-import { SbkWLoader, type SbkWLoaderMode } from "@/components/ui/SbkWLoader";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -456,12 +455,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
 
   // APK modal state
   const [apkOpen, setApkOpen] = useState(false);
-
-  // Animation preview state (Complete & Loop)
-  const [loaderPreview, setLoaderPreview] = useState<{
-    open: boolean;
-    mode: SbkWLoaderMode;
-  }>({ open: false, mode: "complete" });
 
   // Check auth on mount
   useEffect(() => {
@@ -1009,38 +1002,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
                 <path d="M11 18h2" />
               </svg>
               {t.navApk}
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoaderPreview({ open: true, mode: "complete" })}
-              style={{
-                padding: "8px 12px",
-                border: "1px solid rgba(16, 185, 129, 0.25)",
-                borderRadius: "10px",
-                background: "rgba(16, 185, 129, 0.08)",
-                color: "#0A7A53",
-                fontFamily: "inherit",
-                fontSize: "14px",
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              title={isAr ? "معاينة حركات التحميل 7sabek" : "Voir les 2 animations de chargement 7sabek"}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "#10b981",
-                  boxShadow: "0 0 8px #10b981",
-                }}
-              />
-              {isAr ? "الحركات ✨" : "Animations ✨"}
             </button>
           </nav>
 
@@ -2543,104 +2504,6 @@ export default function LandingPageClient({ initialLocale }: LandingPageClientPr
             </span>
           </div>
         </div>
-      )}
-
-      {/* WIDGET FLOTTANT DISCRET : TESTER LES DEUX ANIMATIONS */}
-      <aside
-        aria-label="Aperçu des animations 7sabek"
-        style={{
-          position: "fixed",
-          bottom: "22px",
-          [isAr ? "left" : "right"]: "22px",
-          zIndex: 42,
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "6px 8px 6px 14px",
-          borderRadius: "999px",
-          background: "rgba(255, 255, 255, 0.96)",
-          border: "1px solid rgba(16, 185, 129, 0.35)",
-          boxShadow: "0 10px 28px -4px rgba(8, 61, 54, 0.2)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "12.5px",
-            fontWeight: 800,
-            color: "#083D36",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          <span
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              background: "#00C27A",
-              display: "inline-block",
-              boxShadow: "0 0 6px #00C27A",
-            }}
-          />
-          {isAr ? "حركات 7sabek :" : "Animations :"}
-        </span>
-        <button
-          type="button"
-          onClick={() => setLoaderPreview({ open: true, mode: "complete" })}
-          style={{
-            border: 0,
-            padding: "6px 12px",
-            borderRadius: "999px",
-            background: "linear-gradient(135deg, #0A7A53 0%, #00B06E 100%)",
-            color: "#FFFFFF",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(10, 122, 83, 0.25)",
-            transition: "all 0.15s ease",
-          }}
-          title="Animation complète avec barre 0% -> 100% et portail de révélation"
-        >
-          {isAr ? "1. كاملة (0→100%)" : "1. Complète (0→100%)"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setLoaderPreview({ open: true, mode: "loop" })}
-          style={{
-            border: "1px solid rgba(10, 122, 83, 0.25)",
-            padding: "6px 12px",
-            borderRadius: "999px",
-            background: "rgba(10, 122, 83, 0.08)",
-            color: "#0A7A53",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: "pointer",
-            transition: "all 0.15s ease",
-          }}
-          title="Animation en boucle continue indéterminée avec vagues oscillantes"
-        >
-          {isAr ? "2. حلقة (مستمرة)" : "2. Boucle (infinie)"}
-        </button>
-      </aside>
-
-      {/* OVERLAY CHARGEMENT INTERACTIF 7SABEK */}
-      {loaderPreview.open && (
-        <SbkWLoader
-          mode={loaderPreview.mode}
-          locale={locale}
-          theme="light"
-          showControls={true}
-          fullscreen={true}
-          onClose={() => setLoaderPreview({ open: false, mode: "complete" })}
-          onComplete={() => {
-            setTimeout(() => {
-              setLoaderPreview({ open: false, mode: "complete" });
-            }, 800);
-          }}
-        />
       )}
     </div>
   );

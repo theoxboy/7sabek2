@@ -1,38 +1,13 @@
-import { SbkWLoader, type SbkWLoaderMode, type SbkWLoaderTheme, type SbkWLoaderSpeed } from "@/components/ui/SbkWLoader";
-import type { FloussyLocale } from "@/lib/localePreference";
+"use client";
 
-export interface PageLoadingProps {
-  /** Mode d'animation: 'loop' (par défaut pour les chargements de page) ou 'complete' */
-  mode?: SbkWLoaderMode;
-  theme?: SbkWLoaderTheme;
-  locale?: FloussyLocale | "fr" | "ar" | "en";
-  speed?: SbkWLoaderSpeed;
-  onComplete?: () => void;
-  showControls?: boolean;
-  fullscreen?: boolean;
-}
-
-export function PageLoading({
-  mode = "loop",
-  theme = "dark",
-  locale = "fr",
-  speed = "normal",
-  onComplete,
-  showControls = false,
-  fullscreen = true,
-}: PageLoadingProps) {
+export function PageLoading() {
   return (
-    <SbkWLoader
-      mode={mode}
-      theme={theme}
-      locale={locale}
-      speed={speed}
-      onComplete={onComplete}
-      showControls={showControls}
-      fullscreen={fullscreen}
-    />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-xs dark:bg-black/60"
+      role="status"
+      aria-label="Chargement..."
+    >
+      <div className="h-9 w-9 animate-spin rounded-full border-3 border-emerald-500/20 border-t-emerald-600" />
+    </div>
   );
 }
-
-export { SbkWLoader };
-
