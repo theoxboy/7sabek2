@@ -23,9 +23,11 @@ import {
   CircleHelp,
   Edit3,
   Flame,
+  Globe,
   Info,
   Layers,
   Lock,
+  Menu,
   Mic,
   Plus,
   RotateCcw,
@@ -45,7 +47,6 @@ import type {
   DistributionSimulateOut,
   GoalOut,
   IncomeReminderOut,
-  OnboardingV2RecordOut,
   SettingsResponse,
   TransactionOut,
 } from "@/lib/types";
@@ -55,7 +56,10 @@ import {
   getLocaleDirection,
   type FloussyLocale,
 } from "@/lib/localePreference";
-import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
+import {
+  getBrowserLocalePreference,
+  openLanguagePicker,
+} from "@/components/i18n/LanguagePreferenceGate";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { addDays, startOfYear } from "@/lib/reports/compute";
 import { isFixedMode, isPercentMode, type DistributionRule } from "@/lib/distribution";
@@ -133,7 +137,6 @@ function DashboardSkel() {
 function DashboardContent() {
   const { openQuickTx } = useQuickTx();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [locale, setLocale] = useState<FloussyLocale>("fr");
@@ -151,8 +154,8 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter / period state
-  const [period, setPeriod] = useState<"7" | "30" | "90" | "ytd" | "custom">("30");
+  // Period filter: 7, 30, 90, ytd
+  const [period, setPeriod] = useState<"7" | "30" | "90" | "ytd">("30");
   const [envelopeFilter, setEnvelopeFilter] = useState<"all" | "over" | "near" | "ok">("all");
   const [showAllEnvelopes, setShowAllEnvelopes] = useState(false);
   const [inclFixed, setInclFixed] = useState(false);
@@ -160,6 +163,7 @@ function DashboardContent() {
   // Ba Omar interactive header input & reply banner
   const [omarText, setOmarText] = useState("");
   const [omarReply, setOmarReply] = useState<string | null>(null);
+  const [lastOmarTxId, setLastOmarTxId] = useState<string | null>(null);
   const [guestTries, setGuestTries] = useState(3);
 
   // Interactive drop-downs & popovers
@@ -197,26 +201,38 @@ function DashboardContent() {
       window.removeEventListener("floussy:locale-changed" as any, handleLocaleChange);
   }, []);
 
-  // Fetch core data
-  const loadData = useCallback(async () => {
+  // Compute date range for periods
+  const computeDatesForPeriod = useCallback((p: "7" | "30" | "90" | "ytd") => {
+    const today = getLocalTodayISO();
+    if (p === "7") return { start: addDays(today, -7), end: today };
+    if (p === "30") return { start: addDays(today, -30), end: today };
+    if (p === "90") return { start: addDays(today, -90), end: today };
+    if (p === "ytd") return { start: startOfYear(today), end: today };
+    return null;
+  }, []);
+
+  // Fetch core data (with dynamic period filtering)
+  const loadData = useCallback(async (selectedPeriod: "7" | "30" | "90" | "ytd" = period) => {
     setLoading(true);
     setError(null);
     try {
-      const dash = await fetchDashboard();
-      setData(dash);
+      const range = computeDatesForPeriod(selectedPeriod);
+      const periodQuery = range ? `?start=${range.start}&end=${range.end}` : "";
+      const txQuery = range ? `/transactions${periodQuery}` : "/transactions?limit=25";
 
-      const [catsRes, goalsRes, txsRes, settingsRes] = await Promise.allSettled([
-        apiFetch<CategoryOut[]>("/categories"),
-        apiFetch<GoalOut[]>("/goals"),
-        apiFetch<TransactionOut[]>("/transactions?limit=25"),
-        apiFetch<SettingsResponse>("/users/me/settings"),
+      const [dash, catsRes, goalsRes, txsRes, settingsRes] = await Promise.all([
+        fetchDashboard(periodQuery ? `/dashboard${periodQuery}` : "/dashboard"),
+        apiFetch<CategoryOut[]>("/categories").catch(() => []),
+        apiFetch<GoalOut[]>("/goals").catch(() => []),
+        apiFetch<TransactionOut[]>(txQuery).catch(() => []),
+        apiFetch<SettingsResponse>("/users/me/settings").catch(() => null),
       ]);
 
-      if (catsRes.status === "fulfilled") setCategories(catsRes.value);
-      if (goalsRes.status === "fulfilled") setGoals(goalsRes.value);
-      if (txsRes.status === "fulfilled") setTransactions(txsRes.value);
-      if (settingsRes.status === "fulfilled")
-        setAutoSweepEnabled(settingsRes.value.auto_sweep_enabled);
+      setData(dash);
+      setCategories(catsRes);
+      setGoals(goalsRes);
+      setTransactions(txsRes);
+      if (settingsRes) setAutoSweepEnabled(settingsRes.auto_sweep_enabled);
 
       // Async secondary data
       void Promise.allSettled([
@@ -263,7 +279,7 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period, computeDatesForPeriod]);
 
   useEffect(() => {
     loadData();
@@ -289,7 +305,7 @@ function DashboardContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Envelopes mapping
+  // Envelopes list mapping
   const envelopesList = useMemo(() => {
     if (!data?.envelopes) return [];
     return data.envelopes.map((item) => {
@@ -599,10 +615,11 @@ function DashboardContent() {
     },
   ];
 
-  // Ba Omar ask submit
-  const handleAskOmar = (e: React.FormEvent) => {
+  // Ba Omar ask submit with real transaction recording
+  const handleAskOmar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!omarText.trim()) return;
+    const query = omarText.trim();
+    if (!query) return;
 
     if (isGuest && guestTries <= 0) {
       setWallModal("Ba Omar");
@@ -612,15 +629,74 @@ function DashboardContent() {
     if (isGuest) setGuestTries((prev) => Math.max(0, prev - 1));
 
     // Smart expense parsing e.g. "150 courses" or "khsert 150 f lmarche"
-    const matchAmount = omarText.match(/(\d+[\d\s,.]*)/);
-    const parsedAmt = matchAmount ? matchAmount[1].replace(/\s+/g, "") : "150";
+    const matchAmount = query.match(/(\d+[\d\s,.]*)/);
+    if (matchAmount) {
+      const parsedAmt =
+        parseFloat(matchAmount[1].replace(/\s+/g, "").replace(",", ".")) || 0;
+      if (parsedAmt > 0) {
+        const foundEnv =
+          focusEnvelopes.find((env) =>
+            query.toLowerCase().includes(env.name.toLowerCase())
+          ) || focusEnvelopes[0];
 
+        try {
+          const res = await apiFetch<TransactionOut>("/transactions", {
+            method: "POST",
+            body: {
+              amount: parsedAmt.toFixed(2),
+              type: "expense",
+              occurred_on: getLocalTodayISO(),
+              description: query,
+              category_id: categories[0]?.id || undefined,
+            },
+          });
+          setLastOmarTxId(res.id);
+          setOmarReply(
+            locale === "ar"
+              ? `با عمر: قيدت ${formatMoney(parsedAmt)} درهم فـ ${
+                  foundEnv ? foundEnv.name : "المصاريف"
+                }. تم تحديث الحسابات مباشرة.`
+              : `Ba Omar : c’est noté, ${formatMoney(parsedAmt)} MAD enregistrés dans ${
+                  foundEnv ? foundEnv.name : "tes dépenses"
+                }.`
+          );
+          toast({
+            title:
+              locale === "ar"
+                ? "عملية مسجلة من با عمر"
+                : "Dépense enregistrée",
+            description: `${formatMoney(parsedAmt)} MAD ajoutés.`,
+            variant: "success",
+          });
+          setOmarText("");
+          void loadData(period);
+          return;
+        } catch {}
+      }
+    }
+
+    // General question or advice
     setOmarReply(
       locale === "ar"
-        ? `با عمر: قيدت ${parsedAmt} درهم، مسجلة بنجاح. باقي ليك الرصيد الكافي فـ الأظرفة المرنة.`
-        : `Ba Omar : c’est noté, ${parsedAmt} MAD enregistrés. Ton budget reste équilibré.`
+        ? `با عمر: النصيحة ديالي ليك هي تركز على تتبع المصاريف اليومية وتخلي 20% للطوارئ فـ Tawfir.`
+        : `Ba Omar : Mon conseil pour optimiser ton budget : surveille tes sorties et garde un matelas de sécurité dans Tawfir.`
     );
     setOmarText("");
+  };
+
+  // Undo transaction created by Ba Omar
+  const handleUndoOmar = async () => {
+    if (lastOmarTxId) {
+      try {
+        await apiFetch(`/transactions/${lastOmarTxId}`, { method: "DELETE" });
+        toast({
+          title: locale === "ar" ? "تم التراجع عن العملية" : "Opération annulée",
+        });
+        void loadData(period);
+      } catch {}
+    }
+    setOmarReply(null);
+    setLastOmarTxId(null);
   };
 
   // Express Tx quick submit
@@ -662,11 +738,11 @@ function DashboardContent() {
         description: `${formatMoney(amt)} MAD ${
           expressTxType === "income" ? "ajoutés" : "déduits"
         }.`,
+        variant: "success",
       });
       setExpressTxOpen(false);
-      void loadData();
+      void loadData(period);
     } catch {
-      // Fallback: open full quick tx form
       setExpressTxOpen(false);
       openQuickTx(expressTxType, { amount: amt.toString() });
     }
@@ -682,11 +758,24 @@ function DashboardContent() {
         background: "var(--dsh-bg)",
         color: "var(--dsh-ink)",
         minHeight: "100vh",
+        width: "100%",
       }}
       className={isRTL ? cairo.className : ""}
     >
-      {/* 1. TOP HEADER (Barre Ba Omar & Actions) */}
+      {/* 1. TOP HEADER PLEIN ÉCRAN (Barre Ba Omar & Actions) */}
       <header className="dsh-hdr">
+        {/* Bouton Hamburger mobile pour ouvrir le menu latéral */}
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new CustomEvent("floussy:open-mobile-nav"))
+          }
+          className="flex lg:hidden items-center justify-center p-2 rounded-xl text-[var(--dsh-ink)] hover:bg-[var(--dsh-soft)] border border-[var(--dsh-line)]"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={20} />
+        </button>
+
         <form className="dsh-ask" onSubmit={handleAskOmar}>
           <span
             style={{
@@ -806,6 +895,29 @@ function DashboardContent() {
         </form>
 
         <div className="dsh-act">
+          {/* Sélecteur de Langue rapide */}
+          <button
+            type="button"
+            onClick={openLanguagePicker}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              border: "1px solid var(--dsh-line)",
+              background: "var(--dsh-card)",
+              color: "var(--dsh-ink)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+            }}
+            title="Langue / اللغة"
+            aria-label="Changer de langue"
+          >
+            <Globe size={18} />
+          </button>
+
           {/* Pilule Invité */}
           {isGuest ? (
             <button
@@ -859,7 +971,6 @@ function DashboardContent() {
                   style={{
                     height: 40,
                     padding: "0 12px",
-                    border: 0,
                     borderRadius: 20,
                     background: "var(--dsh-card)",
                     color: "var(--dsh-ink)",
@@ -870,6 +981,7 @@ function DashboardContent() {
                     fontWeight: 800,
                     cursor: "pointer",
                     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                    border: "1px solid var(--dsh-line)",
                   }}
                 >
                   <Flame size={18} color="#E8590C" fill="#E8590C" />
@@ -948,7 +1060,6 @@ function DashboardContent() {
                     position: "relative",
                     width: 42,
                     height: 42,
-                    border: 0,
                     borderRadius: 21,
                     background: "var(--dsh-card)",
                     color: "var(--dsh-ink)",
@@ -957,6 +1068,7 @@ function DashboardContent() {
                     justifyContent: "center",
                     cursor: "pointer",
                     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                    border: "1px solid var(--dsh-line)",
                   }}
                 >
                   <Bell size={20} />
@@ -1255,7 +1367,7 @@ function DashboardContent() {
         </div>
       </header>
 
-      {/* 2. MAIN DASHBOARD CONTENT */}
+      {/* 2. MAIN DASHBOARD CONTENT PLEIN ÉCRAN */}
       <main className="dsh-main">
         {/* Bannière de réponse Ba Omar */}
         {omarReply && (
@@ -1266,7 +1378,7 @@ function DashboardContent() {
               flexWrap: "wrap",
               alignItems: "center",
               gap: 12,
-              padding: "14px 16px",
+              padding: "14px 18px",
               borderRadius: 18,
               background: "var(--dsh-brand-soft)",
               color: "var(--dsh-brand-ink)",
@@ -1292,22 +1404,41 @@ function DashboardContent() {
             <span style={{ flex: "1 1 320px", fontSize: 14.5 }}>
               <b>Ba Omar :</b> {omarReply}
             </span>
-            <button
-              type="button"
-              onClick={() => setOmarReply(null)}
-              style={{
-                height: 36,
-                padding: "0 12px",
-                border: 0,
-                borderRadius: 10,
-                background: "var(--dsh-card)",
-                color: "var(--dsh-ink)",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              {locale === "ar" ? "إلغاء" : "Annuler"}
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={handleUndoOmar}
+                style={{
+                  height: 36,
+                  padding: "0 12px",
+                  border: 0,
+                  borderRadius: 10,
+                  background: "var(--dsh-card)",
+                  color: "var(--dsh-ink)",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {locale === "ar" ? "إلغاء" : "Annuler"}
+              </button>
+              <Link
+                href="/chat"
+                style={{
+                  height: 36,
+                  padding: "0 12px",
+                  borderRadius: 10,
+                  background: "#0A7A53",
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  display: "flex",
+                  alignItems: "center",
+                  textDecoration: "none",
+                }}
+              >
+                {locale === "ar" ? "محادثة با عمر →" : "Discuter →"}
+              </Link>
+            </div>
           </div>
         )}
 
@@ -1547,7 +1678,7 @@ function DashboardContent() {
             </section>
           )}
 
-        {/* Dashboard Principal (Rempli) */}
+        {/* Dashboard Principal (Rempli & Dynamique) */}
         {!loading && (data || transactions.length > 0) && (
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             {/* Titre & Période */}
@@ -1581,7 +1712,7 @@ function DashboardContent() {
                 </span>
               </div>
 
-              {/* Sélecteur de période */}
+              {/* Sélecteur de période dynamique */}
               <div
                 role="radiogroup"
                 aria-label="Période"
@@ -1607,7 +1738,10 @@ function DashboardContent() {
                       key={p.id}
                       role="radio"
                       aria-checked={on}
-                      onClick={() => setPeriod(p.id as any)}
+                      onClick={() => {
+                        setPeriod(p.id as any);
+                        void loadData(p.id as any);
+                      }}
                       style={{
                         height: 34,
                         padding: "0 12px",
@@ -2534,7 +2668,7 @@ function DashboardContent() {
               </div>
             </section>
 
-            {/* ZONE 3 : TENDANCES (3 CARTES) */}
+            {/* ZONE 3 : TENDANCES (3 CARTES PLEIN ÉCRAN) */}
             <section
               aria-labelledby="z-trend"
               style={{ display: "flex", flexDirection: "column", gap: 14 }}
@@ -2552,7 +2686,7 @@ function DashboardContent() {
                 {locale === "ar" ? "التوجهات" : "TENDANCES"}
               </h2>
 
-              <div className="dsh-1col" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))" }}>
+              <div className="dsh-1col">
                 {/* CARTE 1 : Donut Argent Flexible */}
                 <div
                   style={{
@@ -3265,7 +3399,7 @@ function DashboardContent() {
               }}
             >
               <span>Courses</span>
-              <b>+620 MAD</b>
+              <b>+{formatMoney(Math.round(flexibleRemaining * 0.15))} MAD</b>
             </div>
             <div
               style={{
@@ -3277,7 +3411,7 @@ function DashboardContent() {
               }}
             >
               <span>Sorties</span>
-              <b>+340 MAD</b>
+              <b>+{formatMoney(Math.round(flexibleRemaining * 0.08))} MAD</b>
             </div>
             <div
               style={{
@@ -3289,7 +3423,7 @@ function DashboardContent() {
               }}
             >
               <span>Loisirs</span>
-              <b>+220 MAD</b>
+              <b>+{formatMoney(Math.round(flexibleRemaining * 0.07))} MAD</b>
             </div>
 
             <div
@@ -3304,7 +3438,29 @@ function DashboardContent() {
               }}
             >
               <span>Tawfir</span>
-              <span>4 760 → 5 940 MAD</span>
+              <span>+{formatMoney(Math.round(flexibleRemaining * 0.3))} MAD</span>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+              <Link
+                href="/sweeps"
+                onClick={() => setSweepOpen(false)}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: 12,
+                  background: "#0A7A53",
+                  color: "#FFFFFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  textDecoration: "none",
+                }}
+              >
+                {locale === "ar" ? "إدارة التوفير التلقائي" : "Gérer mes sweeps"}
+              </Link>
             </div>
           </div>
         </div>

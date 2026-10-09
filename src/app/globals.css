@@ -2247,14 +2247,13 @@ html[dir="rtl"] .tr-fast-bar {
 }
 
 .dsh-main {
-  padding: 24px;
+  padding: 24px 32px 64px;
   display: flex;
   flex-direction: column;
   gap: 28px;
-  max-width: 1240px;
+  max-width: 100%;
   width: 100%;
   box-sizing: border-box;
-  margin: 0 auto;
 }
 
 .dsh-h1 {
@@ -2267,14 +2266,14 @@ html[dir="rtl"] .tr-fast-bar {
 
 .dsh-1col {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 20px;
 }
 
 .dsh-snap {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
 }
 
 .dsh-ovl {

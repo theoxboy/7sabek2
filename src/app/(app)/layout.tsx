@@ -1145,7 +1145,12 @@ function AppLayoutContent({
     const observer = new MutationObserver(syncFromTour);
     observer.observe(root, { attributes: true, attributeFilter: ["class"] });
     syncFromTour();
-    return () => observer.disconnect();
+    const handleOpenMobileNav = () => setMobileNavOpen(true);
+    window.addEventListener("floussy:open-mobile-nav", handleOpenMobileNav);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("floussy:open-mobile-nav", handleOpenMobileNav);
+    };
   }, []);
 
   const dueIncomeReminders = useMemo(() => {
@@ -2087,60 +2092,69 @@ function AppLayoutContent({
             onToggleCollapse={toggleSidebarCollapsed}
           />
 
-          <div
-            className={`sb-main-island ${
-              sidebarCollapsed ? "closed" : ""
-            } min-h-screen px-4 pb-12 pt-4 sm:px-6 lg:px-8`}
-          >
-            <div className="mx-auto w-full max-w-[1240px]">
-              {user?.role === "superadmin" && actAsId ? (
-                <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
-                  <span className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-[var(--warning)]" aria-hidden />
-                    Mode superadmin — compte consulté&nbsp;:{" "}
-                    <code className="rounded bg-[var(--surface)] px-1.5 py-0.5">{actAsId}</code>
-                  </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      if (typeof window !== "undefined") {
-                        window.sessionStorage.removeItem("floussy.superadmin.act_as");
-                        void apiFetch("/admin/impersonation/stop", {
-                          method: "POST",
-                          body: { user_id: actAsId },
-                        }).catch(() => null);
-                      }
-                      setActAsId(null);
-                      router.push("/superadmin/users");
-                    }}
-                  >
-                    Quitter le mode
-                  </Button>
-                </div>
-              ) : null}
-              {showMaintenanceBanner || showAnnouncementBanner ? (
-                <div className="mb-4 flex flex-col gap-2">
-                  {showMaintenanceBanner ? (
-                    <SystemMessageCard
-                      variant="maintenance"
-                      message={maintenanceMessage}
-                      suffix={modalCopy.superadminOnly}
-                    />
+          {/* Contenu principal adapté (plein écran pour le dashboard) */}
+          {(() => {
+            const isDashboardPage = pathname === "/dashboard" || pathname === "/dashboard/";
+            return (
+              <div
+                className={`sb-main-island ${
+                  sidebarCollapsed ? "closed" : ""
+                } min-h-screen ${
+                  isDashboardPage
+                    ? "p-0 m-0 w-full max-w-full overflow-x-hidden"
+                    : "px-4 pb-12 pt-4 sm:px-6 lg:px-8"
+                }`}
+              >
+                <div className={isDashboardPage ? "w-full max-w-full" : "mx-auto w-full max-w-[1240px]"}>
+                  {user?.role === "superadmin" && actAsId ? (
+                    <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
+                      <span className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-[var(--warning)]" aria-hidden />
+                        Mode superadmin — compte consulté&nbsp;:{" "}
+                        <code className="rounded bg-[var(--surface)] px-1.5 py-0.5">{actAsId}</code>
+                      </span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            window.sessionStorage.removeItem("floussy.superadmin.act_as");
+                            void apiFetch("/admin/impersonation/stop", {
+                              method: "POST",
+                              body: { user_id: actAsId },
+                            }).catch(() => null);
+                          }
+                          setActAsId(null);
+                          router.push("/superadmin/users");
+                        }}
+                      >
+                        Quitter le mode
+                      </Button>
+                    </div>
                   ) : null}
-                  {showAnnouncementBanner ? (
-                    appHeaderAnnouncements.map((announcement) => (
-                      <SystemMessageCard
-                        key={announcement.id}
-                        variant="announcement"
-                        message={announcement.message}
-                        announcementType={announcement.type}
-                      />
-                    ))
+                  {showMaintenanceBanner || showAnnouncementBanner ? (
+                    <div className="mb-4 flex flex-col gap-2">
+                      {showMaintenanceBanner ? (
+                        <SystemMessageCard
+                          variant="maintenance"
+                          message={maintenanceMessage}
+                          suffix={modalCopy.superadminOnly}
+                        />
+                      ) : null}
+                      {showAnnouncementBanner ? (
+                        appHeaderAnnouncements.map((announcement) => (
+                          <SystemMessageCard
+                            key={announcement.id}
+                            variant="announcement"
+                            message={announcement.message}
+                            announcementType={announcement.type}
+                          />
+                        ))
+                      ) : null}
+                    </div>
                   ) : null}
-                </div>
-              ) : null}
-              <div className="floussy-topbar-wrap">
+                  {!isDashboardPage && (
+                    <div className="floussy-topbar-wrap">
                 <div className="floussy-topbar">
                   <div className="floussy-topbar__left">
                     <Button
@@ -2343,21 +2357,25 @@ function AppLayoutContent({
                   </div>
                 </div>
               </div>
-              <GuestGateBanner
-                isGuest={Boolean(user?.is_guest)}
-                pathname={pathname}
-                locale={locale}
-                dir={pageDir}
-              />
+              )}
+              {!isDashboardPage && (
+                <GuestGateBanner
+                  isGuest={Boolean(user?.is_guest)}
+                  pathname={pathname}
+                  locale={locale}
+                  dir={pageDir}
+                />
+              )}
               {user?.is_guest && pathname?.startsWith("/settings") ? (
                 <div className="mx-auto mb-4 w-full max-w-3xl px-1">
                   <GuestAccountPanel user={user} locale={locale} dir={pageDir} />
                 </div>
               ) : null}
-              {user?.is_guest && pathname?.startsWith("/dashboard") ? (
+              {!isDashboardPage && user?.is_guest && pathname?.startsWith("/dashboard") ? (
                 <GuestDistributionCard locale={locale} dir={pageDir} />
               ) : null}
-              {!user?.is_guest &&
+              {!isDashboardPage &&
+              !user?.is_guest &&
               user?.claimed_at &&
               !user?.first_name &&
               pathname?.startsWith("/dashboard") ? (
@@ -2366,6 +2384,8 @@ function AppLayoutContent({
               {renderChildren()}
             </div>
           </div>
+            );
+          })()}
 
           <div
             data-tour-mobile-backdrop
