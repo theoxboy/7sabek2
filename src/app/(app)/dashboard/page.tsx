@@ -448,6 +448,37 @@ function DashboardContent() {
   const realNotifications = useMemo(() => {
     const list: RealNotificationItem[] = [];
 
+    // 0. First Salary / Income declaration needed from onboarding
+    if (data?.sweep_bootstrap?.needs_first_income_declaration) {
+      const bAmt =
+        data.sweep_bootstrap.last_income_amount ??
+        data.sweep_bootstrap.expected_income_amount ??
+        null;
+      list.push({
+        id: "first-income-bootstrap-alert",
+        type: "warning",
+        title:
+          locale === "ar"
+            ? "⏳ باقي خاصك تصرّح بأول دخل"
+            : "⏳ Première déclaration de revenu à faire",
+        description:
+          locale === "ar"
+            ? bAmt
+              ? `صرّح بأول صالير ديالك (${formatMoney(bAmt)} ${currency}) باش تبدا الدورات على الصح وتوزع الكاش.`
+              : "صرّح بأول صالير / دخل ديالك باش تبدا الدورات وتوزع الكاش على الأظرفة."
+            : bAmt
+            ? `Déclare ton premier revenu (${formatMoney(bAmt)} ${currency}) pour démarrer les cycles sur une base réelle.`
+            : "Déclare ton premier revenu après l'onboarding pour démarrer ton premier cycle.",
+        href: "/transactions?type=income",
+        actionText: locale === "ar" ? "صرّح دابا" : "Déclarer",
+        onAction: () =>
+          openQuickTx("income", {
+            bootstrapDate: data?.sweep_bootstrap?.last_income_date ?? null,
+            bootstrapAmount: bAmt,
+          }),
+      });
+    }
+
     // 1. Due Income Reminders
     const dueReminders = incomeReminders.filter((r) => r.is_active);
     dueReminders.forEach((r) => {
@@ -529,7 +560,18 @@ function DashboardContent() {
     }
 
     return list;
-  }, [incomeReminders, manualUnmappedCount, focusEnvelopes, alerts, data?.sweep_status, locale, openQuickTx, router]);
+  }, [
+    data?.sweep_bootstrap,
+    incomeReminders,
+    manualUnmappedCount,
+    focusEnvelopes,
+    alerts,
+    data?.sweep_status,
+    currency,
+    locale,
+    openQuickTx,
+    router,
+  ]);
 
   const unreadNotifCount = useMemo(() => {
     return realNotifications.filter((n) => !readNotifIds.includes(n.id)).length;
@@ -548,10 +590,47 @@ function DashboardContent() {
       action: () => void;
     }> = [];
 
-    // 1. Salaire attendu
-    if (incomeReminders.length > 0) {
+    const needsFirstIncome = Boolean(
+      data?.sweep_bootstrap?.needs_first_income_declaration
+    );
+
+    // 1. Première déclaration de revenu OU Salaire attendu
+    if (needsFirstIncome) {
+      const bDate = data?.sweep_bootstrap?.last_income_date ?? null;
+      const bAmt =
+        data?.sweep_bootstrap?.last_income_amount ??
+        data?.sweep_bootstrap?.expected_income_amount ??
+        null;
+      list.push({
+        id: "first-salary",
+        title:
+          locale === "ar"
+            ? "⏳ باقي خاصك تصرّح بأول دخل"
+            : "⏳ Première déclaration de revenu à faire",
+        text:
+          locale === "ar"
+            ? bAmt
+              ? `صرّح بأول صالير ديالك (${formatMoney(bAmt)} ${currency}) باش تبدا الدورة وتوزع الكاش.`
+              : "صرّح بأول صالير / دخل ديالك باش تبدا الدورة ديالك وتوزع الكاش على الأظرفة."
+            : bAmt
+            ? `Déclare ton premier revenu (${formatMoney(bAmt)} ${currency}) pour démarrer les cycles sur une base réelle.`
+            : "Déclare ton premier revenu après l'onboarding pour démarrer ton premier cycle.",
+        cta: locale === "ar" ? "صرّح بأول دخل" : "Déclarer premier revenu",
+        dot: "#0A7A53",
+        bg: "rgba(10, 122, 83, 0.12)",
+        icon: "plus",
+        action: () =>
+          openQuickTx("income", {
+            bootstrapDate: bDate,
+            bootstrapAmount: bAmt,
+          }),
+      });
+    } else if (incomeReminders.length > 0) {
       const r = incomeReminders[0];
       const dueDate = r.next_due_on || r.due_date || "prochainement";
+      const expectedAmt = data?.sweep_bootstrap?.expected_income_amount
+        ? formatMoney(data.sweep_bootstrap.expected_income_amount)
+        : "";
       list.push({
         id: "salary",
         title:
@@ -560,11 +639,37 @@ function DashboardContent() {
             : `Salaire attendu le ${dueDate}`,
         text:
           locale === "ar"
-            ? `12 400 ${currency} متوقعة للتوزيع.`
-            : `12 400 ${currency} prévus pour le cycle.`,
+            ? expectedAmt
+              ? `${expectedAmt} ${currency} متوقعة للتوزيع.`
+              : "مداخيل منتظرة للتوزيع على الأظرفة."
+            : expectedAmt
+            ? `${expectedAmt} ${currency} prévus pour le cycle.`
+            : "Revenus attendus pour alimenter tes enveloppes.",
         cta: locale === "ar" ? "صرّح بالدخل" : "Déclarer",
         dot: "#2457A6",
         bg: "rgba(36, 87, 166, 0.10)",
+        icon: "plus",
+        action: () => openQuickTx("income"),
+      });
+    } else if (
+      !isGuest &&
+      Number(data?.period_income || 0) === 0 &&
+      Number(data?.available_to_allocate || 0) === 0 &&
+      (!data?.sweep_status || !data.sweep_status.income_declared)
+    ) {
+      list.push({
+        id: "cycle-salary-needed",
+        title:
+          locale === "ar"
+            ? "صرّح بدخل الدورة الحالية (الصالير)"
+            : "Déclare ton salaire pour ce cycle",
+        text:
+          locale === "ar"
+            ? "مازال ما كاين حتى دخل مسجل فهاد الدورة. صرّح بالدخل باش تعمر الأظرفة."
+            : "Aucun revenu déclaré pour ce cycle. Déclare ton salaire pour alimenter tes enveloppes.",
+        cta: locale === "ar" ? "صرّح بالدخل" : "Déclarer",
+        dot: "#0A7A53",
+        bg: "rgba(10, 122, 83, 0.12)",
         icon: "plus",
         action: () => openQuickTx("income"),
       });
@@ -647,6 +752,10 @@ function DashboardContent() {
 
     return list;
   }, [
+    data?.sweep_bootstrap,
+    data?.period_income,
+    data?.available_to_allocate,
+    data?.sweep_status,
     incomeReminders,
     isGuest,
     manualUnmappedCount,
@@ -3032,11 +3141,15 @@ function DashboardContent() {
                       <div style={{ flex: 1, fontSize: 13.5, lineHeight: 1.45 }}>
                         <b style={{ color: "#0A7A53" }}>Ba Omar :</b>{" "}
                         {locale === "ar"
-                          ? Number(data?.period_expenses_mapped || 0) === 0
+                          ? data?.sweep_bootstrap?.needs_first_income_declaration
+                            ? "باقي ما صرحتيش بأول صالير ديالك ! صرّح به من التنبيهات الفوق باش نوزعو الكاش ونعمرو الأظرفة ديالك."
+                            : Number(data?.period_expenses_mapped || 0) === 0
                             ? "مازال ما كاينا حتى مصاريف مسجلة فهاد الدورة. استعمل الخانة الفوق ولا زر [N] باش تسجل أول عملية !"
                             : envCounts.over > 0
                             ? `رد البال، كاين ${envCounts.over} أظرفة فايتين السقف. تقدر تعاود توازن الميزانية.`
                             : "المصاريف ديالك مضبوطة مزيان فهاد الدورة. واصل هكذا !"
+                          : data?.sweep_bootstrap?.needs_first_income_declaration
+                          ? "Ton premier salaire n'a pas encore été déclaré ! Déclare-le depuis les alertes ci-dessus pour alimenter tes enveloppes et démarrer ton cycle."
                           : Number(data?.period_expenses_mapped || 0) === 0
                           ? "Aucune dépense enregistrée sur ce cycle. Utilise la barre ci-dessus ou le bouton [N] pour saisir une première opération !"
                           : envCounts.over > 0
