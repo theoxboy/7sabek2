@@ -5,7 +5,7 @@ import type { FloussyLocale } from "@/lib/localePreference";
 
 export type SbkWLoaderMode = "complete" | "loop";
 export type SbkWLoaderTheme = "light" | "dark";
-export type SbkWLoaderSpeed = "normal" | "slow";
+export type SbkWLoaderSpeed = "fast" | "normal" | "slow";
 
 export interface SbkWLoaderProps {
   /** Mode d'animation: 'complete' (progression 0->100% avec portail) ou 'loop' (boucle indéterminée) */
@@ -14,7 +14,7 @@ export interface SbkWLoaderProps {
   theme?: SbkWLoaderTheme;
   /** Langue (fr, ar, en) */
   locale?: FloussyLocale | "fr" | "ar" | "en";
-  /** Vitesse: 'normal' (1x) ou 'slow' (3x ralenti pour admirer les détails) */
+  /** Vitesse: 'fast' (0.5x rapide), 'normal' (1x standard), ou 'slow' (3x ralenti) */
   speed?: SbkWLoaderSpeed;
   /** Callback déclenché à la fin de l'animation complète (après la révélation du portail) */
   onComplete?: () => void;
@@ -117,8 +117,9 @@ export function SbkWLoader({
       return;
     }
 
-    const duration = currentSpeed === "slow" ? 10800 : 3600; // 3.6s de montée
-    const delay = currentSpeed === "slow" ? 6000 : 2000; // démarre après 2s d'intro
+    const kFactor = currentSpeed === "fast" ? 0.5 : currentSpeed === "slow" ? 3 : 1;
+    const duration = Math.round(3600 * kFactor); // montée du liquide
+    const delay = Math.round(2000 * kFactor); // délai d'intro
     let startTimestamp: number | null = null;
     let timerId: number | null = null;
     let animFrame: number | null = null;
@@ -139,7 +140,7 @@ export function SbkWLoader({
         } else {
           setPercent(100);
           if (onComplete) {
-            timerId = window.setTimeout(onComplete, currentSpeed === "slow" ? 6000 : 2000);
+            timerId = window.setTimeout(onComplete, Math.round(1800 * kFactor));
           }
         }
       };
@@ -159,7 +160,7 @@ export function SbkWLoader({
 
   const modeClass = currentMode === "loop" ? "m-loop" : "m-full";
   const themeClass = currentTheme === "dark" ? "t-dark" : "t-light";
-  const speedClass = currentSpeed === "slow" ? "k3" : "";
+  const speedClass = currentSpeed === "slow" ? "k3" : currentSpeed === "fast" ? "k-fast" : "";
 
   return (
     <div

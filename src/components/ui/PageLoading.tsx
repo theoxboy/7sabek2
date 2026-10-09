@@ -14,7 +14,7 @@ export interface PageLoadingProps {
 
 export function PageLoading({
   mode = "loop",
-  theme = "light",
+  theme = "dark",
   locale = "fr",
   speed = "normal",
   onComplete,

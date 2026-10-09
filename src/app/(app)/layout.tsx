@@ -52,6 +52,7 @@ import {
   shouldNudgeLeaderboardName,
 } from "@/components/leaderboard/LeaderboardNamePrompt";
 import { Button } from "@/components/ui/Button";
+import { SbkWLoader } from "@/components/ui/SbkWLoader";
 import { Input } from "@/components/ui/Input";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -1823,6 +1824,33 @@ function AppLayoutContent({
       </div>
     );
   };
+
+  const wasRecentlyAnimated = () => {
+    if (typeof window === "undefined") return false;
+    const ts = window.sessionStorage.getItem("sbk_just_animated_login");
+    if (!ts) return false;
+    const diff = Date.now() - Number(ts);
+    return diff < 8000;
+  };
+
+  if (userBootstrapLoading && !user) {
+    if (wasRecentlyAnimated()) {
+      return (
+        <div
+          className="fixed inset-0 z-[100] bg-[#07120E] transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      );
+    }
+    return (
+      <SbkWLoader
+        mode="loop"
+        fullscreen
+        theme="dark"
+        locale={locale}
+      />
+    );
+  }
 
   if (isDiscoveryWelcome) {
     // The page paints its own full-screen landing-style background.

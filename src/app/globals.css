@@ -324,6 +324,7 @@ body.onboarding-route-ar-body a svg {
 }
 
 .sbk-root.k3 { --k: 3; }
+.sbk-root.k-fast { --k: 0.5; }
 
 .sbk-root.t-light {
   --bg: #F6F5EF;

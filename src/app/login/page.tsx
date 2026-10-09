@@ -21,6 +21,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { GuestModeButton, guestModeMessage } from "@/components/guest/GuestModeButton";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { Button } from "@/components/ui/Button";
+import { SbkWLoader } from "@/components/ui/SbkWLoader";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
@@ -242,6 +243,7 @@ export default function LoginPage() {
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [maintenanceConfirm, setMaintenanceConfirm] = useState(false);
   const [introReady, setIntroReady] = useState(false);
+  const [accountOpeningTarget, setAccountOpeningTarget] = useState<string | null>(null);
   const [loginFact, setLoginFact] = useState<string>(() => getRandomLoginFact(locale));
 
   useEffect(() => {
@@ -533,7 +535,12 @@ export default function LoginPage() {
       resetAuthClientState();
       const me = await fetchMe();
       markAuthSessionHint();
-      router.push(me.role === "superadmin" ? "/superadmin" : "/dashboard");
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("sbk_account_opening", "1");
+      }
+      const target = me.role === "superadmin" ? "/superadmin" : "/dashboard";
+      router.prefetch(target);
+      setAccountOpeningTarget(target);
     } catch (err) {
       const message = err instanceof Error ? err.message : copy.unknownError;
       if (message === SUPERADMIN_GEO_REQUIRED_UI) {
@@ -574,7 +581,12 @@ export default function LoginPage() {
       resetAuthClientState();
       const me = await fetchMe();
       markAuthSessionHint();
-      router.push(me.role === "superadmin" ? "/superadmin" : "/dashboard");
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("sbk_account_opening", "1");
+      }
+      const target = me.role === "superadmin" ? "/superadmin" : "/dashboard";
+      router.prefetch(target);
+      setAccountOpeningTarget(target);
     } catch {
       setQuickSignInError(copy.quickSignInError);
     } finally {
@@ -589,9 +601,14 @@ export default function LoginPage() {
       resetAuthClientState();
       const guest = await startGuestSession();
       markAuthSessionHint();
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("sbk_account_opening", "1");
+      }
       // A brand-new guest walks through /decouverte first; a returning guest who
       // already secured their budget goes straight to the app.
-      router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
+      const target = shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard";
+      router.prefetch(target);
+      setAccountOpeningTarget(target);
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
       if (raw.includes("guest_mode_disabled")) {
@@ -627,7 +644,12 @@ export default function LoginPage() {
       });
       const me = await fetchMe();
       markAuthSessionHint();
-      router.push(me.role === "superadmin" ? "/superadmin" : "/dashboard");
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("sbk_account_opening", "1");
+      }
+      const target = me.role === "superadmin" ? "/superadmin" : "/dashboard";
+      router.prefetch(target);
+      setAccountOpeningTarget(target);
     } catch (err) {
       const message = err instanceof Error ? err.message : copy.unknownError;
       setError(getAuthErrorMessage(message));
@@ -661,6 +683,24 @@ export default function LoginPage() {
 
   const ICON_WRAP =
     "pointer-events-none absolute inset-y-0 start-0 flex w-11 items-center justify-center text-[#7C8D86] transition-colors";
+
+  if (accountOpeningTarget) {
+    return (
+      <SbkWLoader
+        mode="complete"
+        fullscreen
+        theme="dark"
+        locale={locale}
+        speed="normal"
+        onComplete={() => {
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem("sbk_just_animated_login", String(Date.now()));
+          }
+          router.push(accountOpeningTarget);
+        }}
+      />
+    );
+  }
 
   return (
     <div
