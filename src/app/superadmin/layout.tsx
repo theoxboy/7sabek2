@@ -46,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
+import { PageTransition } from "@/components/motion/PageTransition";
 
 const isBrowser = typeof window !== "undefined";
 const isLoopbackHost =
@@ -850,7 +851,9 @@ export default function SuperAdminLayout({
           </div>
         </nav>
 
-        <div className="flex-1">{children}</div>
+        <div className="flex-1">
+          <PageTransition routeKey={pathname}>{children}</PageTransition>
+        </div>
       </div>
     </div>
   );
