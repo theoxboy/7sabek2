@@ -1872,67 +1872,6 @@ function AppLayoutContent({
     return <PageTransition routeKey={pathname}>{children}</PageTransition>;
   }
 
-  if (isGamification || isGoals) {
-    return (
-      <div className="min-h-screen text-[var(--ink)]">
-        <LeaderboardNamePrompt
-          open={leaderboardPromptOpen}
-          onOpenChange={setLeaderboardPromptOpen}
-          locale={locale}
-          dir={pageDir}
-          onSaved={setUser}
-        />
-        <Dialog
-          open={regulationPromptOpen && !isRegulation}
-          onOpenChange={(next) => {
-            if (!next && hasBlockingAnomaly) return;
-            setRegulationPromptOpen(next);
-          }}
-        >
-          <DialogContent
-            className="max-w-md"
-            onInteractOutside={(event) => {
-              if (hasBlockingAnomaly) event.preventDefault();
-            }}
-            onEscapeKeyDown={(event) => {
-              if (hasBlockingAnomaly) event.preventDefault();
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>{modalCopy.regulationTitle}</DialogTitle>
-              <DialogDescription>
-                {modalCopy.regulationDescription(
-                  effectiveUnmappedCategoriesCount
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              {modalCopy.regulationWarning}
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  setRegulationPromptOpen(false);
-                  router.push("/regulation");
-                }}
-              >
-                {modalCopy.regulationOpen}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <div className="mx-auto w-full max-w-5xl px-4 pt-4">
-          <GuestGateBanner
-            isGuest={Boolean(user?.is_guest)}
-            pathname={pathname}
-            locale={locale}
-            dir={pageDir}
-          />
-        </div>
-        {renderChildren()}
-      </div>
-    );
-  }
 
   return (
     <div
@@ -2134,28 +2073,26 @@ function AppLayoutContent({
               notificationsOpen ? "opacity-100" : "opacity-0"
             }`}
           />
-          <div className="relative mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 pb-10 pt-8 sm:px-6 lg:px-8 lg:flex-row">
-            <nav
-              className={`hidden lg:block shrink-0 self-start sticky top-8 h-[calc(100dvh-4rem)] transition-all duration-300 ${
-                sidebarCollapsed ? "w-[78px]" : "w-72"
-              }`}
-              data-tour="sidebar"
-            >
-              <AppSidebar
-                user={user}
-                displayName={displayName}
-                initials={initials}
-                locale={locale}
-                streakDays={streakDays}
-                appVersionLabel={appVersionLabel}
-                onLogout={handleLogout}
-                betaAuthorized={betaAuthorized}
-                collapsed={sidebarCollapsed}
-                onToggleCollapse={toggleSidebarCollapsed}
-              />
-            </nav>
+          {/* Menu latéral Proposition B · Îlot flottant (ressort 450ms) */}
+          <AppSidebar
+            user={user}
+            displayName={displayName}
+            initials={initials}
+            locale={locale}
+            streakDays={streakDays}
+            appVersionLabel={appVersionLabel}
+            onLogout={handleLogout}
+            betaAuthorized={betaAuthorized}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={toggleSidebarCollapsed}
+          />
 
-            <div className="flex-1">
+          <div
+            className={`sb-main-island ${
+              sidebarCollapsed ? "closed" : ""
+            } min-h-screen px-4 pb-12 pt-4 sm:px-6 lg:px-8`}
+          >
+            <div className="mx-auto w-full max-w-[1240px]">
               {user?.role === "superadmin" && actAsId ? (
                 <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
                   <span className="flex items-center gap-2">
@@ -2443,7 +2380,7 @@ function AppLayoutContent({
           />
           <aside
             data-tour-mobile-nav
-            className={`fixed top-0 z-50 h-full w-72 transform p-0 shadow-2xl transition-transform duration-300 lg:hidden ${
+            className={`fixed top-0 z-50 h-full w-[270px] transform p-0 shadow-2xl transition-transform duration-300 lg:hidden ${
               pageDir === "rtl" ? "right-0" : "left-0"
             } ${
               mobileNavOpen
