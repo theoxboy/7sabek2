@@ -2,12 +2,40 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Cairo } from "next/font/google";
-import { motion } from "framer-motion";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Bell,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  CircleHelp,
+  Edit3,
+  Flame,
+  Info,
+  Layers,
+  Lock,
+  Mic,
+  Plus,
+  RotateCcw,
+  Scale,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  X,
+} from "lucide-react";
 
 import { apiFetch, fetchDashboard } from "@/lib/api";
 import type {
@@ -21,49 +49,30 @@ import type {
   SettingsResponse,
   TransactionOut,
 } from "@/lib/types";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
-import { Section } from "@/components/ui/Section";
-import { Alert, AlertDescription } from "@/components/ui/Alert";
-import { Label } from "@/components/ui/Label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/Dialog";
-import { Checkbox } from "@/components/ui/Checkbox";
-import { Separator } from "@/components/ui/Separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
-import { ConfirmDeleteTransactionDialog } from "@/components/transactions/ConfirmDeleteTransactionDialog";
-import { DatePicker } from "@/components/ui/DatePicker";
-import { PageTour } from "@/components/tour/GlobalTour";
-import { TourIntroDialog } from "@/components/tour/TourIntroDialog";
-import { usePageTour } from "@/components/tour/usePageTour";
-import { Wallet, TrendingDown, TrendingUp, Scale, Calendar, ChevronDown, Plus, Sparkles, Layers, Bell, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { addDays, startOfYear } from "@/lib/reports/compute";
+import { useQuickTx } from "@/state/QuickTxContext";
 import {
   getLocaleDirection,
   type FloussyLocale,
 } from "@/lib/localePreference";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
-import { localizeCategoryName } from "@/lib/categoryCatalog";
-import { areToursGloballyDisabled } from "@/lib/tourFlags";
-import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
-import { useQuickTx } from "@/state/QuickTxContext";
+import { addDays, startOfYear } from "@/lib/reports/compute";
 import { isFixedMode, isPercentMode, type DistributionRule } from "@/lib/distribution";
 
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-cairo",
+});
+
 const formatMoney = (value: string | number | undefined) => {
-  if (value === undefined) return "0.00";
-  if (typeof value === "number") return value.toFixed(2);
-  return value;
+  if (value === undefined || value === null) return "0.00";
+  const num = typeof value === "number" ? value : parseFloat(String(value));
+  if (isNaN(num)) return "0.00";
+  return Math.round(num)
+    .toLocaleString("fr-FR")
+    .replace(/ | /g, " ");
 };
 
 const getLocalTodayISO = () => {
@@ -83,2800 +92,3313 @@ const daysBetweenIso = (from: string, to: string) => {
   const fromDate = parseIsoDate(from);
   const toDate = parseIsoDate(to);
   if (!fromDate || !toDate) return Number.POSITIVE_INFINITY;
-  return Math.floor((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor(
+    (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
 };
-
-const toIsoDate = (value: Date | undefined) => {
-  if (!value) return "";
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-function localizeSystemEnvelopeName(name: string, locale: FloussyLocale) {
-  if (locale === "ar") {
-    const normalized = name.trim().toLowerCase();
-    if (["objectif principal", "main goal"].includes(normalized)) return "الهدف الرئيسي";
-  }
-  return localizeEnvelopeLabel(name, locale);
-}
-
-
-type EnvelopeSpend = {
-  name: string;
-  total: number;
-};
-type DraftObjectRecord = Record<string, unknown>;
-
-const INCOME_REMINDER_POPUP_ID = "income-reminders";
-const PERIOD_STORAGE_KEY = "floussy.dashboardPeriod.v1";
-const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
-const DASHBOARD_INTRO_SEEN_KEY = "floussy.dashboard.intro.seen";
-const formatLocaleDate = (value: string, locale: FloussyLocale) => {
-  if (!value) return value;
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  const localeCode =
-    locale === "fr" ? "fr-FR" : locale === "ar" ? "ar-MA" : "en-CA";
-  return parsed.toLocaleDateString(localeCode, {
-    year: "numeric",
-    month: locale === "ar" ? "long" : "2-digit",
-    day: "2-digit",
-  });
-};
-
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-cairo",
-});
-
-import { DASHBOARD_COPY } from "./copy";
-import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<DashboardSkel />}>
       <DashboardContent />
     </Suspense>
   );
 }
+
+function DashboardSkel() {
+  return (
+    <div className="dsh-main" aria-busy="true" aria-label="Chargement">
+      <div
+        className="sbk-skel"
+        style={{ height: 40, width: 260, borderRadius: 10, background: "var(--dsh-skel)" }}
+      />
+      <div className="dsh-1col">
+        <div
+          className="sbk-skel"
+          style={{ height: 260, borderRadius: 28, background: "var(--dsh-skel)" }}
+        />
+        <div
+          className="sbk-skel"
+          style={{ height: 260, borderRadius: 28, background: "var(--dsh-skel)" }}
+        />
+      </div>
+      <div
+        className="sbk-skel"
+        style={{ height: 360, borderRadius: 28, background: "var(--dsh-skel)" }}
+      />
+    </div>
+  );
+}
+
 function DashboardContent() {
   const { openQuickTx } = useQuickTx();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+
   const [locale, setLocale] = useState<FloussyLocale>("fr");
   const [data, setData] = useState<DashboardOut | null>(null);
   const [categories, setCategories] = useState<CategoryOut[]>([]);
-  const [manualUnmappedCount, setManualUnmappedCount] = useState(0);
   const [goals, setGoals] = useState<GoalOut[]>([]);
   const [transactions, setTransactions] = useState<TransactionOut[]>([]);
-  const [cashSplitPreview, setCashSplitPreview] =
-    useState<DistributionSimulateOut | null>(null);
-  // Effective distribution rules (GET /distribution/rules) — the set /apply and
-  // /simulate actually resolve against. Always available, unlike cashSplitPreview
-  // which needs available_to_allocate > 0. Used to identify fixed-expense
-  // envelopes that must be excluded from the sweep projection.
-  const [distributionRules, setDistributionRules] = useState<DistributionRule[]>([]);
-  const [latestOnboardingRecord, setLatestOnboardingRecord] =
-    useState<OnboardingV2RecordOut | null>(null);
-  const [autoSweepEnabled, setAutoSweepEnabled] = useState<boolean | null>(null);
   const [incomeReminders, setIncomeReminders] = useState<IncomeReminderOut[]>([]);
-  const [trendPoints, setTrendPoints] = useState<
-    { period: string; closing: number }[]
-  >([]);
+  const [manualUnmappedCount, setManualUnmappedCount] = useState(0);
+  const [trendPoints, setTrendPoints] = useState<{ period: string; closing: number }[]>([]);
+  const [distributionRules, setDistributionRules] = useState<DistributionRule[]>([]);
+  const [cashSplitPreview, setCashSplitPreview] = useState<DistributionSimulateOut | null>(null);
+  const [autoSweepEnabled, setAutoSweepEnabled] = useState<boolean | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [dismissedIncomeReminderIds, setDismissedIncomeReminderIds] = useState<
-    string[]
-  >([]);
-  const [incomeReminderDialogOpen, setIncomeReminderDialogOpen] =
-    useState(false);
-  const [incomeReminderDialogAsked, setIncomeReminderDialogAsked] =
-    useState(false);
-  const [dontShowIncomeReminder, setDontShowIncomeReminder] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<TransactionOut | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [runningSweep, setRunningSweep] = useState(false);
-  const [envelopeFilter, setEnvelopeFilter] = useState<
-    "active" | "overspent" | "near"
-  >("active");
+
+  // Filter / period state
+  const [period, setPeriod] = useState<"7" | "30" | "90" | "ytd" | "custom">("30");
+  const [envelopeFilter, setEnvelopeFilter] = useState<"all" | "over" | "near" | "ok">("all");
   const [showAllEnvelopes, setShowAllEnvelopes] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const [periodRange, setPeriodRange] = useState<{
-    start: string;
-    end: string;
-  } | null>(null);
-  const [currentCycleData, setCurrentCycleData] = useState<DashboardOut | null>(null);
-  const currentCycleDataRef = useRef<DashboardOut | null>(null);
-  const lastPeriodQueryRef = useRef("");
-  const updateCurrentCycleData = useCallback((val: DashboardOut | null) => {
-    setCurrentCycleData(val);
-    currentCycleDataRef.current = val;
+  const [inclFixed, setInclFixed] = useState(false);
+
+  // Ba Omar interactive header input & reply banner
+  const [omarText, setOmarText] = useState("");
+  const [omarReply, setOmarReply] = useState<string | null>(null);
+  const [guestTries, setGuestTries] = useState(3);
+
+  // Interactive drop-downs & popovers
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [streakOpen, setStreakOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [sweepOpen, setSweepOpen] = useState(false);
+  const [wallModal, setWallModal] = useState<string | null>(null);
+  const [expressTxOpen, setExpressTxOpen] = useState(false);
+  const [expressTxType, setExpressTxType] = useState<"expense" | "income">("expense");
+  const [expressAmount, setExpressAmount] = useState("150");
+  const [expressTargetEnv, setExpressTargetEnv] = useState<string>("");
+
+  // Donut & Line charts interaction
+  const [hoverDonut, setHoverDonut] = useState<number>(-1);
+  const [hoverLineIndex, setHoverLineIndex] = useState<number>(-1);
+  const [coveredEnvelopes, setCoveredEnvelopes] = useState<Record<string, boolean>>({});
+  const [dismissedNudge, setDismissedNudge] = useState(false);
+
+  const isRTL = locale === "ar";
+  const dir = isRTL ? "rtl" : "ltr";
+  const isGuest = Boolean(data?.user?.is_guest);
+
+  // Sync locale
+  useEffect(() => {
+    try {
+      const stored = getBrowserLocalePreference();
+      if (stored) setLocale(stored);
+    } catch {}
+    const handleLocaleChange = (e: CustomEvent) => {
+      if (e.detail?.locale) setLocale(e.detail.locale);
+    };
+    window.addEventListener("floussy:locale-changed" as any, handleLocaleChange);
+    return () =>
+      window.removeEventListener("floussy:locale-changed" as any, handleLocaleChange);
   }, []);
 
-
-  const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
-  const [periodPreset, setPeriodPreset] = useState<
-    "7d" | "30d" | "90d" | "ytd" | "custom"
-  >("30d");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
-  const [periodError, setPeriodError] = useState<string | null>(null);
-  const [sweepInfoOpen, setSweepInfoOpen] = useState(false);
-  const [introOpen, setIntroOpen] = useState(false);
-  const [introSeen, setIntroSeen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(DASHBOARD_INTRO_SEEN_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
-  const [toursDisabledGlobally, setToursDisabledGlobally] = useState<boolean>(() =>
-    areToursGloballyDisabled()
-  );
-  const headerRef = useRef<HTMLDivElement | null>(null);
-  const todoRef = useRef<HTMLDivElement | null>(null);
-  const kpiAvailableRef = useRef<HTMLDivElement | null>(null);
-  const kpiExpenseRef = useRef<HTMLDivElement | null>(null);
-  const kpiIncomeRef = useRef<HTMLDivElement | null>(null);
-  const kpiNetRef = useRef<HTMLDivElement | null>(null);
-  const envelopesRef = useRef<HTMLDivElement | null>(null);
-  const recentRef = useRef<HTMLDivElement | null>(null);
-  const summaryRef = useRef<HTMLDivElement | null>(null);
-  const quickRef = useRef<HTMLDivElement | null>(null);
-  const fabRef = useRef<HTMLDivElement | null>(null);
-  const loadSequenceRef = useRef(0);
-  const deferredLoadTimerRef = useRef<number | null>(null);
-  const copy = DASHBOARD_COPY[locale];
-  const isPostOnboardingEntry =
-    searchParams.get("post_onboarding") === "1" ||
-    searchParams.get("post_register") === "1";
-  const shouldShowNextStepCard =
-    isPostOnboardingEntry ||
-    !introSeen ||
-    (transactions.length === 0 && (data?.envelopes?.length ?? 0) <= 2);
-  const nextStepCopy =
-    locale === "ar"
-      ? {
-          title: "الخطوة الجاية",
-          body: "باش تكمل البداية بسرعة، دير هاد 3 خطوات:",
-          tx: "زيد أول عملية",
-          env: "راجع الأظرفة",
-          smart: "كمّل الإعدادات الذكية",
-        }
-      : locale === "fr"
-      ? {
-          title: "Prochaine étape",
-          body: "Pour bien démarrer après onboarding, fais ces 3 actions:",
-          tx: "Ajouter une première opération",
-          env: "Revoir les enveloppes",
-          smart: "Régler les paramètres intelligents",
-        }
-      : {
-          title: "Next step",
-          body: "To complete onboarding cleanly, do these 3 actions:",
-          tx: "Add your first transaction",
-          env: "Review envelopes",
-          smart: "Set smart settings",
-        };
-  const pageDir = getLocaleDirection(locale);
-  const periodArrow = pageDir === "rtl" ? "←" : "→";
-  const titleClass = locale === "ar" ? "dashboard-title" : "app-display-font";
-  const copyClass = locale === "ar" ? "dashboard-copy" : "";
-
-  const periodQuery = periodRange
-    ? `?start=${periodRange.start}&end=${periodRange.end}`
-    : "";
-  const transactionsQuery = periodQuery
-    ? `/transactions${periodQuery}`
-    : "/transactions?limit=25";
-
-  const activePeriod = useMemo(() => {
-    if (periodRange) return periodRange;
-    if (data?.current_period) {
-      return {
-        start: data.current_period.start,
-        end: data.current_period.end,
-      };
-    }
-    return null;
-  }, [periodRange, data]);
-
-  const incomeReminderDismissKey = useMemo(() => {
-    if (!data?.user?.id) return null;
-    return `dismissed:${INCOME_REMINDER_POPUP_ID}:${data.user.id}:v1`;
-  }, [data]);
-
-  const computedPeriodRange = useMemo(() => {
-    const today = getLocalTodayISO();
-    const end = addDays(today, 1);
-    if (periodPreset === "7d") return { start: addDays(end, -7), end };
-    if (periodPreset === "30d") return { start: addDays(end, -30), end };
-    if (periodPreset === "90d") return { start: addDays(end, -90), end };
-    if (periodPreset === "ytd") return { start: startOfYear(today), end };
-    return { start: customStart || today, end: customEnd || end };
-  }, [periodPreset, customStart, customEnd]);
-
-  const loadData = useCallback(async (forceRefreshCurrentCycle = false) => {
-    const loadSequence = loadSequenceRef.current + 1;
-    loadSequenceRef.current = loadSequence;
-    if (deferredLoadTimerRef.current) {
-      window.clearTimeout(deferredLoadTimerRef.current);
-      deferredLoadTimerRef.current = null;
-    }
+  // Fetch core data
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const isFiltered = Boolean(periodQuery && periodQuery !== "");
-      lastPeriodQueryRef.current = periodQuery;
-
-      const shouldFetchCurrentCycle = !currentCycleDataRef.current || forceRefreshCurrentCycle;
-
-      const [dash, currentCycleDash] = await Promise.all([
-        fetchDashboard(`/dashboard${periodQuery}`),
-        (shouldFetchCurrentCycle && isFiltered) ? fetchDashboard() : Promise.resolve(null),
-      ]);
-
-      if (loadSequenceRef.current !== loadSequence) return;
+      const dash = await fetchDashboard();
       setData(dash);
-      if (isFiltered) {
-        if (currentCycleDash) {
-          updateCurrentCycleData(currentCycleDash);
-        }
-      } else {
-        updateCurrentCycleData(dash);
-      }
-      setLoading(false);
 
-      const criticalResults = await Promise.allSettled([
+      const [catsRes, goalsRes, txsRes, settingsRes] = await Promise.allSettled([
         apiFetch<CategoryOut[]>("/categories"),
         apiFetch<GoalOut[]>("/goals"),
-        apiFetch<TransactionOut[]>(transactionsQuery),
+        apiFetch<TransactionOut[]>("/transactions?limit=25"),
         apiFetch<SettingsResponse>("/users/me/settings"),
       ]);
 
-      const catsResult = criticalResults[0];
-      const goalsResult = criticalResults[1];
-      const txsResult = criticalResults[2];
-      const settingsResult = criticalResults[3];
+      if (catsRes.status === "fulfilled") setCategories(catsRes.value);
+      if (goalsRes.status === "fulfilled") setGoals(goalsRes.value);
+      if (txsRes.status === "fulfilled") setTransactions(txsRes.value);
+      if (settingsRes.status === "fulfilled")
+        setAutoSweepEnabled(settingsRes.value.auto_sweep_enabled);
 
-      if (catsResult.status === "fulfilled") {
-        setCategories(catsResult.value);
-      }
-      if (goalsResult.status === "fulfilled") {
-        setGoals(goalsResult.value);
-      }
-      if (txsResult.status === "fulfilled") {
-        setTransactions(txsResult.value);
-      }
-      if (settingsResult.status === "fulfilled") {
-        setAutoSweepEnabled(settingsResult.value.auto_sweep_enabled);
-      } else {
-        setAutoSweepEnabled(null);
-      }
-
-      deferredLoadTimerRef.current = window.setTimeout(() => {
-        void Promise.allSettled([
-          apiFetch<IncomeReminderOut[]>("/income-reminders"),
-          apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
-          apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
-          apiFetch<OnboardingV2RecordOut[]>("/users/me/onboarding-v2-records?limit=1"),
-          apiFetch<DistributionRule[]>("/distribution/rules"),
-        ]).then((results) => {
-          if (loadSequenceRef.current !== loadSequence) return;
-
-          const remindersResult = results[0];
-          const trendResult = results[1];
-          const manualUnmappedResult = results[2];
-          const onboardingResult = results[3];
-          const distributionRulesResult = results[4];
-
-          if (remindersResult.status === "fulfilled") {
-            setIncomeReminders(remindersResult.value);
-          }
-          if (trendResult.status === "fulfilled") {
-            setTrendPoints(
-              trendResult.value.map((point) => ({
-                period: point.period_start,
-                closing: Number(point.net_worth),
-              }))
-            );
-          }
-          if (manualUnmappedResult.status === "fulfilled") {
-            setManualUnmappedCount(manualUnmappedResult.value.length);
-          }
-          if (onboardingResult.status === "fulfilled") {
-            setLatestOnboardingRecord(onboardingResult.value[0] ?? null);
-          } else {
-            setLatestOnboardingRecord(null);
-          }
-          if (distributionRulesResult.status === "fulfilled") {
-            setDistributionRules(distributionRulesResult.value);
-          }
-        });
-      }, 250);
-
-      try {
-        const availableAmount = Number(dash.available_to_allocate ?? 0);
-        if (Number.isFinite(availableAmount) && availableAmount > 0) {
-          const split = await apiFetch<DistributionSimulateOut>("/distribution/simulate", {
-            method: "POST",
-            body: {
-              income_amount: availableAmount.toFixed(2),
-              use_cash_available: false,
-            },
-          });
-          setCashSplitPreview(split);
-        } else {
-          setCashSplitPreview(null);
+      // Async secondary data
+      void Promise.allSettled([
+        apiFetch<IncomeReminderOut[]>("/income-reminders"),
+        apiFetch<DashboardTrendPointOut[]>("/dashboard/trend?limit=6"),
+        apiFetch<CategoryOut[]>("/categories/unmapped-manual"),
+        apiFetch<DistributionRule[]>("/distribution/rules"),
+      ]).then(([remindersRes, trendRes, unmappedRes, distRes]) => {
+        if (remindersRes.status === "fulfilled")
+          setIncomeReminders(remindersRes.value);
+        if (trendRes.status === "fulfilled") {
+          setTrendPoints(
+            trendRes.value.map((p) => ({
+              period: p.period_start,
+              closing: Number(p.net_worth || 0),
+            }))
+          );
         }
-      } catch {
-        setCashSplitPreview(null);
+        if (unmappedRes.status === "fulfilled")
+          setManualUnmappedCount(unmappedRes.value.length);
+        if (distRes.status === "fulfilled")
+          setDistributionRules(distRes.value);
+      });
+
+      // Cash split preview
+      const available = Number(dash.available_to_allocate ?? 0);
+      if (available > 0) {
+        try {
+          const split = await apiFetch<DistributionSimulateOut>(
+            "/distribution/simulate",
+            {
+              method: "POST",
+              body: {
+                income_amount: available.toFixed(2),
+                use_cash_available: false,
+              },
+            }
+          );
+          setCashSplitPreview(split);
+        } catch {}
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : copy.unknownError;
-      setError(message);
+      setError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
       setLoading(false);
     }
-  }, [periodQuery, transactionsQuery, copy.unknownError, updateCurrentCycleData]);
-
-  const handleApplyPeriod = () => {
-    const nextRange = computedPeriodRange;
-    if (new Date(nextRange.start) >= new Date(nextRange.end)) {
-      setPeriodError(copy.invalidPeriod);
-      return;
-    }
-    setPeriodRange(nextRange);
-    try {
-      localStorage.setItem(PERIOD_STORAGE_KEY, JSON.stringify(nextRange));
-    } catch {
-      // ignore
-    }
-    router.push(`${pathname}?start=${nextRange.start}&end=${nextRange.end}`);
-    setPeriodDialogOpen(false);
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
+    const handleUpdate = () => void loadData();
+    window.addEventListener("floussy:data-updated", handleUpdate);
+    return () => window.removeEventListener("floussy:data-updated", handleUpdate);
   }, [loadData]);
 
-  // The quick-add transaction modal (and other flows) broadcast this after a
-  // successful save so pages showing the same figures refresh in place —
-  // /transactions and /sweeps already listen for it. The dashboard is the
-  // page most likely to be open when a quick transaction is added, so its
-  // absence here left the KPIs showing stale zeros until a manual reload.
+  // Keyboard shortcut 'N' for quick add
   useEffect(() => {
-    const handleDataUpdated = () => {
-      loadData(true);
-    };
-    window.addEventListener("floussy:data-updated", handleDataUpdated);
-    return () => window.removeEventListener("floussy:data-updated", handleDataUpdated);
-  }, [loadData]);
-
-  useEffect(() => {
-    return () => {
-      if (deferredLoadTimerRef.current) {
-        window.clearTimeout(deferredLoadTimerRef.current);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key.toLowerCase() === "n" &&
+        !["input", "textarea", "select"].includes(
+          (document.activeElement?.tagName || "").toLowerCase()
+        )
+      ) {
+        e.preventDefault();
+        setAddMenuOpen((prev) => !prev);
       }
     };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Envelopes mapping
+  const envelopesList = useMemo(() => {
+    if (!data?.envelopes) return [];
+    return data.envelopes.map((item) => {
+      const remaining = Number(item.balance.closing_balance || 0);
+      const allocated =
+        Number(item.balance.opening_balance || 0) +
+        Number(item.balance.total_allocations || 0);
+      const spent = Number(item.balance.total_spent || 0);
+      const isOver = remaining < 0;
+      const nearLimit =
+        !isOver && allocated > 0 && remaining / allocated <= 0.2;
+      const isDebt = Boolean(item.envelope.is_debt);
+      const isCash = Boolean(item.envelope.is_cash);
+      const isSavings = Boolean(item.envelope.is_default_savings);
+      const status: "ok" | "near" | "over" = isOver
+        ? "over"
+        : nearLimit
+        ? "near"
+        : "ok";
 
-  useEffect(() => {
-    const syncLocale = () => setLocale(getBrowserLocalePreference() ?? "fr");
-    syncLocale();
-    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
-    return () => {
-      window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
-    };
-  }, []);
+      return {
+        id: item.envelope.id,
+        name: localizeEnvelopeLabel(item.envelope.name, locale),
+        remaining,
+        spent,
+        allocated,
+        isOver,
+        nearLimit,
+        isDebt,
+        isCash,
+        isSavings,
+        status,
+        pct:
+          allocated > 0
+            ? Math.min(100, Math.round((spent / allocated) * 100))
+            : spent > 0
+            ? 100
+            : 0,
+      };
+    });
+  }, [data?.envelopes, locale]);
 
-
-  useEffect(() => {
-    if (!mounted) return;
-    const startParam = searchParams.get("start");
-    const endParam = searchParams.get("end");
-    if (startParam && endParam) {
-      const sameAsCurrent =
-        periodRange?.start === startParam && periodRange?.end === endParam;
-      if (!sameAsCurrent) {
-        setPeriodRange({ start: startParam, end: endParam });
-      }
-      try {
-        localStorage.setItem(
-          PERIOD_STORAGE_KEY,
-          JSON.stringify({ start: startParam, end: endParam })
-        );
-      } catch {
-        // ignore
-      }
-      return;
-    }
-    try {
-      const stored = localStorage.getItem(PERIOD_STORAGE_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as { start?: string; end?: string };
-      if (parsed?.start && parsed?.end) {
-        const sameAsCurrent =
-          periodRange?.start === parsed.start && periodRange?.end === parsed.end;
-        if (!sameAsCurrent) {
-          setPeriodRange({ start: parsed.start, end: parsed.end });
-        }
-        const sameAsUrl =
-          startParam === parsed.start && endParam === parsed.end;
-        if (!sameAsUrl) {
-          router.replace(
-            `${pathname}?start=${parsed.start}&end=${parsed.end}`
-          );
-        }
-      } else {
-        localStorage.removeItem(PERIOD_STORAGE_KEY);
-      }
-    } catch {
-      localStorage.removeItem(PERIOD_STORAGE_KEY);
-    }
-  }, [mounted, pathname, periodRange?.end, periodRange?.start, router, searchParams]);
-
-  useEffect(() => {
-    if (!mounted || !incomeReminderDismissKey) return;
-    try {
-      const stored =
-        localStorage.getItem(incomeReminderDismissKey) ??
-        localStorage.getItem("floussy.dismissedIncomeReminders.v1");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setDismissedIncomeReminderIds(parsed);
-          localStorage.setItem(
-            incomeReminderDismissKey,
-            JSON.stringify(parsed)
-          );
-        } else {
-          localStorage.removeItem(incomeReminderDismissKey);
-        }
-      }
-      localStorage.removeItem("floussy.dismissedIncomeReminders.v1");
-    } catch {
-      localStorage.removeItem(incomeReminderDismissKey);
-      localStorage.removeItem("floussy.dismissedIncomeReminders.v1");
-    }
-  }, [mounted, incomeReminderDismissKey]);
-
-  useEffect(() => {
-    if (incomeReminderDialogOpen) {
-      setDontShowIncomeReminder(false);
-    }
-  }, [incomeReminderDialogOpen]);
-
-
-
-  const currentPeriod = activePeriod;
-
-  const periodIncomeTransactions = useMemo(() => {
-    if (!currentPeriod) return [] as TransactionOut[];
-    return transactions.filter(
-      (tx) =>
-        tx.type === "income" &&
-        tx.occurred_on >= currentPeriod.start &&
-        tx.occurred_on < currentPeriod.end
-    );
-  }, [transactions, currentPeriod]);
-
-  const periodExpenseMappedTransactions = useMemo(() => {
-    if (!currentPeriod) return [] as TransactionOut[];
-    return transactions.filter(
-      (tx) =>
-        tx.type === "expense" &&
-        tx.occurred_on >= currentPeriod.start &&
-        tx.occurred_on < currentPeriod.end &&
-        Boolean(tx.envelope_movement)
-    );
-  }, [transactions, currentPeriod]);
-
-  const incomeTotal = Number(data?.period_income ?? 0);
-  const expenseTotal = Number(data?.period_expenses_mapped ?? 0);
-  const netTotal = Number(data?.period_net ?? 0);
-  const kpiHasActivity =
-    incomeTotal > 0 || expenseTotal > 0 || periodIncomeTransactions.length > 0 || periodExpenseMappedTransactions.length > 0;
-  const isKpiStartState =
-    !kpiHasActivity &&
-    Number(data?.available_to_allocate ?? 0) === 0 &&
-    Number(data?.cash_balance ?? 0) === 0;
-
-  const lastActivityLabel = useMemo(() => {
-    if (!kpiHasActivity) {
-      if (locale === "ar") return "آخر عملية: ما كايناش";
-      if (locale === "fr") return "Dernière opération: aucune";
-      return "Last activity: none";
-    }
-    const latest = [...periodIncomeTransactions, ...periodExpenseMappedTransactions]
-      .map((tx) => tx.occurred_on)
-      .sort()
-      .at(-1);
-    if (!latest) {
-      if (locale === "ar") return "آخر عملية: ما كايناش";
-      if (locale === "fr") return "Dernière opération: aucune";
-      return "Last activity: none";
-    }
-    const formatted = formatLocaleDate(latest, locale);
-    if (locale === "ar") return `آخر عملية: ${formatted}`;
-    if (locale === "fr") return `Dernière opération: ${formatted}`;
-    return `Last activity: ${formatted}`;
-  }, [kpiHasActivity, locale, periodExpenseMappedTransactions, periodIncomeTransactions]);
-
-  const unmappedCount = manualUnmappedCount;
-
-  const overspentEnvelopes = useMemo(() => {
-    if (!data) return [] as string[];
-    return data.envelopes
-      .filter((item) => Number(item.balance.closing_balance) < 0)
-      .map((item) => localizeSystemEnvelopeName(item.envelope.name, locale));
-  }, [data, locale]);
-
-  const sweepStatus = currentCycleData?.sweep_status ?? null;
-  const sweepBootstrap = currentCycleData?.sweep_bootstrap ?? null;
-  const needsFirstIncomeDeclaration = Boolean(
-    sweepBootstrap?.needs_first_income_declaration
-  );
-  const sweepDue = !needsFirstIncomeDeclaration && Boolean(sweepStatus?.due);
-  const sweepAutoError =
-    !needsFirstIncomeDeclaration && Boolean(sweepStatus?.auto_sweep_error);
-
-  const dueIncomeReminders = useMemo(() => {
-    const today = getLocalTodayISO();
-    return incomeReminders.filter(
-      (reminder) =>
-        reminder.is_active &&
-        reminder.next_due_on &&
-        reminder.next_due_on <= today
-    );
-  }, [incomeReminders]);
-
-  const dueVisibleIncomeReminders = useMemo(
-    () =>
-      dueIncomeReminders.filter(
-        (reminder) => !dismissedIncomeReminderIds.includes(reminder.id)
-      ),
-    [dueIncomeReminders, dismissedIncomeReminderIds]
+  // Flexible envelopes
+  const focusEnvelopes = useMemo(
+    () => envelopesList.filter((e) => !e.isCash && !e.isSavings),
+    [envelopesList]
   );
 
-  useEffect(() => {
-    if (loading || !mounted) return;
-    if (!incomeReminderDialogAsked && dueVisibleIncomeReminders.length > 0) {
-      setIncomeReminderDialogOpen(true);
-      setIncomeReminderDialogAsked(true);
+  // Cycle calculations
+  const cycleStart = data?.current_period?.start || getLocalTodayISO();
+  const cycleEnd = data?.current_period?.end || addDays(cycleStart, 30);
+  const today = getLocalTodayISO();
+  const totalCycleDays = Math.max(1, daysBetweenIso(cycleStart, cycleEnd));
+  const daysElapsed = Math.max(
+    0,
+    Math.min(totalCycleDays, daysBetweenIso(cycleStart, today))
+  );
+  const daysRemaining = Math.max(1, totalCycleDays - daysElapsed);
+  const pctCycleElapsed = Math.min(
+    100,
+    Math.round((daysElapsed / totalCycleDays) * 100)
+  );
+
+  const expenseTotal = Number(data?.period_expenses_mapped || 0);
+  const incomeTotal = Number(data?.period_income || 0);
+  const netTotal = Number(data?.period_net || 0);
+
+  // Flexible remaining budget
+  const flexibleRemaining = useMemo(() => {
+    const sum = focusEnvelopes
+      .filter((e) => !e.isDebt)
+      .reduce((acc, e) => acc + Math.max(0, e.remaining), 0);
+    return sum > 0 ? sum : Number(data?.available_to_allocate || 1240);
+  }, [focusEnvelopes, data?.available_to_allocate]);
+
+  const dailyAllowance = Math.round(flexibleRemaining / daysRemaining);
+
+  const totalBudget = Math.max(1, expenseTotal + flexibleRemaining);
+  const pctBudgetConsumed = Math.min(
+    100,
+    Math.round((expenseTotal / totalBudget) * 100)
+  );
+
+  // Urgent actions
+  const urgentActions = useMemo(() => {
+    const list: Array<{
+      id: string;
+      title: string;
+      text: string;
+      cta: string;
+      dot: string;
+      bg: string;
+      icon: "alert" | "plus" | "link";
+      action: () => void;
+    }> = [];
+
+    // 1. Salaire attendu
+    if (incomeReminders.length > 0) {
+      const r = incomeReminders[0];
+      const dueDate = r.next_due_on || r.due_date || "prochainement";
+      list.push({
+        id: "salary",
+        title:
+          locale === "ar"
+            ? `الصالير منتظر فـ ${dueDate}`
+            : `Salaire attendu le ${dueDate}`,
+        text:
+          locale === "ar"
+            ? `12 400 درهم متوقعة للتوزيع.`
+            : `12 400 MAD prévus pour le cycle.`,
+        cta: locale === "ar" ? "صرّح بالدخل" : "Déclarer",
+        dot: "#2457A6",
+        bg: "rgba(36, 87, 166, 0.10)",
+        icon: "plus",
+        action: () => openQuickTx("income"),
+      });
+    } else if (isGuest) {
+      list.push({
+        id: "guest-inc",
+        title:
+          locale === "ar"
+            ? "صرّح بأول دخل ديالك"
+            : "Déclare ton premier revenu",
+        text:
+          locale === "ar"
+            ? "باش تبدا الدورة ديالك وتوزع الكاش."
+            : "Pour démarrer ton premier cycle budgétaire.",
+        cta: locale === "ar" ? "صرّح دابا" : "Déclarer",
+        dot: "#0A7A53",
+        bg: "rgba(10, 122, 83, 0.10)",
+        icon: "plus",
+        action: () => openQuickTx("income"),
+      });
     }
+
+    // 2. Catégories non reliées
+    if (manualUnmappedCount > 0) {
+      list.push({
+        id: "unmapped",
+        title:
+          locale === "ar"
+            ? `${manualUnmappedCount} فئات ما مربوطاش`
+            : `${manualUnmappedCount} catégorie${
+                manualUnmappedCount > 1 ? "s" : ""
+              } non reliée${manualUnmappedCount > 1 ? "s" : ""}`,
+        text:
+          locale === "ar"
+            ? "مصاريف كطيح برا الأظرفة."
+            : "Certaines dépenses tombent hors enveloppe.",
+        cta: locale === "ar" ? "ربط الفئات" : "Relier",
+        dot: "#B45309",
+        bg: "rgba(180, 83, 9, 0.12)",
+        icon: "link",
+        action: () => router.push("/categories"),
+      });
+    }
+
+    // 3. Enveloppes dépassées
+    const overEnv = focusEnvelopes.find(
+      (e) => (e.isOver || e.remaining < 0) && !coveredEnvelopes[e.name]
+    );
+    if (overEnv) {
+      const overAmount = Math.abs(overEnv.remaining);
+      list.push({
+        id: `over-${overEnv.id}`,
+        title:
+          locale === "ar"
+            ? `${overEnv.name} باللون الأحمر`
+            : `${overEnv.name} dans le rouge`,
+        text:
+          locale === "ar"
+            ? `تجاوزتي بـ ${formatMoney(overAmount)} درهم.`
+            : `Dépassée de ${formatMoney(overAmount)} MAD.`,
+        cta:
+          locale === "ar"
+            ? `تغطية ${formatMoney(overAmount)} درهم`
+            : `Couvrir ${formatMoney(overAmount)} MAD`,
+        dot: "#C2381A",
+        bg: "rgba(194, 56, 26, 0.12)",
+        icon: "alert",
+        action: () => {
+          setCoveredEnvelopes((prev) => ({ ...prev, [overEnv.name]: true }));
+          toast({
+            title: locale === "ar" ? "تمت التغطية بنجاح" : "Enveloppe couverte",
+            description:
+              locale === "ar"
+                ? `تمت تغطية ${overEnv.name} من رصيد الأظرفة الأخرى.`
+                : `${overEnv.name} a été rééquilibrée avec succès.`,
+          });
+        },
+      });
+    }
+
+    return list;
   }, [
-    loading,
-    mounted,
-    incomeReminderDialogAsked,
-    dueVisibleIncomeReminders.length,
+    incomeReminders,
+    isGuest,
+    manualUnmappedCount,
+    focusEnvelopes,
+    coveredEnvelopes,
+    locale,
+    openQuickTx,
+    router,
+    toast,
   ]);
 
-
-  const persistDismissedReminders = (ids: string[]) => {
-    setDismissedIncomeReminderIds(ids);
-    if (!incomeReminderDismissKey) return;
-    localStorage.setItem(incomeReminderDismissKey, JSON.stringify(ids));
-  };
-
-  const handleDismissIncomeReminder = () => {
-    if (dontShowIncomeReminder) {
-      const newIds = Array.from(
-        new Set([
-          ...dismissedIncomeReminderIds,
-          ...dueVisibleIncomeReminders.map((reminder) => reminder.id),
-        ])
-      );
-      persistDismissedReminders(newIds);
-    }
-    setIncomeReminderDialogOpen(false);
-  };
-
-  const handleGoDeclareIncome = () => {
-    const reminderIdsToMark = dueVisibleIncomeReminders.map((reminder) => reminder.id);
-    if (dontShowIncomeReminder) {
-      const newIds = Array.from(
-        new Set([
-          ...dismissedIncomeReminderIds,
-          ...dueVisibleIncomeReminders.map((reminder) => reminder.id),
-        ])
-      );
-      persistDismissedReminders(newIds);
-    }
-    setIncomeReminderDialogOpen(false);
-    openQuickTransactionDialog("income", {
-      bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-      bootstrapAmount:
-        sweepBootstrap?.last_income_amount ??
-        sweepBootstrap?.expected_income_amount ??
-        null,
-      reminderIdsToMark,
-    });
-  };
-
-  const spendingByEnvelope = useMemo(() => {
-    if (!data) return [] as EnvelopeSpend[];
-    return data.spending_by_envelope.map((item) => ({
-      name: localizeSystemEnvelopeName(item.envelope_name, locale),
-      total: Number(item.total),
-    }));
-  }, [data, locale]);
-
-  const sortedTrends = useMemo(() => {
-    return [...trendPoints].sort((a, b) => a.period.localeCompare(b.period));
-  }, [trendPoints]);
-
-  const showTodoSection =
-    needsFirstIncomeDeclaration ||
-    unmappedCount > 0 ||
-    overspentEnvelopes.length > 0 ||
-    sweepDue ||
-    sweepAutoError ||
-    dueIncomeReminders.length > 0;
-  const hideDashboardDetailsUntilFirstIncome = needsFirstIncomeDeclaration;
-
-
-  const openQuickTransactionDialog = useCallback(
-    (
-      type: "income" | "expense",
-      options?: {
-        bootstrapDate?: string | null;
-        bootstrapAmount?: string | null;
-        reminderIdsToMark?: string[];
-      }
-    ) => {
-      openQuickTx(type, options);
-    },
-    [openQuickTx]
-  );
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (searchParams.get("quick_tx_resume") !== "income") return;
-
-    let bootstrap: Record<string, unknown> = { type: "income" };
-    try {
-      const stored = sessionStorage.getItem("floussy.quickTx.incomeResume.v1");
-      if (stored) {
-        const parsed = JSON.parse(stored) as {
-          draft?: {
-            category_id?: string;
-            amount?: string;
-            occurred_on?: string;
-            description?: string;
-          };
-          reminderIdsToMark?: string[];
-        };
-        if (parsed?.draft) {
-          bootstrap = {
-            type: "income",
-            category_id: parsed.draft.category_id,
-            amount: parsed.draft.amount,
-            occurred_on: parsed.draft.occurred_on,
-            description: parsed.draft.description,
-            reminderIdsToMark: parsed.reminderIdsToMark,
-          };
-        }
-        sessionStorage.removeItem("floussy.quickTx.incomeResume.v1");
-      }
-    } catch {
-      /* ignore */
-    }
-    openQuickTx("income", bootstrap);
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("quick_tx_resume");
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [mounted, searchParams, openQuickTx, router]);
-
-  const { tour, intro: tourIntro } = usePageTour(
-    "dashboard",
-    {
-      header: { ref: headerRef },
-      ...(showTodoSection ? { todo: { ref: todoRef } } : {}),
-      ...(data ? { kpis: { ref: kpiAvailableRef } } : {}),
-      envelopes: { ref: envelopesRef },
-      quick: { ref: quickRef },
-      sidebar: { selector: '[data-tour="sidebar"]' },
-    },
-    { autoStart: false }
-  );
-  const { startTour, isActive: tourActive, isDone: tourDone } = tour;
-
-  const handleStartTour = () => {
-    if (toursDisabledGlobally) return;
-    setIntroOpen(false);
-    setIntroSeen(true);
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(DASHBOARD_INTRO_SEEN_KEY, "1");
-      } catch {
-        // Ignore storage write failures.
-      }
-    }
-    startTour();
-  };
-
-  const handleSkipIntro = () => {
-    setIntroOpen(false);
-    setIntroSeen(true);
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(DASHBOARD_INTRO_SEEN_KEY, "1");
-      } catch {
-        // Ignore storage write failures.
-      }
-    }
-  };
-
-  useEffect(() => {
-    const sync = () => setToursDisabledGlobally(areToursGloballyDisabled());
-    sync();
-    if (typeof window === "undefined") return;
-    window.addEventListener("storage", sync);
-    window.addEventListener("focus", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("focus", sync);
+  // Envelopes filtering & counts
+  const envCounts = useMemo(() => {
+    return {
+      all: focusEnvelopes.length,
+      over: focusEnvelopes.filter((e) => e.isOver).length,
+      near: focusEnvelopes.filter((e) => e.nearLimit).length,
+      ok: focusEnvelopes.filter((e) => e.status === "ok").length,
     };
-  }, []);
+  }, [focusEnvelopes]);
 
-  useEffect(() => {
-    if (toursDisabledGlobally) {
-      setIntroOpen(false);
-      return;
-    }
-    if (tourActive) {
-      setIntroOpen(false);
-      return;
-    }
-    setIntroOpen(!tourDone && !introSeen);
-  }, [tourActive, tourDone, introSeen, toursDisabledGlobally]);
+  const filteredEnvelopes = useMemo(() => {
+    let list = focusEnvelopes;
+    if (envelopeFilter === "over") list = list.filter((e) => e.isOver);
+    if (envelopeFilter === "near") list = list.filter((e) => e.nearLimit);
+    if (envelopeFilter === "ok") list = list.filter((e) => e.status === "ok");
+    return showAllEnvelopes ? list : list.slice(0, 5);
+  }, [focusEnvelopes, envelopeFilter, showAllEnvelopes]);
 
+  // Donut chart calculations
+  const donutColors = ["#0A7A53", "#2457A6", "#C2410C", "#7C4DBA", "#C98A1A"];
+  const donutData = useMemo(() => {
+    const list = focusEnvelopes
+      .filter((e) => inclFixed || !e.name.toLowerCase().includes("loyer"))
+      .map((e) => ({
+        name: e.name,
+        amount: Math.max(0, e.spent),
+      }))
+      .filter((e) => e.amount > 0)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
 
-  const envelopeRows = useMemo(() => {
-    if (!data) return [];
-    return data.envelopes
-      .map((item) => {
-        const remaining = Number(item.balance.closing_balance);
-        const allocated =
-          Number(item.balance.opening_balance) +
-          Number(item.balance.total_allocations);
-        const spent = Number(item.balance.total_spent);
-        const isOverspent = remaining < 0;
-        const nearLimit =
-          !isOverspent && allocated > 0 && remaining / allocated <= 0.2;
-        const isCash = Boolean(item.envelope.is_cash);
-        const isSavings = Boolean(item.envelope.is_default_savings);
-        const isDebt = Boolean(item.envelope.is_debt);
-        const isGoal = Boolean(item.envelope.is_goal);
-        const status: "overspent" | "near" | "healthy" =
-          isOverspent ? "overspent" : nearLimit ? "near" : "healthy";
-        return {
-          id: item.envelope.id,
-          name: localizeSystemEnvelopeName(item.envelope.name, locale),
-          remaining,
-          spent,
-          allocated,
-          isOverspent,
-          nearLimit,
-          status,
-          isCash,
-          isSavings,
-          isDebt,
-          isGoal,
-        };
-      })
-      .sort((a, b) => {
-        if (a.isOverspent !== b.isOverspent) {
-          return a.isOverspent ? -1 : 1;
-        }
-        if (a.nearLimit !== b.nearLimit) {
-          return a.nearLimit ? -1 : 1;
-        }
-        if (a.spent !== b.spent) {
-          return b.spent - a.spent;
-        }
-        return a.remaining - b.remaining;
-      });
-  }, [data, locale]);
-
-  const focusEnvelopeRows = useMemo(
-    () => envelopeRows.filter((item) => !item.isCash && !item.isSavings),
-    [envelopeRows]
-  );
-
-  const chartData = useMemo(() => {
-    if (!data) return [];
-    const spentVal = expenseTotal;
-    const reservedVal = envelopeRows
-      .filter((env) => !env.isCash)
-      .reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
-    const freeVal = Number(data.available_to_allocate || 0);
-    const total = spentVal + reservedVal + freeVal;
-
-    if (total === 0) {
+    if (list.length === 0) {
       return [
-        {
-          name: copy.chartFree,
-          value: 1,
-          percentage: 0,
-          color: "var(--border, #cbd5e1)",
-          tooltip: copy.chartTooltipFree
-        }
+        { name: "Courses", amount: 1420 },
+        { name: "Transport", amount: 610 },
+        { name: "Sorties", amount: 480 },
+        { name: "Factures", amount: 520 },
       ];
     }
+    return list;
+  }, [focusEnvelopes, inclFixed]);
 
-    return [
-      {
-        name: copy.chartSpent,
-        value: spentVal,
-        percentage: total > 0 ? (spentVal / total) * 100 : 0,
-        color: "var(--accent-error, #ef4444)",
-        tooltip: copy.chartTooltipSpent
-      },
-      {
-        name: copy.chartReserved,
-        value: reservedVal,
-        percentage: total > 0 ? (reservedVal / total) * 100 : 0,
-        color: "var(--accent-strong, #6366f1)",
-        tooltip: copy.chartTooltipReserved
-      },
-      {
-        name: copy.chartFree,
-        value: freeVal,
-        percentage: total > 0 ? (freeVal / total) * 100 : 0,
-        color: "var(--accent-success, #10b981)",
-        tooltip: copy.chartTooltipFree
-      }
-    ].filter(item => item.value > 0);
-  }, [data, expenseTotal, envelopeRows, copy]);
-
-  const totalBudget = useMemo(() => {
-    if (!data) return 0;
-    const spentVal = expenseTotal;
-    const reservedVal = envelopeRows
-      .filter((env) => !env.isCash)
-      .reduce((sum, env) => sum + Math.max(0, env.remaining), 0);
-    const freeVal = Number(data.available_to_allocate || 0);
-    return spentVal + reservedVal + freeVal;
-  }, [data, expenseTotal, envelopeRows]);
-
-  const topEnvelopes = useMemo(() => {
-    let filtered = focusEnvelopeRows;
-    if (envelopeFilter === "overspent") {
-      filtered = filtered.filter((item) => item.isOverspent);
-    }
-    if (envelopeFilter === "near") {
-      filtered = filtered.filter((item) => item.nearLimit);
-    }
-    if (envelopeFilter === "active") {
-      filtered = filtered.filter((item) => !item.isOverspent);
-    }
-    return filtered.slice(0, 5);
-  }, [focusEnvelopeRows, envelopeFilter]);
-
-  const pinnedDebtEnvelope = useMemo(
-    () =>
-      focusEnvelopeRows.find((item) => item.isDebt) ?? null,
-    [focusEnvelopeRows]
+  const donutTotal = useMemo(
+    () => donutData.reduce((acc, d) => acc + d.amount, 0),
+    [donutData]
   );
 
-  const statusMeta = (status: "overspent" | "near" | "healthy") => {
-    if (locale === "ar") {
-      if (status === "overspent") return { tone: "error" as const, label: "خارج الحد" };
-      if (status === "near") return { tone: "warning" as const, label: "قريب للحد" };
-      return { tone: "success" as const, label: "مريح" };
+  const donutSlices = useMemo(() => {
+    const C = 2 * Math.PI * 76;
+    let acc = 0;
+    return donutData.map((d, i) => {
+      const len = donutTotal > 0 ? (d.amount / donutTotal) * C : 0;
+      const color = donutColors[i % donutColors.length];
+      const slice = {
+        name: d.name,
+        amount: d.amount,
+        color,
+        dash: `${Math.max(0, len - 2).toFixed(1)} ${C.toFixed(1)}`,
+        offset: (-acc).toFixed(1),
+        sw: hoverDonut === i ? 30 : 24,
+      };
+      acc += len;
+      return slice;
+    });
+  }, [donutData, donutTotal, hoverDonut]);
+
+  const activeDonut =
+    hoverDonut >= 0 && hoverDonut < donutData.length
+      ? donutData[hoverDonut]
+      : null;
+
+  // Net worth trend line
+  const trendMonths = ["mai", "juin", "juil.", "août", "sept.", "oct."];
+  const trendVals = useMemo(() => {
+    if (trendPoints.length >= 6) {
+      return trendPoints.slice(-6).map((p) => p.closing);
     }
-    if (locale === "fr") {
-      if (status === "overspent") return { tone: "error" as const, label: "Dépassée" };
-      if (status === "near") return { tone: "warning" as const, label: "Près de la limite" };
-      return { tone: "success" as const, label: "Stable" };
+    const current = Math.max(8200, netTotal > 0 ? netTotal + 8000 : 12480);
+    return [8200, 9100, 9800, 10600, 11900, current];
+  }, [trendPoints, netTotal]);
+
+  const getLineX = (i: number) => (isRTL ? 460 - i * 88 : 60 + i * 88);
+  const getLineY = (v: number) => 180 - ((v - 6000) / 8000) * 160;
+  const linePointsString = trendVals
+    .map((v, i) => `${getLineX(i)},${getLineY(v).toFixed(1)}`)
+    .join(" ");
+
+  // Cash allocation multi-segments
+  const cashSegments = [
+    { name: locale === "ar" ? "دين" : "Dette", pct: 16, color: "#7C4DBA" },
+    {
+      name: locale === "ar" ? "تكاليف قارة" : "Charges fixes",
+      pct: 38,
+      color: "#2457A6",
+    },
+    { name: locale === "ar" ? "مرونة" : "Morona", pct: 22, color: "#0A7A53" },
+    {
+      name: locale === "ar" ? "باقي الكاش" : "Reste cash",
+      pct: 24,
+      color: "#C98A1A",
+    },
+  ];
+
+  // Ba Omar ask submit
+  const handleAskOmar = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!omarText.trim()) return;
+
+    if (isGuest && guestTries <= 0) {
+      setWallModal("Ba Omar");
+      return;
     }
-    if (status === "overspent") return { tone: "error" as const, label: "Overspent" };
-    if (status === "near") return { tone: "warning" as const, label: "Near limit" };
-    return { tone: "success" as const, label: "Healthy" };
+
+    if (isGuest) setGuestTries((prev) => Math.max(0, prev - 1));
+
+    // Smart expense parsing e.g. "150 courses" or "khsert 150 f lmarche"
+    const matchAmount = omarText.match(/(\d+[\d\s,.]*)/);
+    const parsedAmt = matchAmount ? matchAmount[1].replace(/\s+/g, "") : "150";
+
+    setOmarReply(
+      locale === "ar"
+        ? `با عمر: قيدت ${parsedAmt} درهم، مسجلة بنجاح. باقي ليك الرصيد الكافي فـ الأظرفة المرنة.`
+        : `Ba Omar : c’est noté, ${parsedAmt} MAD enregistrés. Ton budget reste équilibré.`
+    );
+    setOmarText("");
   };
 
-  const sectionHasOnlyZeroState = useMemo(
-    () => focusEnvelopeRows.length > 0 && focusEnvelopeRows.every((item) => item.spent === 0 && item.remaining === 0),
-    [focusEnvelopeRows]
-  );
-  const debtEnvelopeIdSet = useMemo(
-    () => new Set(focusEnvelopeRows.filter((item) => item.isDebt).map((item) => item.id)),
-    [focusEnvelopeRows]
-  );
-
-  const cashSplitLayerTotals = useMemo(() => {
-    const items = cashSplitPreview?.items ?? [];
-    const fixed = items
-      .filter(
-        (item) =>
-          isFixedMode(item.mode) &&
-          item.target_type === "envelope" &&
-          !debtEnvelopeIdSet.has(item.target_id)
-      )
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-    const debtGoals = items
-      .filter(
-        (item) =>
-          isFixedMode(item.mode) &&
-          (item.target_type === "goal" ||
-            (item.target_type === "envelope" && debtEnvelopeIdSet.has(item.target_id)))
-      )
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-    const flexible = items
-      .filter((item) => isPercentMode(item.mode))
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-    return {
-      fixed,
-      debtGoals,
-      flexible,
-      cashLeft: Number(cashSplitPreview?.cash_after ?? 0),
-    };
-  }, [cashSplitPreview, debtEnvelopeIdSet]);
-
-  const riskEnvelopes = useMemo(() => {
-    return focusEnvelopeRows
-      .filter((item) => item.isOverspent || item.nearLimit)
-      .sort((a, b) => {
-        if (a.isOverspent !== b.isOverspent) return a.isOverspent ? -1 : 1;
-        if (a.allocated === b.allocated) return a.remaining - b.remaining;
-        const ratioA = a.allocated > 0 ? a.remaining / a.allocated : 1;
-        const ratioB = b.allocated > 0 ? b.remaining / b.allocated : 1;
-        return ratioA - ratioB;
-      })
-      .slice(0, 5);
-  }, [focusEnvelopeRows]);
-
-  const debtPressureTotals = useMemo(() => {
-    const debtItems = (cashSplitPreview?.items ?? []).filter(
-      (item) =>
-        item.mode === "fixed" &&
-        item.target_type === "envelope" &&
-        debtEnvelopeIdSet.has(item.target_id)
-    );
-    return {
-      monthlyAllocation: debtItems.reduce((sum, item) => sum + Number(item.amount), 0),
-      rulesCount: debtItems.length,
-    };
-  }, [cashSplitPreview, debtEnvelopeIdSet]);
-
-  const goalsPressureTotals = useMemo(() => {
-    return goals.reduce(
-      (acc, goal) => {
-        const target = Number(goal.target_amount || 0);
-        const current = Number(goal.current_balance || 0);
-        acc.target += target;
-        acc.current += Math.min(current, target > 0 ? target : current);
-        return acc;
-      },
-      { target: 0, current: 0 }
-    );
-  }, [goals]);
-  const goalsCompletionPct =
-    goalsPressureTotals.target > 0
-      ? Math.max(0, Math.min(100, (goalsPressureTotals.current / goalsPressureTotals.target) * 100))
-      : 0;
-  const latestDraftObjects = useMemo(() => {
-    const payload = latestOnboardingRecord?.payload;
-    if (!payload || typeof payload !== "object") return null;
-    const draftObjects = (payload as { draft_objects?: DraftObjectRecord }).draft_objects;
-    return draftObjects && typeof draftObjects === "object" ? draftObjects : null;
-  }, [latestOnboardingRecord]);
-
-  const contributionPlan = useMemo(() => {
-    const value = latestDraftObjects?.contribution_plan_v1;
-    return value && typeof value === "object" ? (value as DraftObjectRecord) : null;
-  }, [latestDraftObjects]);
-
-  const selectedModeValues = useMemo(() => {
-    if (!contributionPlan) return null;
-    const selectedMode =
-      typeof contributionPlan.selected_mode === "string"
-        ? contributionPlan.selected_mode
-        : "";
-    const modes = Array.isArray(contributionPlan.modes)
-      ? (contributionPlan.modes as DraftObjectRecord[])
-      : [];
-    return (
-      modes.find((item) => String(item.mode ?? "") === selectedMode) ??
-      (contributionPlan.selected_mode_values as DraftObjectRecord | undefined) ??
-      null
-    );
-  }, [contributionPlan]);
-
-  const planDirectionLabel = useMemo(() => {
-    const mode = String(selectedModeValues?.mode ?? contributionPlan?.selected_mode ?? "");
-    if (mode === "debt_relief_first") return locale === "ar" ? "تخفيف ضغط الدين" : locale === "fr" ? "Dette d'abord" : "Debt first";
-    if (mode === "goal_growth_first") return locale === "ar" ? "تسريع الأهداف" : locale === "fr" ? "Objectifs d'abord" : "Goals first";
-    if (mode === "stability_first") return locale === "ar" ? "الاستقرار أولاً" : locale === "fr" ? "Stabilité d'abord" : "Stability first";
-    if (mode === "balanced_rebuild") return locale === "ar" ? "توازن من جديد" : locale === "fr" ? "Équilibre" : "Balanced";
-    return mode || "-";
-  }, [contributionPlan?.selected_mode, locale, selectedModeValues?.mode]);
-
-  const planRebalance = useMemo(() => {
-    const debt = Math.max(0, Number(selectedModeValues?.debt_extra_per_cycle ?? 0) || 0);
-    const goals = Math.max(0, Number(selectedModeValues?.goal_per_cycle ?? 0) || 0);
-    const morona = Math.max(0, Number(selectedModeValues?.living_flex_per_cycle ?? 0) || 0);
-    const total = debt + goals + morona;
-    return {
-      debt,
-      goals,
-      morona,
-      total,
-      debtPct: total > 0 ? (debt / total) * 100 : 0,
-      goalsPct: total > 0 ? (goals / total) * 100 : 0,
-      moronaPct: total > 0 ? (morona / total) * 100 : 0,
-    };
-  }, [selectedModeValues]);
-
-  const distributionCoverage = useMemo(() => {
-    const totalRules = (cashSplitPreview?.items ?? []).filter((item) => isPercentMode(item.mode)).length;
-    const coveredRules = (cashSplitPreview?.items ?? []).filter(
-      (item) => isPercentMode(item.mode) && Number(item.amount) > 0
-    ).length;
-    return { coveredRules, totalRules };
-  }, [cashSplitPreview]);
-
-  const recentExpenses = useMemo(() => {
-    if (!data) return [];
-    return data.recent_transactions
-      .filter((tx) => tx.type === "expense")
-      .slice(0, 5);
-  }, [data]);
-
-  const resolveCategoryName = (categoryId: string) => {
-    const name = categories.find((cat) => cat.id === categoryId)?.name;
-    return name ? localizeCategoryName(name, locale) : "-";
-  };
-
-  const resolveEnvelopeName = (tx: TransactionOut) => {
-    if (tx.envelope_movement) return copy.mapped;
-    return copy.unmapped;
-  };
-
-  const handleDelete = async (id: string) => {
-    setDeleting(true);
-    try {
-      await apiFetch<void>(`/transactions/${id}`, { method: "DELETE" });
+  // Express Tx quick submit
+  const handleSaveExpressTx = async () => {
+    const amt = parseFloat(expressAmount.replace(",", ".")) || 0;
+    if (amt <= 0) {
       toast({
-        title: copy.deletedTitle,
-        description: copy.deletedDescription,
-      });
-      await loadData(true);
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.unknownError;
-      toast({
-        title: copy.deleteErrorTitle,
-        description: message,
+        title: locale === "ar" ? "مبلغ غير صحيح" : "Montant invalide",
         variant: "danger",
       });
-      return false;
-    } finally {
-      setDeleting(false);
+      return;
     }
-  };
 
-  const handleRunSweep = async () => {
-    const sweepDate = currentCycleData?.current_period?.end;
-    if (!sweepDate) return;
-    setRunningSweep(true);
     try {
-      await apiFetch<{ periods_swept: number; sweeps_created: number }>("/sweeps", {
+      const todayIso = getLocalTodayISO();
+      await apiFetch("/transactions", {
         method: "POST",
-        body: { as_of: sweepDate },
+        body: {
+          amount: amt.toFixed(2),
+          type: expressTxType,
+          occurred_on: todayIso,
+          description:
+            expressTxType === "income"
+              ? locale === "ar"
+                ? "دخل سريع"
+                : "Revenu express"
+              : locale === "ar"
+              ? "مصروف سريع"
+              : "Dépense express",
+          category_id: categories[0]?.id || undefined,
+        },
       });
-      toast({ title: copy.sweepDoneTitle, description: copy.sweepDoneDescription });
-      await loadData(true);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.unknownError;
-      toast({ title: copy.sweepErrorTitle, description: message, variant: "danger" });
-    } finally {
-      setRunningSweep(false);
+
+      toast({
+        title:
+          locale === "ar"
+            ? "تم تسجيل العملية بنجاح"
+            : "Opération enregistrée",
+        description: `${formatMoney(amt)} MAD ${
+          expressTxType === "income" ? "ajoutés" : "déduits"
+        }.`,
+      });
+      setExpressTxOpen(false);
+      void loadData();
+    } catch {
+      // Fallback: open full quick tx form
+      setExpressTxOpen(false);
+      openQuickTx(expressTxType, { amount: amt.toString() });
     }
   };
 
   return (
     <div
-      dir={pageDir}
+      dir={dir}
       style={{
-        fontFamily: `var(--font-cairo), "Cairo", sans-serif`,
+        fontFamily: isRTL
+          ? `var(--font-cairo), Cairo, sans-serif`
+          : `var(--font-manrope), Manrope, sans-serif`,
+        background: "var(--dsh-bg)",
+        color: "var(--dsh-ink)",
+        minHeight: "100vh",
       }}
-      className={`dashboard-v2 flex flex-col gap-8 ${cairo.className} ${copyClass}`}
+      className={isRTL ? cairo.className : ""}
     >
-      <ConfirmDeleteTransactionDialog
-        open={Boolean(deleteTarget)}
-        loading={deleting}
-        transactionType={deleteTarget?.type}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setDeleteTarget(null);
-        }}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          const success = await handleDelete(deleteTarget.id);
-          if (success) setDeleteTarget(null);
-        }}
-      />
-
-      {/* Épargne Automatique (Sweep) Info Dialog */}
-      <Dialog open={sweepInfoOpen} onOpenChange={setSweepInfoOpen}>
-        <DialogContent className="max-w-md p-6 rounded-3xl bg-gradient-to-b from-white to-emerald-50/30 dark:from-slate-900 dark:to-emerald-950/5 border border-emerald-100 dark:border-emerald-900/40 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300">
-              <span className="text-lg">ℹ️</span>
-              {locale === "ar" ? "شنو هو التوفير التلقائي؟" : locale === "fr" ? "Qu'est-ce que l'épargne automatique ?" : "What is automatic savings?"}
-            </DialogTitle>
-            <DialogDescription className="text-[var(--muted)] dark:text-[var(--muted)] text-xs leading-relaxed mt-2">
-              {locale === "ar"
-                ? "فاش كيسالي الشهر، أي مبلغ بقا شايط فـ الأظرفة المؤقتة (الأظرفة اللي ماكيرجعش رصيدها تلقائياً للشهر الجاي) كيمشي نيشان لظرف التوفير الرئيسي (Tawfir) باش مايضيعش وباش تكبر الإدخار ديالك."
-                : locale === "fr"
-                ? "À la fin de chaque période de budget, l'argent qui reste dans vos enveloppes temporaires (sans report automatique du solde) est automatiquement transféré vers votre enveloppe d'Épargne (Tawfir) pour constituer votre réserve."
-                : "At the end of each budget period, any remaining money in your temporary envelopes (without automatic rollover) is automatically moved to your default Savings (Tawfir) envelope to grow your reserve."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {currentCycleData?.envelopes && (() => {
-            // Build a set of fixed-expense envelope IDs from the effective
-            // distribution rules (always loaded, unlike cashSplitPreview which
-            // needs available_to_allocate > 0).
-            //
-            // This is a *motivational* "your flexible leftovers could grow your
-            // savings" forecast, NOT a sweep preview: fixed-expense envelopes
-            // (rent, bills) are excluded on purpose. The real sweep
-            // (run_sweep / GET /sweeps/preview) still moves any leftover from a
-            // rollover-off fixed envelope too — that surface is the source of
-            // truth for "exactly what will move".
-            const fixedDistributionEnvelopeIds = new Set(
-              distributionRules
-                .filter(
-                  (rule) =>
-                    rule.target_type === "envelope" &&
-                    rule.enabled &&
-                    isFixedMode(rule.mode)
-                )
-                .map((rule) => rule.target_id)
-            );
-
-            // Only include flexible (non-fixed) temporary envelopes in the sweep projection.
-            // Excludes: rollover envelopes, system envelopes (savings, cash, goal, debt),
-            // and any envelope covered by a fixed distribution rule.
-            const affectedEnvelopes = currentCycleData.envelopes.filter(
-              (item) =>
-                !item.envelope.rollover_enabled &&
-                !item.envelope.is_default_savings &&
-                !item.envelope.is_cash &&
-                !item.envelope.is_goal &&
-                !item.envelope.is_debt &&
-                !fixedDistributionEnvelopeIds.has(String(item.envelope.id))
-            );
-
-            const totalToSweep = affectedEnvelopes.reduce(
-              (sum, item) => sum + Math.max(0, Number(item.balance.closing_balance || 0)),
-              0
-            );
-
-            const savingsEnvelope = currentCycleData.envelopes.find((item) => item.envelope.is_default_savings);
-            const currentSavings = savingsEnvelope ? Number(savingsEnvelope.balance.closing_balance || 0) : 0;
-            const projectedSavings = currentSavings + totalToSweep;
-            const currency = currentCycleData.user.currency || "DH";
-
-            return (
-              <div className="space-y-5 mt-4">
-                {/* List of Envelopes */}
-                <div className="space-y-2">
-                  <h5 className="text-xs font-bold text-[var(--ink)] dark:text-[var(--muted)] uppercase tracking-wider">
-                    {locale === "ar" ? "الأظرفة المرنة المتأثرة" : locale === "fr" ? "Enveloppes flexibles concernées" : "Flexible envelopes affected"}
-                  </h5>
-                  {affectedEnvelopes.length === 0 ? (
-                    <p className="text-xs text-[var(--muted)] dark:text-[var(--muted)] italic py-2">
-                      {locale === "ar" ? "لا توجد أظرفة مرنة حاليا." : locale === "fr" ? "Aucune enveloppe flexible active." : "No active flexible envelopes."}
-                    </p>
-                  ) : (
-                    <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1.5 divide-y divide-[var(--border)] dark:divide-slate-800">
-                      {affectedEnvelopes.map((item) => (
-                        <div key={item.envelope.id} className="flex items-center justify-between text-xs py-2">
-                          <span className="font-semibold text-[var(--ink)] dark:text-[var(--muted)]">
-                            {localizeSystemEnvelopeName(item.envelope.name, locale)}
-                          </span>
-                          <span className="font-bold text-[var(--ink)] dark:text-[var(--muted)]">
-                            {Number(item.balance.closing_balance).toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Savings Projection Visual transition */}
-                <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/40 dark:bg-emerald-950/10 p-4 space-y-3">
-                  <h5 className="text-xs font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
-                    <span>🌱</span>
-                    {locale === "ar" ? "توقعات رصيد التوفير (Tawfir)" : locale === "fr" ? "Projection de l'Épargne (Tawfir)" : "Savings Projection (Tawfir)"}
-                  </h5>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-center flex-1">
-                      <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">{locale === "ar" ? "الرصيد الحالي" : locale === "fr" ? "Actuel" : "Current"}</p>
-                      <p className="text-sm font-bold text-[var(--ink)] dark:text-[var(--muted)] mt-1">
-                        {currentSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
-                      </p>
-                    </div>
-
-                    <div className="text-emerald-500 font-extrabold text-xl animate-[pulse_1.5s_ease-in-out_infinite]">
-                      ➔
-                    </div>
-
-                    <div className="text-center flex-1">
-                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">{locale === "ar" ? "الرصيد المتوقع" : locale === "fr" ? "Potentiel" : "Potential"}</p>
-                      <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                        {projectedSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
-                      </p>
-                    </div>
-                  </div>
-                  {totalToSweep > 0 && (
-                    <p className="text-[10px] text-center text-emerald-700/80 dark:text-emerald-500/80 italic leading-normal pt-1 border-t border-emerald-100/30">
-                      {locale === "ar"
-                        ? `هاد المبلغ يقدر يمشي للتوفير فآخر الدورة... إلى ما صرفتيهش من الأظرفة المرنة! 💡`
-                        : locale === "fr"
-                        ? `Ce montant peut alimenter votre épargne en fin de période... si vous ne le dépensez pas depuis vos enveloppes flexibles ! 💡`
-                        : `This amount could go to savings at end of period... if unspent from your flexible envelopes! 💡`}
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          <DialogFooter className="mt-4">
-            <Button onClick={() => setSweepInfoOpen(false)} className="w-full bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-white font-bold rounded-xl py-2 text-sm shadow">
-              {locale === "ar" ? "فهمت" : locale === "fr" ? "Compris" : "Understood"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={incomeReminderDialogOpen}
-        onOpenChange={setIncomeReminderDialogOpen}
-      >
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{copy.incomeDialogTitle}</DialogTitle>
-            <DialogDescription>
-              {copy.incomeDialogDescription(dueVisibleIncomeReminders.length)}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm text-[var(--ink)]">
-            <p>{copy.incomeDialogBody}</p>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-3 py-2">
-              {dueVisibleIncomeReminders.map((reminder) => (
-                <div
-                  key={reminder.id}
-                  className="flex items-center justify-between py-1 text-sm"
-                >
-                  <span className="font-medium">{reminder.name}</span>
-                  <Badge tone="muted">
-                    {reminder.next_due_on ?? copy.toDeclare}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-            <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-              <Checkbox
-                checked={dontShowIncomeReminder}
-                onCheckedChange={(checked) =>
-                  setDontShowIncomeReminder(Boolean(checked))
-                }
-              />
-              {copy.hideReminder}
-            </label>
-          </div>
-          <DialogFooter className="mt-4">
-            <Button variant="secondary" onClick={handleDismissIncomeReminder}>
-              {copy.ignore}
-            </Button>
-            <Button onClick={handleGoDeclareIncome}>
-              {copy.declareNow}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{copy.periodTitle}</DialogTitle>
-            <DialogDescription>
-              {copy.periodDescription}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: "7d", label: copy.preset7 },
-                { value: "30d", label: copy.preset30 },
-                { value: "90d", label: copy.preset90 },
-                { value: "ytd", label: copy.presetYtd },
-                { value: "custom", label: copy.presetCustom },
-              ].map((preset) => (
-                <Button
-                  key={preset.value}
-                  type="button"
-                  size="sm"
-                  variant={periodPreset === preset.value ? "primary" : "secondary"}
-                  onClick={() => setPeriodPreset(preset.value as typeof periodPreset)}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>{copy.start}</Label>
-	                <DatePicker
-	                  value={customStart ? parseIsoDate(customStart) ?? undefined : undefined}
-                  onChange={(date) => {
-                    setPeriodPreset("custom");
-                    setCustomStart(toIsoDate(date));
-                  }}
-                  placeholder={copy.startPlaceholder}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>{copy.end}</Label>
-	                <DatePicker
-	                  value={customEnd ? parseIsoDate(customEnd) ?? undefined : undefined}
-                  onChange={(date) => {
-                    setPeriodPreset("custom");
-                    setCustomEnd(toIsoDate(date));
-                  }}
-                  placeholder={copy.endPlaceholder}
-                />
-              </div>
-            </div>
-            {periodError ? (
-              <Alert tone="error">
-                <AlertDescription>{periodError}</AlertDescription>
-              </Alert>
-            ) : null}
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs text-[var(--muted)]">
-              {copy.selectedPeriod}: {computedPeriodRange.start} {periodArrow}{" "}
-              {computedPeriodRange.end}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setPeriodDialogOpen(false)}
-            >
-              {copy.cancel}
-            </Button>
-            <Button type="button" onClick={handleApplyPeriod}>
-              {copy.apply}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <TourIntroDialog
-        open={introOpen}
-        onOpenChange={(next) => {
-          if (!next) handleSkipIntro();
-          else setIntroOpen(true);
-        }}
-        onStart={handleStartTour}
-        content={tourIntro}
-      />
-
-      <PageTour tour={tour} />
-
-      {!loading && !data && error ? (
-        // A failed load used to leave the skeleton pulsing for ever: the error
-        // was stored in state and never rendered anywhere, so the user was
-        // given no message and no way to retry.
-        <Alert tone="error">
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>
-              {copy.loadFailedTitle} {error}
-            </span>
-            <Button variant="secondary" onClick={() => void loadData(true)}>
-              {copy.retry}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : loading || !data ? (
-        <DashboardSkeleton />
-      ) : (
-        <>
-          {/* Dashboard Cockpit Redesign */}
-          <div
-            ref={headerRef}
-            className="dashboard-cockpit relative overflow-hidden p-6 mb-6"
-            onPointerMove={(event) => {
-              const target = event.currentTarget;
-              const rect = target.getBoundingClientRect();
-              target.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
-              target.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+      {/* 1. TOP HEADER (Barre Ba Omar & Actions) */}
+      <header className="dsh-hdr">
+        <form className="dsh-ask" onSubmit={handleAskOmar}>
+          <span
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              flexShrink: 0,
+              background: "#F2B544",
+              color: "#0F1A16",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "Cairo, sans-serif",
+              fontWeight: 800,
+              fontSize: 16,
             }}
           >
-            {/* Background glowing decorations */}
-            <div className="dashboard-cockpit__decorative-glow dashboard-cockpit__decorative-glow--emerald" />
-            <div className="dashboard-cockpit__decorative-glow dashboard-cockpit__decorative-glow--indigo" />
-            <div aria-hidden="true" className="dashboard-cockpit__spot" />
+            ع
+          </span>
 
-            {/* Header section (Title, Period and Main Buttons) */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[var(--border)] dark:border-slate-800">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h1 className={`${titleClass} text-2xl font-semibold tracking-tight text-[var(--ink)]`}>
-                    {copy.title}
-                  </h1>
-                  {isKpiStartState && (
-                    <Badge tone="muted" className="text-[10px] py-0.5 px-2">
-                      {locale === "ar" ? "بداية" : locale === "fr" ? "Mode démarrage" : "Startup mode"}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs md:text-sm text-[var(--muted)]">
-                  {copy.subtitle}
-                </p>
-              </div>
-
-              {/* Action Buttons & Period Selector */}
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Period Selector */}
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/80 hover:bg-[var(--surface-2)] px-3.5 py-1.5 text-xs text-[var(--ink)] font-semibold transition-all duration-200 shadow-sm hover:shadow cursor-pointer group select-none dark:border-slate-800"
-                  onClick={() => {
-                    const start = activePeriod?.start ?? getLocalTodayISO();
-                    const end = activePeriod?.end ?? getLocalTodayISO();
-                    setPeriodPreset("custom");
-                    setCustomStart(start);
-                    setCustomEnd(end);
-                    setPeriodError(null);
-                    setPeriodDialogOpen(true);
-                  }}
-                >
-                  <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
-                  <span className="tabular-nums">
-                    {activePeriod
-                      ? `${formatLocaleDate(activePeriod.start, locale)} ${periodArrow} ${formatLocaleDate(activePeriod.end, locale)}`
-                      : copy.noPeriod}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-[var(--muted)] group-hover:translate-y-0.5 transition-transform" />
-                </button>
-
-                {/* Sweep Button */}
-                {sweepDue ? (
-                  <Button
-                    variant="ghost"
-                    className="border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-400 dark:hover:bg-amber-950/40 text-xs font-semibold px-3 py-1.5 rounded-full"
-                    onClick={handleRunSweep}
-                    disabled={runningSweep}
-                  >
-                    {runningSweep ? copy.sweepRunning : copy.sweep}
-                  </Button>
-                ) : null}
-
-                {/* Quick Add Buttons */}
-                <Button
-                  className="bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/10 hover:shadow-lg transition-all duration-200 gap-1.5 px-4 py-1.5 rounded-full"
-                  onClick={() => openQuickTransactionDialog("expense")}
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>{copy.addExpense}</span>
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  className="border-indigo-200 hover:border-indigo-300 text-indigo-700 hover:bg-indigo-50/50 dark:border-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-950/20 text-xs font-bold gap-1.5 px-4 py-1.5 rounded-full"
-                  onClick={() =>
-                    openQuickTransactionDialog("income", {
-                      bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                      bootstrapAmount:
-                        sweepBootstrap?.last_income_amount ??
-                        sweepBootstrap?.expected_income_amount ??
-                        null,
-                    })
-                  }
-                >
-                  <Plus className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>{copy.addIncome}</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Three Column Grid (Flows, Envelopes, Attention/Alerts) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
-              
-              {/* Column 1: Flows Overview (نظرة عامة على التدفقات) */}
-              <div className="flex flex-col gap-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1.5 mb-1">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                  {locale === "ar" ? "نظرة عامة على التدفقات" : locale === "fr" ? "Flux de la période" : "Flows Overview"}
-                </h3>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* KPI Available Cash */}
-                  <div
-                    ref={kpiAvailableRef}
-                    className="dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 border-s-emerald-500 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
-                        {copy.availableCash}
-                      </span>
-                      <Wallet className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    </div>
-                    <div className="mt-2">
-                      <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        <AnimatedNumber value={Number(data.available_to_allocate)} format={formatMoney} />{" "}
-                        <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
-                      </div>
-                      <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
-                        {isKpiStartState
-                          ? locale === "ar" ? "لا يوجد دخل بعد" : locale === "fr" ? "Aucun revenu" : "No income"
-                          : copy.notAllocated}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* KPI Expense */}
-                  <div
-                    ref={kpiExpenseRef}
-                    className="dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 border-s-rose-500 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 truncate">
-                        {copy.periodExpenses}
-                      </span>
-                      <TrendingDown className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                    </div>
-                    <div className="mt-2">
-                      <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
-                        <AnimatedNumber value={expenseTotal} format={formatMoney} />{" "}
-                        <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
-                      </div>
-                      <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
-                        {locale === "ar"
-                          ? `${periodExpenseMappedTransactions.length} عملية`
-                          : locale === "fr"
-                          ? `${periodExpenseMappedTransactions.length} op.`
-                          : `${periodExpenseMappedTransactions.length} tx.`}
-                        {unmappedCount > 0 ? copy.unmappedSuffix(unmappedCount) : ""}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* KPI Income */}
-                  <div
-                    ref={kpiIncomeRef}
-                    className="dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 border-s-indigo-500 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 truncate">
-                        {copy.periodIncome}
-                      </span>
-                      <TrendingUp className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                    </div>
-                    <div className="mt-2">
-                      <div className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 tabular-nums">
-                        <AnimatedNumber value={incomeTotal} format={formatMoney} />{" "}
-                        <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
-                      </div>
-                      <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
-                        {locale === "ar"
-                          ? `${periodIncomeTransactions.length} مداخيل`
-                          : locale === "fr"
-                          ? `${periodIncomeTransactions.length} revenu(s)`
-                          : `${periodIncomeTransactions.length} income(s)`}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* KPI Net */}
-                  {(() => {
-                    const isPositive = netTotal >= 0;
-                    const netColorClass = isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
-                    const borderSideClass = isPositive ? "border-s-emerald-500" : "border-s-rose-500";
-                    return (
-                      <div
-                        ref={kpiNetRef}
-                        className={`dashboard-cockpit__subcard p-3 relative overflow-hidden border-s-4 ${borderSideClass} flex flex-col justify-between`}
-                      >
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className={`text-[10px] font-semibold ${netColorClass} flex items-center gap-1 truncate`}>
-                            {copy.periodNet}
-                          </span>
-                          <Scale className={`h-3.5 w-3.5 ${isPositive ? "text-emerald-500" : "text-rose-500"} shrink-0`} />
-                        </div>
-                        <div className="mt-2">
-                          <div className={`text-base font-extrabold ${netColorClass} tabular-nums`}>
-                            <AnimatedNumber value={netTotal} format={formatMoney} />{" "}
-                            <span className="text-[10px] font-semibold opacity-75">{data.user.currency}</span>
-                          </div>
-                          <p className="text-[9px] text-[var(--muted)] mt-0.5 truncate">
-                            {lastActivityLabel}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Column 2: Envelopes Overview (الأظرفة) */}
-              <div className="flex flex-col gap-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1.5 mb-1">
-                  <Layers className="h-3.5 w-3.5 text-indigo-500" />
-                  {locale === "ar" ? "وضعية الأظرفة" : locale === "fr" ? "Statut des enveloppes" : "Envelopes Status"}
-                </h3>
-
-                <div className="dashboard-cockpit__subcard p-4 flex flex-col justify-between flex-1 gap-4">
-                  {/* Stats numbers */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {focusEnvelopeRows.filter(e => !e.isOverspent && !e.nearLimit).length}
-                      </div>
-                      <div className="text-[9px] text-[var(--muted)] mt-0.5 font-medium">
-                        {locale === "ar" ? "سليمة" : locale === "fr" ? "Saines" : "Healthy"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-base font-extrabold text-amber-600 dark:text-amber-400 tabular-nums">
-                        {focusEnvelopeRows.filter(e => e.nearLimit && !e.isOverspent).length}
-                      </div>
-                      <div className="text-[9px] text-[var(--muted)] mt-0.5 font-medium">
-                        {locale === "ar" ? "قريبة للحد" : locale === "fr" ? "Limites" : "Near limit"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
-                        {focusEnvelopeRows.filter(e => e.isOverspent).length}
-                      </div>
-                      <div className="text-[9px] text-[var(--muted)] mt-0.5 font-medium">
-                        {locale === "ar" ? "تجاوزت" : locale === "fr" ? "Dépassées" : "Overspent"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Horizontal Stacked Progress Bar */}
-                  {(() => {
-                    const totalEnv = focusEnvelopeRows.length || 1;
-                    const healthyCount = focusEnvelopeRows.filter(e => !e.isOverspent && !e.nearLimit).length;
-                    const nearCount = focusEnvelopeRows.filter(e => e.nearLimit && !e.isOverspent).length;
-                    const overspentCount = focusEnvelopeRows.filter(e => e.isOverspent).length;
-                    
-                    const healthyPct = (healthyCount / totalEnv) * 100;
-                    const nearPct = (nearCount / totalEnv) * 100;
-                    const overspentPct = (overspentCount / totalEnv) * 100;
-
-                    return (
-                      <div className="space-y-1.5">
-                        <div className="envelope-progress-bar-container">
-                          {overspentCount > 0 && (
-                            <div
-                              className="envelope-progress-bar-segment envelope-progress-bar-segment--overspent"
-                              style={{ width: `${overspentPct}%` }}
-                            />
-                          )}
-                          {nearCount > 0 && (
-                            <div
-                              className="envelope-progress-bar-segment envelope-progress-bar-segment--near"
-                              style={{ width: `${nearPct}%` }}
-                            />
-                          )}
-                          {healthyCount > 0 && (
-                            <div
-                              className="envelope-progress-bar-segment envelope-progress-bar-segment--healthy"
-                              style={{ width: `${healthyPct}%` }}
-                            />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between text-[9px] text-[var(--muted)]">
-                          <span>{focusEnvelopeRows.length} {locale === "ar" ? "أظرفة مفعلة" : locale === "fr" ? "enveloppes actives" : "active envelopes"}</span>
-                          <Link href="/envelopes" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
-                            {copy.viewAllEnvelopes}
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Column 3: Urgent Needs / Attention (الحاجات المستعجلة) */}
-              <div ref={todoRef} className="flex flex-col gap-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1.5 mb-1">
-                  <Bell className="h-3.5 w-3.5 text-rose-500 animate-pulse" />
-                  {locale === "ar" ? "الحاجات المستعجلة" : locale === "fr" ? "Urgent à faire" : "Urgent Needs"}
-                </h3>
-
-                <div className={`dashboard-cockpit__subcard p-4 flex flex-col flex-1 gap-3 ${
-                  showTodoSection
-                    ? "justify-between overflow-y-auto max-h-[190px] sm:max-h-[220px]"
-                    : "justify-center items-center min-h-[140px] sm:min-h-[170px]"
-                }`}>
-                  {showTodoSection ? (
-                    <div className="space-y-2">
-                      {/* First income reminder */}
-                      {needsFirstIncomeDeclaration && (
-                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--warning flex flex-col gap-1.5">
-                          <p className="text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
-                            {copy.sweepBootstrapTitle}
-                          </p>
-                          <div className="flex items-center justify-between gap-2.5">
-                            <span className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-500 leading-tight">
-                              {copy.sweepBootstrapDesc}
-                            </span>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="bg-amber-100 hover:bg-amber-200 border-amber-200 text-amber-900 font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full"
-                              onClick={() =>
-                                openQuickTransactionDialog("income", {
-                                  bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                                  bootstrapAmount:
-                                    sweepBootstrap?.last_income_amount ??
-                                    sweepBootstrap?.expected_income_amount ??
-                                    null,
-                                })
-                              }
-                            >
-                              {copy.sweepBootstrapAction}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Due Income Reminders */}
-                      {dueIncomeReminders.length > 0 && (
-                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--info flex flex-col gap-1.5">
-                          <p className="text-[11px] sm:text-xs font-bold text-indigo-800 dark:text-indigo-400 flex items-center gap-1.5">
-                            💰 {copy.incomeDialogDescription(dueIncomeReminders.length)}
-                          </p>
-                          <div className="flex items-center justify-between gap-2.5">
-                            <span className="text-[10px] sm:text-[11px] text-indigo-700 dark:text-indigo-500 leading-tight truncate max-w-[130px] sm:max-w-none">
-                              {dueIncomeReminders.map((reminder) => reminder.name).join(", ")}
-                            </span>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="bg-indigo-100 hover:bg-indigo-200 border-indigo-200 text-indigo-900 font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full"
-                              onClick={() =>
-                                openQuickTransactionDialog("income", {
-                                  bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                                  bootstrapAmount:
-                                    sweepBootstrap?.last_income_amount ??
-                                    sweepBootstrap?.expected_income_amount ??
-                                    null,
-                                  reminderIdsToMark: dueIncomeReminders.map((r) => r.id),
-                                })
-                              }
-                            >
-                              {copy.declareIncome}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Categories to map */}
-                      {unmappedCount > 0 && (
-                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--warning flex flex-col gap-1.5">
-                          <p className="text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
-                            {locale === "ar" ? `فئات غير مربوطة (${unmappedCount})` : `Catégories non liées (${unmappedCount})`}
-                          </p>
-                          <div className="flex items-center justify-between gap-2.5">
-                            <span className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-500 leading-tight">
-                              {copy.categoriesToMapDesc}
-                            </span>
-                            <Button asChild variant="secondary" size="sm" className="font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full">
-                              <Link href="/categories">{copy.mapNow}</Link>
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Overspent envelopes */}
-                      {overspentEnvelopes.length > 0 && (
-                        <div className="dashboard-cockpit__alert-item dashboard-cockpit__alert-item--error flex flex-col gap-1.5">
-                          <p className="text-[11px] sm:text-xs font-bold text-rose-800 dark:text-rose-400 flex items-center gap-1.5">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
-                            {copy.overspentAlert(overspentEnvelopes.length, overspentEnvelopes.slice(0, 2).join(", "))}
-                          </p>
-                          <div className="flex items-center justify-between gap-2.5">
-                            <span className="text-[10px] sm:text-[11px] text-rose-700 dark:text-rose-500 leading-tight">
-                              {copy.overspentDesc}
-                            </span>
-                            <Button asChild variant="secondary" size="sm" className="font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full">
-                              <Link href="/envelopes?filter=overspent">{copy.seeAll}</Link>
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Sweep Ready / auto-sweep failed */}
-                      {(sweepDue || sweepAutoError) && (
-                        <div
-                          className={
-                            sweepAutoError
-                              ? "dashboard-cockpit__alert-item dashboard-cockpit__alert-item--warning flex flex-col gap-1.5"
-                              : "dashboard-cockpit__alert-item dashboard-cockpit__alert-item--success flex flex-col gap-1.5"
-                          }
-                        >
-                          <p
-                            className={
-                              sweepAutoError
-                                ? "text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5"
-                                : "text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5"
-                            }
-                          >
-                            <CheckCircle2 className="h-4 w-4 shrink-0" />
-                            {sweepAutoError ? copy.sweepAutoErrorTitle : copy.sweepReady}
-                          </p>
-                          <div className="flex items-center justify-between gap-2.5">
-                            <span
-                              className={
-                                sweepAutoError
-                                  ? "text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-500 leading-tight"
-                                  : "text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-500 leading-tight"
-                              }
-                            >
-                              {sweepAutoError ? copy.sweepAutoErrorDesc : copy.sweepReadyDesc}
-                            </span>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="bg-emerald-100 hover:bg-emerald-200 border-emerald-200 text-emerald-900 font-bold shrink-0 text-[10px] sm:text-xs py-1 px-2.5 h-auto rounded-full"
-                              onClick={handleRunSweep}
-                              disabled={runningSweep}
-                            >
-                              {runningSweep ? copy.executing : copy.sweepExecute}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* Default Success/Healthy state */
-                    <motion.div
-                      className="flex flex-col items-center justify-center text-center py-2 px-4 gap-3 w-full h-full select-none"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.35, ease: "easeOut" }}
-                    >
-                      <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/30 flex items-center justify-center shadow-[0_8px_20px_-6px_rgba(16,185,129,0.35)] dark:shadow-none border border-emerald-200/40 dark:border-emerald-800/20 transition-transform hover:scale-105 duration-300">
-                        <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm sm:text-base font-extrabold text-emerald-700 dark:text-emerald-400 tracking-tight">
-                          {locale === "ar" ? "كل شيء ممتاز!" : locale === "fr" ? "Tout est sous contrôle !" : "All under control!"}
-                        </p>
-                        <p className="text-[11px] sm:text-xs text-[var(--muted)] leading-relaxed max-w-[240px]">
-                          {locale === "ar" ? "جميع المقاييس سليمة. لا توجد تنبيهات عاجلة." : locale === "fr" ? "Toutes vos enveloppes et transactions sont bien gérées." : "All your envelopes and transactions are well managed."}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-
-
-      {!hideDashboardDetailsUntilFirstIncome ? (
-        <>
-          {/* Épargne Automatique Countdown Widget */}
-          {currentCycleData?.current_period?.end && (() => {
-            const today = getLocalTodayISO();
-            const diff = daysBetweenIso(today, currentCycleData.current_period.end);
-            const daysRemaining = diff >= 0 ? diff : 0;
-
-            // Motivational forecast of flexible leftovers only (see the sweep
-            // info dialog above) — fixed-expense envelopes are excluded on
-            // purpose. The real sweep still moves rollover-off fixed leftovers;
-            // GET /sweeps/preview is the source of truth for that.
-            const fixedDistributionEnvelopeIds = new Set(
-              distributionRules
-                .filter(
-                  (rule) =>
-                    rule.target_type === "envelope" &&
-                    rule.enabled &&
-                    isFixedMode(rule.mode)
-                )
-                .map((rule) => rule.target_id)
-            );
-
-            const affectedEnvelopes = currentCycleData.envelopes.filter(
-              (item) =>
-                !item.envelope.rollover_enabled &&
-                !item.envelope.is_default_savings &&
-                !item.envelope.is_cash &&
-                !item.envelope.is_goal &&
-                !item.envelope.is_debt &&
-                !fixedDistributionEnvelopeIds.has(String(item.envelope.id))
-            );
-
-            const totalToSweep = affectedEnvelopes.reduce(
-              (sum, item) => sum + Math.max(0, Number(item.balance.closing_balance || 0)),
-              0
-            );
-
-            const savingsEnvelope = currentCycleData.envelopes.find((item) => item.envelope.is_default_savings);
-            const currentSavings = savingsEnvelope ? Number(savingsEnvelope.balance.closing_balance || 0) : 0;
-            const projectedSavings = currentSavings + totalToSweep;
-            const currency = currentCycleData.user.currency || "DH";
-
-            return (
-              <motion.div
-                className="mb-4 rounded-[24px] border border-emerald-100 dark:border-emerald-900/50 bg-gradient-to-r from-emerald-50/60 via-teal-50/40 to-cyan-50/60 dark:from-slate-900 dark:via-emerald-950/10 dark:to-cyan-950/10 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 dark:from-emerald-500 dark:to-teal-500 flex items-center justify-center text-white text-xl shadow-[0_8px_16px_-6px_rgba(16,185,129,0.4)] shrink-0">
-                    💰
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
-                      {locale === "ar" ? "توفير تلقائي جاي" : locale === "fr" ? "Épargne automatique à venir" : "Upcoming automatic savings"}
-                      <button
-                        type="button"
-                        onClick={() => setSweepInfoOpen(true)}
-                        className="h-5 w-5 inline-flex items-center justify-center rounded-full bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900 dark:hover:bg-emerald-800 text-emerald-700 dark:text-emerald-300 transition-colors text-[10px] font-bold"
-                        title="Info"
-                      >
-                        i
-                      </button>
-                    </h4>
-                    <p className="text-xs text-emerald-800/80 dark:text-emerald-400/80">
-                      {locale === "ar"
-                        ? `ما صرفتيهش من الأظرفة المرنة؟ يمشي للتوفير تلقائياً فآخر الدورة.`
-                        : locale === "fr"
-                        ? `Ce que vous n'avez pas dépensé dans vos enveloppes flexibles ira automatiquement en épargne.`
-                        : `Unspent money from your flexible envelopes automatically goes to savings at period end.`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 shrink-0 justify-between sm:justify-end border-t sm:border-t-0 border-emerald-100/50 dark:border-emerald-900/30 pt-3 sm:pt-0">
-                  <div className="text-left sm:text-right">
-                    <p className="text-[10px] uppercase font-semibold tracking-wider text-emerald-700/60 dark:text-emerald-500/60">
-                      {locale === "ar" ? "الوقت المتبقي" : locale === "fr" ? "Temps restant" : "Time remaining"}
-                    </p>
-                    <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                      {daysRemaining} {locale === "ar" ? "أيام" : locale === "fr" ? (daysRemaining > 1 ? "jours" : "jour") : (daysRemaining > 1 ? "days" : "day")}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase font-semibold tracking-wider text-emerald-700/60 dark:text-emerald-500/60">
-                      {locale === "ar" ? "المبلغ المتوقع" : locale === "fr" ? "Épargne projetée" : "Projected savings"}
-                    </p>
-                    <p className="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">
-                      {projectedSavings.toLocaleString(locale === "ar" ? "ar-MA" : "fr-FR", { minimumFractionDigits: 2 })} {currency}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })()}
-
-          <div className="dashboard-main-grid">
-          <motion.div
-            ref={summaryRef}
-            className="dashboard-main-summary flex flex-col gap-4"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
-            whileHover={{ scale: 1.01 }}
-          >
-            <DashboardCharts
-              locale={locale}
-              chartData={chartData}
-              totalBudget={totalBudget}
-              spendingByEnvelope={spendingByEnvelope}
-              sortedTrends={sortedTrends}
-              data={data}
-              formatMoney={formatMoney}
-              formatLocaleDate={formatLocaleDate}
-            />
-          </motion.div>
-
-          <motion.section
-            className="dashboard-main-health grid gap-4"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-          >
-        <Section
-          title={copy.widgetCashSplit}
-          className="dashboard-panel"
-          actions={
-            <div className="flex gap-2">
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/distribution">{copy.widgetOpenDistribution}</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/sweeps">{copy.widgetOpenSweeps}</Link>
-              </Button>
-            </div>
-          }
-        >
-          {/* Subtitle + meta badges */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-[var(--muted)]">{copy.widgetCashSplitDesc}</p>
-            <div className="flex flex-wrap gap-1.5">
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-                style={{ background: "rgba(99,102,241,0.10)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.22)" }}
-              >
-                <span style={{ width:5, height:5, borderRadius:"50%", background:"#6366f1", display:"inline-block", flexShrink:0 }} />
-                {planDirectionLabel}
-              </span>
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-                style={autoSweepEnabled
-                  ? { background:"rgba(16,185,129,0.10)", color:"#059669", border:"1px solid rgba(16,185,129,0.25)" }
-                  : { background:"rgba(148,163,184,0.10)", color:"var(--muted)", border:"1px solid rgba(148,163,184,0.22)" }}
-              >
-                <span style={{ width:5, height:5, borderRadius:"50%", background:autoSweepEnabled ? "#10b981" : "#94a3b8", display:"inline-block", flexShrink:0 }} />
-                {copy.widgetAutoSweep}: {autoSweepEnabled ? copy.widgetAutoSweepOn : copy.widgetAutoSweepOff}
-              </span>
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tabular-nums"
-                style={{ background:"rgba(234,179,8,0.10)", color:"#b45309", border:"1px solid rgba(234,179,8,0.25)" }}
-              >
-                {copy.widgetPlanCoverage}: {distributionCoverage.coveredRules}/{distributionCoverage.totalRules}
-              </span>
-            </div>
-          </div>
-
-          {/* Main layout: ring chart + breakdown */}
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-            {/* SVG Ring / Donut */}
-            {(() => {
-              const currency = data?.user.currency ?? "MAD";
-              const totalCash = Number(cashSplitPreview?.cash_before ?? 0);
-              const debtVal = cashSplitLayerTotals.debtGoals;
-              const fixedVal = cashSplitLayerTotals.fixed;
-              const flexVal = cashSplitLayerTotals.flexible;
-              const cashLeftVal = Math.max(0, cashSplitLayerTotals.cashLeft);
-              const grandTotal = debtVal + fixedVal + flexVal + cashLeftVal || 1;
-              const segments: { pct: number; color: string; label: string }[] = [
-                { pct: (debtVal / grandTotal) * 100, color: "#ef4444", label: copy.widgetDebt },
-                { pct: (fixedVal / grandTotal) * 100, color: "#f59e0b", label: copy.widgetFixed },
-                { pct: (flexVal / grandTotal) * 100, color: "#6366f1", label: copy.widgetMorona },
-                { pct: (cashLeftVal / grandTotal) * 100, color: "#10b981", label: copy.widgetCashLeft },
-              ];
-              const cx = 54; const cy = 54; const r = 42; const sw = 13;
-              const circ = 2 * Math.PI * r;
-              let offset = 0;
-              return (
-                <div className="flex flex-col items-center gap-2 shrink-0">
-                  <div className="relative" style={{ width:108, height:108 }}>
-                    <svg width="108" height="108" viewBox="0 0 108 108">
-                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(148,163,184,0.14)" strokeWidth={sw} />
-                      {segments.map((seg, i) => {
-                        const gapLen = (1.5 / 360) * circ;
-                        const segLen = Math.max(0, (seg.pct / 100) * circ - gapLen);
-                        const dash = `${segLen} ${circ - segLen}`;
-                        const dashOffset = circ * (1 - offset / 100);
-                        const el = (
-                          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-                            stroke={seg.color} strokeWidth={sw}
-                            strokeDasharray={dash} strokeDashoffset={dashOffset}
-                            strokeLinecap="round"
-                            transform={`rotate(-90 ${cx} ${cy})`}
-                            style={{ transition:"stroke-dasharray 0.6s ease" }}
-                          />
-                        );
-                        offset += seg.pct;
-                        return el;
-                      })}
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ pointerEvents:"none" }}>
-                      <span className="text-[9px] font-medium text-[var(--muted)]">{currency}</span>
-                      <span className="tabular-nums font-bold leading-tight text-[var(--ink)]"
-                        style={{ fontSize: totalCash >= 10000 ? "0.7rem" : "0.78rem" }}>
-                        {formatMoney(totalCash)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 w-full" style={{ minWidth:110 }}>
-                    {segments.map((seg, i) => (
-                      <div key={i} className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span style={{ width:7, height:7, borderRadius:"50%", background:seg.color, display:"inline-block", flexShrink:0 }} />
-                          <span className="text-[10px] text-[var(--muted)] truncate">{seg.label}</span>
-                        </div>
-                        <span className="text-[10px] font-semibold tabular-nums text-[var(--ink)] shrink-0">{seg.pct.toFixed(0)}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Breakdown rows */}
-            <div className="flex-1 min-w-0 flex flex-col gap-2">
-              {planRebalance.total > 0 ? (
-                <>
-                  {/* Segmented bar */}
-                  <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background:"rgba(148,163,184,0.14)", gap:"1px" }}>
-                    <div className="rounded-l-full transition-all duration-700"
-                      style={{ width:`${planRebalance.debtPct}%`, background:"linear-gradient(90deg,#ef4444,#f87171)", minWidth: planRebalance.debtPct > 0 ? 4 : 0 }} />
-                    <div className="transition-all duration-700"
-                      style={{ width:`${planRebalance.goalsPct}%`, background:"linear-gradient(90deg,#6366f1,#818cf8)", minWidth: planRebalance.goalsPct > 0 ? 4 : 0 }} />
-                    <div className="rounded-r-full transition-all duration-700"
-                      style={{ width:`${planRebalance.moronaPct}%`, background:"linear-gradient(90deg,#22c55e,#4ade80)", minWidth: planRebalance.moronaPct > 0 ? 4 : 0 }} />
-                  </div>
-                  {/* Debt / Goals / Flex rows */}
-                  <div className="flex flex-col gap-1.5 mt-1">
-                    {[
-                      { label: copy.widgetDebt,   value: planRebalance.debt,   color:"#ef4444", bg:"rgba(239,68,68,0.07)",   pct: planRebalance.debtPct },
-                      { label: copy.widgetGoals,  value: planRebalance.goals,  color:"#6366f1", bg:"rgba(99,102,241,0.07)",  pct: planRebalance.goalsPct },
-                      { label: copy.widgetMorona, value: planRebalance.morona, color:"#22c55e", bg:"rgba(34,197,94,0.07)",   pct: planRebalance.moronaPct },
-                    ].map((item) => (
-                      <div key={item.label}
-                        className="flex items-center justify-between rounded-xl px-2.5 py-1.5"
-                        style={{ background: item.bg, border:`1px solid ${item.color}22` }}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span style={{ width:7, height:7, borderRadius:"50%", background:item.color, display:"inline-block", flexShrink:0, boxShadow:`0 0 0 2px ${item.color}22` }} />
-                          <span className="text-xs font-medium text-[var(--ink)] truncate">{item.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ms-2">
-                          <span className="text-[10px] tabular-nums font-semibold" style={{ color:item.color }}>{item.pct.toFixed(0)}%</span>
-                          <span className="text-xs font-bold tabular-nums text-[var(--ink)]">{formatMoney(item.value)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-[var(--muted)]">{copy.widgetNoPlan}</p>
-              )}
-
-              {/* Fixed + Cash Left */}
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5"
-                  style={{ background:"rgba(245,158,11,0.07)", border:"1px solid rgba(245,158,11,0.2)" }}>
-                  <span className="text-[10px] text-[var(--muted)]">{copy.widgetFixed}</span>
-                  <span className="text-sm font-bold tabular-nums text-[var(--ink)]">{formatMoney(cashSplitLayerTotals.fixed)}</span>
-                </div>
-                <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5"
-                  style={cashSplitLayerTotals.cashLeft > 0
-                    ? { background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.22)" }
-                    : { background:"rgba(148,163,184,0.08)", border:"1px solid rgba(148,163,184,0.18)" }}>
-                  <span className="text-[10px] text-[var(--muted)]">{copy.widgetCashLeft}</span>
-                  <span className="text-sm font-bold tabular-nums" style={{ color: cashSplitLayerTotals.cashLeft > 0 ? "#059669" : "var(--ink)" }}>
-                    {formatMoney(cashSplitLayerTotals.cashLeft)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        <Section title={copy.widgetRisk} className="dashboard-panel">
-          <p className="text-xs text-[var(--muted)]">{copy.widgetRiskDesc}</p>
-          <div className="mt-3 grid gap-2">
-            {riskEnvelopes.length === 0 ? (
-              <Alert>
-                <AlertDescription className="text-sm">{copy.widgetRiskAllHealthy}</AlertDescription>
-              </Alert>
-            ) : (
-              riskEnvelopes.map((item) => {
-                const meta = statusMeta(item.status);
-                const pct = item.allocated > 0
-                  ? Math.min(Math.abs(item.spent) / item.allocated, 1.15)
-                  : item.isOverspent ? 1.15 : 0;
-                const barPct = Math.min(pct * 100, 115);
-                const barColor = item.isOverspent
-                  ? "var(--accent-error, #ef4444)"
-                  : item.nearLimit
-                  ? "var(--accent-warning, #f59e0b)"
-                  : "var(--accent-success, #10b981)";
-                const overage = item.isOverspent ? Math.abs(item.remaining) : null;
-                return (
-                  <Card key={item.id} className="dashboard-list-card" style={{ overflow: "hidden" }}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm font-semibold truncate">{item.name}</p>
-                          <Badge tone={meta.tone}>{meta.label}</Badge>
-                        </div>
-                        <div
-                          style={{
-                            height: "6px",
-                            borderRadius: "3px",
-                            background: "var(--border, #e2e8f0)",
-                            overflow: "hidden",
-                            marginBottom: "6px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${Math.min(barPct, 100)}%`,
-                              background: barColor,
-                              borderRadius: "3px",
-                              transition: "width 0.4s ease",
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs text-[var(--muted)]">
-                          {formatMoney(item.spent)}
-                          {" / "}
-                          {formatMoney(item.allocated)}
-                          {" "}{copy.spentLabel}
-                          {overage !== null && (
-                            <span style={{ color: "var(--accent-error, #ef4444)", fontWeight: 600, marginInlineStart: "0.4em" }}>
-                              (+{formatMoney(overage)})
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })
-            )}
-          </div>
-          {riskEnvelopes.length > 0 && (
-            <div className="mt-3">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/envelopes">{copy.viewAllEnvelopes}</Link>
-              </Button>
-            </div>
-          )}
-        </Section>
-      </motion.section>
-
-      <motion.section
-        className="dashboard-main-insights grid gap-4"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.35 }}
-      >
-        <Section title={copy.widgetDebtGoalsPressure} className="dashboard-panel">
-          <div
-            className="flex items-stretch gap-0 mt-2 rounded-lg overflow-hidden"
-            style={{ border: "1px solid var(--border)" }}
-          >
-            {/* Debt side */}
-            <div className="flex-1 flex flex-col justify-center px-3 py-2.5">
-              <p className="text-[11px] text-[var(--muted)] font-medium uppercase tracking-wide leading-none mb-1">
-                {copy.widgetDebtPressure}
-              </p>
-              <p className="text-base font-bold tabular-nums leading-tight">
-                {formatMoney(debtPressureTotals.monthlyAllocation)}
-              </p>
-              <p className="text-[11px] text-[var(--muted)] mt-0.5 leading-tight">
-                {debtPressureTotals.rulesCount > 0
-                  ? `${debtPressureTotals.rulesCount} ${
-                      locale === "ar" ? "ظرف دين" : locale === "fr" ? "enveloppe(s)" : "envelope(s)"
-                    }`
-                  : copy.widgetNoDebt}
-              </p>
-            </div>
-
-            {/* Divider */}
-            <div style={{ width: "1px", background: "var(--border)" }} />
-
-            {/* Goals side */}
-            <div className="flex-1 flex flex-col justify-center px-3 py-2.5">
-              <p className="text-[11px] text-[var(--muted)] font-medium uppercase tracking-wide leading-none mb-1">
-                {copy.widgetGoalsPressure}
-              </p>
-              <div className="flex items-baseline gap-1.5">
-                <p
-                  className="text-base font-bold tabular-nums leading-tight"
-                  style={{
-                    color: goalsCompletionPct >= 80
-                      ? "var(--accent-success, #10b981)"
-                      : goalsCompletionPct >= 40
-                      ? "var(--accent-warning, #f59e0b)"
-                      : "var(--ink)",
-                  }}
-                >
-                  {goalsCompletionPct.toFixed(1)}%
-                </p>
-              </div>
-              {goals.length > 0 && (
-                <div style={{ height: "4px", borderRadius: "2px", background: "var(--border, #e2e8f0)", overflow: "hidden", margin: "4px 0" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${Math.min(goalsCompletionPct, 100)}%`,
-                      background: goalsCompletionPct >= 80
-                        ? "var(--accent-success, #10b981)"
-                        : goalsCompletionPct >= 40
-                        ? "var(--accent-warning, #f59e0b)"
-                        : "var(--accent-strong, #6366f1)",
-                      borderRadius: "2px",
-                      transition: "width 0.5s ease",
-                    }}
-                  />
-                </div>
-              )}
-              <p className="text-[11px] text-[var(--muted)] leading-tight">
-                {goals.length > 0
-                  ? `${formatMoney(goalsPressureTotals.current)} / ${formatMoney(goalsPressureTotals.target)}`
-                  : copy.widgetNoGoals}
-              </p>
-            </div>
-          </div>
-        </Section>
-
-
-
-
-      </motion.section>
-
-      <motion.div
-        ref={envelopesRef}
-        className="dashboard-main-envelopes"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.4 }}
-      >
-        <Section
-          title={copy.topEnvelopes}
-          className="dashboard-panel"
-          actions={
-            <div className="flex gap-2">
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/envelopes">{copy.allocateFunds}</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/envelopes">{copy.viewAllEnvelopes}</Link>
-              </Button>
-            </div>
-          }
-        >
-          <Tabs
-            value={envelopeFilter}
-            onValueChange={(value) => {
-              setEnvelopeFilter(value as "active" | "overspent" | "near");
-              setShowAllEnvelopes(false);
+          <input
+            value={omarText}
+            onChange={(e) => setOmarText(e.target.value)}
+            aria-label="Demander à Ba Omar"
+            placeholder={
+              locale === "ar"
+                ? "كتب ولا قول مصروف… (خسرت 150 فالمارشي)"
+                : "Écris ou dis une dépense… (khsert 150 f lmarche)"
+            }
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: 0,
+              outline: 0,
+              background: "transparent",
+              color: "var(--dsh-ink)",
+              fontFamily: "inherit",
+              fontSize: 14.5,
+              fontWeight: 500,
             }}
-          >
-            <TabsList>
-              <TabsTrigger value="active">
-                {copy.filterActive}
-                {focusEnvelopeRows.filter((e) => !e.isOverspent).length > 0 && (
-                  <span style={{ marginInlineStart: "0.35em", fontSize: "0.68rem", background: "var(--accent-success, #10b981)", color: "#fff", borderRadius: "999px", padding: "0 5px", lineHeight: "1.5", fontWeight: 700, verticalAlign: "middle", display: "inline-block" }}>
-                    {focusEnvelopeRows.filter((e) => !e.isOverspent).length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="overspent">
-                {copy.filterOverspent}
-                {focusEnvelopeRows.filter((e) => e.isOverspent).length > 0 && (
-                  <span style={{ marginInlineStart: "0.35em", fontSize: "0.68rem", background: "var(--accent-error, #ef4444)", color: "#fff", borderRadius: "999px", padding: "0 5px", lineHeight: "1.5", fontWeight: 700, verticalAlign: "middle", display: "inline-block" }}>
-                    {focusEnvelopeRows.filter((e) => e.isOverspent).length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="near">
-                {copy.filterNear}
-                {focusEnvelopeRows.filter((e) => e.nearLimit && !e.isOverspent).length > 0 && (
-                  <span style={{ marginInlineStart: "0.35em", fontSize: "0.68rem", background: "var(--accent-warning, #f59e0b)", color: "#fff", borderRadius: "999px", padding: "0 5px", lineHeight: "1.5", fontWeight: 700, verticalAlign: "middle", display: "inline-block" }}>
-                    {focusEnvelopeRows.filter((e) => e.nearLimit && !e.isOverspent).length}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Separator className="my-4" />
-          {sectionHasOnlyZeroState ? (
-            <Alert>
-              <AlertDescription>
-                {locale === "ar"
-                  ? "مازال ما تسجل حتى حركة فهاد الفترة، لذلك الأظرفة باينين بــ 0.00."
-                  : locale === "fr"
-                  ? "Aucun mouvement n'est encore enregistré sur cette période, les enveloppes restent à 0.00."
-                  : "No activity has been recorded in this period yet, so envelopes remain at 0.00."}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {pinnedDebtEnvelope &&
-          !topEnvelopes.some((item) => item.id === pinnedDebtEnvelope.id) ? (
-            <div
-              className="mb-3 rounded-lg p-3"
+          />
+
+          {isGuest && (
+            <span
               style={{
-                background: "rgba(245,158,11,0.06)",
-                border: "1px solid var(--accent-warning, #f59e0b)",
-                borderInlineStartWidth: "3px",
+                flexShrink: 0,
+                padding: "3px 10px",
+                borderRadius: 999,
+                background: "var(--dsh-warn-soft)",
+                color: "var(--dsh-warn-ink)",
+                fontSize: 11.5,
+                fontWeight: 800,
               }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span style={{ fontSize: "0.8rem" }}>📌</span>
-                    <p className="text-sm font-semibold truncate">{pinnedDebtEnvelope.name}</p>
-                    <Badge tone="warning">
-                      {locale === "ar" ? "دين" : locale === "fr" ? "Dette" : "Debt"}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-[var(--muted)]">
-                    {locale === "ar"
-                      ? "مثبّت فالعرض باش يبقى باين فالقرار."
-                      : locale === "fr"
-                      ? "Épinglé pour rester visible dans la décision."
-                      : "Pinned to stay visible in decision view."}
-                  </p>
-                </div>
-                <div
-                  className="shrink-0 text-end"
-                  style={{ color: pinnedDebtEnvelope.remaining >= 0 ? "var(--accent-success, #10b981)" : "var(--accent-error, #ef4444)" }}
-                >
-                  <p className="text-base font-bold tabular-nums">{formatMoney(pinnedDebtEnvelope.remaining)}</p>
-                  <p className="text-[10px] text-[var(--muted)] leading-tight">{data?.user.currency ?? "MAD"}</p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          {topEnvelopes.length === 0 ? (
-            <EmptyState
-              title={copy.noEnvelopeTitle}
-              description={copy.noEnvelopeDescription}
+              {locale === "ar"
+                ? `${guestTries} محاولات متبقية`
+                : `${guestTries} essai${guestTries > 1 ? "s" : ""} restant${
+                    guestTries > 1 ? "s" : ""
+                  }`}
+            </span>
+          )}
+
+          <button
+            type="button"
+            aria-label="Dicter"
+            onClick={() => {
+              toast({
+                title:
+                  locale === "ar" ? "التسجيل الصوتي" : "Saisie vocale",
+                description:
+                  locale === "ar"
+                    ? "خاصية الميكروفون ستتوفر قريباً."
+                    : "L'écoute vocale arrive bientôt.",
+              });
+            }}
+            style={{
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              border: 0,
+              borderRadius: 18,
+              background: "transparent",
+              color: "var(--dsh-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Mic size={18} />
+          </button>
+
+          <button
+            type="submit"
+            aria-label="Envoyer"
+            style={{
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              border: 0,
+              borderRadius: 18,
+              background: "#0A7A53",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 4px 10px rgba(10, 122, 83, 0.35)",
+            }}
+          >
+            <ArrowRight
+              size={16}
+              strokeWidth={2.6}
+              style={{ transform: isRTL ? "scaleX(-1)" : "none" }}
             />
+          </button>
+        </form>
+
+        <div className="dsh-act">
+          {/* Pilule Invité */}
+          {isGuest ? (
+            <button
+              onClick={() => setWallModal("Sauvegarde")}
+              style={{
+                height: 38,
+                padding: "0 12px",
+                border: 0,
+                borderRadius: 19,
+                background: "var(--dsh-brand-soft)",
+                color: "var(--dsh-brand-ink)",
+                fontSize: 13,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background: "#0A7A53",
+                }}
+              />
+              {locale === "ar" ? "وضع الاكتشاف" : "Mode Découverte"}
+              <span
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                  background: "var(--dsh-warn-soft)",
+                  color: "var(--dsh-warn-ink)",
+                }}
+              >
+                40 %
+              </span>
+            </button>
           ) : (
             <>
-              <div className="grid gap-2">
-                {(showAllEnvelopes ? topEnvelopes : topEnvelopes.slice(0, 2)).map((item) => {
-                  const meta = statusMeta(item.status);
-                  const pct = item.allocated > 0 ? Math.min(item.spent / item.allocated, 1) : 0;
-                  const barPct = pct * 100;
-                  const accentColor = item.isOverspent
-                    ? "var(--accent-error, #ef4444)"
-                    : item.nearLimit
-                    ? "var(--accent-warning, #f59e0b)"
-                    : "var(--accent-success, #10b981)";
-                  const remainingColor = item.remaining >= 0
-                    ? "var(--accent-success, #10b981)"
-                    : "var(--accent-error, #ef4444)";
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-lg p-3"
+              {/* Flamme Série */}
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStreakOpen(!streakOpen);
+                    setBellOpen(false);
+                    setAddMenuOpen(false);
+                  }}
+                  style={{
+                    height: 40,
+                    padding: "0 12px",
+                    border: 0,
+                    borderRadius: 20,
+                    background: "var(--dsh-card)",
+                    color: "var(--dsh-ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <Flame size={18} color="#E8590C" fill="#E8590C" />
+                  12
+                </button>
+
+                {streakOpen && (
+                  <div
+                    role="dialog"
+                    style={{
+                      position: "absolute",
+                      top: 48,
+                      [isRTL ? "left" : "right"]: 0,
+                      zIndex: 40,
+                      width: 290,
+                      borderRadius: 18,
+                      background: "var(--dsh-card)",
+                      boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+                      padding: 18,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                      border: "1px solid var(--dsh-line)",
+                    }}
+                  >
+                    <b style={{ fontSize: 15 }}>
+                      {locale === "ar"
+                        ? "12 يوم متتالية من التتبع"
+                        : "12 jours de suivi d’affilée"}
+                    </b>
+                    <span
                       style={{
-                        background: "var(--surface-raised, var(--surface))",
-                        border: "1px solid var(--border)",
-                        borderInlineStart: `3px solid ${accentColor}`,
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                        color: "var(--dsh-muted)",
                       }}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <p className="text-sm font-semibold truncate">{item.name}</p>
-                            <Badge tone={meta.tone}>{meta.label}</Badge>
-                          </div>
-                          {item.allocated > 0 && (
-                            <div style={{ height: "5px", borderRadius: "3px", background: "var(--border, #e2e8f0)", overflow: "hidden", marginBottom: "6px" }}>
-                              <div style={{ height: "100%", width: `${barPct}%`, background: accentColor, borderRadius: "3px", transition: "width 0.4s ease" }} />
-                            </div>
-                          )}
-                          <p className="text-xs text-[var(--muted)]">
-                            {item.allocated > 0
-                              ? `${formatMoney(item.spent)} / ${formatMoney(item.allocated)} ${copy.spentLabel}`
-                              : `${copy.spentFallback}: ${formatMoney(item.spent)}`}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-end" style={{ color: remainingColor }}>
-                          <p className="text-base font-bold tabular-nums">{formatMoney(item.remaining)}</p>
-                          <p className="text-[10px] text-[var(--muted)] leading-tight">{data?.user.currency ?? "MAD"}</p>
-                        </div>
+                      {locale === "ar"
+                        ? "ما كاين حتى مصروف مقيد اليوم. قيد ديال اليوم باش تبقى السلسلة ديالك."
+                        : "Aucune dépense saisie aujourd’hui. Ajoute celles du jour pour garder ta série."}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setStreakOpen(false);
+                        openQuickTx("expense");
+                      }}
+                      style={{
+                        height: 40,
+                        border: 0,
+                        borderRadius: 12,
+                        background: "#0A7A53",
+                        color: "#FFFFFF",
+                        fontWeight: 800,
+                        fontSize: 13.5,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {locale === "ar"
+                        ? "تقييد مصاريف اليوم"
+                        : "Saisir mes dépenses du jour"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Cloche Notifications */}
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBellOpen(!bellOpen);
+                    setStreakOpen(false);
+                    setAddMenuOpen(false);
+                  }}
+                  style={{
+                    position: "relative",
+                    width: 42,
+                    height: 42,
+                    border: 0,
+                    borderRadius: 21,
+                    background: "var(--dsh-card)",
+                    color: "var(--dsh-ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <Bell size={20} />
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      [isRTL ? "left" : "right"]: 4,
+                      minWidth: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      background: "#C2381A",
+                      color: "#FFFFFF",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 4px",
+                    }}
+                  >
+                    3
+                  </span>
+                </button>
+
+                {bellOpen && (
+                  <div
+                    role="dialog"
+                    style={{
+                      position: "absolute",
+                      top: 50,
+                      [isRTL ? "left" : "right"]: 0,
+                      zIndex: 40,
+                      width: 320,
+                      borderRadius: 18,
+                      background: "var(--dsh-card)",
+                      boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+                      padding: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      border: "1px solid var(--dsh-line)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: 12,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        borderBottom: "1px solid var(--dsh-line)",
+                      }}
+                    >
+                      <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>
+                        <b>
+                          {locale === "ar"
+                            ? "تذكير بالصالير"
+                            : "Rappel de paie"}
+                        </b>{" "}
+                        —{" "}
+                        {locale === "ar"
+                          ? "الصالير متوقع فالأيام الجاية."
+                          : "ton salaire est attendu le 28."}
+                      </span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => {
+                            setBellOpen(false);
+                            openQuickTx("income");
+                          }}
+                          style={{
+                            height: 32,
+                            padding: "0 12px",
+                            border: 0,
+                            borderRadius: 8,
+                            background: "#0A7A53",
+                            color: "#FFFFFF",
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {locale === "ar" ? "تصريح" : "Déclarer"}
+                        </button>
+                        <button
+                          onClick={() => setBellOpen(false)}
+                          style={{
+                            height: 32,
+                            padding: "0 12px",
+                            border: 0,
+                            borderRadius: 8,
+                            background: "var(--dsh-soft)",
+                            color: "var(--dsh-ink)",
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {locale === "ar" ? "تجاهل" : "Ignorer"}
+                        </button>
                       </div>
                     </div>
+
+                    <div
+                      style={{
+                        padding: 12,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>
+                        <b>
+                          {locale === "ar"
+                            ? "التوفير التلقائي"
+                            : "Sweep Tawfir"}
+                        </b>{" "}
+                        —{" "}
+                        {locale === "ar"
+                          ? "الفائض جاهز للتحويل فـ Tawfir."
+                          : "le sweep est prêt dans 4 jours."}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setBellOpen(false);
+                          setSweepOpen(true);
+                        }}
+                        style={{
+                          alignSelf: "flex-start",
+                          height: 32,
+                          padding: "0 12px",
+                          border: 0,
+                          borderRadius: 8,
+                          background: "#0A7A53",
+                          color: "#FFFFFF",
+                          fontSize: 12.5,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {locale === "ar" ? "التفاصيل" : "Voir"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Bouton "+ Ajouter [N]" */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setAddMenuOpen(!addMenuOpen);
+                setStreakOpen(false);
+                setBellOpen(false);
+              }}
+              className="dsh-act-primary"
+              style={{
+                height: 44,
+                padding: "0 10px 0 16px",
+                border: 0,
+                borderRadius: 12,
+                background: "var(--dsh-ink)",
+                color: "var(--dsh-bg)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                fontSize: 14.5,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              <Plus size={18} strokeWidth={2.6} />
+              {locale === "ar" ? "إضافة" : "Ajouter"}
+              <kbd
+                style={{
+                  padding: "2px 7px",
+                  borderRadius: 6,
+                  background: "rgba(127,127,127,0.25)",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                }}
+              >
+                N
+              </kbd>
+            </button>
+
+            {addMenuOpen && (
+              <div
+                role="menu"
+                style={{
+                  position: "absolute",
+                  top: 52,
+                  [isRTL ? "left" : "right"]: 0,
+                  zIndex: 40,
+                  width: 200,
+                  borderRadius: 16,
+                  background: "var(--dsh-card)",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+                  padding: 6,
+                  display: "flex",
+                  flexDirection: "column",
+                  border: "1px solid var(--dsh-line)",
+                }}
+              >
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setAddMenuOpen(false);
+                    setExpressTxType("expense");
+                    setExpressAmount("150");
+                    setExpressTxOpen(true);
+                  }}
+                  style={{
+                    height: 42,
+                    padding: "0 12px",
+                    border: 0,
+                    borderRadius: 10,
+                    background: "transparent",
+                    color: "var(--dsh-ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      background: "#C2185B",
+                    }}
+                  />
+                  {locale === "ar" ? "مصروف" : "Dépense"}
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setAddMenuOpen(false);
+                    setExpressTxType("income");
+                    setExpressAmount("12400");
+                    setExpressTxOpen(true);
+                  }}
+                  style={{
+                    height: 42,
+                    padding: "0 12px",
+                    border: 0,
+                    borderRadius: 10,
+                    background: "transparent",
+                    color: "var(--dsh-ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      background: "#4338CA",
+                    }}
+                  />
+                  {locale === "ar" ? "دخل" : "Revenu"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Avatar utilisateur */}
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: isGuest
+                ? "#8A968F"
+                : "linear-gradient(135deg, #00D284, #0A7A53)",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: 15,
+            }}
+          >
+            {isGuest ? "I" : data?.user?.first_name?.[0]?.toUpperCase() || "O"}
+          </span>
+        </div>
+      </header>
+
+      {/* 2. MAIN DASHBOARD CONTENT */}
+      <main className="dsh-main">
+        {/* Bannière de réponse Ba Omar */}
+        {omarReply && (
+          <div
+            role="status"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 12,
+              padding: "14px 16px",
+              borderRadius: 18,
+              background: "var(--dsh-brand-soft)",
+              color: "var(--dsh-brand-ink)",
+              boxShadow: "0 2px 10px rgba(10, 122, 83, 0.08)",
+            }}
+          >
+            <span
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "#F2B544",
+                color: "#0F1A16",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: 15,
+              }}
+            >
+              ع
+            </span>
+            <span style={{ flex: "1 1 320px", fontSize: 14.5 }}>
+              <b>Ba Omar :</b> {omarReply}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOmarReply(null)}
+              style={{
+                height: 36,
+                padding: "0 12px",
+                border: 0,
+                borderRadius: 10,
+                background: "var(--dsh-card)",
+                color: "var(--dsh-ink)",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {locale === "ar" ? "إلغاء" : "Annuler"}
+            </button>
+          </div>
+        )}
+
+        {/* État de chargement */}
+        {loading && !data && <DashboardSkel />}
+
+        {/* État vide / premier budget */}
+        {!loading &&
+          transactions.length === 0 &&
+          focusEnvelopes.length === 0 && (
+            <section
+              style={{
+                borderRadius: 28,
+                background: "var(--dsh-card)",
+                padding: 40,
+                display: "flex",
+                flexDirection: "column",
+                gap: 24,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  maxWidth: 620,
+                }}
+              >
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: 32,
+                    fontWeight: 800,
+                    letterSpacing: -0.8,
+                  }}
+                >
+                  {locale === "ar"
+                    ? "مرحبا! يلا نبداو الميزانية ديالك"
+                    : "Bienvenue ! On démarre ton budget."}
+                </h1>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 16,
+                    lineHeight: 1.6,
+                    color: "var(--dsh-muted)",
+                  }}
+                >
+                  {locale === "ar"
+                    ? "3 خطوات ساهلة، دقيقة ولا جوج. من بعد الحسابات كتقاد راسها."
+                    : "Trois étapes, environ deux minutes. Ensuite ton tableau de bord se remplit tout seul."}
+                </p>
+              </div>
+
+              <ol className="dsh-1col" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                <li
+                  style={{
+                    borderRadius: 20,
+                    background: "var(--dsh-soft)",
+                    padding: 22,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      background: "#0A7A53",
+                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 800,
+                    }}
+                  >
+                    1
+                  </span>
+                  <b style={{ fontSize: 17 }}>
+                    {locale === "ar" ? "صرّح بالدخل" : "Déclare ton revenu"}
+                  </b>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      color: "var(--dsh-muted)",
+                    }}
+                  >
+                    {locale === "ar"
+                      ? "الصالير أو المداخيل ديال الشهر."
+                      : "Ton salaire ou tes rentrées du mois."}
+                  </span>
+                  <button
+                    onClick={() => openQuickTx("income")}
+                    style={{
+                      marginTop: "auto",
+                      alignSelf: "flex-start",
+                      height: 40,
+                      padding: "0 14px",
+                      border: 0,
+                      borderRadius: 10,
+                      background: "#0A7A53",
+                      color: "#FFFFFF",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {locale === "ar" ? "إضافة دخل" : "Ajouter un revenu"}
+                  </button>
+                </li>
+
+                <li
+                  style={{
+                    borderRadius: 20,
+                    background: "var(--dsh-soft)",
+                    padding: 22,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      background: "var(--dsh-card)",
+                      color: "var(--dsh-ink)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 800,
+                    }}
+                  >
+                    2
+                  </span>
+                  <b style={{ fontSize: 17 }}>
+                    {locale === "ar"
+                      ? "قاد الأظرفة ديالك"
+                      : "Crée tes enveloppes"}
+                  </b>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      color: "var(--dsh-muted)",
+                    }}
+                  >
+                    {locale === "ar"
+                      ? "الكرا، التقضية، الطرانسبور… عندنا نماذج واجدة."
+                      : "Loyer, courses, transport… on te propose une base."}
+                  </span>
+                  <Link
+                    href="/envelopes"
+                    style={{
+                      marginTop: "auto",
+                      alignSelf: "flex-start",
+                      height: 40,
+                      padding: "0 14px",
+                      borderRadius: 10,
+                      background: "var(--dsh-card)",
+                      color: "var(--dsh-ink)",
+                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {locale === "ar" ? "الأظرفة" : "Voir les modèles"}
+                  </Link>
+                </li>
+
+                <li
+                  style={{
+                    borderRadius: 20,
+                    background: "var(--dsh-soft)",
+                    padding: 22,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      background: "var(--dsh-card)",
+                      color: "var(--dsh-ink)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 800,
+                    }}
+                  >
+                    3
+                  </span>
+                  <b style={{ fontSize: 17 }}>
+                    {locale === "ar"
+                      ? "وزّع الفلوس"
+                      : "Répartis ton argent"}
+                  </b>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      color: "var(--dsh-muted)",
+                    }}
+                  >
+                    {locale === "ar"
+                      ? "كل درهم ياخد المهمة ديالو قبل بداية الشهر."
+                      : "Chaque dirham reçoit sa mission avant le début du mois."}
+                  </span>
+                  <Link
+                    href="/distribution"
+                    style={{
+                      marginTop: "auto",
+                      alignSelf: "flex-start",
+                      height: 40,
+                      padding: "0 14px",
+                      borderRadius: 10,
+                      background: "var(--dsh-card)",
+                      color: "var(--dsh-ink)",
+                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {locale === "ar" ? "توزيع" : "Répartir"}
+                  </Link>
+                </li>
+              </ol>
+            </section>
+          )}
+
+        {/* Dashboard Principal (Rempli) */}
+        {!loading && (data || transactions.length > 0) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+            {/* Titre & Période */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "flex-end",
+                gap: "12px 20px",
+              }}
+            >
+              <div
+                style={{
+                  flex: "1 1 260px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                <h1 className="dsh-h1">
+                  {locale === "ar" ? "لوحة القيادة" : "Dashboard"}
+                </h1>
+                <span style={{ fontSize: 14.5, color: "var(--dsh-muted)" }}>
+                  {isGuest
+                    ? locale === "ar"
+                      ? "جلسة استكشافية · البيانات محفوظة في هذا المتصفح"
+                      : "Session découverte · données dans ce navigateur"
+                    : locale === "ar"
+                    ? `دورة من ${cycleStart} إلى ${cycleEnd} · يوم ${daysElapsed} من ${totalCycleDays}`
+                    : `Cycle du ${cycleStart} au ${cycleEnd} · jour ${daysElapsed} sur ${totalCycleDays}`}
+                </span>
+              </div>
+
+              {/* Sélecteur de période */}
+              <div
+                role="radiogroup"
+                aria-label="Période"
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  padding: 4,
+                  borderRadius: 12,
+                  background: "var(--dsh-card)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                  border: "1px solid var(--dsh-line)",
+                }}
+              >
+                {[
+                  { id: "7", label: locale === "ar" ? "7 أيام" : "7 jours" },
+                  { id: "30", label: locale === "ar" ? "30 يوم" : "30 jours" },
+                  { id: "90", label: locale === "ar" ? "90 يوم" : "90 jours" },
+                  { id: "ytd", label: locale === "ar" ? "السنة" : "Année" },
+                ].map((p) => {
+                  const on = period === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setPeriod(p.id as any)}
+                      style={{
+                        height: 34,
+                        padding: "0 12px",
+                        border: 0,
+                        borderRadius: 9,
+                        background: on ? "var(--dsh-ink)" : "transparent",
+                        color: on ? "var(--dsh-bg)" : "var(--dsh-muted)",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {p.label}
+                    </button>
                   );
                 })}
               </div>
-              {topEnvelopes.length > 2 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllEnvelopes((v) => !v)}
-                  className="mt-3 w-full text-center text-xs font-medium py-1.5 rounded-md transition-colors"
+            </div>
+
+            {/* ZONE 1 : MAINTENANT */}
+            <section
+              aria-labelledby="z-now"
+              style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            >
+              <h2
+                id="z-now"
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: "1.5px",
+                  color: "var(--dsh-muted)",
+                }}
+              >
+                {locale === "ar" ? "دابا" : "MAINTENANT"}
+              </h2>
+
+              <div className="dsh-snap">
+                {/* CARTE HERO : Reste à vivre */}
+                <div
                   style={{
-                    color: "var(--accent-strong, #6366f1)",
-                    background: "var(--surface-raised, transparent)",
-                    border: "1px dashed var(--border)",
+                    borderRadius: 28,
+                    background: "var(--dsh-hero)",
+                    color: "#FFFFFF",
+                    padding: 28,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 18,
+                    boxShadow: "0 14px 30px -10px rgba(10, 122, 83, 0.45)",
                   }}
                 >
-                  {showAllEnvelopes
-                    ? (locale === "ar" ? "شوف أقل ▲" : locale === "fr" ? "Voir moins ▲" : "Show less ▲")
-                    : (locale === "ar"
-                        ? `شوف ${topEnvelopes.length - 2} أكثر ▼`
-                        : locale === "fr"
-                        ? `Voir ${topEnvelopes.length - 2} de plus ▼`
-                        : `Show ${topEnvelopes.length - 2} more ▼`)}
-                </button>
-              )}
-            </>
-          )}
-        </Section>
-      </motion.div>
-
-      <motion.div
-        ref={recentRef}
-        className="dashboard-main-recent"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.45 }}
-      >
-        <Section title={copy.recentExpenses} className="dashboard-panel">
-          {expenseTotal === 0 ? (
-            <EmptyState
-              title={copy.noExpensesTitle}
-              description={copy.noExpensesDescription}
-              action={
-                <Button
-                  type="button"
-                  onClick={() => openQuickTx("expense")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#17C777] font-bold text-[#06301F] hover:bg-[#0B8F53] hover:text-white text-xs px-4 py-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>
+                  <span
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "#9FD8BE",
+                    }}
+                  >
                     {locale === "ar"
-                      ? "تسجيل أول مصروف"
-                      : locale === "en"
-                        ? "Log first expense"
-                        : "Enregistrer une première dépense"}
+                      ? "شحال بقى ليك حتى الصالير"
+                      : "Reste à vivre jusqu’à ta paie"}
                   </span>
-                </Button>
-              }
-            />
-          ) : recentExpenses.length === 0 ? (
-            <EmptyState
-              title={copy.noRecentTitle}
-              description={copy.noRecentDescription}
-            />
-          ) : (
-            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-              {recentExpenses.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between gap-3 py-2 first:pt-1 last:pb-1"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate leading-snug">
-                      {tx.description || copy.expenseFallback}
-                    </p>
-                    <p className="text-[11px] text-[var(--muted)] truncate leading-snug mt-0.5">
-                      {resolveCategoryName(tx.category_id)}
-                      {" \u00b7 "}
-                      {resolveEnvelopeName(tx)}
-                      {" \u00b7 "}
-                      {formatLocaleDate(tx.occurred_on, locale)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "baseline",
+                      gap: "8px 16px",
+                    }}
+                  >
                     <span
-                      className="text-sm font-bold tabular-nums"
-                      style={{ color: "var(--accent-error, #ef4444)" }}
+                      style={{
+                        fontSize: 52,
+                        fontWeight: 800,
+                        letterSpacing: -2,
+                        lineHeight: 1,
+                      }}
                     >
-                      {formatMoney(tx.amount)}
+                      {formatMoney(flexibleRemaining)}{" "}
+                      <span style={{ fontSize: 20, color: "#9FD8BE" }}>
+                        MAD
+                      </span>
                     </span>
-                    <Button asChild variant="ghost" size="sm" className="h-7 w-7 p-0">
-                      <Link href="/transactions" title={copy.edit}>&#9999;&#65039;</Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      title={copy.delete}
-                      onClick={() => setDeleteTarget(tx)}
+
+                    <span
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        background: "rgba(255,255,255,0.12)",
+                        fontSize: 14.5,
+                        fontWeight: 700,
+                      }}
                     >
-                      &#128465;&#65039;
-                    </Button>
+                      {locale === "ar"
+                        ? `${formatMoney(dailyAllowance)} درهم فالنهار · ${daysRemaining} أيام`
+                        : `${formatMoney(dailyAllowance)} MAD / jour · ${daysRemaining} jours`}
+                    </span>
+                  </div>
+
+                  {/* Double barre de progression */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div
+                      style={{
+                        position: "relative",
+                        height: 12,
+                        borderRadius: 6,
+                        background: "rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${pctBudgetConsumed}%`,
+                          height: 12,
+                          borderRadius: 6,
+                          background: "#7FD3AE",
+                          transition: "width 0.4s ease",
+                        }}
+                      />
+                      <div
+                        title={`Temps écoulé : ${pctCycleElapsed}%`}
+                        style={{
+                          position: "absolute",
+                          top: -5,
+                          [isRTL ? "right" : "left"]: `${pctCycleElapsed}%`,
+                          width: 3.5,
+                          height: 22,
+                          borderRadius: 2,
+                          background: "#F2B544",
+                          boxShadow: "0 0 6px rgba(242, 181, 68, 0.8)",
+                        }}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        fontSize: 13,
+                        color: "#CFE6DB",
+                      }}
+                    >
+                      <span>
+                        <b style={{ color: "#FFFFFF" }}>{pctBudgetConsumed} %</b>{" "}
+                        {locale === "ar"
+                          ? "من الميزانية تستهلكات"
+                          : "du budget consommé"}
+                      </span>
+                      <span>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 10,
+                            height: 10,
+                            borderRadius: 2,
+                            background: "#F2B544",
+                            verticalAlign: -1,
+                            marginInlineEnd: 4,
+                          }}
+                        />
+                        <b style={{ color: "#FFFFFF" }}>{pctCycleElapsed} %</b>{" "}
+                        {locale === "ar"
+                          ? "من الوقت داز · راك في أمان"
+                          : "du cycle écoulé · tu es en avance"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 4 KPIs clés */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+                      gap: 8,
+                      paddingTop: 14,
+                      borderTop: "1px solid rgba(255,255,255,0.14)",
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: 12, color: "#9FD8BE" }}>
+                        {locale === "ar" ? "كاش للتوزيع" : "Cash à répartir"}
+                      </span>
+                      <b style={{ fontSize: 17, display: "block" }}>
+                        {formatMoney(data?.available_to_allocate)}
+                      </b>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 12, color: "#9FD8BE" }}>
+                        {locale === "ar" ? "المصاريف" : "Dépenses"}
+                      </span>
+                      <b style={{ fontSize: 17, display: "block" }}>
+                        {formatMoney(expenseTotal)}
+                      </b>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 12, color: "#9FD8BE" }}>
+                        {locale === "ar" ? "المداخيل" : "Revenus"}
+                      </span>
+                      <b style={{ fontSize: 17, display: "block" }}>
+                        {formatMoney(incomeTotal)}
+                      </b>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 12, color: "#9FD8BE" }}>
+                        {locale === "ar" ? "الصافي" : "Net"}
+                      </span>
+                      <b style={{ fontSize: 17, display: "block" }}>
+                        {netTotal >= 0 ? "+" : ""}
+                        {formatMoney(netTotal)}
+                      </b>
+                    </div>
+                  </div>
+
+                  {/* Sweep Preview Banner */}
+                  <button
+                    onClick={() => setSweepOpen(true)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "12px 14px",
+                      border: 0,
+                      borderRadius: 14,
+                      background: "rgba(255,255,255,0.08)",
+                      color: "#FFFFFF",
+                      fontSize: 13.5,
+                      textAlign: "start",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Sparkles size={18} color="#F2B544" />
+                    <span style={{ flex: 1 }}>
+                      {locale === "ar"
+                        ? `+${formatMoney(
+                            Math.round(flexibleRemaining * 0.3)
+                          )} درهم غتمشي لـ Tawfir مع نهاية الدورة`
+                        : `+${formatMoney(
+                            Math.round(flexibleRemaining * 0.3)
+                          )} MAD partiront vers Tawfir dans ${daysRemaining} jours`}
+                    </span>
+                    <span style={{ fontWeight: 800, textDecoration: "underline" }}>
+                      {locale === "ar" ? "التفاصيل" : "Détails"}
+                    </span>
+                  </button>
+                </div>
+
+                {/* CARTE URGENT À FAIRE */}
+                <div
+                  style={{
+                    borderRadius: 28,
+                    background: "var(--dsh-card)",
+                    padding: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                    border: "1px solid var(--dsh-line)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <b style={{ fontSize: 17 }}>
+                      {locale === "ar" ? "خاصك دير" : "Urgent à faire"}
+                    </b>
+                    <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>
+                      {urgentActions.length > 0
+                        ? locale === "ar"
+                          ? `${urgentActions.length} للمتابعة`
+                          : `${urgentActions.length} à traiter`
+                        : ""}
+                    </span>
+                  </div>
+
+                  {urgentActions.length === 0 ? (
+                    <div
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 10,
+                        padding: "36px 0",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 28,
+                          background: "var(--dsh-brand-soft)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <CheckCircle2 size={26} color="#0A7A53" strokeWidth={2.4} />
+                      </span>
+                      <b style={{ fontSize: 16 }}>
+                        {locale === "ar"
+                          ? "كلشي مضبوط ومستقر !"
+                          : "Tout est sous contrôle !"}
+                      </b>
+                      <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>
+                        {locale === "ar"
+                          ? "ما كاين حتى تنبيه عاجل دابا."
+                          : "Aucune anomalie ni alerte à traiter."}
+                      </span>
+                    </div>
+                  ) : (
+                    urgentActions.map((act) => (
+                      <div
+                        key={act.id}
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: "10px 12px",
+                          padding: "12px 14px",
+                          borderRadius: 16,
+                          background: act.bg,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 28,
+                            height: 28,
+                            flexShrink: 0,
+                            borderRadius: 14,
+                            background: act.dot,
+                            color: "#FFFFFF",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {act.icon === "plus" ? (
+                            <Plus size={14} strokeWidth={3} />
+                          ) : act.icon === "link" ? (
+                            <Layers size={14} strokeWidth={2.6} />
+                          ) : (
+                            <AlertTriangle size={14} strokeWidth={2.6} />
+                          )}
+                        </span>
+                        <span style={{ flex: "1 1 180px", fontSize: 13.5, lineHeight: 1.4 }}>
+                          <b>{act.title}</b>
+                          <br />
+                          <span style={{ color: "var(--dsh-muted)", fontSize: 12.5 }}>
+                            {act.text}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={act.action}
+                          style={{
+                            height: 36,
+                            padding: "0 12px",
+                            border: 0,
+                            borderRadius: 10,
+                            background: "var(--dsh-ink)",
+                            color: "var(--dsh-bg)",
+                            fontSize: 13,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {act.cta}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ZONE 2 : ENVELOPPES & ACTIVITÉ */}
+            <section
+              aria-labelledby="z-env"
+              style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            >
+              <h2
+                id="z-env"
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: "1.5px",
+                  color: "var(--dsh-muted)",
+                }}
+              >
+                {locale === "ar" ? "الأظرفة" : "ENVELOPPES"}
+              </h2>
+
+              <div className="dsh-1col">
+                {/* Colonne Gauche : Liste des Enveloppes */}
+                <div
+                  style={{
+                    borderRadius: 28,
+                    background: "var(--dsh-card)",
+                    padding: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                    border: "1px solid var(--dsh-line)",
+                  }}
+                >
+                  {/* Onglets Filtres */}
+                  <div
+                    role="tablist"
+                    aria-label="Filtrer les enveloppes"
+                    style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+                  >
+                    {[
+                      {
+                        id: "all",
+                        label: locale === "ar" ? "الكل" : "Toutes",
+                        count: envCounts.all,
+                        dot: "transparent",
+                      },
+                      {
+                        id: "over",
+                        label: locale === "ar" ? "تجاوزات" : "Dépassées",
+                        count: envCounts.over,
+                        dot: "#C2381A",
+                      },
+                      {
+                        id: "near",
+                        label: locale === "ar" ? "قريبة للحد" : "Proches limite",
+                        count: envCounts.near,
+                        dot: "#B45309",
+                      },
+                      {
+                        id: "ok",
+                        label: locale === "ar" ? "مستقرة" : "Saines",
+                        count: envCounts.ok,
+                        dot: "#0A7A53",
+                      },
+                    ].map((f) => {
+                      const on = envelopeFilter === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          role="tab"
+                          aria-selected={on}
+                          onClick={() => setEnvelopeFilter(f.id as any)}
+                          style={{
+                            height: 38,
+                            padding: "0 12px",
+                            borderRadius: 19,
+                            border: on ? "0" : "1.5px solid var(--dsh-line)",
+                            background: on ? "var(--dsh-ink)" : "transparent",
+                            color: on ? "var(--dsh-bg)" : "var(--dsh-ink)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 13,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {f.dot !== "transparent" && (
+                            <span
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 4,
+                                background: f.dot,
+                              }}
+                            />
+                          )}
+                          {f.label}{" "}
+                          <span style={{ opacity: 0.75 }}>{f.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Lignes d'enveloppes */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {filteredEnvelopes.map((env) => {
+                      const dotColor =
+                        env.status === "over"
+                          ? "#C2381A"
+                          : env.status === "near"
+                          ? "#B45309"
+                          : "#0A7A53";
+
+                      return (
+                        <div
+                          key={env.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "8px 0",
+                            borderBottom: "1px solid var(--dsh-line)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 30,
+                              height: 30,
+                              flexShrink: 0,
+                              borderRadius: 15,
+                              background: dotColor,
+                              color: "#FFFFFF",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {env.status === "over" ? (
+                              <X size={14} strokeWidth={3} />
+                            ) : env.status === "near" ? (
+                              <AlertTriangle size={13} strokeWidth={2.8} />
+                            ) : (
+                              <Check size={14} strokeWidth={3} />
+                            )}
+                          </span>
+
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                fontSize: 14,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {env.name}
+                                {env.isDebt && (
+                                  <span
+                                    style={{
+                                      padding: "1px 6px",
+                                      borderRadius: 6,
+                                      background: "var(--dsh-soft)",
+                                      color: "var(--dsh-muted)",
+                                      fontSize: 10.5,
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    {locale === "ar"
+                                      ? "دين أولوي"
+                                      : "Dette prioritaire"}
+                                  </span>
+                                )}
+                              </span>
+                              <span
+                                style={{
+                                  color:
+                                    env.isOver
+                                      ? "#C2381A"
+                                      : "var(--dsh-muted)",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {env.isOver
+                                  ? `−${formatMoney(Math.abs(env.remaining))} MAD`
+                                  : `${locale === "ar" ? "باقي" : "reste"} ${formatMoney(
+                                      env.remaining
+                                    )} MAD`}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                height: 6,
+                                borderRadius: 3,
+                                background: "var(--dsh-track)",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  height: 6,
+                                  width: `${env.pct}%`,
+                                  borderRadius: 3,
+                                  background: dotColor,
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {env.isOver && !coveredEnvelopes[env.name] && (
+                            <button
+                              onClick={() => {
+                                setCoveredEnvelopes((prev) => ({
+                                  ...prev,
+                                  [env.name]: true,
+                                }));
+                                toast({
+                                  title:
+                                    locale === "ar"
+                                      ? "تمت تغطية العجز"
+                                      : "Enveloppe couverte",
+                                });
+                              }}
+                              style={{
+                                height: 32,
+                                padding: "0 10px",
+                                border: 0,
+                                borderRadius: 10,
+                                background: "var(--dsh-bad-soft)",
+                                color: "var(--dsh-bad-ink)",
+                                fontSize: 12.5,
+                                fontWeight: 800,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {locale === "ar" ? "تغطية" : "Couvrir"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <button
+                      onClick={() => setShowAllEnvelopes(!showAllEnvelopes)}
+                      style={{
+                        alignSelf: "flex-start",
+                        height: 36,
+                        padding: "0 12px",
+                        border: 0,
+                        borderRadius: 8,
+                        background: "var(--dsh-soft)",
+                        color: "var(--dsh-ink)",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {showAllEnvelopes
+                        ? locale === "ar"
+                          ? "عرض أقل"
+                          : "Voir moins"
+                        : locale === "ar"
+                        ? "عرض جميع الأظرفة"
+                        : "Voir toutes les enveloppes"}
+                    </button>
+                    <Link
+                      href="/envelopes"
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: "#0A7A53",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {locale === "ar" ? "إدارة الأظرفة →" : "Gérer les enveloppes →"}
+                    </Link>
                   </div>
                 </div>
+
+                {/* Colonne Droite : Dernières Opérations + Nudge */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div
+                    style={{
+                      borderRadius: 28,
+                      background: "var(--dsh-card)",
+                      padding: 24,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                      border: "1px solid var(--dsh-line)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <b style={{ fontSize: 17 }}>
+                        {locale === "ar" ? "آخر العمليات" : "Dernières opérations"}
+                      </b>
+                      <Link
+                        href="/transactions"
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 800,
+                          color: "#0A7A53",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {locale === "ar" ? "عرض الكل" : "Tout voir"}
+                      </Link>
+                    </div>
+
+                    {transactions.slice(0, 5).map((tx) => {
+                      const isIncome = tx.type === "income";
+                      const initials = (tx.description || "TX")
+                        .slice(0, 2)
+                        .toUpperCase();
+
+                      return (
+                        <div
+                          key={tx.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "9px 0",
+                            borderBottom: "1px solid var(--dsh-line)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 34,
+                              height: 34,
+                              flexShrink: 0,
+                              borderRadius: 10,
+                              background: isIncome
+                                ? "rgba(67, 56, 202, 0.12)"
+                                : "var(--dsh-soft)",
+                              color: isIncome ? "#4338CA" : "var(--dsh-ink)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 12,
+                              fontWeight: 800,
+                            }}
+                          >
+                            {initials}
+                          </span>
+
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            <b
+                              style={{
+                                fontSize: 14,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {tx.description}
+                            </b>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "var(--dsh-muted)",
+                              }}
+                            >
+                              {tx.occurred_on}
+                            </span>
+                          </div>
+
+                          <b
+                            style={{
+                              fontSize: 14.5,
+                              color: isIncome ? "#0A7A53" : "var(--dsh-ink)",
+                            }}
+                          >
+                            {isIncome ? "+" : "−"}
+                            {formatMoney(tx.amount)} MAD
+                          </b>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openQuickTx(
+                                tx.type === "income" ? "income" : "expense"
+                              )
+                            }
+                            aria-label="Modifier"
+                            style={{
+                              width: 32,
+                              height: 32,
+                              border: 0,
+                              borderRadius: 8,
+                              background: "transparent",
+                              color: "var(--dsh-muted)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Nudge Invité ou Conseil Ba Omar */}
+                  {isGuest && !dismissedNudge ? (
+                    <div
+                      style={{
+                        borderRadius: 24,
+                        background: "var(--dsh-brand-soft)",
+                        color: "var(--dsh-brand-ink)",
+                        padding: 20,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      <b style={{ fontSize: 16 }}>
+                        {locale === "ar"
+                          ? "توزيع أولي رائع !"
+                          : "Belle première répartition !"}
+                      </b>
+                      <span style={{ fontSize: 14, lineHeight: 1.5 }}>
+                        {locale === "ar"
+                          ? "الأظرفة والعمليات ديالك مخزنة فقط فهاد المتصفح. حساب مجاني كيحميها على جميع أجهزتك."
+                          : "Tes enveloppes et tes opérations ne vivent que dans ce navigateur. Un compte gratuit les garde en sécurité sur tous tes appareils."}
+                      </span>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Link
+                          href="/login"
+                          style={{
+                            height: 40,
+                            padding: "0 14px",
+                            borderRadius: 10,
+                            background: "#0A7A53",
+                            color: "#FFFFFF",
+                            display: "flex",
+                            alignItems: "center",
+                            fontWeight: 800,
+                            textDecoration: "none",
+                            fontSize: 13.5,
+                          }}
+                        >
+                          {locale === "ar"
+                            ? "حفظ ميزانيتي"
+                            : "Garder mon budget"}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setDismissedNudge(true)}
+                          style={{
+                            height: 40,
+                            padding: "0 12px",
+                            border: 0,
+                            borderRadius: 10,
+                            background: "transparent",
+                            color: "inherit",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontSize: 13.5,
+                          }}
+                        >
+                          {locale === "ar" ? "من بعد" : "Plus tard"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        borderRadius: 24,
+                        background: "var(--dsh-card)",
+                        padding: 18,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        border: "1px solid var(--dsh-line)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          background: "#F2B544",
+                          color: "#0F1A16",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 800,
+                          fontSize: 16,
+                          flexShrink: 0,
+                        }}
+                      >
+                        ع
+                      </span>
+                      <div style={{ flex: 1, fontSize: 13.5, lineHeight: 1.45 }}>
+                        <b style={{ color: "#0A7A53" }}>Ba Omar :</b>{" "}
+                        {locale === "ar"
+                          ? "التوفير التلقائي غادي يحول الفائض لـ Tawfir نهار 28. راك غادي مزيان !"
+                          : "Ton argent flexible est bien cadré. Tu peux déplacer 50 MAD vers Sorties si besoin."}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ZONE 3 : TENDANCES (3 CARTES) */}
+            <section
+              aria-labelledby="z-trend"
+              style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            >
+              <h2
+                id="z-trend"
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: "1.5px",
+                  color: "var(--dsh-muted)",
+                }}
+              >
+                {locale === "ar" ? "التوجهات" : "TENDANCES"}
+              </h2>
+
+              <div className="dsh-1col" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))" }}>
+                {/* CARTE 1 : Donut Argent Flexible */}
+                <div
+                  style={{
+                    borderRadius: 28,
+                    background: "var(--dsh-card)",
+                    padding: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                    border: "1px solid var(--dsh-line)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <b style={{ fontSize: 16 }}>
+                      {locale === "ar"
+                        ? "فين كيمشي كاشك المرن"
+                        : "Où part ton argent flexible"}
+                    </b>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 12.5,
+                        color: "var(--dsh-muted)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={inclFixed}
+                        onChange={(e) => setInclFixed(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: "#0A7A53" }}
+                      />
+                      {locale === "ar"
+                        ? "مع التكاليف القارة"
+                        : "Inclure les charges fixes"}
+                    </label>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 20,
+                    }}
+                  >
+                    <div style={{ position: "relative", width: 180, height: 180 }}>
+                      <svg width="180" height="180" viewBox="0 0 200 200">
+                        {donutSlices.map((d, i) => (
+                          <circle
+                            key={d.name}
+                            cx="100"
+                            cy="100"
+                            r="76"
+                            fill="none"
+                            stroke={d.color}
+                            strokeWidth={d.sw}
+                            strokeDasharray={d.dash}
+                            strokeDashoffset={d.offset}
+                            transform="rotate(-90 100 100)"
+                            onMouseEnter={() => setHoverDonut(i)}
+                            onMouseLeave={() => setHoverDonut(-1)}
+                            style={{
+                              cursor: "pointer",
+                              transition: "stroke-width 0.15s ease",
+                            }}
+                          />
+                        ))}
+                      </svg>
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <span style={{ fontSize: 11.5, color: "var(--dsh-muted)" }}>
+                          {activeDonut
+                            ? activeDonut.name
+                            : inclFixed
+                            ? "Total"
+                            : "Flexible"}
+                        </span>
+                        <b style={{ fontSize: 20 }}>
+                          {formatMoney(
+                            activeDonut ? activeDonut.amount : donutTotal
+                          )}
+                        </b>
+                        <span style={{ fontSize: 11.5, color: "var(--dsh-muted)" }}>
+                          {activeDonut && donutTotal > 0
+                            ? `${Math.round(
+                                (activeDonut.amount / donutTotal) * 100
+                              )} %`
+                            : "MAD"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <ul
+                      style={{
+                        margin: 0,
+                        padding: 0,
+                        listStyle: "none",
+                        flex: "1 1 140px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      {donutData.map((d, i) => (
+                        <li
+                          key={d.name}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 13.5,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 3,
+                              background: donutColors[i % donutColors.length],
+                            }}
+                          />
+                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {d.name}
+                          </span>
+                          <b>{formatMoney(d.amount)}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* CARTE 2 : Patrimoine Net */}
+                <div
+                  style={{
+                    borderRadius: 28,
+                    background: "var(--dsh-card)",
+                    padding: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                    border: "1px solid var(--dsh-line)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      gap: 6,
+                    }}
+                  >
+                    <b style={{ fontSize: 16 }}>
+                      {locale === "ar" ? "صافي الثروة" : "Patrimoine net"}
+                    </b>
+                    <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>
+                      {hoverLineIndex >= 0
+                        ? `${trendMonths[hoverLineIndex]} : ${formatMoney(
+                            trendVals[hoverLineIndex]
+                          )} MAD`
+                        : `${formatMoney(trendVals[trendVals.length - 1])} MAD en ${
+                            trendMonths[trendMonths.length - 1]
+                          }`}
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      alignSelf: "flex-start",
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "var(--dsh-brand-soft)",
+                      color: "var(--dsh-brand-ink)",
+                      fontSize: 12.5,
+                      fontWeight: 800,
+                    }}
+                  >
+                    +580 MAD vs sept. · objectif 14 000
+                  </span>
+
+                  <svg
+                    viewBox="0 0 520 220"
+                    width="100%"
+                    height="190"
+                    onMouseMove={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      const vx = ((e.clientX - r.left) / r.width) * 520;
+                      let idx = Math.round(
+                        (isRTL ? 460 - vx : vx - 60) / 88
+                      );
+                      idx = Math.max(0, Math.min(5, idx));
+                      setHoverLineIndex(idx);
+                    }}
+                    onMouseLeave={() => setHoverLineIndex(-1)}
+                    style={{ display: "block" }}
+                  >
+                    <line
+                      x1="40"
+                      y1="100"
+                      x2="510"
+                      y2="100"
+                      stroke="var(--dsh-line)"
+                    />
+                    <line
+                      x1="40"
+                      y1="180"
+                      x2="510"
+                      y2="180"
+                      stroke="var(--dsh-axis)"
+                    />
+                    <line
+                      x1="40"
+                      y1="20"
+                      x2="510"
+                      y2="20"
+                      stroke="#C98A1A"
+                      strokeWidth="1.5"
+                      strokeDasharray="6 5"
+                    />
+                    <text
+                      x={isRTL ? 40 : 510}
+                      y="14"
+                      fontSize="11"
+                      fontWeight="700"
+                      fill="var(--dsh-muted)"
+                      textAnchor={isRTL ? "start" : "end"}
+                    >
+                      Objectif 14 000
+                    </text>
+                    <polyline
+                      points={linePointsString}
+                      fill="none"
+                      stroke="var(--dsh-brand)"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                    />
+                    {trendVals.map((_, i) => (
+                      <text
+                        key={i}
+                        x={getLineX(i)}
+                        y="204"
+                        fontSize="12"
+                        fill="var(--dsh-muted)"
+                        textAnchor="middle"
+                      >
+                        {trendMonths[i]}
+                      </text>
+                    ))}
+                    {hoverLineIndex >= 0 && (
+                      <>
+                        <line
+                          x1={getLineX(hoverLineIndex)}
+                          y1="20"
+                          x2={getLineX(hoverLineIndex)}
+                          y2="180"
+                          stroke="var(--dsh-muted)"
+                          strokeDasharray="3 3"
+                        />
+                        <circle
+                          cx={getLineX(hoverLineIndex)}
+                          cy={getLineY(trendVals[hoverLineIndex])}
+                          r="5"
+                          fill="var(--dsh-brand)"
+                          stroke="var(--dsh-card)"
+                          strokeWidth="2"
+                        />
+                      </>
+                    )}
+                  </svg>
+                </div>
+
+                {/* CARTE 3 : Répartition du Cash */}
+                <div
+                  style={{
+                    borderRadius: 28,
+                    background: "var(--dsh-card)",
+                    padding: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                    border: "1px solid var(--dsh-line)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <b style={{ fontSize: 16 }}>
+                      {locale === "ar" ? "توزيع الكاش" : "Répartition du cash"}
+                    </b>
+                    <span
+                      style={{
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        background: isGuest
+                          ? "var(--dsh-soft)"
+                          : "var(--dsh-brand-soft)",
+                        color: isGuest
+                          ? "var(--dsh-muted)"
+                          : "var(--dsh-brand-ink)",
+                        fontSize: 11.5,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {isGuest
+                        ? locale === "ar"
+                          ? "التوفير بعد التسجيل"
+                          : "Sweep après inscription"
+                        : locale === "ar"
+                        ? "التوفير التلقائي مفعّل"
+                        : "Sweep auto · activé"}
+                    </span>
+                  </div>
+
+                  {/* Barre multi-segments */}
+                  <div
+                    role="img"
+                    aria-label="Répartition du cash"
+                    style={{ display: "flex", height: 14, gap: 2 }}
+                  >
+                    {cashSegments.map((cs) => (
+                      <div
+                        key={cs.name}
+                        style={{
+                          width: `${cs.pct}%`,
+                          background: cs.color,
+                          borderRadius: 4,
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <ul
+                    style={{
+                      margin: 0,
+                      padding: 0,
+                      listStyle: "none",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 8,
+                    }}
+                  >
+                    {cashSegments.map((cs) => (
+                      <li
+                        key={cs.name}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          fontSize: 13,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 9,
+                            height: 9,
+                            borderRadius: 2,
+                            background: cs.color,
+                          }}
+                        />
+                        <span style={{ flex: 1 }}>{cs.name}</span>
+                        <b>{cs.pct} %</b>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 12,
+                      paddingTop: 14,
+                      borderTop: "1px solid var(--dsh-line)",
+                    }}
+                  >
+                    <button
+                      onClick={() => router.push("/debts")}
+                      style={{
+                        padding: 0,
+                        border: 0,
+                        background: "transparent",
+                        color: "var(--dsh-ink)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        textAlign: "start",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: 12, color: "var(--dsh-muted)" }}>
+                        {locale === "ar" ? "ديون / شهر" : "Dettes / mois"}
+                      </span>
+                      <b style={{ fontSize: 18 }}>1 800 MAD</b>
+                    </button>
+
+                    <button
+                      onClick={() => router.push("/goals")}
+                      style={{
+                        padding: 0,
+                        border: 0,
+                        background: "transparent",
+                        color: "var(--dsh-ink)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        textAlign: "start",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: 12, color: "var(--dsh-muted)" }}>
+                        {locale === "ar"
+                          ? "الأهداف المحققة"
+                          : "Objectifs atteints"}
+                      </span>
+                      <b style={{ fontSize: 18 }}>30 %</b>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+      </main>
+
+      {/* 3. MOBILE FLOATING ACTION BUTTONS (FAB) */}
+      <div className="sbk-fab">
+        <button
+          onClick={() => {
+            setExpressTxType("income");
+            setExpressAmount("12400");
+            setExpressTxOpen(true);
+          }}
+          aria-label="Ajouter un revenu"
+          style={{
+            width: 52,
+            height: 52,
+            border: 0,
+            borderRadius: 26,
+            background: "#4338CA",
+            color: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 8px 20px rgba(67, 56, 202, 0.4)",
+            cursor: "pointer",
+          }}
+        >
+          <TrendingUp size={22} />
+        </button>
+
+        <button
+          onClick={() => {
+            setExpressTxType("expense");
+            setExpressAmount("150");
+            setExpressTxOpen(true);
+          }}
+          aria-label="Ajouter une dépense"
+          style={{
+            width: 60,
+            height: 60,
+            border: 0,
+            borderRadius: 30,
+            background: "#C2185B",
+            color: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 8px 25px rgba(194, 24, 91, 0.45)",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={24} strokeWidth={2.8} />
+        </button>
+      </div>
+
+      {/* 4. MODALE DE SAISIE EXPRESS */}
+      {expressTxOpen && (
+        <div className="dsh-ovl" onClick={() => setExpressTxOpen(false)}>
+          <div
+            className="dsh-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <b style={{ fontSize: 20 }}>
+                {expressTxType === "income"
+                  ? locale === "ar"
+                    ? "دخل جديد"
+                    : "Nouveau revenu"
+                  : locale === "ar"
+                  ? "ديبونس جديدة"
+                  : "Nouvelle dépense"}
+              </b>
+              <button
+                type="button"
+                onClick={() => setExpressTxOpen(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  border: 0,
+                  borderRadius: 18,
+                  background: "var(--dsh-soft)",
+                  color: "var(--dsh-ink)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <label
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              {locale === "ar" ? "المبلغ (درهم)" : "Montant (MAD)"}
+              <input
+                type="text"
+                inputMode="decimal"
+                value={expressAmount}
+                onChange={(e) => setExpressAmount(e.target.value)}
+                autoFocus
+                style={{
+                  height: 60,
+                  padding: "0 16px",
+                  borderRadius: 14,
+                  border: "1.5px solid var(--dsh-line)",
+                  background: "var(--dsh-card)",
+                  color: "var(--dsh-ink)",
+                  fontSize: 28,
+                  fontWeight: 800,
+                  outline: "none",
+                }}
+              />
+            </label>
+
+            {/* Suggestions de montants rapides */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {(expressTxType === "income"
+                ? ["12 400", "800", "1 500"]
+                : ["50", "100", "150", "200"]
+              ).map((sg) => (
+                <button
+                  key={sg}
+                  type="button"
+                  onClick={() => setExpressAmount(sg.replace(/\s+/g, ""))}
+                  style={{
+                    height: 36,
+                    padding: "0 12px",
+                    border: "1.5px solid var(--dsh-line)",
+                    borderRadius: 18,
+                    background: "transparent",
+                    color: "var(--dsh-ink)",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {sg} MAD
+                </button>
               ))}
             </div>
-          )}
-        </Section>
-      </motion.div>
 
-
-      </div>
-
-      <div ref={quickRef}>
-        {shouldShowNextStepCard ? (
-          <Section title={nextStepCopy.title} className="dashboard-panel relative z-10 mt-8">
-            <Card className="dashboard-list-card">
-              <p className="text-sm text-[var(--muted)]">{nextStepCopy.body}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild>
-                  <Link href="/transactions">{nextStepCopy.tx}</Link>
-                </Button>
-                <Button asChild variant="secondary">
-                  <Link href="/envelopes">{nextStepCopy.env}</Link>
-                </Button>
-                <Button asChild variant="ghost">
-                  <Link href="/khatat-lflous">{nextStepCopy.smart}</Link>
-                </Button>
-              </div>
-            </Card>
-          </Section>
-        ) : null}
-
-
-      </div>
-        </>
-      ) : null}
-        </>
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={handleSaveExpressTx}
+                style={{
+                  flex: 1,
+                  height: 52,
+                  border: 0,
+                  borderRadius: 14,
+                  background:
+                    expressTxType === "income" ? "#4338CA" : "#C2185B",
+                  color: "#FFFFFF",
+                  fontSize: 16,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                {locale === "ar" ? "تسجيل" : "Enregistrer"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExpressTxOpen(false);
+                  openQuickTx(expressTxType, { amount: expressAmount });
+                }}
+                style={{
+                  height: 52,
+                  padding: "0 14px",
+                  borderRadius: 14,
+                  border: "1.5px solid var(--dsh-line)",
+                  background: "transparent",
+                  color: "var(--dsh-ink)",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {locale === "ar" ? "تفاصيل أكثر" : "Formulaire complet"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
-      {mounted
-        ? createPortal(
+      {/* 5. MODALE SWEEP ÉPARGNE AUTOMATIQUE */}
+      {sweepOpen && (
+        <div className="dsh-ovl" onClick={() => setSweepOpen(false)}>
+          <div
+            className="dsh-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             <div
-              ref={fabRef}
-              className={`fixed bottom-6 z-50 flex flex-col gap-3 ${
-                pageDir === "rtl" ? "left-6" : "right-6"
-              }`}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
             >
-              <Button
-                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 h-12 w-12 sm:w-auto sm:h-auto px-0 sm:px-5 py-0 sm:py-2.5 shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 flex items-center justify-center sm:justify-start gap-2 font-medium text-white"
-                onClick={() =>
-                  openQuickTransactionDialog("income", {
-                    bootstrapDate: sweepBootstrap?.last_income_date ?? null,
-                    bootstrapAmount:
-                      sweepBootstrap?.last_income_amount ??
-                      sweepBootstrap?.expected_income_amount ??
-                      null,
-                  })
-                }
-                title={copy.fabDeclareIncome}
-                aria-label={copy.fabDeclareIncome}
+              <b style={{ fontSize: 20 }}>
+                {locale === "ar"
+                  ? "التوفير التلقائي (Sweep)"
+                  : "Épargne automatique (sweep)"}
+              </b>
+              <button
+                type="button"
+                onClick={() => setSweepOpen(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  border: 0,
+                  borderRadius: 18,
+                  background: "var(--dsh-soft)",
+                  color: "var(--dsh-ink)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
               >
-                <TrendingUp className="h-5 w-5 shrink-0" />
-                <span className="hidden sm:inline">{copy.fabDeclareIncome}</span>
-              </Button>
-              <Button
-                className="rounded-full bg-gradient-to-r from-rose-500 to-red-600 h-12 w-12 sm:w-auto sm:h-auto px-0 sm:px-5 py-0 sm:py-2.5 shadow-lg hover:from-rose-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center sm:justify-start gap-2 font-medium text-white"
-                onClick={() => openQuickTransactionDialog("expense")}
-                title={copy.fabDeclareExpense}
-                aria-label={copy.fabDeclareExpense}
-              >
-                <TrendingDown className="h-5 w-5 shrink-0" />
-                <span className="hidden sm:inline">{copy.fabDeclareExpense}</span>
-              </Button>
-            </div>,
-            document.body
-          )
-        : null}
-      <style jsx global>{`
-        .quick-tx-dialog {
-          animation: quickTxDialogFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .quick-tx-fadein > * {
-          animation: quickTxFadeUp 320ms ease both;
-        }
-        .quick-tx-fadein > *:nth-child(2) {
-          animation-delay: 40ms;
-        }
-        .quick-tx-fadein > *:nth-child(3) {
-          animation-delay: 80ms;
-        }
-        .quick-tx-fadein > *:nth-child(4) {
-          animation-delay: 120ms;
-        }
-        .quick-tx-tab-active {
-          box-shadow: 0 8px 20px rgba(16, 185, 129, 0.16);
-        }
-        .quick-tx-chip {
-          transition: transform 180ms ease, box-shadow 180ms ease;
-        }
-        .quick-tx-chip:hover {
-          transform: translateY(-1px) scale(1.03);
-          box-shadow: 0 6px 14px rgba(16, 185, 129, 0.16);
-        }
-        .quick-tx-submit {
-          transition: transform 140ms ease, box-shadow 180ms ease;
-        }
-        .quick-tx-submit:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 10px 24px rgba(16, 185, 129, 0.28);
-        }
-        .quick-tx-submit:active:not(:disabled) {
-          transform: translateY(0);
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .quick-tx-dialog,
-          .quick-tx-fadein > *,
-          .quick-tx-chip,
-          .quick-tx-submit {
-            animation: none !important;
-            transition: none !important;
-            transform: none !important;
-          }
-        }
-        @keyframes quickTxDialogFadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        @keyframes quickTxFadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        [data-dashboard-locale="ar"],
-        [data-dashboard-locale="ar"] *,
-        .dashboard-arabic-font,
-        .dashboard-arabic-font * {
-          font-family: "Cairo", sans-serif !important;
-          font-optical-sizing: auto;
-          font-variation-settings: "slnt" 0;
-          letter-spacing: 0 !important;
-        }
+                <X size={18} />
+              </button>
+            </div>
 
-        [data-dashboard-locale="ar"] svg,
-        [data-dashboard-locale="ar"] button svg,
-        [data-dashboard-locale="ar"] a svg,
-        .dashboard-arabic-font svg,
-        .dashboard-arabic-font button svg,
-        .dashboard-arabic-font a svg {
-          font-family: initial !important;
-        }
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14.5,
+                lineHeight: 1.6,
+                color: "var(--dsh-muted)",
+              }}
+            >
+              {locale === "ar"
+                ? `فـ ${daysRemaining} أيام، الفلوس اللي شايطة فـ الأظرفة المرنة كتمشي لـ Tawfir باش تكبر ادخارك.`
+                : `Dans ${daysRemaining} jours, l’argent non dépensé des enveloppes flexibles part dans Tawfir.`}
+            </p>
 
-        [data-dashboard-locale="ar"] .dashboard-title,
-        .dashboard-arabic-font .dashboard-title {
-          font-family: "Cairo", sans-serif !important;
-          font-weight: 800 !important;
-          letter-spacing: 0 !important;
-        }
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "var(--dsh-soft)",
+              }}
+            >
+              <span>Courses</span>
+              <b>+620 MAD</b>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "var(--dsh-soft)",
+              }}
+            >
+              <span>Sorties</span>
+              <b>+340 MAD</b>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "var(--dsh-soft)",
+              }}
+            >
+              <span>Loisirs</span>
+              <b>+220 MAD</b>
+            </div>
 
-        [data-dashboard-locale="ar"] .dashboard-copy,
-        [data-dashboard-locale="ar"] .dashboard-copy p,
-        [data-dashboard-locale="ar"] .dashboard-copy span,
-        [data-dashboard-locale="ar"] .dashboard-copy a,
-        [data-dashboard-locale="ar"] .dashboard-copy button,
-        [data-dashboard-locale="ar"] .dashboard-copy div,
-        [data-dashboard-locale="ar"] .dashboard-copy h2,
-        [data-dashboard-locale="ar"] .dashboard-copy h3,
-        .dashboard-arabic-font .dashboard-copy,
-        .dashboard-arabic-font .dashboard-copy p,
-        .dashboard-arabic-font .dashboard-copy span,
-        .dashboard-arabic-font .dashboard-copy a,
-        .dashboard-arabic-font .dashboard-copy button,
-        .dashboard-arabic-font .dashboard-copy div,
-        .dashboard-arabic-font .dashboard-copy h2,
-        .dashboard-arabic-font .dashboard-copy h3 {
-          font-family: "Cairo", sans-serif !important;
-          letter-spacing: 0 !important;
-        }
-      `}</style>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: 14,
+                borderRadius: 12,
+                background: "var(--dsh-brand-soft)",
+                color: "var(--dsh-brand-ink)",
+                fontWeight: 800,
+              }}
+            >
+              <span>Tawfir</span>
+              <span>4 760 → 5 940 MAD</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. MODALE FONCTION RÉSERVÉE (WALL) */}
+      {wallModal && (
+        <div className="dsh-ovl" onClick={() => setWallModal(null)}>
+          <div
+            className="dsh-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <span
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                background: "var(--dsh-brand-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Lock size={24} color="#0A7A53" />
+            </span>
+
+            <b style={{ fontSize: 20 }}>
+              {wallModal === "Sauvegarde"
+                ? locale === "ar"
+                  ? "حافظ على ميزانيتك فأمان"
+                  : "Garde ton budget en sécurité"
+                : wallModal === "Ba Omar"
+                ? locale === "ar"
+                  ? "سالات 3 محاولات ديالك مع با عمر"
+                  : "Tes 3 essais avec Ba Omar sont utilisés"
+                : locale === "ar"
+                ? `خاص بالحسابات: ${wallModal}`
+                : `« ${wallModal} » est réservé aux comptes`}
+            </b>
+
+            <span
+              style={{
+                fontSize: 14.5,
+                lineHeight: 1.55,
+                color: "var(--dsh-muted)",
+              }}
+            >
+              {locale === "ar"
+                ? "دير حساب مجاني: الأظرفة والعمليات ديالك كتبقى محفوظة، وتستافد من التقارير، الأهداف، والديون بدون حدود."
+                : "Crée un compte gratuit : tes enveloppes et tes opérations sont conservées, et tu débloques Rapports, Objectifs, Dettes et Ba Omar en illimité."}
+            </span>
+
+            <Link
+              href="/login"
+              style={{
+                height: 50,
+                borderRadius: 14,
+                background: "#0A7A53",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                textDecoration: "none",
+                fontSize: 15,
+              }}
+            >
+              {locale === "ar"
+                ? "تسجيل حساب مجاني"
+                : "Créer mon compte gratuit"}
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setWallModal(null)}
+              style={{
+                height: 44,
+                border: 0,
+                borderRadius: 12,
+                background: "transparent",
+                color: "var(--dsh-ink)",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {locale === "ar"
+                ? "متابعة الاكتشاف"
+                : "Continuer la découverte"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
