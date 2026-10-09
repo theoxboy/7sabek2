@@ -708,14 +708,7 @@ function DashboardContent() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
 
-    if (sorted.length === 0) {
-      return [
-        { name: locale === "ar" ? "التقضية" : "Courses", amount: 1420 },
-        { name: locale === "ar" ? "النقل" : "Transport", amount: 610 },
-        { name: locale === "ar" ? "الخرجات" : "Sorties", amount: 480 },
-        { name: locale === "ar" ? "الفواتير" : "Factures", amount: 520 },
-      ];
-    }
+    // Real data only: return empty list if 0 spending recorded
     return sorted;
   }, [data?.spending_by_envelope, focusEnvelopes, inclFixed, locale]);
 
@@ -756,27 +749,51 @@ function DashboardContent() {
         val: Number(p.net_worth || 0),
       }));
     }
-    // Fallback based on real netTotal and period
-    const curVal = Math.max(8200, netTotal > 0 ? netTotal + 8000 : 12480);
-    const months = locale === "ar"
-      ? ["ماي", "يونيو", "يوليوز", "غشت", "شتنبر", "أكتوبر"]
-      : ["mai", "juin", "juil.", "août", "sept.", "oct."];
-    const vals = [8200, 9100, 9800, 10600, 11900, curVal];
-    return months.map((m, i) => ({ month: m, val: vals[i] }));
-  }, [trendPoints, netTotal, locale]);
+    if (trendPoints.length === 1) {
+      const p = trendPoints[0];
+      return [
+        {
+          month: formatLocaleMonth(p.period_start, locale),
+          val: Number(p.net_worth || 0),
+        },
+      ];
+    }
+    const curMonth = formatLocaleMonth(
+      data?.current_period?.start || getLocalTodayISO(),
+      locale
+    );
+    return [{ month: curMonth, val: netTotal }];
+  }, [trendPoints, netTotal, locale, data?.current_period?.start]);
 
   const trendVals = useMemo(() => trendDataMapped.map((d) => d.val), [trendDataMapped]);
   const trendMonths = useMemo(() => trendDataMapped.map((d) => d.month), [trendDataMapped]);
 
-  const minTrend = useMemo(() => Math.min(...trendVals, 6000), [trendVals]);
-  const maxTrend = useMemo(() => Math.max(...trendVals, 14000), [trendVals]);
-  const rangeTrend = Math.max(1000, maxTrend - minTrend);
+  const minTrend = useMemo(() => {
+    if (trendVals.length === 0) return 0;
+    const min = Math.min(...trendVals);
+    return min >= 0 ? 0 : min;
+  }, [trendVals]);
 
-  const getLineX = (i: number) => (isRTL ? 460 - i * 88 : 60 + i * 88);
-  const getLineY = (v: number) => 180 - ((v - minTrend) / rangeTrend) * 160;
+  const maxTrend = useMemo(() => {
+    const maxVal = trendVals.length > 0 ? Math.max(...trendVals) : 0;
+    const primaryGoalAmt = goals[0]?.target_amount
+      ? Number(goals[0].target_amount)
+      : 0;
+    return Math.max(maxVal, primaryGoalAmt > 0 ? primaryGoalAmt : 100);
+  }, [trendVals, goals]);
+
+  const rangeTrend = Math.max(10, maxTrend - minTrend);
+
+  const getLineX = (i: number) => {
+    const totalPoints = trendVals.length;
+    if (totalPoints <= 1) return 260;
+    const spacing = 440 / Math.max(1, totalPoints - 1);
+    return isRTL ? 500 - i * spacing : 60 + i * spacing;
+  };
+  const getLineY = (v: number) => 180 - ((v - minTrend) / rangeTrend) * 140;
 
   const linePointsString = trendVals
-    .map((v, i) => `${getLineX(i)},${getLineY(v).toFixed(1)}`)
+    .map((v, i) => `${getLineX(i).toFixed(1)},${getLineY(v).toFixed(1)}`)
     .join(" ");
 
   // REAL CASH ALLOCATION BREAKDOWN
@@ -812,22 +829,88 @@ function DashboardContent() {
             )
           )
         )
-      : 30;
+      : 0;
 
-  const cashSegments = [
-    { name: locale === "ar" ? "دين" : "Dette", pct: 16, color: "#7C4DBA" },
-    {
-      name: locale === "ar" ? "تكاليف قارة" : "Charges fixes",
-      pct: 38,
-      color: "#2457A6",
-    },
-    { name: locale === "ar" ? "مرونة" : "Morona", pct: 22, color: "#0A7A53" },
-    {
-      name: locale === "ar" ? "باقي الكاش" : "Reste cash",
-      pct: 24,
-      color: "#C98A1A",
-    },
-  ];
+  const cashSegments = useMemo(() => {
+    const debtAmt = focusEnvelopes
+      .filter((e) => e.isDebt)
+      .reduce((s, e) => s + Math.max(0, e.allocated || e.spent), 0);
+
+    const fixedAmt = focusEnvelopes
+      .filter((e) => {
+        const n = e.name.toLowerCase();
+        return (
+          !e.isDebt &&
+          (n.includes("loyer") ||
+            n.includes("charges") ||
+            n.includes("factures") ||
+            n.includes("crédit") ||
+            n.includes("abonnement") ||
+            n.includes("assurance"))
+        );
+      })
+      .reduce((s, e) => s + Math.max(0, e.allocated || e.spent), 0);
+
+    const flexAmt = focusEnvelopes
+      .filter((e) => {
+        const n = e.name.toLowerCase();
+        return (
+          !e.isDebt &&
+          !n.includes("loyer") &&
+          !n.includes("charges") &&
+          !n.includes("factures") &&
+          !n.includes("crédit") &&
+          !n.includes("abonnement") &&
+          !n.includes("assurance")
+        );
+      })
+      .reduce((s, e) => s + Math.max(0, e.allocated || e.spent), 0);
+
+    const freeCashAmt =
+      Math.max(0, Number(data?.available_to_allocate || 0)) +
+      envelopesList
+        .filter((e) => e.isSavings || e.isCash)
+        .reduce((s, e) => s + Math.max(0, e.remaining), 0);
+
+    const total = debtAmt + fixedAmt + flexAmt + freeCashAmt;
+
+    if (total <= 0) {
+      return [
+        { name: locale === "ar" ? "دين" : "Dette", pct: 0, color: "#7C4DBA" },
+        {
+          name: locale === "ar" ? "تكاليف قارة" : "Charges fixes",
+          pct: 0,
+          color: "#2457A6",
+        },
+        { name: locale === "ar" ? "مرونة" : "Morona", pct: 0, color: "#0A7A53" },
+        {
+          name: locale === "ar" ? "باقي الكاش" : "Reste cash",
+          pct: 0,
+          color: "#C98A1A",
+        },
+      ];
+    }
+
+    const pctDebt = Math.round((debtAmt / total) * 100);
+    const pctFixed = Math.round((fixedAmt / total) * 100);
+    const pctFlex = Math.round((flexAmt / total) * 100);
+    const pctCash = Math.max(0, 100 - pctDebt - pctFixed - pctFlex);
+
+    return [
+      { name: locale === "ar" ? "دين" : "Dette", pct: pctDebt, color: "#7C4DBA" },
+      {
+        name: locale === "ar" ? "تكاليف قارة" : "Charges fixes",
+        pct: pctFixed,
+        color: "#2457A6",
+      },
+      { name: locale === "ar" ? "مرونة" : "Morona", pct: pctFlex, color: "#0A7A53" },
+      {
+        name: locale === "ar" ? "باقي الكاش" : "Reste cash",
+        pct: pctCash,
+        color: "#C98A1A",
+      },
+    ];
+  }, [focusEnvelopes, envelopesList, data?.available_to_allocate, locale]);
 
   // Ba Omar ask submit with real transaction recording
   const handleAskOmar = async (e: React.FormEvent) => {
@@ -2949,8 +3032,16 @@ function DashboardContent() {
                       <div style={{ flex: 1, fontSize: 13.5, lineHeight: 1.45 }}>
                         <b style={{ color: "#0A7A53" }}>Ba Omar :</b>{" "}
                         {locale === "ar"
-                          ? `التوفير التلقائي غادي يحول الفائض لـ Tawfir نهار 28. راك غادي مزيان !`
-                          : `Ton argent flexible est bien cadré. Tu peux déplacer 50 ${currency} vers Sorties si besoin.`}
+                          ? Number(data?.period_expenses_mapped || 0) === 0
+                            ? "مازال ما كاينا حتى مصاريف مسجلة فهاد الدورة. استعمل الخانة الفوق ولا زر [N] باش تسجل أول عملية !"
+                            : envCounts.over > 0
+                            ? `رد البال، كاين ${envCounts.over} أظرفة فايتين السقف. تقدر تعاود توازن الميزانية.`
+                            : "المصاريف ديالك مضبوطة مزيان فهاد الدورة. واصل هكذا !"
+                          : Number(data?.period_expenses_mapped || 0) === 0
+                          ? "Aucune dépense enregistrée sur ce cycle. Utilise la barre ci-dessus ou le bouton [N] pour saisir une première opération !"
+                          : envCounts.over > 0
+                          ? `Attention : ${envCounts.over} enveloppe(s) ont dépassé leur limite. Pense à rééquilibrer tes allocations.`
+                          : `Ton budget est bien maîtrisé pour ce cycle. Continue sur ce rythme !`}
                       </div>
                     </div>
                   )}
@@ -3026,107 +3117,142 @@ function DashboardContent() {
                     </label>
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      gap: 20,
-                    }}
-                  >
-                    <div style={{ position: "relative", width: 180, height: 180 }}>
-                      <svg width="180" height="180" viewBox="0 0 200 200">
-                        {donutSlices.map((d, i) => (
-                          <circle
-                            key={d.name}
-                            cx="100"
-                            cy="100"
-                            r="76"
-                            fill="none"
-                            stroke={d.color}
-                            strokeWidth={d.sw}
-                            strokeDasharray={d.dash}
-                            strokeDashoffset={d.offset}
-                            transform="rotate(-90 100 100)"
-                            onMouseEnter={() => setHoverDonut(i)}
-                            onMouseLeave={() => setHoverDonut(-1)}
-                            style={{
-                              cursor: "pointer",
-                              transition: "stroke-width 0.15s ease",
-                            }}
-                          />
-                        ))}
-                      </svg>
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        <span style={{ fontSize: 11.5, color: "var(--dsh-muted)" }}>
-                          {activeDonut
-                            ? activeDonut.name
-                            : inclFixed
-                            ? "Total"
-                            : "Flexible"}
-                        </span>
-                        <b style={{ fontSize: 20 }}>
-                          {formatMoney(
-                            activeDonut ? activeDonut.amount : donutTotal
-                          )}
-                        </b>
-                        <span style={{ fontSize: 11.5, color: "var(--dsh-muted)" }}>
-                          {activeDonut && donutTotal > 0
-                            ? `${Math.round(
-                                (activeDonut.amount / donutTotal) * 100
-                              )} %`
-                            : currency}
-                        </span>
-                      </div>
-                    </div>
-
-                    <ul
+                    <div
                       style={{
-                        margin: 0,
-                        padding: 0,
-                        listStyle: "none",
-                        flex: "1 1 140px",
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: 20,
                       }}
                     >
-                      {donutData.map((d, i) => (
-                        <li
-                          key={d.name}
+                      <div style={{ position: "relative", width: 180, height: 180 }}>
+                        <svg width="180" height="180" viewBox="0 0 200 200">
+                          {donutTotal === 0 ? (
+                            <circle
+                              cx="100"
+                              cy="100"
+                              r="76"
+                              fill="none"
+                              stroke="var(--dsh-line)"
+                              strokeWidth="20"
+                            />
+                          ) : (
+                            donutSlices.map((d, i) => (
+                              <circle
+                                key={d.name}
+                                cx="100"
+                                cy="100"
+                                r="76"
+                                fill="none"
+                                stroke={d.color}
+                                strokeWidth={d.sw}
+                                strokeDasharray={d.dash}
+                                strokeDashoffset={d.offset}
+                                transform="rotate(-90 100 100)"
+                                onMouseEnter={() => setHoverDonut(i)}
+                                onMouseLeave={() => setHoverDonut(-1)}
+                                style={{
+                                  cursor: "pointer",
+                                  transition: "stroke-width 0.15s ease",
+                                }}
+                              />
+                            ))
+                          )}
+                        </svg>
+                        <div
                           style={{
+                            position: "absolute",
+                            inset: 0,
                             display: "flex",
+                            flexDirection: "column",
                             alignItems: "center",
-                            gap: 8,
-                            fontSize: 13.5,
+                            justifyContent: "center",
+                            pointerEvents: "none",
                           }}
                         >
-                          <span
-                            style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: 3,
-                              background: donutColors[i % donutColors.length],
-                            }}
-                          />
-                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {d.name}
+                          <span style={{ fontSize: 11.5, color: "var(--dsh-muted)" }}>
+                            {activeDonut
+                              ? activeDonut.name
+                              : inclFixed
+                              ? "Total"
+                              : "Flexible"}
                           </span>
-                          <b>{formatMoney(d.amount)}</b>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                          <b style={{ fontSize: 20 }}>
+                            {formatMoney(
+                              activeDonut ? activeDonut.amount : donutTotal
+                            )}
+                          </b>
+                          <span style={{ fontSize: 11.5, color: "var(--dsh-muted)" }}>
+                            {activeDonut && donutTotal > 0
+                              ? `${Math.round(
+                                  (activeDonut.amount / donutTotal) * 100
+                                )} %`
+                              : currency}
+                          </span>
+                        </div>
+                      </div>
+
+                      {donutData.length === 0 ? (
+                        <div
+                          style={{
+                            flex: "1 1 140px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                            color: "var(--dsh-muted)",
+                            fontSize: 13,
+                          }}
+                        >
+                          <b style={{ color: "var(--dsh-ink)", fontSize: 13.5 }}>
+                            {locale === "ar"
+                              ? "ما كاين حتى مصاريف مسجلة"
+                              : "Aucune dépense enregistrée"}
+                          </b>
+                          <span style={{ lineHeight: 1.45, fontSize: 12 }}>
+                            {locale === "ar"
+                              ? "الرسم التوضيحي غادي يعمر تلقائيا فاش تبدا تسجل مصاريفك فهاد الدورة."
+                              : "Le diagramme s'actualisera dès l'enregistrement de tes dépenses sur ce cycle."}
+                          </span>
+                        </div>
+                      ) : (
+                        <ul
+                          style={{
+                            margin: 0,
+                            padding: 0,
+                            listStyle: "none",
+                            flex: "1 1 140px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          {donutData.map((d, i) => (
+                            <li
+                              key={d.name}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                fontSize: 13.5,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: 3,
+                                  background: donutColors[i % donutColors.length],
+                                }}
+                              />
+                              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {d.name}
+                              </span>
+                              <b>{formatMoney(d.amount)}</b>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                 </div>
 
                 {/* CARTE 2 : Patrimoine Net RÉEL */}
@@ -3211,25 +3337,31 @@ function DashboardContent() {
                       y2="180"
                       stroke="var(--dsh-axis)"
                     />
-                    <line
-                      x1="40"
-                      y1="20"
-                      x2="510"
-                      y2="20"
-                      stroke="#C98A1A"
-                      strokeWidth="1.5"
-                      strokeDasharray="6 5"
-                    />
-                    <text
-                      x={isRTL ? 40 : 510}
-                      y="14"
-                      fontSize="11"
-                      fontWeight="700"
-                      fill="var(--dsh-muted)"
-                      textAnchor={isRTL ? "start" : "end"}
-                    >
-                      {locale === "ar" ? "الهدف 14 000" : "Objectif 14 000"}
-                    </text>
+                    {goals.length > 0 && Number(goals[0]?.target_amount || 0) > 0 && (
+                      <>
+                        <line
+                          x1="40"
+                          y1={getLineY(Number(goals[0].target_amount))}
+                          x2="510"
+                          y2={getLineY(Number(goals[0].target_amount))}
+                          stroke="#C98A1A"
+                          strokeWidth="1.5"
+                          strokeDasharray="6 5"
+                        />
+                        <text
+                          x={isRTL ? 40 : 510}
+                          y={Math.max(14, getLineY(Number(goals[0].target_amount)) - 6)}
+                          fontSize="11"
+                          fontWeight="700"
+                          fill="var(--dsh-muted)"
+                          textAnchor={isRTL ? "start" : "end"}
+                        >
+                          {locale === "ar"
+                            ? `الهدف ${formatMoney(goals[0].target_amount)}`
+                            : `Objectif ${formatMoney(goals[0].target_amount)}`}
+                        </text>
+                      </>
+                    )}
                     <polyline
                       points={linePointsString}
                       fill="none"
@@ -3303,10 +3435,14 @@ function DashboardContent() {
                         borderRadius: 999,
                         background: isGuest
                           ? "var(--dsh-soft)"
-                          : "var(--dsh-brand-soft)",
+                          : autoSweepEnabled
+                          ? "var(--dsh-brand-soft)"
+                          : "var(--dsh-soft)",
                         color: isGuest
                           ? "var(--dsh-muted)"
-                          : "var(--dsh-brand-ink)",
+                          : autoSweepEnabled
+                          ? "var(--dsh-brand-ink)"
+                          : "var(--dsh-muted)",
                         fontSize: 11.5,
                         fontWeight: 800,
                       }}
@@ -3315,9 +3451,13 @@ function DashboardContent() {
                         ? locale === "ar"
                           ? "التوفير بعد التسجيل"
                           : "Sweep après inscription"
+                        : autoSweepEnabled
+                        ? locale === "ar"
+                          ? "التوفير التلقائي · مفعّل"
+                          : "Sweep auto · activé"
                         : locale === "ar"
-                        ? "التوفير التلقائي مفعّل"
-                        : "Sweep auto · activé"}
+                        ? "التوفير التلقائي · غير مفعّل"
+                        : "Sweep auto · inactif"}
                     </span>
                   </div>
 
@@ -3400,9 +3540,7 @@ function DashboardContent() {
                         {locale === "ar" ? "ديون / شهر" : "Dettes / mois"}
                       </span>
                       <b style={{ fontSize: 18 }}>
-                        {debtPressureTotals.monthlyAllocation > 0
-                          ? `${formatMoney(debtPressureTotals.monthlyAllocation)} ${currency}`
-                          : `1 800 ${currency}`}
+                        {formatMoney(debtPressureTotals.monthlyAllocation)} {currency}
                       </b>
                     </button>
 

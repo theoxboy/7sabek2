@@ -24,7 +24,10 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
   if (locale === "ar") {
     if (["cash"].includes(normalized)) return "لكاش";
     if (["epargnes", "epargne", "savings"].includes(normalized)) return "الادخار";
-    if (["nourriture", "food", "courses"].includes(normalized)) return "الماكلة";
+    if (["nourriture", "food", "courses", "groceries"].includes(normalized)) return "التقضية";
+    if (["loisirs", "leisure"].includes(normalized)) return "الترفيه";
+    if (["shopping"].includes(normalized)) return "التسوق";
+    if (["restaurants", "restaurant"].includes(normalized)) return "المطاعم";
     if (["sante", "health", "pharmacie"].includes(normalized)) return "الصحة";
     if (["charges", "housing costs", "housing"].includes(normalized)) return "مصاريف السكن";
     if (["factures", "bills", "utilities"].includes(normalized)) return "لفواتير";
@@ -129,6 +132,17 @@ export function localizeEnvelopeLabel(name: string, locale: FloussyLocale): stri
 
   if (locale === "fr") {
     if (["savings", "epargnes", "epargne"].includes(normalized)) return "Épargne";
+    if (["groceries", "nourriture", "food"].includes(normalized)) return "Courses";
+    if (["health", "sante"].includes(normalized)) return "Santé";
+    if (["leisure", "loisirs"].includes(normalized)) return "Loisirs";
+    if (["restaurants", "restaurant"].includes(normalized)) return "Restaurants";
+    if (["shopping"].includes(normalized)) return "Shopping";
+    if (["bills", "factures"].includes(normalized)) return "Factures";
+    if (["rent", "loyer"].includes(normalized)) return "Loyer";
+    if (["travel", "voyages", "voyage"].includes(normalized)) return "Voyages";
+    if (["subscriptions", "abonnements"].includes(normalized)) return "Abonnements";
+    if (["gifts", "cadeaux"].includes(normalized)) return "Cadeaux";
+    if (["transport"].includes(normalized)) return "Transport";
     if (["phone", "telephone"].includes(normalized)) return "Téléphone";
     if (["miscellaneous", "misc", "divers"].includes(normalized)) return "Divers";
     if (["vehicle maintenance"].includes(normalized)) return "Entretien véhicule";
