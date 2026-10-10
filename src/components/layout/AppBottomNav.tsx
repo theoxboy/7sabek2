@@ -39,20 +39,28 @@ interface AppBottomNavProps {
 export function AppBottomNav({ user, locale }: AppBottomNavProps) {
   const pathname = usePathname();
   const [isTablet, setIsTablet] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
 
   const isRTL = locale === "ar";
   const isGuest = user?.is_guest;
 
   useEffect(() => {
+    setMounted(true);
     const checkViewport = () => {
       const w = window.innerWidth;
+      setIsDesktop(w >= 1024);
       setIsTablet(w >= 600 && w < 1024);
     };
     checkViewport();
     window.addEventListener("resize", checkViewport);
     return () => window.removeEventListener("resize", checkViewport);
   }, []);
+
+  if (mounted && isDesktop) {
+    return null;
+  }
 
   // Labels i18n
   const t = {
@@ -173,7 +181,7 @@ interface PlusSheetGroup {
           background: "var(--dsh-card, #FFFFFF)",
           borderTop: "1px solid var(--dsh-line, #ECEBE4)",
           boxShadow: "0 -8px 24px -16px rgba(15, 26, 22, 0.35)",
-          display: "grid",
+          display: isDesktop ? "none" : "grid",
           gridTemplateColumns: `repeat(${activeTabs.length + 1}, minmax(0, 1fr))`,
           alignItems: "center",
         }}

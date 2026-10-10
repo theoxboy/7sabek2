@@ -2413,8 +2413,28 @@ html[dir="rtl"] .tr-fast-bar {
    7sabek Dashboard Responsive (iPad 600px-1024px, PC >1024px, Mobile <600px)
    ========================================================================= */
 
-/* iPad / Tablet (600px - 1024px) */
-@media (min-width: 600px) and (max-width: 1024px) {
+/* PC / Desktop (>= 1024px) : STRICTEMENT PAS DE MENU EN BAS */
+.asb-tabnav {
+  display: none !important;
+}
+
+@media (max-width: 1023px) {
+  .asb-tabnav {
+    display: grid !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .asb-tabnav {
+    display: none !important;
+  }
+  body:has(.asb-tabnav) {
+    padding-bottom: 0 !important;
+  }
+}
+
+/* iPad / Tablet (600px - 1023px) */
+@media (min-width: 600px) and (max-width: 1023px) {
   body:has(.asb-tabnav) {
     padding-bottom: 96px;
   }
