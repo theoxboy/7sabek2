@@ -24,7 +24,7 @@ export function proxy(request: NextRequest) {
   // strict nonce + 'strict-dynamic' policy.
   const scriptSrc = isDev
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.clarity.ms https://*.clarity.ms"
-    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https:`;
+    : `script-src 'self' 'unsafe-inline' 'nonce-${nonce}' 'strict-dynamic' https:`;
 
   const csp = [
     "default-src 'self'",

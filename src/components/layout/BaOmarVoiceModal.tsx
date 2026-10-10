@@ -306,7 +306,7 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
         }>("/nlp/predict-audio", {
           method: "POST",
           body: formData,
-          timeoutMs: 40000,
+          timeoutMs: 25000,
         });
 
         if (res.amount !== null && res.amount !== undefined && res.amount > 0) {
