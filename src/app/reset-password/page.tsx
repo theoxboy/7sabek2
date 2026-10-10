@@ -264,125 +264,201 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <main
-      className={`relative min-h-screen overflow-hidden bg-[#f6f0e4] ${pageFontClass}`}
+    <div
+      className={`pw-root t-light min-h-screen flex flex-col bg-[#F6F5EF] dark:bg-[#0E1512] text-[#0F1A16] dark:text-[#EEF2EF] ${pageFontClass}`}
       dir={dir}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(249,115,22,0.14),_transparent_26%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(255,255,255,0.22))]" />
-      <div className="pointer-events-none absolute left-[-8rem] top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
-      <div className="pointer-events-none absolute right-[-6rem] top-40 h-80 w-80 rounded-full bg-orange-300/20 blur-3xl" />
+      {/* Mobile / Tablet Top Band */}
+      <div className="pw-band">
+        <Link href="/" className="pw-logo">
+          <BrandLogo locale={locale} className="h-9 w-auto brightness-0 invert" />
+        </Link>
+        <Link href="/" className="pw-pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+          <span>Accueil</span>
+        </Link>
+      </div>
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-12">
-        <Card className="w-full rounded-[30px] border border-white/80 bg-[var(--surface)]/88 p-7 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="mb-3">
-            <BrandLogo locale={locale} className="h-28 w-auto object-contain" />
-          </div>
-          <h1 className="text-3xl font-semibold text-slate-900">{copy.title}</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{copy.subtitle}</p>
+      {/* Desktop Header */}
+      <header className="pw-head w-full max-w-[1200px] mx-auto p-6 flex justify-between items-center gap-3 box-border">
+        <Link
+          href="/"
+          className="h-11 px-3.5 rounded-xl bg-white dark:bg-[#18221E] border border-[#DCDAD1] dark:border-[#33433C] flex items-center gap-2 text-[#0F1A16] dark:text-[#EEF2EF] text-[15px] font-bold no-underline hover:border-[#0A7A53] transition"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+          <span>Accueil</span>
+        </Link>
+        <Link
+          href="/releases"
+          className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"
+        >
+          <span className="w-[7px] h-[7px] rounded-[4px] bg-[#0A7A53] dark:bg-[#2FB27A]" />
+          <span>v1.7.0</span>
+        </Link>
+      </header>
 
-          {!canShowForm ? (
-            <div className="mt-5 space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-medium text-amber-800">{copy.invalidToken}</p>
-              <p className="text-xs text-amber-700">
-                {copy.invalidLinkBlockPrefix} {copy.invalidLinkBlockAction} {copy.invalidLinkBlockSuffix}
+      {/* Main Container */}
+      <main className="pw-main flex-1 flex items-center justify-center px-6 py-6 pb-20">
+        <div className="pw-card w-full max-w-[480px] bg-white dark:bg-[#18221E] border border-[#DCDAD1] dark:border-[#33433C] rounded-[28px] p-8 sm:p-11 box-border flex flex-col gap-5 shadow-[0_24px_60px_rgba(15,26,22,0.06)] dark:shadow-none">
+
+          {/* Expired / Invalid State */}
+          {!canShowForm && !message && (
+            <div className="flex flex-col gap-[18px]">
+              <span className="w-16 h-16 rounded-[20px] bg-[#FBE8E1] dark:bg-[#3D1E1A] flex items-center justify-center text-[#B4441C] dark:text-[#FF8A80]">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4M12 16.5h.01M9 2h6" />
+                </svg>
+              </span>
+              <h1 className="m-0 text-[28px] sm:text-[30px] font-extrabold tracking-[-1px] text-[#0F1A16] dark:text-[#EEF2EF]">
+                {copy.invalidToken}
+              </h1>
+              <p className="m-0 text-base leading-[1.55] text-[#55645D] dark:text-[#A3B1AA]">
+                {copy.tokenExpired}
               </p>
               <Link
                 href="/forgot-password"
-                className="inline-flex h-10 items-center justify-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                className="h-14 rounded-[14px] bg-[#0A7A53] dark:bg-[#2FB27A] hover:bg-[#086645] dark:hover:bg-[#3CC58A] text-white dark:text-[#05140E] flex items-center justify-center text-[17px] font-extrabold no-underline transition"
               >
                 {copy.requestNewLink}
               </Link>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">{copy.newPassword}</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                  data-clarity-mask="true"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="border-slate-200 bg-[var(--surface)]/95 focus-visible:ring-emerald-500"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">{copy.confirmation}</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                  data-clarity-mask="true"
-                  value={confirm}
-                  onChange={(event) => setConfirm(event.target.value)}
-                  className="border-slate-200 bg-[var(--surface)]/95 focus-visible:ring-emerald-500"
-                />
-              </div>
-              {tokenInfoLoading ? null : requiresSuperadminVerification ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="mb-2 text-xs font-semibold text-amber-800">
-                    {copy.superadminBoxTitle}
-                  </p>
-                  <div className="space-y-2">
-                    <Label htmlFor="superadmin-code">{copy.superadminCode}</Label>
-                    <Input
-                      id="superadmin-code"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      data-clarity-mask="true"
-                      value={superadminCode}
-                      onChange={(event) =>
-                        setSuperadminCode(event.target.value.replace(/[^\d]/g, "").slice(0, 4))
-                      }
-                      placeholder={copy.codePlaceholder}
-                      className="border-amber-200 bg-[var(--surface)]/95 focus-visible:ring-amber-400"
-                    />
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    <Label htmlFor="superadmin-first-name">{copy.superadminFirstName}</Label>
-                    <Input
-                      id="superadmin-first-name"
-                      type="text"
-                      data-clarity-mask="true"
-                      value={superadminFirstName}
-                      onChange={(event) => setSuperadminFirstName(event.target.value)}
-                      placeholder={copy.firstNamePlaceholder}
-                      className="border-amber-200 bg-[var(--surface)]/95 focus-visible:ring-amber-400"
-                    />
-                  </div>
-                </div>
-              ) : null}
-              {message ? (
-                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                  {message}
-                </p>
-              ) : null}
-              {error ? (
-                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </p>
-              ) : null}
-              <Button
-                type="submit"
-                disabled={loading || tokenInfoLoading || !hasValidTokenFormat}
-                className="h-11 w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600"
-              >
-                {loading ? copy.updating : copy.update}
-              </Button>
-            </form>
           )}
 
-          <div className="mt-4 text-sm">
-            <Link href="/login" className="font-medium text-emerald-700 hover:underline">
-              {copy.backToLogin}
-            </Link>
-          </div>
-        </Card>
-      </div>
-    </main>
+          {/* Success State */}
+          {message && (
+            <div className="flex flex-col gap-[18px] items-center text-center">
+              <span className="w-[72px] h-[72px] rounded-[36px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center justify-center text-[#0A7A53] dark:text-[#2FB27A]">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12l5 5 9-10" />
+                </svg>
+              </span>
+              <h1 className="m-0 text-[28px] sm:text-[30px] font-extrabold tracking-[-1px] text-[#0F1A16] dark:text-[#EEF2EF]">
+                {copy.updatedRedirecting}
+              </h1>
+              <p className="m-0 text-base text-[#55645D] dark:text-[#A3B1AA]">
+                Redirection automatique vers la connexion…
+              </p>
+              <div className="w-full h-1.5 rounded-[3px] bg-[#E6E4DC] dark:bg-[#33433C] overflow-hidden">
+                <div className="w-full h-1.5 rounded-[3px] bg-[#0A7A53] dark:bg-[#2FB27A] animate-pulse" />
+              </div>
+              <Link
+                href="/login"
+                className="text-[15px] font-extrabold text-[#0A7A53] dark:text-[#2FB27A] hover:underline no-underline"
+              >
+                {copy.backToLogin}
+              </Link>
+            </div>
+          )}
+
+          {/* Valid Form State */}
+          {canShowForm && !message && (
+            <div className="flex flex-col gap-[18px]">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#E2F1E8] dark:bg-[#173A2D] text-[#06402C] dark:text-[#BFEBD6] text-sm font-bold">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12l5 5 9-10" />
+                </svg>
+                <span>Lien vérifié · Session sécurisée</span>
+              </div>
+
+              <h1 className="m-0 text-[30px] sm:text-[32px] font-extrabold tracking-[-1px] text-[#0F1A16] dark:text-[#EEF2EF]">
+                {copy.title}
+              </h1>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="flex gap-3 p-4 rounded-2xl bg-[#FBE8E1] dark:bg-[#3D1E1A] text-[#7A2A10] dark:text-[#FF8A80] text-[15px] leading-relaxed"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <label className="flex flex-col gap-1.5 text-sm font-bold text-[#0F1A16] dark:text-[#EEF2EF]">
+                  <span>{copy.newPassword}</span>
+                  <input
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    data-clarity-mask="true"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-[54px] px-4 border-[1.5px] border-[#DCDAD1] dark:border-[#33433C] focus:border-[#0A7A53] dark:focus:border-[#2FB27A] rounded-[14px] font-sans text-base box-border w-full bg-white dark:bg-[#18221E] text-[#0F1A16] dark:text-[#EEF2EF] outline-none transition"
+                  />
+                </label>
+                <span className="-mt-2 text-[13px] text-[#55645D] dark:text-[#A3B1AA]">
+                  {copy.passwordMin}
+                </span>
+
+                <label className="flex flex-col gap-1.5 text-sm font-bold text-[#0F1A16] dark:text-[#EEF2EF]">
+                  <span>{copy.confirmation}</span>
+                  <input
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    data-clarity-mask="true"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    className="h-[54px] px-4 border-[1.5px] border-[#DCDAD1] dark:border-[#33433C] focus:border-[#0A7A53] dark:focus:border-[#2FB27A] rounded-[14px] font-sans text-base box-border w-full bg-white dark:bg-[#18221E] text-[#0F1A16] dark:text-[#EEF2EF] outline-none transition"
+                  />
+                </label>
+
+                {requiresSuperadminVerification && (
+                  <fieldset className="m-0 border-[1.5px] border-dashed border-[#6B3FA0] rounded-[18px] p-4 flex flex-col gap-3">
+                    <legend className="px-1.5 text-[13px] font-extrabold text-[#6B3FA0]">
+                      {copy.superadminBoxTitle}
+                    </legend>
+                    <label className="flex flex-col gap-1.5 text-sm font-bold text-[#0F1A16] dark:text-[#EEF2EF]">
+                      <span>{copy.superadminCode}</span>
+                      <input
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="• • • •"
+                        data-clarity-mask="true"
+                        value={superadminCode}
+                        onChange={(e) => setSuperadminCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        className="h-[52px] px-4 border-[1.5px] border-[#DCDAD1] dark:border-[#33433C] focus:border-[#6B3FA0] rounded-[14px] font-sans text-xl tracking-[8px] box-border w-full bg-white dark:bg-[#18221E] text-[#0F1A16] dark:text-[#EEF2EF] outline-none transition"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5 text-sm font-bold text-[#0F1A16] dark:text-[#EEF2EF]">
+                      <span>{copy.superadminFirstName}</span>
+                      <input
+                        type="text"
+                        placeholder={copy.firstNamePlaceholder}
+                        data-clarity-mask="true"
+                        value={superadminFirstName}
+                        onChange={(e) => setSuperadminFirstName(e.target.value)}
+                        className="h-[52px] px-4 border-[1.5px] border-[#DCDAD1] dark:border-[#33433C] focus:border-[#6B3FA0] rounded-[14px] font-sans text-base box-border w-full bg-white dark:bg-[#18221E] text-[#0F1A16] dark:text-[#EEF2EF] outline-none transition"
+                      />
+                    </label>
+                  </fieldset>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || tokenInfoLoading || !hasValidTokenFormat}
+                  className="h-[56px] mt-2 border-0 rounded-[14px] bg-[#0A7A53] dark:bg-[#2FB27A] hover:bg-[#086645] dark:hover:bg-[#3CC58A] text-white dark:text-[#05140E] font-sans text-[17px] font-extrabold cursor-pointer transition flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? copy.updating : copy.update}
+                </button>
+              </form>
+            </div>
+          )}
+
+          <Link
+            href="/login"
+            className="self-center p-2 text-[15px] font-bold text-[#0A7A53] dark:text-[#2FB27A] hover:underline no-underline"
+          >
+            ← {copy.backToLogin}
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }

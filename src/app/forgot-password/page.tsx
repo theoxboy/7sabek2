@@ -111,21 +111,14 @@ function localizeResetRequestMessage(raw: string | undefined, localeCopy: (typeo
 export default function ForgotPasswordPage() {
   const { locale, dir } = useAppLocale("fr");
   useForceArabicDocumentFont(locale === "ar", "forgot-password-ar-body");
-  const reduceMotion = useReducedMotion();
   const copy = COPY[locale];
   const appVersionLabel = getAppVersionLabel();
   const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "forgot-arabic-font" : ""}`;
-  const headingClass = arabicFont.className;
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const inputClass =
-    "h-[50px] w-full rounded-xl border-[#E3E8DF] bg-white ps-11 text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-normal placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0 transition-all";
-  const ICON_WRAP =
-    "pointer-events-none absolute inset-y-0 start-0 flex w-11 items-center justify-center text-[#7C8D86] transition-colors";
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -143,122 +136,135 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  const isLimited = error && (error.includes("tentatives") || error.includes("attempts") || error.includes("محاولات"));
+  const isBlocked = error && !isLimited ? error : null;
+
   return (
-    <main
-      className={`relative min-h-screen overflow-hidden bg-[#F4F6F2] ${pageFontClass}`}
+    <div
+      className={`pw-root t-light min-h-screen flex flex-col bg-[#F6F5EF] dark:bg-[#0E1512] text-[#0F1A16] dark:text-[#EEF2EF] ${pageFontClass}`}
       dir={dir}
     >
-      {/* Background ambient lighting matching login & register */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_rgba(23,199,119,0.12),_transparent_40%),radial-gradient(circle_at_80%_80%,_rgba(11,143,83,0.08),_transparent_40%)]" />
-      <div className="pointer-events-none absolute -start-24 top-20 h-80 w-80 rounded-full bg-emerald-400/15 blur-3xl" />
-      <div className="pointer-events-none absolute -end-24 bottom-20 h-80 w-80 rounded-full bg-emerald-600/10 blur-3xl" />
+      {/* Mobile / Tablet Top Band */}
+      <div className="pw-band">
+        <Link href="/" className="pw-logo">
+          <BrandLogo locale={locale} className="h-9 w-auto brightness-0 invert" />
+        </Link>
+        <Link href="/" className="pw-pill">
+          <Home className="w-4 h-4" />
+          <span>{copy.backHome}</span>
+        </Link>
+      </div>
 
-      <div className="relative z-10 flex min-h-screen flex-col px-5 py-6 sm:px-8 lg:px-12">
-        {/* Top navigation row identical to login/register */}
-        <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            aria-label={copy.backHome}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
-          >
-            <Home className="h-4 w-4" />
-          </Link>
+      {/* Desktop Header */}
+      <header className="pw-head w-full max-w-[1200px] mx-auto p-6 flex justify-between items-center gap-3 box-border">
+        <Link
+          href="/"
+          className="h-11 px-3.5 rounded-xl bg-white dark:bg-[#18221E] border border-[#DCDAD1] dark:border-[#33433C] flex items-center gap-2 text-[#0F1A16] dark:text-[#EEF2EF] text-[15px] font-bold no-underline hover:border-[#0A7A53] transition"
+        >
+          <Home className="w-[18px] h-[18px]" />
+          <span>{copy.backHome}</span>
+        </Link>
+        <Link
+          href="/releases"
+          className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"
+        >
+          <span className="w-[7px] h-[7px] rounded-[4px] bg-[#0A7A53] dark:bg-[#2FB27A]" />
+          <span>v{appVersionLabel}</span>
+        </Link>
+      </header>
 
-          <Link
-            href="/releases"
-            title="Journal des versions 7sabek"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#E3E8DF] bg-white px-3 py-1 text-[0.72rem] font-extrabold text-[#7C8D86] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#17C777]" />
-            <span>7sabek {appVersionLabel}</span>
-          </Link>
-        </header>
+      {/* Main Container */}
+      <main className="pw-main flex-1 flex items-center justify-center px-6 py-6 pb-20">
+        <div className="pw-card w-full max-w-[480px] bg-white dark:bg-[#18221E] border border-[#DCDAD1] dark:border-[#33433C] rounded-[28px] p-8 sm:p-11 box-border flex flex-col gap-5 shadow-[0_24px_60px_rgba(15,26,22,0.06)] dark:shadow-none">
+          <span className="w-16 h-16 rounded-[20px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center justify-center text-[#0A7A53] dark:text-[#2FB27A]">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="8" cy="15" r="4" />
+              <path d="M11 12l9-9M17 6l3 3M15 8l2 2" />
+            </svg>
+          </span>
 
-        {/* Centered card container */}
-        <div className="flex flex-1 items-center justify-center py-8">
-          <motion.div
-            className="w-full max-w-[440px]"
-            initial={reduceMotion ? undefined : { opacity: 0, y: 20 }}
-            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="rounded-[28px] border border-[#E3E8DF] bg-white p-7 shadow-[0_24px_54px_-20px_rgba(10,36,29,0.08)] sm:p-9">
-              {/* Brand Logo */}
-              <div className="mb-5 flex justify-center">
-                <BrandLogo locale={locale} className="h-14 w-auto object-contain" />
-              </div>
+          <div className="flex flex-col gap-2">
+            <h1 className="m-0 text-[30px] sm:text-[32px] font-extrabold tracking-[-1px] text-[#0F1A16] dark:text-[#EEF2EF]">
+              {copy.title}
+            </h1>
+            <p className="m-0 text-base leading-[1.55] text-[#55645D] dark:text-[#A3B1AA]">
+              {copy.subtitle}
+            </p>
+          </div>
 
-              <div className="text-center">
-                <h1 className={`${headingClass} text-[1.65rem] font-extrabold tracking-tight text-[#0A241D]`}>
-                  {copy.title}
-                </h1>
-                <p className="mt-2 text-sm leading-relaxed text-[#5A6E65]">
-                  {copy.subtitle}
-                </p>
-              </div>
+          {/* Success Banner */}
+          {message && (
+            <div
+              role="status"
+              className="flex gap-3 p-4 rounded-2xl bg-[#E2F1E8] dark:bg-[#173A2D] text-[#06402C] dark:text-[#BFEBD6] text-[15px] leading-relaxed"
+            >
+              <CheckCircle2 className="w-[22px] h-[22px] shrink-0 text-[#0A7A53] dark:text-[#2FB27A]" />
+              <span>{message}</span>
+            </div>
+          )}
 
-              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="block text-start text-[0.8rem] font-extrabold text-[#4E625A]">
-                    {copy.email}
-                  </Label>
-                  <div className="relative flex items-center">
-                    <span className={ICON_WRAP}>
-                      <Mail className="h-4 w-4" />
-                    </span>
-                    <Input
-                      id="email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      placeholder="nom@exemple.ma"
-                      value={email}
-                      onChange={(event) => {
-                        setEmail(event.target.value);
-                        setError(null);
-                      }}
-                      className={`${inputClass} ${error ? "border-[#F2686B] ring-2 ring-[#F2686B]/20" : ""}`}
-                    />
-                  </div>
-                </div>
+          {/* Rate Limited Banner */}
+          {isLimited && (
+            <div
+              role="alert"
+              className="flex gap-3 p-4 rounded-2xl bg-[#FFF4DC] dark:bg-[#3A2C14] text-[#5C4A1E] dark:text-[#F5C77A] text-[15px] leading-relaxed"
+            >
+              <AlertCircle className="w-[22px] h-[22px] shrink-0 text-[#8A5300] dark:text-[#F5C77A]" />
+              <span>{error}</span>
+            </div>
+          )}
 
-                {message ? (
-                  <p className="flex items-center gap-2 rounded-xl border border-[#17C777]/30 bg-[#E8F8F0] px-3.5 py-2.5 text-xs font-bold text-[#0B8F53]">
-                    <CheckCircle2 className="h-4 w-4 flex-none" />
-                    <span>{message}</span>
-                  </p>
-                ) : null}
-
-                {error ? (
-                  <p className="flex items-center gap-2 rounded-xl border border-[#F2686B]/30 bg-[#FDECEC] px-3.5 py-2.5 text-xs font-bold text-[#B33A3D]">
-                    <AlertCircle className="h-4 w-4 flex-none" />
-                    <span>{error}</span>
-                  </p>
-                ) : null}
-
-                <Button
-                  type="submit"
-                  isLoading={loading}
-                  disabled={loading}
-                  className="h-[50px] w-full rounded-xl bg-[#17C777] text-[15px] font-extrabold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.7)] transition-all hover:bg-[#0B8F53] hover:text-white"
-                >
-                  {loading ? copy.sending : copy.send}
-                </Button>
-              </form>
-
-              <div className="mt-6 border-t border-[#EEF2EC] pt-5 text-center">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B8F53] transition hover:underline"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
-                  <span>{copy.backToLogin}</span>
+          {/* Blocked / Other Error Banner */}
+          {isBlocked && (
+            <div
+              role="alert"
+              className="flex gap-3 p-4 rounded-2xl bg-[#FBE8E1] dark:bg-[#3D1E1A] text-[#7A2A10] dark:text-[#FF8A80] text-[15px] leading-relaxed"
+            >
+              <AlertCircle className="w-[22px] h-[22px] shrink-0 text-[#B42318] dark:text-[#FF8A80]" />
+              <div>
+                <span>{isBlocked} </span>
+                <Link href="/contact" className="font-extrabold text-[#7A2A10] dark:text-[#FF8A80] underline">
+                  Contact
                 </Link>
               </div>
             </div>
-          </motion.div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <label className="flex flex-col gap-1.5 text-sm font-bold text-[#0F1A16] dark:text-[#EEF2EF]">
+              <span>{copy.email}</span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="nom@exemple.ma"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
+                className="h-[54px] px-4 border-[1.5px] border-[#DCDAD1] dark:border-[#33433C] focus:border-[#0A7A53] dark:focus:border-[#2FB27A] rounded-[14px] font-sans text-base box-border w-full bg-white dark:bg-[#18221E] text-[#0F1A16] dark:text-[#EEF2EF] outline-none transition"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="h-[56px] border-0 rounded-[14px] bg-[#0A7A53] dark:bg-[#2FB27A] hover:bg-[#086645] dark:hover:bg-[#3CC58A] text-white dark:text-[#05140E] font-sans text-[17px] font-extrabold cursor-pointer transition flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? copy.sending : copy.send}
+            </button>
+          </form>
+
+          <Link
+            href="/login"
+            className="self-center p-2 text-[15px] font-bold text-[#0A7A53] dark:text-[#2FB27A] hover:underline no-underline"
+          >
+            ← {copy.backToLogin}
+          </Link>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

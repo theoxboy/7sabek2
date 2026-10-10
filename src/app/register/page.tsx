@@ -1,46 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Calendar,
-  Camera,
-  Check,
-  Eye,
-  EyeOff,
-  Home,
-  Lock,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldCheck,
-  Trash2,
-  User,
-} from "lucide-react";
 
 import { apiFetch, resetAuthClientState } from "@/lib/api";
 import { fetchMe, logout, refreshAuthSession, markAuthSessionHint, type AuthUser } from "@/lib/auth";
 import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
-import { GuestModeButton } from "@/components/guest/GuestModeButton";
 import { startGuestSession } from "@/lib/guestSession";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
-import BrandLogo from "@/components/BrandLogo";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
-import { getAppVersionLabel } from "@/lib/app-version";
-import { getTodayRegisterQuote, REGISTER_DAILY_QUOTES } from "@/lib/facts-quotes";
 
 declare global {
   interface Window {
@@ -64,12 +36,14 @@ declare global {
 
 const DEFAULT_SWEEP_INTERVAL_DAYS = 7;
 type CurrencyCode = "MAD" | "DZD" | "TND" | "EGP";
+
 const COUNTRY_OPTIONS = [
-  { name: "Maroc", code: "ma", defaultCurrency: "MAD" as CurrencyCode },
-  { name: "Algérie", code: "dz", defaultCurrency: "DZD" as CurrencyCode },
-  { name: "Tunisie", code: "tn", defaultCurrency: "TND" as CurrencyCode },
-  { name: "Égypte", code: "eg", defaultCurrency: "EGP" as CurrencyCode },
+  { name: "Maroc", code: "ma", dial: "🇲🇦 +212", defaultCurrency: "MAD" as CurrencyCode },
+  { name: "Algérie", code: "dz", dial: "🇩🇿 +213", defaultCurrency: "DZD" as CurrencyCode },
+  { name: "Tunisie", code: "tn", dial: "🇹🇳 +216", defaultCurrency: "TND" as CurrencyCode },
+  { name: "Égypte", code: "eg", dial: "🇪🇬 +20", defaultCurrency: "EGP" as CurrencyCode },
 ] as const;
+
 type CountryName = (typeof COUNTRY_OPTIONS)[number]["name"];
 
 const CURRENCY_BY_COUNTRY: Record<CountryName, CurrencyCode> = {
@@ -77,6 +51,13 @@ const CURRENCY_BY_COUNTRY: Record<CountryName, CurrencyCode> = {
   Algérie: "DZD",
   Tunisie: "TND",
   Égypte: "EGP",
+};
+
+const DIAL_BY_COUNTRY: Record<CountryName, string> = {
+  Maroc: "🇲🇦 +212",
+  Algérie: "🇩🇿 +213",
+  Tunisie: "🇹🇳 +216",
+  Égypte: "🇪🇬 +20",
 };
 
 const CITIES_BY_COUNTRY: Record<CountryName, string[]> = {
@@ -122,7 +103,7 @@ const CITIES_BY_COUNTRY: Record<CountryName, string[]> = {
     "Tan-Tan",
     "Autres",
   ],
-  "Algérie": [
+  Algérie: [
     "Alger",
     "Oran",
     "Constantine",
@@ -188,7 +169,7 @@ const CITIES_BY_COUNTRY: Record<CountryName, string[]> = {
     "Menzel Bourguiba",
     "Autres",
   ],
-  "Égypte": [
+  Égypte: [
     "Le Caire",
     "Alexandrie",
     "Gizeh",
@@ -251,410 +232,242 @@ const COMPROMISED_PASSWORDS = new Set([
   "123123",
 ]);
 
-const REGISTER_COPY = {
+const COPY = {
   fr: {
-    photoMustBeImage: "Le fichier doit être une image (PNG, JPG, WebP).",
-    photoMaxSize: "La photo ne doit pas dépasser 13 Mo.",
-    waitBeforeRetry: "Merci d’attendre avant de réessayer.",
-    allFieldsRequired: "Tous les champs obligatoires doivent être remplis.",
-    validEmail: "Merci d’entrer une adresse email valide.",
-    passwordsMismatch: "Les deux mots de passe ne correspondent pas.",
-    recaptchaRequired: "Veuillez valider la vérification de sécurité.",
-    recaptchaFailed: "Échec de vérification reCAPTCHA. Merci de réessayer.",
-    recaptchaMissingConfig: "Configuration reCAPTCHA manquante. Ajoute NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
-    recaptchaDevBypass: "Mode dev : vérification de sécurité contournée localement.",
-    recaptchaChecking: "Protection anti-spam validée avec succès.",
-    completeInfo: "Merci de renseigner tous les champs requis.",
-    phoneTooShort: "Le numéro de téléphone est trop court (au moins 8 chiffres).",
-    invalidBirthDate: "La date de naissance est invalide.",
-    minAge: "L’inscription requiert d’avoir au moins 13 ans.",
-    chooseCountryCity: "Merci de sélectionner un pays et une ville.",
-    validCity: "Merci de choisir une ville valide.",
-    currencyUnavailable: "Devise indisponible pour ce pays.",
-    tooManyAttempts: "Trop de tentatives. Merci de réessayer dans un instant.",
-    accountExists: "Un compte existe déjà avec cette adresse email.",
-    weakPassword: "Le mot de passe ne respecte pas les exigences minimales.",
-    weakPasswordRule: "Le mot de passe doit comporter au moins 8 caractères, dont une lettre et un chiffre.",
-    compromisedPassword: "Ce mot de passe est trop courant. Choisis-en un plus sécurisé.",
-    passwordRuleMinLength: "Au moins 8 caractères",
-    passwordRuleLetter: "Au moins 1 lettre",
-    passwordRuleDigit: "Au moins 1 chiffre",
-    passwordRuleNotCompromised: "Mot de passe sûr et robuste",
-    passwordStrengthWeak: "Faible",
-    passwordStrengthMedium: "Moyen",
-    passwordStrengthStrong: "Robuste",
-    createAccountFailed: "Impossible de créer le compte pour le moment. Réessaie.",
-    heroTitle: "7sabek n’est pas juste une application..",
-    heroSubtitle: "7sabek est la discipline qui transforme durablement votre vie financière.",
-    baOmarName: "Ba Omar",
-    baOmarRole: "Votre allié financier",
-    baOmarQuote: "« Marhaban bik ! En quelques secondes, créons ton compte pour reprendre le contrôle de ton budget avec la méthode des enveloppes. »",
-    envelopeLabel: "Enveloppe Active",
-    envelopeCategory: "Alimentation & Courses",
-    addExpenseQuick: "Ajout rapide",
-    fabor: "c’est faboooor",
-    step1Pill: "1. Compte & Accès",
-    step2Pill: "2. Profil & Finalisation",
-    step1Title: "Crée ton compte 7sabek",
-    step1Subtitle: "Renseigne tes informations pour configurer ton espace personnel.",
-    step2Title: "Finalise ton profil",
-    step2Subtitle: "Dernière étape pour personnaliser tes enveloppes budgétaires.",
-    maintenanceSuffix: "Les inscriptions sont désactivées pendant la maintenance.",
-    alreadyLoggedIn: "Tu es déjà connecté en tant que",
-    goDashboard: "Accéder au tableau de bord",
-    logout: "Se déconnecter",
-    profilePhoto: "Photo de profil (optionnelle)",
-    profilePhotoChange: "Changer la photo",
-    profilePhotoRemove: "Supprimer",
-    firstName: "Prénom",
-    firstNamePlaceholder: "Ex. Youssef",
-    lastName: "Nom",
-    lastNamePlaceholder: "Ex. Bennani",
-    phone: "Numéro de téléphone",
-    phonePlaceholder: "06 12 34 56 78",
-    birthDate: "Date de naissance",
-    email: "Adresse email",
-    emailPlaceholder: "nom@exemple.ma",
+    home: "Accueil",
+    login: "Connexion",
+    alreadyRegistered: "Déjà inscrit ?",
+    step1Title: "ÉTAPE 1 · COMPTE & ACCÈS",
+    step2Title: "ÉTAPE 2 · PROFIL & FINALISATION",
+    createTitle: "Crée ton compte",
+    profileTitle: "Ton profil",
+    back: "← Retour",
+    email: "Adresse e-mail",
     password: "Mot de passe",
     confirmPassword: "Confirmer le mot de passe",
-    hidePassword: "Masquer le mot de passe",
-    showPassword: "Afficher le mot de passe",
-    passwordHint: "8 caractères minimum, avec au moins 1 lettre et 1 chiffre.",
+    strength: "Robustesse",
+    weak: "Faible",
+    medium: "Moyen",
+    strong: "Robuste",
+    ruleMinLength: "Au moins 8 caractères",
+    ruleLetter: "Au moins 1 lettre",
+    ruleDigit: "Au moins 1 chiffre",
+    continueProfile: "Continuer vers le profil",
+    tryGuest: "Essayer sans compte",
+    profilePhoto: "Photo de profil (optionnelle)",
+    upload: "Téléverser",
+    remove: "Supprimer",
+    firstName: "Prénom",
+    lastName: "Nom",
+    phone: "Téléphone",
+    birthDate: "Date de naissance",
     country: "Pays de résidence",
     city: "Ville",
-    selectCity: "Sélectionner une ville",
-    chooseCountryFirst: "Choisis d'abord un pays",
-    continueToStep2: "Continuer vers le profil",
-    backToStep1: "Retour",
-    createFinalAccount: "Créer mon compte et démarrer",
-    creatingAccount: "Création de ton compte en cours...",
-    alreadyAccount: "Tu as déjà un compte ?",
-    login: "Se connecter",
-    flagAlt: (name: string) => `Drapeau ${name}`,
-    acceptTermsPrefix: "En créant ton compte, tu acceptes les ",
-    acceptTermsCGULink: "Conditions d'Utilisation (CGU)",
-    acceptTermsAnd: " et la ",
-    acceptTermsPrivacyLink: "Politique de Confidentialité",
-    acceptTermsSuffix: " de 7sabek.ma.",
-    tryWithoutAccount: "Essayer sans compte",
-    tryWithoutAccountHint: "Découvre 7sabek instantanément en mode invité, sans e-mail ni engagement.",
-    guestStartError: "Impossible de démarrer le mode découverte. Réessaie.",
-    retryIn: "Trop de tentatives. Réessaie dans",
-    trustFeature1: "100% gratuit et pensé pour le Maroc",
-    trustFeature2: "Vous savez quoi dépenser chaque jour sans stress",
-    trustFeature3: "Données chiffrées et protégées en toute confidentialité",
+    ageNotice: "Âge minimum requis : 13 ans.",
+    recaptchaNotRobot: "Je ne suis pas un robot",
+    cguAccept: "J’accepte les Conditions générales d’utilisation et la Politique de confidentialité.",
+    submitCreate: "Créer mon compte et démarrer",
+    submitting: "Création du compte…",
+    livePreview: "APERÇU EN DIRECT",
+    salam: "Salam",
+    budgetCurrency: "Devise de ton budget",
+    adv1: "4 enveloppes prêtes à remplir",
+    adv2: "Ba Omar parle ta langue",
+    adv3: "Aucune banque connectée",
+    allFieldsRequired: "Tous les champs obligatoires doivent être renseignés.",
+    validEmail: "Merci d'entrer une adresse e-mail valide.",
+    passwordsMismatch: "Les mots de passe ne correspondent pas.",
+    weakPasswordRule: "Le mot de passe doit comporter au moins 8 caractères, dont une lettre et un chiffre.",
+    compromisedPassword: "Ce mot de passe est trop facile. Choisis-en un plus robuste.",
+    phoneTooShort: "Le numéro de téléphone est trop court (au moins 8 chiffres).",
+    invalidBirthDate: "Date de naissance invalide.",
+    minAge: "L'inscription requiert d'avoir au moins 13 ans.",
+    chooseCountryCity: "Merci de sélectionner un pays et une ville.",
+    recaptchaRequired: "Veuillez valider la vérification de sécurité.",
+    recaptchaFailed: "Échec de vérification reCAPTCHA.",
+    cguRequired: "Veuillez accepter les CGU et la Politique de confidentialité.",
+    photoMustBeImage: "Le fichier doit être une image (PNG, JPG, WebP).",
+    photoMaxSize: "La photo ne doit pas dépasser 13 Mo.",
+    createAccountFailed: "Impossible de créer le compte pour le moment.",
+    accountExists: "Un compte existe déjà avec cette adresse e-mail.",
+    weakPassword: "Le mot de passe ne respecte pas les critères de sécurité.",
+    guestStartError: "Impossible de démarrer le mode invité.",
+    connectedAs: "Tu es connecté en tant que",
+    goDashboard: "Accéder au dashboard",
+    logout: "Se déconnecter",
+  },
+  ar: {
+    home: "الرئيسية",
+    login: "تسجيل الدخول",
+    alreadyRegistered: "عندك حساب؟",
+    step1Title: "المرحلة 1 · الحساب والولوج",
+    step2Title: "المرحلة 2 · الملف الشخصي",
+    createTitle: "أنشئ حسابك 7sabek",
+    profileTitle: "الملف الشخصي",
+    back: "← رجوع",
+    email: "البريد الإلكتروني",
+    password: "كلمة السر",
+    confirmPassword: "تأكيد كلمة السر",
+    strength: "القوة",
+    weak: "ضعيفة",
+    medium: "متوسطة",
+    strong: "قوية",
+    ruleMinLength: "على الأقل 8 حروف",
+    ruleLetter: "على الأقل حرف واحد",
+    ruleDigit: "على الأقل رقم واحد",
+    continueProfile: "المتابعة للملف الشخصي",
+    tryGuest: "تجربة بدون حساب",
+    profilePhoto: "الصورة الشخصية (اختيارية)",
+    upload: "تحميل صورة",
+    remove: "حذف",
+    firstName: "الاسم الشخصي",
+    lastName: "الاسم العائلي",
+    phone: "رقم الهاتف",
+    birthDate: "تاريخ الازدياد",
+    country: "بلد الإقامة",
+    city: "المدينة",
+    ageNotice: "السن الأدنى المطلوب : 13 سنة.",
+    recaptchaNotRobot: "أنا لست روبوت",
+    cguAccept: "أوافق على الشروط العامة للاستخدام وسياسة الخصوصية.",
+    submitCreate: "إنشاء الحساب والبدء",
+    submitting: "جاري إنشاء الحساب…",
+    livePreview: "معاينة مباشرة",
+    salam: "السلام",
+    budgetCurrency: "عملة الميزانية",
+    adv1: "4 أظرفة واجدة للاستعمال",
+    adv2: "با عمر كايهضر بلهجتك",
+    adv3: "بدون ربط بنكي لحماية سرية حساباتك",
+    allFieldsRequired: "عمر الخانات الضرورية عافاك.",
+    validEmail: "دخل بريد إلكتروني صحيح.",
+    passwordsMismatch: "كلمات السر ما متطابقينش.",
+    weakPasswordRule: "كلمة السر خاصها 8 حروف على الأقل مع حرف ورقم.",
+    compromisedPassword: "كلمة السر ساهلة بزاف. اختار وحدة أقوى.",
+    phoneTooShort: "رقم الهاتف قصير بزاف (8 أرقام على الأقل).",
+    invalidBirthDate: "تاريخ الازدياد غير صحيح.",
+    minAge: "خاص يكون عندك 13 عام على الأقل.",
+    chooseCountryCity: "اختار البلد والمدينة.",
+    recaptchaRequired: "أكد أنك لست روبوت باش نكملو.",
+    recaptchaFailed: "وقع مشكل فالتحقق من الحماية.",
+    cguRequired: "وافق على الشروط وسياسة الخصوصية للمتابعة.",
+    photoMustBeImage: "الملف خاصو يكون صورة (PNG, JPG, WebP).",
+    photoMaxSize: "حجم الصورة ما خاصوش يفوت 13 ميغابايت.",
+    createAccountFailed: "ما قدرناش نسجلو الحساب دابا.",
+    accountExists: "كاين حساب مسجل بهاد البريد الإلكتروني.",
+    weakPassword: "كلمة السر ضعيفة.",
+    guestStartError: "ما قدرناش نبداو وضع الضيف.",
+    connectedAs: "راك داخل بحساب",
+    goDashboard: "سير للوحة التحكم",
+    logout: "تسجيل الخروج",
   },
   en: {
-    photoMustBeImage: "The file must be an image (PNG, JPG, WebP).",
-    photoMaxSize: "Profile photo must be 13 MB or less.",
-    waitBeforeRetry: "Please wait before trying again.",
+    home: "Home",
+    login: "Log in",
+    alreadyRegistered: "Already registered?",
+    step1Title: "STEP 1 · ACCOUNT & CREDENTIALS",
+    step2Title: "STEP 2 · PROFILE & COMPLETE",
+    createTitle: "Create your account",
+    profileTitle: "Your profile",
+    back: "← Back",
+    email: "Email address",
+    password: "Password",
+    confirmPassword: "Confirm password",
+    strength: "Strength",
+    weak: "Weak",
+    medium: "Medium",
+    strong: "Strong",
+    ruleMinLength: "At least 8 characters",
+    ruleLetter: "At least 1 letter",
+    ruleDigit: "At least 1 number",
+    continueProfile: "Continue to profile",
+    tryGuest: "Try without account",
+    profilePhoto: "Profile photo (optional)",
+    upload: "Upload",
+    remove: "Remove",
+    firstName: "First name",
+    lastName: "Last name",
+    phone: "Phone number",
+    birthDate: "Date of birth",
+    country: "Country of residence",
+    city: "City",
+    ageNotice: "Minimum age required: 13 years.",
+    recaptchaNotRobot: "I'm not a robot",
+    cguAccept: "I accept the Terms of Service and Privacy Policy.",
+    submitCreate: "Create my account and start",
+    submitting: "Creating your account…",
+    livePreview: "LIVE PREVIEW",
+    salam: "Salam",
+    budgetCurrency: "Budget currency",
+    adv1: "4 envelopes ready to use",
+    adv2: "Ba Omar speaks your language",
+    adv3: "No bank account connection required",
     allFieldsRequired: "All required fields must be completed.",
     validEmail: "Please enter a valid email address.",
     passwordsMismatch: "Passwords do not match.",
-    recaptchaRequired: "Please verify you are not a robot.",
-    recaptchaFailed: "Security verification failed. Please try again.",
-    recaptchaMissingConfig: "Missing reCAPTCHA configuration. Add NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
-    recaptchaDevBypass: "Dev mode: security verification bypassed locally.",
-    recaptchaChecking: "Anti-spam verification passed.",
-    completeInfo: "Please complete all required fields.",
-    phoneTooShort: "Phone number is too short (at least 8 digits).",
-    invalidBirthDate: "Birth date is invalid.",
-    minAge: "You must be at least 13 years old.",
-    chooseCountryCity: "Please select a country and city.",
-    validCity: "Please select a valid city.",
-    currencyUnavailable: "Currency is unavailable for this country.",
-    tooManyAttempts: "Too many attempts. Please try again shortly.",
-    accountExists: "An account already exists with this email.",
-    weakPassword: "Password does not meet minimum security requirements.",
     weakPasswordRule: "Password must have at least 8 characters, including a letter and a number.",
-    compromisedPassword: "This password is too common. Please choose a stronger one.",
-    passwordRuleMinLength: "At least 8 characters",
-    passwordRuleLetter: "At least 1 letter",
-    passwordRuleDigit: "At least 1 number",
-    passwordRuleNotCompromised: "Strong & safe password",
-    passwordStrengthWeak: "Weak",
-    passwordStrengthMedium: "Medium",
-    passwordStrengthStrong: "Strong",
-    createAccountFailed: "Unable to create account right now. Please try again.",
-    heroTitle: "7sabek is more than just an app..",
-    heroSubtitle: "7sabek is the discipline that transforms your financial trajectory.",
-    baOmarName: "Ba Omar",
-    baOmarRole: "Your financial copilot",
-    baOmarQuote: "“Welcome! In just a few seconds, let's create your account to take full control of your finances with envelope budgeting.”",
-    envelopeLabel: "Active Envelope",
-    envelopeCategory: "Groceries & Food",
-    addExpenseQuick: "Quick add",
-    fabor: "it’s freeeee",
-    step1Pill: "1. Account & Credentials",
-    step2Pill: "2. Profile & Complete",
-    step1Title: "Create your 7sabek account",
-    step1Subtitle: "Fill in your details to set up your personal budget space.",
-    step2Title: "Complete your profile",
-    step2Subtitle: "Final step to personalize your budget envelopes.",
-    maintenanceSuffix: "Signups are disabled during maintenance.",
-    alreadyLoggedIn: "You are already signed in as",
+    compromisedPassword: "This password is too common. Choose a stronger one.",
+    phoneTooShort: "Phone number is too short (at least 8 digits).",
+    invalidBirthDate: "Invalid date of birth.",
+    minAge: "You must be at least 13 years old to sign up.",
+    chooseCountryCity: "Please select a country and city.",
+    recaptchaRequired: "Please verify that you are human.",
+    recaptchaFailed: "Security verification failed.",
+    cguRequired: "Please accept the terms and privacy policy to continue.",
+    photoMustBeImage: "File must be an image (PNG, JPG, WebP).",
+    photoMaxSize: "Photo must not exceed 13 MB.",
+    createAccountFailed: "Unable to create account right now.",
+    accountExists: "An account already exists with this email address.",
+    weakPassword: "Password does not meet security requirements.",
+    guestStartError: "Unable to start guest mode.",
+    connectedAs: "You are signed in as",
     goDashboard: "Go to dashboard",
     logout: "Log out",
-    profilePhoto: "Profile photo (optional)",
-    profilePhotoChange: "Change photo",
-    profilePhotoRemove: "Remove",
-    firstName: "First name",
-    firstNamePlaceholder: "e.g. Youssef",
-    lastName: "Last name",
-    lastNamePlaceholder: "e.g. Bennani",
-    phone: "Phone number",
-    phonePlaceholder: "06 12 34 56 78",
-    birthDate: "Birth date",
-    email: "Email address",
-    emailPlaceholder: "name@example.com",
-    password: "Password",
-    confirmPassword: "Confirm password",
-    hidePassword: "Hide password",
-    showPassword: "Show password",
-    passwordHint: "8 characters minimum, with at least 1 letter and 1 number.",
-    country: "Country of residence",
-    city: "City",
-    selectCity: "Select a city",
-    chooseCountryFirst: "Choose a country first",
-    continueToStep2: "Continue to profile",
-    backToStep1: "Back",
-    createFinalAccount: "Create account and start",
-    creatingAccount: "Creating your account...",
-    alreadyAccount: "Already have an account?",
-    login: "Sign in",
-    flagAlt: (name: string) => `${name} flag`,
-    acceptTermsPrefix: "By creating an account, you accept the ",
-    acceptTermsCGULink: "Terms of Service",
-    acceptTermsAnd: " and the ",
-    acceptTermsPrivacyLink: "Privacy Policy",
-    acceptTermsSuffix: " of 7sabek.ma.",
-    tryWithoutAccount: "Try without an account",
-    tryWithoutAccountHint: "Explore 7sabek instantly in guest mode, no email or commitment required.",
-    guestStartError: "Unable to start discovery mode. Please try again.",
-    retryIn: "Too many attempts. Try again in",
-    trustFeature1: "100% free and tailored for Morocco",
-    trustFeature2: "Clear daily spending limit with zero guesswork",
-    trustFeature3: "Bank-grade encryption and total privacy",
   },
-  ar: {
-    photoMustBeImage: "الملف خاصو يكون صورة (PNG أو JPG أو WebP).",
-    photoMaxSize: "الصورة ما خاصهاش تفوت 13 ميغابايت.",
-    waitBeforeRetry: "تسنى شوية عاد تعاود المحاولة.",
-    allFieldsRequired: "عمر جميع الخانات الضرورية عافاك.",
-    validEmail: "دخل عنوان بريد إلكتروني صحيح.",
-    passwordsMismatch: "كلمات السر ما متطابقينش.",
-    recaptchaRequired: "أكد أنك ماشي روبوت باش نكملو.",
-    recaptchaFailed: "ما قدرناش نتحققو من الحماية. عاود المحاولة.",
-    recaptchaMissingConfig: "إعداد reCAPTCHA ناقص. زيد NEXT_PUBLIC_RECAPTCHA_SITE_KEY.",
-    recaptchaDevBypass: "وضع التطوير: تم تجاوز التحقق الأمني محلياً.",
-    recaptchaChecking: "تم التحقق من الحماية بنجاح.",
-    completeInfo: "عمر جميع المعلومات المطلوبة.",
-    phoneTooShort: "رقم الهاتف قصير بزاف (على الأقل 8 أرقام).",
-    invalidBirthDate: "تاريخ الازدياد ما صالحش.",
-    minAge: "خاص يكون العمر على الأقل 13 عام.",
-    chooseCountryCity: "اختار البلد والمدينة.",
-    validCity: "اختار مدينة صالحة.",
-    currencyUnavailable: "العملة ما متوفراش لهاد البلد.",
-    tooManyAttempts: "كاين بزاف ديال المحاولات. عاود من بعد شوية.",
-    accountExists: "كاين حساب مسجل بهاد الإيميل من قبل.",
-    weakPassword: "كلمة السر ضعيفة وما كتحترمش الشروط.",
-    weakPasswordRule: "كلمة السر خاصها تكون فيها على الأقل 8 حروف، وفيها حرف ورقم.",
-    compromisedPassword: "هاد كلمة السر معروفة وضعيفة بزاف. اختار وحدة أقوى.",
-    passwordRuleMinLength: "على الأقل 8 حروف",
-    passwordRuleLetter: "على الأقل 1 حرف",
-    passwordRuleDigit: "على الأقل 1 رقم",
-    passwordRuleNotCompromised: "كلمة سر قوية وآمنة",
-    passwordStrengthWeak: "ضعيفة",
-    passwordStrengthMedium: "متوسطة",
-    passwordStrengthStrong: "قوية ومحمية",
-    createAccountFailed: "ما قدرناش نصاوبو الحساب دابا. عاود المحاولة.",
-    heroTitle: "7sabek ماشي مجرد تطبيق..",
-    heroSubtitle: "7sabek هو الديسيبلين اللي كيبدّل مجرى حياتك المالية.",
-    baOmarName: "با عمر",
-    baOmarRole: "رفيقك المالي",
-    baOmarQuote: "« مرحباً بك! فثواني معدودة، غادي نصاوبو حسابك باش تبدا صفحة نقية مع فلوسك. »",
-    envelopeLabel: "الظرف النشط",
-    envelopeCategory: "التغذية والتقدية",
-    addExpenseQuick: "إضافة سريعة",
-    fabor: "فابووووور",
-    step1Pill: "1. الحساب والدخول",
-    step2Pill: "2. البروفايل والتأكيد",
-    step1Title: "صاوب حسابك فـ 7sabek",
-    step1Subtitle: "دخل معلوماتك الأساسية باش نجهزو مساحتك المالية الخاصة.",
-    step2Title: "كمّل البروفايل ديالك",
-    step2Subtitle: "آخر خطوة باش نخصصو الأظرفة ديال الميزانية ديالك.",
-    maintenanceSuffix: "التسجيل موقف أثناء الصيانة.",
-    alreadyLoggedIn: "راك داير الدخول بهاد الحساب",
-    goDashboard: "سير للوحة التحكم",
-    logout: "تسجيل الخروج",
-    profilePhoto: "صورة البروفايل (اختيارية)",
-    profilePhotoChange: "تبديل الصورة",
-    profilePhotoRemove: "حذف",
-    firstName: "الاسم الشخصي",
-    firstNamePlaceholder: "مثلاً: يوسف",
-    lastName: "النسب (اسم العائلة)",
-    lastNamePlaceholder: "مثلاً: بناني",
-    phone: "رقم الهاتف",
-    phonePlaceholder: "06 12 34 56 78",
-    birthDate: "تاريخ الازدياد",
-    email: "البريد الإلكتروني",
-    emailPlaceholder: "nom@exemple.ma",
-    password: "كلمة السر",
-    confirmPassword: "أكد كلمة السر",
-    hidePassword: "خبي كلمة السر",
-    showPassword: "بيّن كلمة السر",
-    passwordHint: "8 حروف على الأقل، وحرف واحد، ورقم واحد.",
-    country: "بلد الإقامة",
-    city: "المدينة",
-    selectCity: "اختار المدينة",
-    chooseCountryFirst: "اختار البلد أولاً",
-    continueToStep2: "المتابعة نحو البروفايل",
-    backToStep1: "رجوع",
-    createFinalAccount: "صاوب حسابي وابدأ دابا",
-    creatingAccount: "كنصاوبو فالحساب ديالك...",
-    alreadyAccount: "عندك حساب من قبل؟",
-    login: "دخل لحسابك",
-    flagAlt: (name: string) => `علم ${name}`,
-    acceptTermsPrefix: "بإنشاء حسابك، فإنك توافق على ",
-    acceptTermsCGULink: "شروط الاستخدام (CGU)",
-    acceptTermsAnd: " و ",
-    acceptTermsPrivacyLink: "سياسة الخصوصية",
-    acceptTermsSuffix: " لـ 7sabek.ma.",
-    tryWithoutAccount: "جرّب بلا حساب كضيف",
-    tryWithoutAccountHint: "اكتشف 7sabek دابا فوضع الضيف، بلا إيميل وبلا كلمة سر.",
-    guestStartError: "ما قدرناش نبداو وضع الاكتشاف. عاود المحاولة.",
-    retryIn: "كاين بزاف ديال المحاولات. عاود ف",
-    trustFeature1: "100% فابور ومصمم للمغرب",
-    trustFeature2: "كتعرف شحال باقي تصرف كل نهار",
-    trustFeature3: "بياناتك مشفرة ومحفوظة فسرّية تامة",
-  },
-} satisfies Record<FloussyLocale, Record<string, string | ((...args: never[]) => string)>>;
-
-const COUNTRY_LABELS: Record<FloussyLocale, Record<CountryName, string>> = {
-  fr: { Maroc: "Maroc", Algérie: "Algérie", Tunisie: "Tunisie", Égypte: "Égypte" },
-  en: { Maroc: "Morocco", Algérie: "Algeria", Tunisie: "Tunisia", Égypte: "Egypt" },
-  ar: { Maroc: "المغرب", Algérie: "الجزائر", Tunisie: "تونس", Égypte: "مصر" },
-};
-
-type RegisterOnboardingPayload = {
-  answers: Record<string, unknown>;
-  draft_objects: Record<string, unknown>;
-};
-
-type RegisterPrefillPayload = {
-  first_name?: string;
-  last_name?: string;
-  phone_number?: string;
-  birth_date?: string;
-  profile_photo_url?: string | null;
-  country?: CountryName | "";
-  city?: string;
-  currency?: CurrencyCode | "";
 };
 
 export default function RegisterPage() {
   const router = useRouter();
-  const reduceMotion = useReducedMotion();
 
   const [locale, setLocale] = useState<FloussyLocale>("fr");
-  const [introReady, setIntroReady] = useState(false);
-
   const [user, setUser] = useState<AuthUser | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const status = usePlatformStatus();
 
-  // Step 1: Account & Credentials
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  // Step 1 State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordFieldActive, setPasswordFieldActive] = useState(false);
+
+  // Step 2 State
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [birthDate, setBirthDate] = useState("1998-03-12");
   const [country, setCountry] = useState<CountryName>("Maroc");
   const [city, setCity] = useState("Casablanca");
   const [currency, setCurrency] = useState<CurrencyCode>("MAD");
-
-  // Step 2: Profile & Verification
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [birthDate, setBirthDate] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null);
+  const [cguAccepted, setCguAccepted] = useState(true);
+
+  // reCAPTCHA state
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [recaptchaScriptLoaded, setRecaptchaScriptLoaded] = useState(false);
   const recaptchaWidgetRef = useRef<number | null>(null);
   const recaptchaNodeRef = useRef<HTMLDivElement | null>(null);
-  const [recaptchaScriptLoaded, setRecaptchaScriptLoaded] = useState(false);
-
-  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
-  const [registerOnboardingPayload, setRegisterOnboardingPayload] =
-    useState<RegisterOnboardingPayload | null>(null);
-  const [registrationLeadId, setRegistrationLeadId] = useState<string>("");
-
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const passwordFieldRef = useRef<HTMLDivElement | null>(null);
-  const profilePhotoBlobUrlRef = useRef<string | null>(null);
+
+  // Status & Submit
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const submitInFlightRef = useRef(false);
+  const [registrationLeadId, setRegistrationLeadId] = useState("");
 
-  const maintenanceActive = Boolean(status?.maintenance_mode);
-  const registrationBlocked = maintenanceActive || Boolean(retryAfterSeconds);
-  const copy = REGISTER_COPY[locale];
-  const appVersionLabel = getAppVersionLabel();
-  const countryLabels = COUNTRY_LABELS[locale];
-  const pageDir = getLocaleDirection(locale);
-  const pageFontClass = locale === "ar" ? "register-arabic-font" : "";
-  const headingClass = locale === "ar" ? "register-arabic-font" : "";
-  const copyClass = locale === "ar" ? "register-copy" : "";
-
-  const [guestLoading, setGuestLoading] = useState(false);
-  const [todayQuote, setTodayQuote] = useState<string>(
-    () => getTodayRegisterQuote(locale)
-  );
-
-  useEffect(() => {
-    setTodayQuote(getTodayRegisterQuote(locale));
-  }, [locale]);
-
+  const status = usePlatformStatus();
+  const t = COPY[locale];
+  const isRtl = locale === "ar";
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
-  const isDevEnvironment = process.env.NODE_ENV !== "production";
-  const allowRecaptchaBypass = isDevEnvironment && !recaptchaSiteKey;
-
-  // Visual Input classes matching modern fintech aesthetic
-  const inputClass =
-    "h-[50px] w-full rounded-xl border-[#E3E8DF] bg-white ps-11 text-[15px] font-semibold text-[#0A241D] shadow-none placeholder:font-normal placeholder:text-[#A9B5AF] focus-visible:border-[#17C777] focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC] focus-visible:ring-offset-0 transition-all";
-  const ICON_WRAP =
-    "pointer-events-none absolute inset-y-0 start-0 flex w-11 items-center justify-center text-[#7C8D86] transition-colors";
-
-  const formatDuration = (seconds: number) => {
-    const total = Math.max(seconds, 0);
-    const mins = Math.floor(total / 60);
-    const secs = total % 60;
-    if (mins <= 0) return `${secs}s`;
-    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-  };
-
-  const parseRetryAfter = (headerValue: string | null, message: string) => {
-    if (headerValue) {
-      const parsed = Number(headerValue);
-      if (!Number.isNaN(parsed) && parsed > 0) return parsed;
-    }
-    const match = message.match(/(\d+)\s*(seconde|secondes|minute|minutes)/i);
-    if (match) {
-      const parsed = Number(match[1]);
-      if (!Number.isNaN(parsed) && parsed > 0) {
-        return match[2].toLowerCase().startsWith("minute") ? parsed * 60 : parsed;
-      }
-    }
-    return null;
-  };
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    if (typeof document === "undefined") return;
-    if (document.visibilityState === "visible") setIntroReady(true);
-  }, [reduceMotion]);
+  const isDev = process.env.NODE_ENV !== "production";
+  const allowRecaptchaBypass = isDev && !recaptchaSiteKey;
 
   useEffect(() => {
     setLocale(getBrowserLocalePreference() ?? "fr");
@@ -663,106 +476,48 @@ export default function RegisterPage() {
     return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
   }, []);
 
-  // Fetch logged in user to prevent double register
   useEffect(() => {
-    fetchMe()
-      .then((me) => setUser(me))
-      .catch(() => setUser(null));
+    fetchMe().then(setUser).catch(() => setUser(null));
   }, []);
 
-  // Prefill restore
+  // Restore prefill draft
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
+      const savedLead = window.localStorage.getItem(REGISTER_LEAD_ID_KEY) || "";
+      if (savedLead) setRegistrationLeadId(savedLead);
+
       const prefillRaw = window.localStorage.getItem(REGISTER_ONBOARDING_PREFILL_KEY);
       if (prefillRaw) {
-        const prefill = JSON.parse(prefillRaw) as RegisterPrefillPayload;
-        if (prefill.first_name) setFirstName(prefill.first_name);
-        if (prefill.last_name) setLastName(prefill.last_name);
-        if (prefill.phone_number) setPhoneNumber(prefill.phone_number);
-        if (prefill.birth_date) setBirthDate(prefill.birth_date);
-        if (typeof prefill.profile_photo_url === "string" && prefill.profile_photo_url.trim()) {
-          setProfilePhotoUrl(prefill.profile_photo_url);
-          setProfilePhotoPreviewUrl(null);
-        }
-        if (prefill.country && prefill.country in CITIES_BY_COUNTRY) {
-          setCountry(prefill.country);
-        }
-        if (prefill.city) setCity(prefill.city);
-        if (prefill.currency) setCurrency(prefill.currency);
-      }
-
-      const raw = window.localStorage.getItem(REGISTER_ONBOARDING_DRAFT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as RegisterOnboardingPayload;
-        if (parsed?.answers && parsed?.draft_objects) {
-          setRegisterOnboardingPayload(parsed);
-        }
+        const p = JSON.parse(prefillRaw);
+        if (p.first_name) setFirstName(p.first_name);
+        if (p.last_name) setLastName(p.last_name);
+        if (p.phone_number) setPhoneNumber(p.phone_number);
+        if (p.birth_date) setBirthDate(p.birth_date);
+        if (p.country && p.country in CITIES_BY_COUNTRY) setCountry(p.country as CountryName);
+        if (p.city) setCity(p.city);
+        if (p.currency) setCurrency(p.currency);
+        if (p.profile_photo_url) setProfilePhotoUrl(p.profile_photo_url);
       }
     } catch {
-      return;
+      // Ignore corrupted storage
     }
   }, []);
 
+  // Sync Currency & Cities when Country changes
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(REGISTER_LEAD_ID_KEY) || "";
-    if (saved) setRegistrationLeadId(saved);
-  }, []);
+    const cur = CURRENCY_BY_COUNTRY[country];
+    if (cur) setCurrency(cur);
+    const cities = CITIES_BY_COUNTRY[country] || [];
+    if (!cities.includes(city)) {
+      setCity(cities[0] || "");
+    }
+  }, [country, city]);
 
-  const captureLeadSafe = useCallback(
-    async (body: Record<string, unknown>) => {
-      try {
-        const result = await apiFetch<{ lead_id: string; status: string }>("/auth/register/lead", {
-          method: "POST",
-          body,
-        });
-        const nextLeadId = (result?.lead_id || "").trim();
-        if (nextLeadId && typeof window !== "undefined") {
-          window.localStorage.setItem(REGISTER_LEAD_ID_KEY, nextLeadId);
-          setRegistrationLeadId(nextLeadId);
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("registration_lead_capture_failed", err);
-        }
-      }
-    },
-    []
-  );
-
+  // reCAPTCHA loader
   useEffect(() => {
-    profilePhotoBlobUrlRef.current =
-      profilePhotoPreviewUrl?.startsWith("blob:") ? profilePhotoPreviewUrl : null;
-  }, [profilePhotoPreviewUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (profilePhotoBlobUrlRef.current) {
-        URL.revokeObjectURL(profilePhotoBlobUrlRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!retryAfterSeconds || retryAfterSeconds <= 0) return;
-    const timer = setInterval(() => {
-      setRetryAfterSeconds((prev) => {
-        if (!prev) return prev;
-        if (prev <= 1) return null;
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [retryAfterSeconds]);
-
-  // reCAPTCHA Script loader
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!recaptchaSiteKey || allowRecaptchaBypass) return;
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[src^="https://www.google.com/recaptcha/api.js"]'
-    );
+    if (typeof window === "undefined" || !recaptchaSiteKey || allowRecaptchaBypass) return;
+    const existing = document.querySelector<HTMLScriptElement>('script[src^="https://www.google.com/recaptcha/api.js"]');
     if (existing && window.grecaptcha) {
       setRecaptchaScriptLoaded(true);
     } else if (!existing) {
@@ -773,9 +528,6 @@ export default function RegisterPage() {
       script.defer = true;
       document.head.appendChild(script);
     }
-    return () => {
-      window.onRecaptchaV2Loaded = undefined;
-    };
   }, [allowRecaptchaBypass, recaptchaSiteKey]);
 
   const renderRecaptchaWidget = useCallback(
@@ -789,11 +541,11 @@ export default function RegisterPage() {
             "error-callback": () => setRecaptchaToken(null),
           });
         } catch {
-          setError(copy.recaptchaFailed);
+          setError(t.recaptchaFailed);
         }
       }
     },
-    [copy.recaptchaFailed, recaptchaSiteKey],
+    [recaptchaSiteKey, t.recaptchaFailed],
   );
 
   const recaptchaContainerRef = useCallback(
@@ -814,26 +566,22 @@ export default function RegisterPage() {
     }
   }, [step, recaptchaScriptLoaded, renderRecaptchaWidget]);
 
+  // Photo handlers
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError(copy.photoMustBeImage);
-      if (event.target) event.target.value = "";
+      setError(t.photoMustBeImage);
       return;
     }
     if (file.size > MAX_PROFILE_PHOTO_SIZE_BYTES) {
-      setError(copy.photoMaxSize);
-      if (event.target) event.target.value = "";
+      setError(t.photoMaxSize);
       return;
     }
 
     const nextPreviewUrl = URL.createObjectURL(file);
-    setProfilePhotoPreviewUrl((prev) => {
-      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return nextPreviewUrl;
-    });
+    setProfilePhotoPreviewUrl(nextPreviewUrl);
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -844,90 +592,64 @@ export default function RegisterPage() {
   };
 
   const handleRemovePhoto = () => {
-    if (profilePhotoPreviewUrl?.startsWith("blob:")) {
-      URL.revokeObjectURL(profilePhotoPreviewUrl);
-    }
+    if (profilePhotoPreviewUrl) URL.revokeObjectURL(profilePhotoPreviewUrl);
     setProfilePhotoPreviewUrl(null);
     setProfilePhotoUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const citiesForCountry = useMemo(
-    () => (country && country in CITIES_BY_COUNTRY ? CITIES_BY_COUNTRY[country] : []),
-    [country]
-  );
-
-  useEffect(() => {
-    if (!country) return;
-    const nextCurrency = CURRENCY_BY_COUNTRY[country];
-    if (nextCurrency && nextCurrency !== currency) {
-      setCurrency(nextCurrency);
-    }
-    if (!citiesForCountry.includes(city)) {
-      setCity(citiesForCountry[0] || "");
-    }
-  }, [country, city, citiesForCountry, currency]);
-
-  // Password rules validation
+  // Password Strength Score & Rules
   const passwordRules = useMemo(() => {
-    const minLength = password.length >= EASY_MIN_PASSWORD_LENGTH;
-    const hasLetter = PASSWORD_HAS_LETTER_RE.test(password);
-    const hasDigit = PASSWORD_HAS_DIGIT_RE.test(password);
-    const notCompromised = !COMPROMISED_PASSWORDS.has(password.trim().toLowerCase());
     return [
-      { label: copy.passwordRuleMinLength, ok: minLength },
-      { label: copy.passwordRuleLetter, ok: hasLetter },
-      { label: copy.passwordRuleDigit, ok: hasDigit },
-      { label: copy.passwordRuleNotCompromised, ok: notCompromised },
+      { label: t.ruleMinLength, ok: password.length >= EASY_MIN_PASSWORD_LENGTH },
+      { label: t.ruleLetter, ok: PASSWORD_HAS_LETTER_RE.test(password) },
+      { label: t.ruleDigit, ok: PASSWORD_HAS_DIGIT_RE.test(password) },
     ];
-  }, [copy, password]);
+  }, [password, t]);
 
   const passwordScore = useMemo(() => {
-    let score = 0;
-    if (password.length >= EASY_MIN_PASSWORD_LENGTH) score += 1;
-    if (PASSWORD_HAS_LETTER_RE.test(password)) score += 1;
-    if (PASSWORD_HAS_DIGIT_RE.test(password)) score += 1;
-    if (password.length >= 10) score += 1;
-    return score;
+    let s = 0;
+    if (password.length >= EASY_MIN_PASSWORD_LENGTH) s += 1;
+    if (PASSWORD_HAS_LETTER_RE.test(password)) s += 1;
+    if (PASSWORD_HAS_DIGIT_RE.test(password)) s += 1;
+    if (password.length >= 10 && !COMPROMISED_PASSWORDS.has(password.toLowerCase())) s += 1;
+    return s;
   }, [password]);
 
-  const maxBirthDate = useMemo(() => {
-    const today = new Date();
-    const max = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
-    return max.toISOString().slice(0, 10);
-  }, []);
+  const strLabel = passwordScore <= 1 ? t.weak : passwordScore <= 2 ? t.medium : t.strong;
+  const strColor = passwordScore <= 1 ? "#B42318" : passwordScore <= 2 ? "#8A5300" : "#0A7A53";
 
+  const meter = [
+    { c: passwordScore >= 1 ? (passwordScore === 1 ? "#B42318" : passwordScore === 2 ? "#E0A43A" : "#0A7A53") : "#E4E2D9" },
+    { c: passwordScore >= 2 ? (passwordScore === 2 ? "#E0A43A" : "#0A7A53") : "#E4E2D9" },
+    { c: passwordScore >= 3 ? "#0A7A53" : "#E4E2D9" },
+    { c: passwordScore >= 4 ? "#0A7A53" : "#E4E2D9" },
+  ];
+
+  // Validation
   const validateStep1 = () => {
-    if (retryAfterSeconds) {
-      setError(copy.waitBeforeRetry);
-      return false;
-    }
-    if (!firstName.trim() || !lastName.trim()) {
-      setError(copy.allFieldsRequired);
-      return false;
-    }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError(copy.validEmail);
+      setError(t.validEmail);
       return false;
     }
     if (!password || !confirmPassword) {
-      setError(copy.allFieldsRequired);
+      setError(t.allFieldsRequired);
       return false;
     }
     if (password !== confirmPassword) {
-      setError(copy.passwordsMismatch);
+      setError(t.passwordsMismatch);
       return false;
     }
-    if (password.length < EASY_MIN_PASSWORD_LENGTH || !PASSWORD_HAS_LETTER_RE.test(password) || !PASSWORD_HAS_DIGIT_RE.test(password)) {
-      setError(copy.weakPasswordRule);
+    if (
+      password.length < EASY_MIN_PASSWORD_LENGTH ||
+      !PASSWORD_HAS_LETTER_RE.test(password) ||
+      !PASSWORD_HAS_DIGIT_RE.test(password)
+    ) {
+      setError(t.weakPasswordRule);
       return false;
     }
     if (COMPROMISED_PASSWORDS.has(password.trim().toLowerCase())) {
-      setError(copy.compromisedPassword);
-      return false;
-    }
-    if (!country || !city) {
-      setError(copy.chooseCountryCity);
+      setError(t.compromisedPassword);
       return false;
     }
     setError(null);
@@ -935,116 +657,50 @@ export default function RegisterPage() {
   };
 
   const validateStep2 = () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError(t.allFieldsRequired);
+      return false;
+    }
     if (!phoneNumber.trim() || phoneNumber.trim().length < 8) {
-      setError(copy.phoneTooShort);
+      setError(t.phoneTooShort);
       return false;
     }
     if (!birthDate) {
-      setError(copy.invalidBirthDate);
+      setError(t.invalidBirthDate);
       return false;
     }
     const birth = new Date(birthDate);
     const today = new Date();
     const minBirth = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
-    if (Number.isNaN(birth.getTime()) || birth > today) {
-      setError(copy.invalidBirthDate);
+    if (Number.isNaN(birth.getTime()) || birth > minBirth) {
+      setError(t.minAge);
       return false;
     }
-    if (birth > minBirth) {
-      setError(copy.minAge);
-      return false;
-    }
-    if (!recaptchaSiteKey && !allowRecaptchaBypass) {
-      setError(copy.recaptchaMissingConfig);
+    if (!cguAccepted) {
+      setError(t.cguRequired);
       return false;
     }
     if (!allowRecaptchaBypass && !recaptchaToken) {
-      setError(copy.recaptchaRequired);
+      setError(t.recaptchaRequired);
       return false;
     }
     setError(null);
     return true;
   };
 
-  const persistRegisterOnboardingPrefill = () => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      REGISTER_ONBOARDING_PREFILL_KEY,
-      JSON.stringify({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        phone_number: phoneNumber.trim(),
-        birth_date: birthDate,
-        profile_photo_url: profilePhotoUrl,
-        country: country.trim(),
-        city: city.trim(),
-        currency,
-      })
-    );
-  };
-
-  const getRecaptchaToken = (): string | null => {
-    if (allowRecaptchaBypass) return null;
-    if (!recaptchaToken) {
-      setError(copy.recaptchaRequired);
-      return null;
-    }
-    return recaptchaToken;
-  };
-
-  const resetRecaptcha = () => {
-    setRecaptchaToken(null);
-    if (window.grecaptcha && recaptchaWidgetRef.current !== null) {
-      window.grecaptcha.reset(recaptchaWidgetRef.current);
-    }
-  };
-
   const handleNextToStep2 = () => {
-    if (loading || submitInFlightRef.current) return;
     if (!validateStep1()) return;
-
-    void captureLeadSafe({
-      lead_id: registrationLeadId || undefined,
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      email: email.trim().toLowerCase(),
-      country,
-      city,
-      language: locale,
-      current_step: 1,
-      event: "step1_completed",
-    });
-
     setError(null);
     setStep(2);
   };
 
-  const handlePrevToStep1 = () => {
-    setError(null);
-    setStep(1);
-  };
-
-  const handleRegisterAndStartOnboarding = async (event?: React.FormEvent) => {
-    if (event) event.preventDefault();
+  const handleRegisterAndStartOnboarding = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (loading || submitInFlightRef.current) return;
-    if (maintenanceActive) return;
+    if (!validateStep1() || !validateStep2()) return;
 
-    if (!validateStep1() || !validateStep2()) {
-      return;
-    }
-    if (!currency) {
-      setError(copy.currencyUnavailable);
-      return;
-    }
-    const currentRecaptchaToken = getRecaptchaToken();
-    if (!allowRecaptchaBypass && !currentRecaptchaToken) {
-      return;
-    }
-
-    persistRegisterOnboardingPrefill();
     setLoading(true);
     submitInFlightRef.current = true;
-    setRetryAfterSeconds(null);
     setError(null);
 
     try {
@@ -1058,20 +714,14 @@ export default function RegisterPage() {
           sweep_interval_days: DEFAULT_SWEEP_INTERVAL_DAYS,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          phone_number: phoneNumber.trim(),
+          phone_number: `${DIAL_BY_COUNTRY[country]} ${phoneNumber.trim()}`,
           birth_date: birthDate,
           country: country.trim(),
           city: city.trim(),
           profile_photo_url: profilePhotoUrl,
           mfa_consent: true,
           defer_onboarding_v2: true,
-          ...(registerOnboardingPayload?.answers
-            ? { onboarding_v2_answers: registerOnboardingPayload.answers }
-            : {}),
-          ...(registerOnboardingPayload?.draft_objects
-            ? { onboarding_v2_draft_objects: registerOnboardingPayload.draft_objects }
-            : {}),
-          recaptcha_token: currentRecaptchaToken,
+          recaptcha_token: recaptchaToken || undefined,
           lead_id: registrationLeadId || undefined,
         },
       });
@@ -1084,951 +734,780 @@ export default function RegisterPage() {
       }
 
       await refreshAuthSession();
+      markAuthSessionHint();
       router.push("/onboarding?post_register=1");
     } catch (err) {
-      const message = err instanceof Error ? err.message : copy.createAccountFailed;
+      const message = err instanceof Error ? err.message : t.createAccountFailed;
       const lower = message.toLowerCase();
-      if (lower.includes("too many") || lower.includes("trop de tentatives")) {
-        const retryAfter = parseRetryAfter(null, message);
-        if (retryAfter) setRetryAfterSeconds(retryAfter);
-        setError(copy.tooManyAttempts);
-        return;
-      }
-      if (
-        lower.includes("compte supprim") ||
-        lower.includes("récupération") ||
-        lower.includes("recuperation") ||
-        lower.includes("suppression définitive")
-      ) {
-        setError(message);
-      } else if (lower.includes("maintenance")) {
-        setError(message);
-      } else if (lower.includes("recaptcha_required") || message.includes("أكد أنك ماشي روبوت")) {
-        setError(copy.recaptchaRequired);
-      } else if (lower.includes("recaptcha_failed") || message.includes("ما قدرناش نتحققو")) {
-        setError(copy.recaptchaFailed);
-      } else if (lower.includes("exists") || lower.includes("already")) {
-        setError(copy.accountExists);
+      if (lower.includes("exists") || lower.includes("already")) {
+        setError(t.accountExists);
         setStep(1);
       } else if (lower.includes("password")) {
-        setError(copy.weakPassword);
+        setError(t.weakPassword);
         setStep(1);
       } else {
-        setError(copy.createAccountFailed);
+        setError(message || t.createAccountFailed);
       }
     } finally {
       setLoading(false);
       submitInFlightRef.current = false;
-      resetRecaptcha();
+      if (window.grecaptcha && recaptchaWidgetRef.current !== null) {
+        window.grecaptcha.reset(recaptchaWidgetRef.current);
+      }
     }
   };
 
   const handleGuestStart = async () => {
     setError(null);
-    setGuestLoading(true);
+    setLoading(true);
     try {
       resetAuthClientState();
       const guest = await startGuestSession();
       markAuthSessionHint();
       router.push(shouldShowDiscoveryWelcome(guest) ? "/decouverte" : "/dashboard");
     } catch {
-      setError(copy.guestStartError);
+      setError(t.guestStartError);
     } finally {
-      setGuestLoading(false);
+      setLoading(false);
     }
   };
 
-  const displayName = user
-    ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email
-    : null;
-  const maintenanceMessage =
-    status?.maintenance_mode && status.maintenance_message ? status.maintenance_message : "";
-  const maintenancePlacements = status?.maintenance_placements ?? [];
-  const showMaintenanceBanner =
-    Boolean(maintenanceMessage.trim()) && maintenancePlacements.includes("register");
-  const registerAnnouncements = getVisibleAnnouncements(status, user, "register");
-  const showAnnouncementBanner = registerAnnouncements.length > 0;
+  const initial = (firstName.trim() || email.trim() || "O")[0].toUpperCase();
+  const cities = CITIES_BY_COUNTRY[country] || [];
+  const dial = DIAL_BY_COUNTRY[country];
 
   return (
     <div
-      className={`rg-root relative min-h-screen bg-[#F6F8F4] ${pageFontClass} ${introReady ? "rg-intro" : ""}`}
-      dir={pageDir}
-      data-register-locale={locale}
+      className="pw"
+      dir={isRtl ? "rtl" : "ltr"}
+      style={{
+        minHeight: "100vh",
+        background: "#F6F5EF",
+        color: "#0F1A16",
+        fontFamily: "Manrope, Cairo, sans-serif",
+        display: "flex",
+        flexDirection: "column",
+      }}
     >
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
-        {/* ---------------- LEFT BRAND PANEL ---------------- */}
-        <aside
-          className={`rg-panel relative hidden flex-col gap-8 overflow-hidden bg-[linear-gradient(155deg,#124636_0%,#0A241D_62%)] p-10 text-[#EAF4EF] lg:flex ${copyClass}`}
-          onPointerMove={(event) => {
-            if (reduceMotion) return;
-            const target = event.currentTarget;
-            const rect = target.getBoundingClientRect();
-            target.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
-            target.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+      {/* Mobile Top Brand Band */}
+      <div className="pw-band">
+        <Link href="/" className="pw-logo" dir="ltr" aria-label={`7sabek — ${t.home}`}>
+          <svg viewBox="10 540 1880 840" width="150" style={{ display: "block", overflow: "visible" }} aria-hidden="true">
+            <defs>
+              <linearGradient id="pwW" gradientUnits="userSpaceOnUse" x1="520" y1="560" x2="140" y2="1290">
+                <stop offset="0" stopColor="#3DF0A8" />
+                <stop offset="1" stopColor="#00B06E" />
+              </linearGradient>
+            </defs>
+            <path
+              fill="url(#pwW)"
+              d="M143.9 1281.0 27.0 1280.7 23.3 1278.6 22.5 1273.5 26.0 1266.8 65.5 1209.8 80.1 1187.1 100.9 1157.7 107.5 1147.0 178.4 1045.5 276.4 902.2 291.8 880.9 316.8 843.1 339.3 811.7 388.6 738.9 404.8 716.6 417.8 697.5 419.2 693.2 418.2 691.2 415.4 690.4 298.2 691.0 42.7 690.6 39.9 688.9 38.3 686.5 39.7 678.5 57.5 639.4 66.4 617.6 74.1 602.2 79.9 587.7 86.4 576.7 95.5 566.5 104.8 560.2 113.9 556.6 127.6 554.1 633.8 554.1 645.8 556.6 652.9 560.0 657.8 563.5 662.6 568.7 668.2 578.7 671.3 591.4 671.0 605.1 668.6 616.4 663.2 629.8 654.9 644.5 636.2 671.5 535.6 810.6 411.4 985.5 317.2 1115.2 281.8 1166.1 255.8 1201.0 218.5 1254.2 205.1 1267.2 191.3 1275.0 183.0 1277.9 171.0 1280.4 143.9 1281.0Z"
+            />
+            <path
+              fill="#FFFFFF"
+              fillRule="evenodd"
+              d="M1451.2 1258.9 1422.8 1258.0 1401.8 1254.6 1379.4 1247.9 1366.4 1242.2 1355.0 1235.9 1339.3 1224.6 1323.5 1208.8 1317.9 1201.4 1310.2 1189.1 1300.6 1167.0 1294.3 1184.7 1289.3 1195.1 1279.6 1210.4 1271.2 1220.6 1257.5 1233.3 1243.8 1242.6 1231.1 1248.9 1217.1 1253.9 1199.7 1257.7 1185.4 1259.0 1168.7 1258.7 1150.7 1256.0 1137.0 1251.9 1125.6 1246.6 1113.3 1238.0 1105.3 1230.1 1104.3 1254.6 1019.9 1254.5 1019.8 905.7 1108.9 905.7 1109.3 1020.7 1119.6 1012.4 1132.0 1005.0 1143.7 1000.3 1159.7 996.6 1172.7 995.2 1192.1 995.6 1208.1 997.9 1225.8 1003.0 1241.8 1010.3 1253.2 1017.4 1265.5 1027.3 1274.4 1036.5 1284.3 1049.8 1290.6 1060.7 1296.3 1073.5 1300.6 1086.2 1306.3 1072.1 1313.2 1058.8 1322.8 1045.1 1333.8 1033.1 1345.9 1023.1 1355.4 1016.7 1371.7 1008.0 1388.7 1001.7 1407.8 997.3 1426.5 995.2 1443.8 995.2 1462.5 997.3 1479.2 1001.0 1496.9 1007.4 1510.3 1014.0 1526.0 1024.6 1538.0 1035.6 1549.4 1049.7 1556.5 1061.2 1564.4 1079.2 1568.9 1095.2 1571.5 1113.6 1571.9 1131.3 1570.3 1149.3 1385.3 1150.0 1387.3 1156.3 1391.0 1163.7 1396.6 1171.4 1402.4 1176.9 1415.8 1184.8 1432.5 1189.5 1441.5 1190.6 1454.2 1190.6 1472.2 1187.8 1486.9 1182.1 1497.3 1175.8 1506.6 1168.7 1553.1 1217.1 1551.0 1220.3 1543.3 1227.6 1532.1 1236.1 1520.0 1243.2 1509.6 1247.9 1494.6 1252.9 1480.9 1256.0 1462.9 1258.3 1451.2 1258.9ZM1872.6 1254.6 1765.1 1254.5 1693.3 1165.6 1667.2 1192.1 1666.8 1254.5 1577.7 1254.4 1577.9 905.6 1667.0 905.9 1667.2 1087.8 1758.4 999.7 1863.5 999.7 1758.7 1108.9 1869.4 1249.5 1872.9 1254.2 1872.6 1254.6ZM615.4 1261.3 596.4 1261.0 572.7 1259.0 551.6 1255.7 531.3 1250.9 515.6 1246.2 495.9 1238.5 483.8 1232.5 472.1 1225.1 502.5 1156.7 527.2 1169.9 549.3 1178.4 576.7 1185.5 600.7 1188.6 616.7 1188.9 627.1 1188.2 645.8 1184.5 652.1 1181.8 658.0 1177.7 662.9 1171.4 664.6 1165.7 664.6 1158.3 662.9 1152.7 660.5 1148.8 653.5 1142.9 641.1 1137.6 628.4 1133.6 567.7 1118.7 550.6 1113.7 531.3 1106.7 517.2 1099.0 507.2 1091.7 495.0 1079.9 488.8 1071.2 481.8 1055.8 478.0 1037.8 477.7 1017.1 481.1 998.1 485.4 986.0 488.8 979.2 499.1 964.0 511.9 951.2 527.6 940.2 548.6 930.2 573.0 923.1 601.0 919.1 633.8 918.4 665.8 921.5 695.2 927.5 717.9 934.9 730.9 940.5 742.4 946.6 742.8 947.6 740.7 953.0 714.2 1016.0 681.2 1001.3 660.8 995.3 638.4 991.6 617.1 990.9 604.7 991.9 594.4 994.0 587.0 996.7 581.7 999.7 575.3 1005.3 572.9 1008.8 570.5 1014.4 569.8 1022.4 571.0 1027.6 575.2 1034.1 581.0 1038.5 585.7 1040.9 608.4 1048.2 654.5 1058.8 680.8 1066.1 702.9 1074.1 716.9 1081.8 729.8 1091.6 743.0 1105.9 750.7 1119.9 756.2 1140.3 767.3 1128.1 779.0 1119.9 794.4 1112.9 809.7 1108.5 823.1 1106.1 845.1 1104.1 909.1 1103.6 908.7 1098.2 906.6 1089.9 903.6 1083.5 900.2 1078.7 894.9 1073.7 890.2 1070.8 883.9 1067.8 872.5 1064.7 852.5 1063.4 842.8 1064.0 827.1 1066.8 804.4 1074.5 786.0 1085.2 756.0 1025.1 765.3 1019.0 779.0 1012.4 807.1 1003.0 827.8 998.6 841.5 996.6 859.2 995.2 879.2 995.2 902.9 997.6 916.9 1000.3 929.6 1004.0 941.3 1008.7 950.3 1013.4 961.8 1021.1 969.7 1028.0 977.0 1036.4 983.4 1045.8 990.4 1060.5 993.8 1070.9 997.2 1087.2 998.6 1099.9 998.6 1254.5 915.9 1254.6 914.9 1222.9 908.1 1233.1 899.9 1241.3 890.9 1247.6 877.5 1253.6 864.2 1257.0 845.1 1259.0 825.4 1258.3 809.1 1255.7 794.7 1251.2 784.0 1246.3 775.0 1240.6 767.7 1234.6 761.5 1228.1 755.9 1220.5 750.9 1210.8 746.6 1198.2 737.6 1212.2 725.9 1224.9 712.6 1235.2 695.2 1244.9 674.5 1252.9 658.1 1257.0 638.1 1260.0 615.4 1261.3ZM1487.8 1102.6 1485.6 1092.9 1481.3 1083.5 1476.7 1076.9 1470.2 1070.4 1463.2 1065.4 1455.2 1061.8 1447.2 1059.7 1437.2 1058.7 1426.5 1059.4 1416.8 1061.8 1409.1 1065.1 1401.1 1070.7 1394.9 1076.9 1390.0 1084.2 1386.3 1092.2 1383.8 1101.9 1385.1 1102.7 1487.8 1102.6ZM1168.2 1187.4 1177.0 1185.8 1188.7 1180.8 1198.4 1173.2 1206.2 1163.4 1211.2 1152.7 1214.2 1139.6 1214.9 1132.0 1214.2 1113.9 1211.5 1101.9 1206.5 1090.9 1200.6 1082.9 1193.2 1076.2 1186.1 1071.8 1174.4 1067.7 1165.0 1066.4 1151.7 1067.0 1140.3 1070.1 1130.6 1075.5 1122.3 1082.7 1116.2 1090.9 1111.5 1100.9 1108.5 1113.6 1107.8 1119.9 1108.1 1137.3 1110.2 1148.3 1113.8 1158.3 1118.3 1166.1 1125.6 1174.5 1134.6 1181.1 1144.7 1185.4 1155.3 1187.5 1168.2 1187.4ZM870.7 1202.1 879.9 1200.5 890.2 1196.2 896.9 1191.6 902.6 1185.5 905.7 1180.7 909.4 1172.4 909.0 1150.7 871.5 1150.5 855.8 1151.9 847.8 1153.9 842.8 1156.3 839.5 1158.5 835.5 1162.9 832.7 1168.7 831.6 1178.0 833.7 1186.7 838.3 1193.4 843.1 1197.1 851.8 1200.8 860.5 1202.2 870.7 1202.1Z"
+            />
+            <circle cx="1273" cy="1316" r="45" fill="#43B95E" />
+          </svg>
+        </Link>
+        <Link className="pw-pill" href="/login">
+          {t.login}
+        </Link>
+      </div>
+
+      {/* Desktop Top Header */}
+      <header
+        className="pw-head"
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "20px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+        }}
+      >
+        <Link href="/" dir="ltr" aria-label={`7sabek — ${t.home}`} style={{ display: "block", color: "#0F1A16", textDecoration: "none" }}>
+          <svg viewBox="10 540 1880 840" width="124" style={{ display: "block", overflow: "visible" }} aria-hidden="true">
+            <defs>
+              <linearGradient id="pwD" gradientUnits="userSpaceOnUse" x1="520" y1="560" x2="140" y2="1290">
+                <stop offset="0" stopColor="#3DF0A8" />
+                <stop offset="1" stopColor="#00B06E" />
+              </linearGradient>
+            </defs>
+            <path
+              fill="url(#pwD)"
+              d="M143.9 1281.0 27.0 1280.7 23.3 1278.6 22.5 1273.5 26.0 1266.8 65.5 1209.8 80.1 1187.1 100.9 1157.7 107.5 1147.0 178.4 1045.5 276.4 902.2 291.8 880.9 316.8 843.1 339.3 811.7 388.6 738.9 404.8 716.6 417.8 697.5 419.2 693.2 418.2 691.2 415.4 690.4 298.2 691.0 42.7 690.6 39.9 688.9 38.3 686.5 39.7 678.5 57.5 639.4 66.4 617.6 74.1 602.2 79.9 587.7 86.4 576.7 95.5 566.5 104.8 560.2 113.9 556.6 127.6 554.1 633.8 554.1 645.8 556.6 652.9 560.0 657.8 563.5 662.6 568.7 668.2 578.7 671.3 591.4 671.0 605.1 668.6 616.4 663.2 629.8 654.9 644.5 636.2 671.5 535.6 810.6 411.4 985.5 317.2 1115.2 281.8 1166.1 255.8 1201.0 218.5 1254.2 205.1 1267.2 191.3 1275.0 183.0 1277.9 171.0 1280.4 143.9 1281.0Z"
+            />
+            <path
+              fill="#0F1A16"
+              fillRule="evenodd"
+              d="M1451.2 1258.9 1422.8 1258.0 1401.8 1254.6 1379.4 1247.9 1366.4 1242.2 1355.0 1235.9 1339.3 1224.6 1323.5 1208.8 1317.9 1201.4 1310.2 1189.1 1300.6 1167.0 1294.3 1184.7 1289.3 1195.1 1279.6 1210.4 1271.2 1220.6 1257.5 1233.3 1243.8 1242.6 1231.1 1248.9 1217.1 1253.9 1199.7 1257.7 1185.4 1259.0 1168.7 1258.7 1150.7 1256.0 1137.0 1251.9 1125.6 1246.6 1113.3 1238.0 1105.3 1230.1 1104.3 1254.6 1019.9 1254.5 1019.8 905.7 1108.9 905.7 1109.3 1020.7 1119.6 1012.4 1132.0 1005.0 1143.7 1000.3 1159.7 996.6 1172.7 995.2 1192.1 995.6 1208.1 997.9 1225.8 1003.0 1241.8 1010.3 1253.2 1017.4 1265.5 1027.3 1274.4 1036.5 1284.3 1049.8 1290.6 1060.7 1296.3 1073.5 1300.6 1086.2 1306.3 1072.1 1313.2 1058.8 1322.8 1045.1 1333.8 1033.1 1345.9 1023.1 1355.4 1016.7 1371.7 1008.0 1388.7 1001.7 1407.8 997.3 1426.5 995.2 1443.8 995.2 1462.5 997.3 1479.2 1001.0 1496.9 1007.4 1510.3 1014.0 1526.0 1024.6 1538.0 1035.6 1549.4 1049.7 1556.5 1061.2 1564.4 1079.2 1568.9 1095.2 1571.5 1113.6 1571.9 1131.3 1570.3 1149.3 1385.3 1150.0 1387.3 1156.3 1391.0 1163.7 1396.6 1171.4 1402.4 1176.9 1415.8 1184.8 1432.5 1189.5 1441.5 1190.6 1454.2 1190.6 1472.2 1187.8 1486.9 1182.1 1497.3 1175.8 1506.6 1168.7 1553.1 1217.1 1551.0 1220.3 1543.3 1227.6 1532.1 1236.1 1520.0 1243.2 1509.6 1247.9 1494.6 1252.9 1480.9 1256.0 1462.9 1258.3 1451.2 1258.9ZM1872.6 1254.6 1765.1 1254.5 1693.3 1165.6 1667.2 1192.1 1666.8 1254.5 1577.7 1254.4 1577.9 905.6 1667.0 905.9 1667.2 1087.8 1758.4 999.7 1863.5 999.7 1758.7 1108.9 1869.4 1249.5 1872.9 1254.2 1872.6 1254.6ZM615.4 1261.3 596.4 1261.0 572.7 1259.0 551.6 1255.7 531.3 1250.9 515.6 1246.2 495.9 1238.5 483.8 1232.5 472.1 1225.1 502.5 1156.7 527.2 1169.9 549.3 1178.4 576.7 1185.5 600.7 1188.6 616.7 1188.9 627.1 1188.2 645.8 1184.5 652.1 1181.8 658.0 1177.7 662.9 1171.4 664.6 1165.7 664.6 1158.3 662.9 1152.7 660.5 1148.8 653.5 1142.9 641.1 1137.6 628.4 1133.6 567.7 1118.7 550.6 1113.7 531.3 1106.7 517.2 1099.0 507.2 1091.7 495.0 1079.9 488.8 1071.2 481.8 1055.8 478.0 1037.8 477.7 1017.1 481.1 998.1 485.4 986.0 488.8 979.2 499.1 964.0 511.9 951.2 527.6 940.2 548.6 930.2 573.0 923.1 601.0 919.1 633.8 918.4 665.8 921.5 695.2 927.5 717.9 934.9 730.9 940.5 742.4 946.6 742.8 947.6 740.7 953.0 714.2 1016.0 681.2 1001.3 660.8 995.3 638.4 991.6 617.1 990.9 604.7 991.9 594.4 994.0 587.0 996.7 581.7 999.7 575.3 1005.3 572.9 1008.8 570.5 1014.4 569.8 1022.4 571.0 1027.6 575.2 1034.1 581.0 1038.5 585.7 1040.9 608.4 1048.2 654.5 1058.8 680.8 1066.1 702.9 1074.1 716.9 1081.8 729.8 1091.6 743.0 1105.9 750.7 1119.9 756.2 1140.3 767.3 1128.1 779.0 1119.9 794.4 1112.9 809.7 1108.5 823.1 1106.1 845.1 1104.1 909.1 1103.6 908.7 1098.2 906.6 1089.9 903.6 1083.5 900.2 1078.7 894.9 1073.7 890.2 1070.8 883.9 1067.8 872.5 1064.7 852.5 1063.4 842.8 1064.0 827.1 1066.8 804.4 1074.5 786.0 1085.2 756.0 1025.1 765.3 1019.0 779.0 1012.4 807.1 1003.0 827.8 998.6 841.5 996.6 859.2 995.2 879.2 995.2 902.9 997.6 916.9 1000.3 929.6 1004.0 941.3 1008.7 950.3 1013.4 961.8 1021.1 969.7 1028.0 977.0 1036.4 983.4 1045.8 990.4 1060.5 993.8 1070.9 997.2 1087.2 998.6 1099.9 998.6 1254.5 915.9 1254.6 914.9 1222.9 908.1 1233.1 899.9 1241.3 890.9 1247.6 877.5 1253.6 864.2 1257.0 845.1 1259.0 825.4 1258.3 809.1 1255.7 794.7 1251.2 784.0 1246.3 775.0 1240.6 767.7 1234.6 761.5 1228.1 755.9 1220.5 750.9 1210.8 746.6 1198.2 737.6 1212.2 725.9 1224.9 712.6 1235.2 695.2 1244.9 674.5 1252.9 658.1 1257.0 638.1 1260.0 615.4 1261.3ZM1487.8 1102.6 1485.6 1092.9 1481.3 1083.5 1476.7 1076.9 1470.2 1070.4 1463.2 1065.4 1455.2 1061.8 1447.2 1059.7 1437.2 1058.7 1426.5 1059.4 1416.8 1061.8 1409.1 1065.1 1401.1 1070.7 1394.9 1076.9 1390.0 1084.2 1386.3 1092.2 1383.8 1101.9 1385.1 1102.7 1487.8 1102.6ZM1168.2 1187.4 1177.0 1185.8 1188.7 1180.8 1198.4 1173.2 1206.2 1163.4 1211.2 1152.7 1214.2 1139.6 1214.9 1132.0 1214.2 1113.9 1211.5 1101.9 1206.5 1090.9 1200.6 1082.9 1193.2 1076.2 1186.1 1071.8 1174.4 1067.7 1165.0 1066.4 1151.7 1067.0 1140.3 1070.1 1130.6 1075.5 1122.3 1082.7 1116.2 1090.9 1111.5 1100.9 1108.5 1113.6 1107.8 1119.9 1108.1 1137.3 1110.2 1148.3 1113.8 1158.3 1118.3 1166.1 1125.6 1174.5 1134.6 1181.1 1144.7 1185.4 1155.3 1187.5 1168.2 1187.4ZM870.7 1202.1 879.9 1200.5 890.2 1196.2 896.9 1191.6 902.6 1185.5 905.7 1180.7 909.4 1172.4 909.0 1150.7 871.5 1150.5 855.8 1151.9 847.8 1153.9 842.8 1156.3 839.5 1158.5 835.5 1162.9 832.7 1168.7 831.6 1178.0 833.7 1186.7 838.3 1193.4 843.1 1197.1 851.8 1200.8 860.5 1202.2 870.7 1202.1Z"
+            />
+            <circle cx="1273" cy="1316" r="45" fill="#43B95E" />
+          </svg>
+        </Link>
+        <span style={{ fontSize: "15px", color: "#55645D" }}>
+          {t.alreadyRegistered}{" "}
+          <Link href="/login" style={{ fontWeight: 800 }}>
+            {t.login}
+          </Link>
+        </span>
+      </header>
+
+      {/* Main Body */}
+      <div
+        className="pw-main"
+        style={{
+          maxWidth: "1200px",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0 auto",
+          padding: "16px 24px 64px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "32px",
+          alignItems: "flex-start",
+        }}
+      >
+        {/* Form Card */}
+        <main
+          className="pw-card"
+          style={{
+            flex: "999 1 560px",
+            minWidth: 0,
+            background: "#FFFFFF",
+            borderRadius: "28px",
+            padding: "40px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
           }}
         >
-          <span className="rg-blob rg-blob-a" aria-hidden="true" />
-          <span className="rg-blob rg-blob-b" aria-hidden="true" />
-          <span className="rg-spot" aria-hidden="true" />
-
-          {/* Logo */}
-          <div className="relative z-10">
-            <BrandLogo locale={locale} tone="dark" className="-ms-3 h-20 w-auto" />
-          </div>
-
-          {/* Centered Daily Quote inside Aero Glass Cadran */}
-          <div className="relative z-10 my-auto w-full">
-            <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-white/[0.12] to-white/[0.04] p-7 shadow-[0_20px_50px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.35)] backdrop-blur-2xl sm:p-9">
-              {/* Aero specular reflection & ambient light */}
-              <div className="pointer-events-none absolute -top-12 -start-12 h-36 w-36 rounded-full bg-emerald-400/20 blur-2xl" aria-hidden="true" />
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent" aria-hidden="true" />
-
-              {/* Aero Badge */}
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-bold text-emerald-300 shadow-xs backdrop-blur-md">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-                <span>
-                  {locale === "ar"
-                    ? "رسالة اليوم"
-                    : locale === "fr"
-                    ? "Inspiration du jour"
-                    : "Quote of the day"}
-                </span>
-              </div>
-
-              {/* Quote */}
-              <h2
-                className={`${headingClass} rg-rise ${
-                  locale === "ar"
-                    ? "text-[1.7rem] leading-[1.45]"
-                    : "text-[1.8rem] leading-[1.35]"
-                } font-extrabold text-white text-balance`}
-                style={{ "--d": ".18s" } as React.CSSProperties}
-              >
-                {`« ${todayQuote} »`}
-              </h2>
-
-              {/* Aero Card Footer Accent */}
-              <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4 text-xs font-semibold text-emerald-200/70">
-                <span>7sabek</span>
-                <span className="text-[11px] opacity-75">
-                  {locale === "ar" ? "بداية خطوة جديدة" : "Prenez le contrôle"}
-                </span>
+          {user ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", textAlign: "center" }}>
+              <p style={{ fontSize: "16px", color: "#55645D" }}>
+                {t.connectedAs} <b>{user.email}</b>
+              </p>
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => router.push(user.role === "superadmin" ? "/superadmin" : "/dashboard")}
+                  style={{
+                    height: "50px",
+                    padding: "0 24px",
+                    borderRadius: "14px",
+                    border: 0,
+                    background: "#0A7A53",
+                    color: "#FFFFFF",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t.goDashboard}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => logout().then(() => setUser(null))}
+                  style={{
+                    height: "50px",
+                    padding: "0 24px",
+                    borderRadius: "14px",
+                    border: "1.5px solid #DAD8CF",
+                    background: "#FFFFFF",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t.logout}
+                </button>
               </div>
             </div>
-          </div>
-
-
-        </aside>
-
-        {/* ---------------- RIGHT FORM PANEL ---------------- */}
-        <main className={`flex flex-col px-5 pb-12 pt-6 sm:px-8 lg:px-12 lg:pt-8 ${copyClass}`}>
-          {/* Top navigation row */}
-          <div className="flex items-center justify-between gap-3">
-            <Link
-              href="/"
-              aria-label="Accueil 7sabek"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E3E8DF] bg-white text-[#4E625A] shadow-sm transition hover:border-[#17C777] hover:text-[#0B8F53]"
-            >
-              <Home className="h-4 w-4" />
-            </Link>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href="/login"
-                className="text-xs font-bold text-[#0B8F53] hover:underline"
-              >
-                {copy.login}
-              </Link>
-              <Link
-                href="/releases"
-                title="Journal des versions 7sabek"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#E3E8DF] bg-white px-3 py-1 text-[0.72rem] font-extrabold text-[#7C8D86] shadow-xs transition hover:border-[#17C777] hover:text-[#0B8F53]"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-[#17C777]" />
-                <span>7sabek {appVersionLabel}</span>
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex flex-1 items-center justify-center pt-4">
-            <motion.div
-              className="w-full max-w-[500px]"
-              initial={reduceMotion ? undefined : { opacity: 0, y: 18 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {/* Mobile Brand Logo */}
-              <div className="mb-6 flex flex-col items-center gap-2 text-center lg:hidden">
-                <BrandLogo locale={locale} className="h-14 w-auto object-contain" />
-              </div>
-
-              {/* Maintenance / Announcements */}
-              {showMaintenanceBanner ? (
-                <div className="mb-4">
-                  <SystemMessageCard
-                    variant="maintenance"
-                    message={maintenanceMessage}
-                    suffix={copy.maintenanceSuffix}
-                  />
-                </div>
-              ) : null}
-              {showAnnouncementBanner ? (
-                <div className="mb-4 space-y-2">
-                  {registerAnnouncements.map((announcement) => (
-                    <SystemMessageCard
-                      key={announcement.id}
-                      variant="announcement"
-                      message={announcement.message}
-                      announcementType={announcement.type}
-                    />
-                  ))}
-                </div>
-              ) : null}
-
-              {/* Already logged-in state */}
-              {user ? (
-                <div className="space-y-4 rounded-2xl border border-[#E3E8DF] bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium text-[#4E625A]">
-                    {copy.alreadyLoggedIn}{" "}
-                    <span className="font-extrabold text-[#0A241D]">{displayName}</span>
-                  </p>
-                  <div className="flex flex-wrap gap-2.5">
-                    <Button
-                      onClick={() =>
-                        router.push(user.role === "superadmin" ? "/superadmin" : "/dashboard")
-                      }
-                      className="h-[46px] rounded-xl bg-[#17C777] px-6 font-bold text-[#06301F] shadow-sm hover:bg-[#0B8F53] hover:text-white"
-                    >
-                      {copy.goDashboard}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        logout()
-                          .catch(() => null)
-                          .finally(() => setUser(null));
-                      }}
-                      className="h-[46px] rounded-xl border-[#E3E8DF] bg-white px-5 font-bold text-[#0A241D] hover:border-[#0A241D]"
-                    >
-                      {copy.logout}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {/* Two-step Header & Visual Stepper */}
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <h1 className={`${headingClass} text-[clamp(1.6rem,2.8vw,2.1rem)] font-extrabold tracking-tight text-[#0A241D]`}>
-                        {step === 1 ? copy.step1Title : copy.step2Title}
-                      </h1>
-                      <span className="rounded-full bg-[#E2F7EC] px-3 py-1 text-xs font-extrabold text-[#0B8F53]">
-                        {step === 1 ? "1 / 2" : "2 / 2"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[0.92rem] text-[#4E625A]">
-                      {step === 1 ? copy.step1Subtitle : copy.step2Subtitle}
-                    </p>
-
-                    {/* Stepper Progress Bar */}
-                    <div className="mt-4">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E3E8DF]">
-                        <div
-                          className="h-full rounded-full bg-[linear-gradient(90deg,#17C777,#0B8F53)] transition-all duration-500 ease-out"
-                          style={{ width: step === 1 ? "50%" : "100%" }}
-                        />
-                      </div>
-                      <div className="mt-2.5 flex items-center justify-between text-xs font-extrabold">
-                        <button
-                          type="button"
-                          onClick={() => setStep(1)}
-                          className={`flex items-center gap-1.5 transition-colors ${
-                            step === 1 ? "text-[#0B8F53]" : "text-[#4E625A] hover:text-[#0B8F53]"
-                          }`}
-                        >
-                          <span
-                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
-                              step === 1
-                                ? "bg-[#0B8F53] text-white"
-                                : "bg-[#E2F7EC] text-[#0B8F53]"
-                            }`}
-                          >
-                            1
-                          </span>
-                          <span>{copy.step1Pill}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (validateStep1()) setStep(2);
-                          }}
-                          className={`flex items-center gap-1.5 transition-colors ${
-                            step === 2 ? "text-[#0B8F53]" : "text-[#7C8D86]"
-                          }`}
-                        >
-                          <span
-                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
-                              step === 2
-                                ? "bg-[#0B8F53] text-white"
-                                : "bg-[#E3E8DF] text-[#7C8D86]"
-                            }`}
-                          >
-                            2
-                          </span>
-                          <span>{copy.step2Pill}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Errors */}
-                  {retryAfterSeconds ? (
-                    <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700">
-                      <AlertCircle className="h-4 w-4 flex-none" />
-                      <span>
-                        {copy.retryIn} {formatDuration(retryAfterSeconds)}
-                      </span>
-                    </div>
-                  ) : error ? (
-                    <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700">
-                      <AlertCircle className="h-4 w-4 flex-none" />
-                      <span>{error}</span>
-                    </div>
-                  ) : null}
-
-                  {/* FORM BODY */}
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (step === 1) {
-                        handleNextToStep2();
-                      } else {
-                        void handleRegisterAndStartOnboarding(e);
-                      }
+          ) : (
+            <>
+              {/* Stepper Header */}
+              <ol aria-label="Étapes" style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <li style={{ flex: "1 1 200px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <span style={{ height: "6px", borderRadius: "3px", background: "#0A7A53" }} />
+                  <span style={{ fontSize: "13px", fontWeight: 800, color: "#0A7A53" }}>{t.step1Title}</span>
+                </li>
+                <li style={{ flex: "1 1 200px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <span
+                    style={{
+                      height: "6px",
+                      borderRadius: "3px",
+                      background: step === 2 ? "#0A7A53" : "#E4E2D9",
+                      transition: "background .3s ease",
                     }}
-                    className="space-y-4"
+                  />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 800,
+                      color: step === 2 ? "#0A7A53" : "#8A9791",
+                      transition: "color .3s ease",
+                    }}
                   >
-                    {step === 1 ? (
-                      /* ================= STEP 1: COMPTE & IDENTIFIANTS ================= */
-                      <motion.div
-                        key="step-1"
-                        initial={reduceMotion ? undefined : { opacity: 0, x: -14 }}
-                        animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
-                        exit={reduceMotion ? undefined : { opacity: 0, x: 14 }}
-                        transition={{ duration: 0.35 }}
-                        className="space-y-4"
-                      >
-                        {/* First name & Last name grid */}
-                        <div className="grid gap-3.5 sm:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label htmlFor="reg-first-name" className="text-xs font-extrabold text-[#4E625A]">
-                              {copy.firstName} *
-                            </Label>
-                            <div className="relative flex items-center">
-                              <span className={ICON_WRAP}>
-                                <User className="h-4 w-4" />
-                              </span>
-                              <Input
-                                id="reg-first-name"
-                                required
-                                autoComplete="given-name"
-                                placeholder={copy.firstNamePlaceholder}
-                                value={firstName}
-                                onChange={(e) => {
-                                  setFirstName(e.target.value);
-                                  setError(null);
-                                }}
-                                className={inputClass}
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="reg-last-name" className="text-xs font-extrabold text-[#4E625A]">
-                              {copy.lastName} *
-                            </Label>
-                            <div className="relative flex items-center">
-                              <span className={ICON_WRAP}>
-                                <User className="h-4 w-4" />
-                              </span>
-                              <Input
-                                id="reg-last-name"
-                                required
-                                autoComplete="family-name"
-                                placeholder={copy.lastNamePlaceholder}
-                                value={lastName}
-                                onChange={(e) => {
-                                  setLastName(e.target.value);
-                                  setError(null);
-                                }}
-                                className={inputClass}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                    {t.step2Title}
+                  </span>
+                </li>
+              </ol>
 
-                        {/* Email */}
-                        <div className="space-y-1.5">
-                          <Label htmlFor="reg-email" className="text-xs font-extrabold text-[#4E625A]">
-                            {copy.email} *
-                          </Label>
-                          <div className="relative flex items-center">
-                            <span className={ICON_WRAP}>
-                              <Mail className="h-4 w-4" />
-                            </span>
-                            <Input
-                              id="reg-email"
-                              type="email"
-                              required
-                              autoComplete="email"
-                              placeholder={copy.emailPlaceholder}
-                              value={email}
-                              onChange={(e) => {
-                                setEmail(e.target.value);
-                                setError(null);
-                              }}
-                              className={inputClass}
-                            />
-                          </div>
-                        </div>
+              {/* Error Alert */}
+              {error && (
+                <div role="alert" className="lg-help err" style={{ padding: "12px 14px", borderRadius: "14px", background: "var(--errSoft)" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
 
-                        {/* Password & Confirm Password */}
-                        <div className="grid gap-3.5 sm:grid-cols-2">
-                          <div
-                            ref={passwordFieldRef}
-                            className="space-y-1.5"
-                            onFocusCapture={() => setPasswordFieldActive(true)}
-                            onBlurCapture={(e) => {
-                              const nextFocused = e.relatedTarget as Node | null;
-                              if (nextFocused && passwordFieldRef.current?.contains(nextFocused)) return;
-                              setPasswordFieldActive(false);
-                            }}
-                          >
-                            <Label htmlFor="reg-password" className="text-xs font-extrabold text-[#4E625A]">
-                              {copy.password} *
-                            </Label>
-                            <div className="relative flex items-center">
-                              <span className={ICON_WRAP}>
-                                <Lock className="h-4 w-4" />
-                              </span>
-                              <Input
-                                id="reg-password"
-                                type={showPassword ? "text" : "password"}
-                                required
-                                autoComplete="new-password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => {
-                                  setPassword(e.target.value);
-                                  setError(null);
-                                }}
-                                className={`${inputClass} pe-11`}
-                              />
-                              <button
-                                type="button"
-                                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#7C8D86] hover:bg-[#EEF1EA] hover:text-[#0A241D]"
-                                onClick={() => setShowPassword((prev) => !prev)}
-                                aria-label={showPassword ? copy.hidePassword : copy.showPassword}
-                              >
-                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </div>
+              {/* STEP 1: COMPTE & ACCÈS */}
+              {step === 1 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+                  <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 800, letterSpacing: "-1px" }}>{t.createTitle}</h1>
 
-                          <div className="space-y-1.5">
-                            <Label htmlFor="reg-password-confirm" className="text-xs font-extrabold text-[#4E625A]">
-                              {copy.confirmPassword} *
-                            </Label>
-                            <div className="relative flex items-center">
-                              <span className={ICON_WRAP}>
-                                <Lock className="h-4 w-4" />
-                              </span>
-                              <Input
-                                id="reg-password-confirm"
-                                type={showConfirmPassword ? "text" : "password"}
-                                required
-                                autoComplete="new-password"
-                                placeholder="••••••••"
-                                value={confirmPassword}
-                                onChange={(e) => {
-                                  setConfirmPassword(e.target.value);
-                                  setError(null);
-                                }}
-                                className={`${inputClass} pe-11`}
-                              />
-                              <button
-                                type="button"
-                                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#7C8D86] hover:bg-[#EEF1EA] hover:text-[#0A241D]"
-                                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                                aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
-                              >
-                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                    {t.email}
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setError(null);
+                      }}
+                      autoComplete="email"
+                      placeholder="nom@exemple.ma"
+                      style={{
+                        height: "54px",
+                        padding: "0 16px",
+                        border: "1.5px solid #DAD8CF",
+                        borderRadius: "14px",
+                        fontFamily: "inherit",
+                        fontSize: "16px",
+                        boxSizing: "border-box",
+                        width: "100%",
+                        outline: "none",
+                      }}
+                    />
+                  </label>
 
-                        {/* Password strength mini indicator */}
-                        {password ? (
-                          <div className="rounded-xl border border-[#E3E8DF] bg-white p-3 shadow-xs">
-                            <div className="mb-2 flex items-center justify-between text-xs">
-                              <span className="font-bold text-[#7C8D86]">Force du mot de passe :</span>
-                              <span
-                                className={`font-extrabold ${
-                                  passwordScore <= 1
-                                    ? "text-red-500"
-                                    : passwordScore <= 3
-                                    ? "text-amber-500"
-                                    : "text-[#0B8F53]"
-                                }`}
-                              >
-                                {passwordScore <= 1
-                                  ? copy.passwordStrengthWeak
-                                  : passwordScore <= 3
-                                  ? copy.passwordStrengthMedium
-                                  : copy.passwordStrengthStrong}
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEF1EA]">
-                              <div
-                                className={`h-full rounded-full transition-all duration-300 ${
-                                  passwordScore <= 1
-                                    ? "bg-red-500"
-                                    : passwordScore <= 3
-                                    ? "bg-amber-500"
-                                    : "bg-[#17C777]"
-                                }`}
-                                style={{ width: `${(passwordScore / 4) * 100}%` }}
-                              />
-                            </div>
-                            {passwordFieldActive ? (
-                              <ul className="mt-2.5 grid grid-cols-2 gap-1.5 text-[0.72rem]">
-                                {passwordRules.map((rule) => (
-                                  <li
-                                    key={rule.label}
-                                    className={`flex items-center gap-1.5 font-bold ${
-                                      rule.ok ? "text-[#0B8F53]" : "text-[#7C8D86]"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] ${
-                                        rule.ok ? "bg-[#17C777] text-white" : "bg-[#EEF1EA] text-[#7C8D86]"
-                                      }`}
-                                    >
-                                      ✓
-                                    </span>
-                                    <span>{rule.label}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : null}
-                          </div>
-                        ) : null}
+                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                    {t.password}
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setError(null);
+                      }}
+                      autoComplete="new-password"
+                      style={{
+                        height: "54px",
+                        padding: "0 16px",
+                        border: "1.5px solid #DAD8CF",
+                        borderRadius: "14px",
+                        fontFamily: "inherit",
+                        fontSize: "16px",
+                        boxSizing: "border-box",
+                        width: "100%",
+                        outline: "none",
+                      }}
+                    />
+                  </label>
 
-                        {/* Country selection cards */}
-                        <div className="space-y-2">
-                          <Label className="text-xs font-extrabold text-[#4E625A]">
-                            {copy.country} *
-                          </Label>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            {COUNTRY_OPTIONS.map((item) => {
-                              const isSelected = country === item.name;
-                              return (
-                                <button
-                                  key={item.name}
-                                  type="button"
-                                  onClick={() => {
-                                    setCountry(item.name);
-                                    setCurrency(item.defaultCurrency);
-                                  }}
-                                  className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all ${
-                                    isSelected
-                                      ? "border-[#17C777] bg-[#E2F7EC]/60 text-[#06301F] shadow-xs ring-1 ring-[#17C777]"
-                                      : "border-[#E3E8DF] bg-white text-[#4E625A] hover:border-[#17C777]/50"
-                                  }`}
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={`/flags/${item.code}.png`}
-                                    alt={copy.flagAlt(countryLabels[item.name])}
-                                    className="h-4 w-5 rounded-xs object-cover shadow-xs"
-                                    loading="lazy"
-                                  />
-                                  <span>{countryLabels[item.name]}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* City select dropdown */}
-                        <div className="space-y-1.5">
-                          <Label htmlFor="reg-city" className="text-xs font-extrabold text-[#4E625A]">
-                            {copy.city} *
-                          </Label>
-                          <div className="relative flex items-center">
-                            <span className={ICON_WRAP}>
-                              <MapPin className="h-4 w-4" />
-                            </span>
-                            <select
-                              id="reg-city"
-                              required
-                              value={city}
-                              onChange={(e) => setCity(e.target.value)}
-                              className="h-[50px] w-full rounded-xl border border-[#E3E8DF] bg-white ps-11 pe-4 text-[14px] font-semibold text-[#0A241D] shadow-none focus-visible:border-[#17C777] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#E2F7EC]"
-                            >
-                              <option value="" disabled>
-                                {copy.selectCity}
-                              </option>
-                              {citiesForCountry.map((item) => (
-                                <option key={item} value={item}>
-                                  {item}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Step 1 Next Button */}
-                        <div className="pt-2">
-                          <Button
-                            type="button"
-                            onClick={handleNextToStep2}
-                            className="rg-cta flex h-[50px] w-full items-center justify-center gap-2 rounded-xl bg-[#17C777] font-extrabold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
-                          >
-                            <span>{copy.continueToStep2}</span>
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      /* ================= STEP 2: PROFIL & FINALISATION ================= */
-                      <motion.div
-                        key="step-2"
-                        initial={reduceMotion ? undefined : { opacity: 0, x: 14 }}
-                        animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
-                        exit={reduceMotion ? undefined : { opacity: 0, x: -14 }}
-                        transition={{ duration: 0.35 }}
-                        className="space-y-4"
-                      >
-                        {/* Profile Photo Uploader */}
-                        <div className="rounded-2xl border border-[#E3E8DF] bg-white p-4 shadow-xs">
-                          <div className="flex items-center gap-4">
-                            <div className="relative flex-none">
-                              <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-[#17C777] bg-[#E2F7EC] text-[#0B8F53] transition hover:opacity-90"
-                              >
-                                {profilePhotoPreviewUrl || profilePhotoUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={profilePhotoPreviewUrl ?? profilePhotoUrl ?? undefined}
-                                    alt={copy.profilePhoto}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <Camera className="h-6 w-6" />
-                                )}
-                              </button>
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handlePhotoChange}
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-extrabold text-[#0A241D]">{copy.profilePhoto}</p>
-                              <p className="mt-0.5 text-[0.75rem] text-[#7C8D86]">PNG, JPG, WebP (max 13 Mo)</p>
-                              <div className="mt-2 flex gap-2">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() => fileInputRef.current?.click()}
-                                  className="h-7 rounded-lg border-[#E3E8DF] px-2.5 text-[0.72rem] font-bold text-[#0A241D]"
-                                >
-                                  {copy.profilePhotoChange}
-                                </Button>
-                                {profilePhotoPreviewUrl || profilePhotoUrl ? (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={handleRemovePhoto}
-                                    className="h-7 rounded-lg px-2 text-[0.72rem] font-bold text-red-600 hover:bg-red-50 hover:text-red-700"
-                                  >
-                                    <Trash2 className="me-1 h-3 w-3" />
-                                    {copy.profilePhotoRemove}
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Phone Number */}
-                        <div className="space-y-1.5">
-                          <Label htmlFor="reg-phone" className="text-xs font-extrabold text-[#4E625A]">
-                            {copy.phone} *
-                          </Label>
-                          <div className="relative flex items-center">
-                            <span className={ICON_WRAP}>
-                              <Phone className="h-4 w-4" />
-                            </span>
-                            <Input
-                              id="reg-phone"
-                              type="tel"
-                              required
-                              autoComplete="tel"
-                              placeholder={copy.phonePlaceholder}
-                              value={phoneNumber}
-                              onChange={(e) => {
-                                setPhoneNumber(e.target.value);
-                                setError(null);
-                              }}
-                              className={inputClass}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Birth Date */}
-                        <div className="space-y-1.5">
-                          <Label htmlFor="reg-birth-date" className="text-xs font-extrabold text-[#4E625A]">
-                            {copy.birthDate} *
-                          </Label>
-                          <div className="relative flex items-center">
-                            <span className={ICON_WRAP}>
-                              <Calendar className="h-4 w-4" />
-                            </span>
-                            <Input
-                              id="reg-birth-date"
-                              type="date"
-                              required
-                              max={maxBirthDate}
-                              autoComplete="bday"
-                              value={birthDate}
-                              onChange={(e) => {
-                                setBirthDate(e.target.value);
-                                setError(null);
-                              }}
-                              className={inputClass}
-                            />
-                          </div>
-                        </div>
-
-                        {/* reCAPTCHA Anti-spam */}
-                        {recaptchaSiteKey ? (
-                          <div className="space-y-1.5">
-                            <div ref={recaptchaContainerRef} className="flex justify-center" />
-                          </div>
-                        ) : isDevEnvironment ? (
-                          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
-                            <ShieldCheck className="h-4 w-4 flex-none text-amber-600" />
-                            <span>{copy.recaptchaDevBypass}</span>
-                          </div>
-                        ) : null}
-
-                        {/* CGU & Privacy acceptance text */}
-                        <div className="text-center text-[0.76rem] leading-relaxed text-[#7C8D86]">
-                          {copy.acceptTermsPrefix}
-                          <Link
-                            href="/cgu"
-                            target="_blank"
-                            className="font-bold text-[#0B8F53] underline hover:text-[#06301F]"
-                          >
-                            {copy.acceptTermsCGULink}
-                          </Link>
-                          {copy.acceptTermsAnd}
-                          <Link
-                            href="/privacy"
-                            target="_blank"
-                            className="font-bold text-[#0B8F53] underline hover:text-[#06301F]"
-                          >
-                            {copy.acceptTermsPrivacyLink}
-                          </Link>
-                          {copy.acceptTermsSuffix}
-                        </div>
-
-                        {/* Action buttons (Back to 1 & Submit) */}
-                        <div className="flex items-center gap-3 pt-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={handlePrevToStep1}
-                            className="flex h-[50px] items-center gap-1.5 rounded-xl border-[#E3E8DF] bg-white px-5 font-bold text-[#0A241D] hover:border-[#0A241D]"
-                          >
-                            <ArrowLeft className="h-4 w-4" />
-                            <span>{copy.backToStep1}</span>
-                          </Button>
-                          <Button
-                            type="submit"
-                            isLoading={loading}
-                            disabled={registrationBlocked || loading}
-                            className="rg-cta flex h-[50px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#17C777] font-extrabold text-[#06301F] shadow-[0_10px_22px_-10px_rgba(23,199,119,0.6)] transition hover:-translate-y-px hover:bg-[#0B8F53] hover:text-white"
-                          >
-                            <span>{loading ? copy.creatingAccount : copy.createFinalAccount}</span>
-                            {!loading && <Check className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </form>
-
-                  {/* Footer link: Already have an account */}
-                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-center text-[0.87rem] font-semibold text-[#4E625A]">
-                    <span>{copy.alreadyAccount}</span>
-                    <Link href="/login" className="font-extrabold text-[#0B8F53] hover:underline">
-                      {copy.login}
-                    </Link>
-                    <span className="rg-sticker inline-flex items-center gap-1.5 rounded-full bg-[#F2A93B] px-3 py-1 text-[0.74rem] font-extrabold text-[#3A2400] shadow-sm">
-                      <span aria-hidden="true">✦</span>
-                      {copy.fabor}
-                    </span>
+                  {/* Password 4-bar strength indicator */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "6px" }}>
+                      {meter.map((m, i) => (
+                        <span key={i} style={{ height: "6px", borderRadius: "3px", background: m.c, transition: "background .3s ease" }} />
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", fontSize: "13px" }}>
+                      <span style={{ fontWeight: 800, color: strColor }}>
+                        {t.strength} : {strLabel}
+                      </span>
+                      {passwordRules.map((r, i) => (
+                        <span key={i} style={{ color: r.ok ? "#0A7A53" : "#8A9791", fontWeight: 600 }}>
+                          {r.ok ? "✓" : "✕"} {r.label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Guest mode trigger */}
-                  <div className="pt-1">
-                    <GuestModeButton
-                      status={status}
-                      locale={locale}
-                      dir={pageDir}
-                      placement="register"
-                      loading={guestLoading}
-                      onStart={handleGuestStart}
-                      label={copy.tryWithoutAccount}
-                      hint={copy.tryWithoutAccountHint}
-                      className="h-[48px] w-full rounded-xl border border-[#0B8F53]/40 bg-transparent font-bold text-[#0B8F53] transition hover:bg-[#0B8F53]/10"
-                      hintClassName="mt-1.5 text-center text-[0.76rem] font-medium text-[#7C8D86]"
+                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                    {t.confirmPassword}
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setError(null);
+                      }}
+                      autoComplete="new-password"
+                      style={{
+                        height: "54px",
+                        padding: "0 16px",
+                        border: "1.5px solid #DAD8CF",
+                        borderRadius: "14px",
+                        fontFamily: "inherit",
+                        fontSize: "16px",
+                        boxSizing: "border-box",
+                        width: "100%",
+                        outline: "none",
+                      }}
                     />
+                  </label>
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={handleNextToStep2}
+                      style={{
+                        flex: "1 1 220px",
+                        height: "56px",
+                        border: 0,
+                        borderRadius: "14px",
+                        background: "#0A7A53",
+                        color: "#FFFFFF",
+                        fontFamily: "inherit",
+                        fontSize: "17px",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {t.continueProfile}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGuestStart}
+                      disabled={loading}
+                      style={{
+                        flex: "1 1 200px",
+                        height: "56px",
+                        borderRadius: "14px",
+                        border: "1.5px solid #0F1A16",
+                        background: "transparent",
+                        color: "#0F1A16",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "16px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {t.tryGuest}
+                    </button>
                   </div>
                 </div>
               )}
-            </motion.div>
-          </div>
-        </main>
-      </div>
 
-      <style jsx global>{`
-        .rg-blob {
-          position: absolute;
-          border-radius: 9999px;
-          filter: blur(75px);
-          pointer-events: none;
-        }
-        .rg-blob-a {
-          width: 440px;
-          height: 440px;
-          background: rgba(23, 199, 119, 0.32);
-          top: -150px;
-          inset-inline-start: -140px;
-          animation: rgDrift 18s ease-in-out infinite;
-        }
-        .rg-blob-b {
-          width: 360px;
-          height: 360px;
-          background: rgba(76, 126, 255, 0.22);
-          bottom: -130px;
-          inset-inline-end: -110px;
-          animation: rgDrift 23s ease-in-out infinite reverse;
-        }
-        @keyframes rgDrift {
-          0%,
-          100% {
-            transform: translate(0, 0) scale(1);
-          }
-          50% {
-            transform: translate(50px, 44px) scale(1.12);
-          }
-        }
-        .rg-spot {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0;
-          transition: opacity 0.45s ease;
-          background: radial-gradient(
-            380px circle at var(--mx, 50%) var(--my, 30%),
-            rgba(23, 199, 119, 0.18),
-            transparent 66%
-          );
-        }
-        .rg-panel:hover .rg-spot {
-          opacity: 1;
-        }
-        .rg-intro .rg-rise {
-          opacity: 0;
-          transform: translateY(16px);
-          animation: rgRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-          animation-delay: var(--d, 0s);
-        }
-        @keyframes rgRise {
-          to {
-            opacity: 1;
-            transform: none;
-          }
-        }
-        .rg-cta {
-          position: relative;
-          overflow: hidden;
-        }
-        .rg-cta::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: -140%;
-          width: 60%;
-          height: 100%;
-          background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-          transform: skewX(-18deg);
-          transition: left 0.65s ease;
-        }
-        .rg-cta:hover::after {
-          left: 150%;
-        }
-        .rg-sticker {
-          transform: rotate(-4deg);
-          animation: rgWob 4.2s ease-in-out infinite;
-        }
-        @keyframes rgWob {
-          0%,
-          100% {
-            transform: rotate(-4deg) scale(1);
-          }
-          50% {
-            transform: rotate(3deg) scale(1.05);
-          }
-        }
-        [data-register-locale="ar"],
-        [data-register-locale="ar"] *,
-        .register-arabic-font,
-        .register-arabic-font * {
-          font-family: "Cairo", sans-serif !important;
-          letter-spacing: 0 !important;
-        }
-        [data-register-locale="ar"] svg,
-        .register-arabic-font svg {
-          font-family: initial !important;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .rg-blob,
-          .rg-sticker {
-            animation: none !important;
-          }
-          .rg-intro .rg-rise {
-            animation: none !important;
-            opacity: 1 !important;
-            transform: none !important;
-          }
-          .rg-cta::after {
-            display: none;
-          }
-          .rg-spot {
-            display: none;
-          }
-        }
-      `}</style>
+              {/* STEP 2: PROFIL & FINALISATION */}
+              {step === 2 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                    <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 800, letterSpacing: "-1px" }}>{t.profileTitle}</h1>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setStep(1);
+                      }}
+                      style={{
+                        height: "40px",
+                        padding: "0 14px",
+                        border: 0,
+                        borderRadius: "10px",
+                        background: "#F6F5EF",
+                        fontFamily: "inherit",
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        color: "#0F1A16",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {t.back}
+                    </button>
+                  </div>
+
+                  {/* Profile Photo */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <span
+                      style={{
+                        width: "72px",
+                        height: "72px",
+                        borderRadius: "36px",
+                        background: profilePhotoPreviewUrl ? `url(${profilePhotoPreviewUrl}) center/cover no-repeat` : "#E2F1E8",
+                        color: "#0A7A53",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "26px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {!profilePhotoPreviewUrl && initial}
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 700 }}>{t.profilePhoto}</span>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={handlePhotoChange}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            height: "40px",
+                            padding: "0 14px",
+                            borderRadius: "10px",
+                            border: "1.5px solid #DAD8CF",
+                            background: "#FFFFFF",
+                            fontFamily: "inherit",
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {t.upload}
+                        </button>
+                        {profilePhotoPreviewUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            style={{
+                              height: "40px",
+                              padding: "0 14px",
+                              border: 0,
+                              borderRadius: "10px",
+                              background: "transparent",
+                              color: "#B4441C",
+                              fontFamily: "inherit",
+                              fontSize: "14px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.remove}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Profile Form Grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                      {t.firstName}
+                      <input
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Youssef"
+                        style={{
+                          height: "52px",
+                          padding: "0 16px",
+                          border: "1.5px solid #DAD8CF",
+                          borderRadius: "14px",
+                          fontFamily: "inherit",
+                          fontSize: "16px",
+                          boxSizing: "border-box",
+                          width: "100%",
+                        }}
+                      />
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                      {t.lastName}
+                      <input
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Benali"
+                        style={{
+                          height: "52px",
+                          padding: "0 16px",
+                          border: "1.5px solid #DAD8CF",
+                          borderRadius: "14px",
+                          fontFamily: "inherit",
+                          fontSize: "16px",
+                          boxSizing: "border-box",
+                          width: "100%",
+                        }}
+                      />
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                      {t.phone}
+                      <span style={{ display: "flex", height: "52px", border: "1.5px solid #DAD8CF", borderRadius: "14px", overflow: "hidden" }}>
+                        <span style={{ padding: "0 12px", display: "flex", alignItems: "center", background: "#F6F5EF", fontWeight: 700 }}>
+                          {dial}
+                        </span>
+                        <input
+                          type="tel"
+                          placeholder="6 12 34 56 78"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            border: 0,
+                            padding: "0 12px",
+                            fontFamily: "inherit",
+                            fontSize: "16px",
+                            outline: "none",
+                          }}
+                        />
+                      </span>
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                      {t.birthDate}
+                      <input
+                        type="date"
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
+                        style={{
+                          height: "52px",
+                          padding: "0 16px",
+                          border: "1.5px solid #DAD8CF",
+                          borderRadius: "14px",
+                          fontFamily: "inherit",
+                          fontSize: "16px",
+                          boxSizing: "border-box",
+                          width: "100%",
+                          outline: "none",
+                        }}
+                      />
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                      {t.country}
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value as CountryName)}
+                        style={{
+                          height: "52px",
+                          padding: "0 12px",
+                          border: "1.5px solid #DAD8CF",
+                          borderRadius: "14px",
+                          background: "#FFFFFF",
+                          fontFamily: "inherit",
+                          fontSize: "16px",
+                          outline: "none",
+                        }}
+                      >
+                        {COUNTRY_OPTIONS.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", fontWeight: 700 }}>
+                      {t.city}
+                      <select
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        style={{
+                          height: "52px",
+                          padding: "0 12px",
+                          border: "1.5px solid #DAD8CF",
+                          borderRadius: "14px",
+                          background: "#FFFFFF",
+                          fontFamily: "inherit",
+                          fontSize: "16px",
+                          outline: "none",
+                        }}
+                      >
+                        {cities.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <span style={{ marginTop: "-6px", fontSize: "13px", color: "#55645D" }}>{t.ageNotice}</span>
+
+                  {/* reCAPTCHA Widget */}
+                  {recaptchaSiteKey && !allowRecaptchaBypass ? (
+                    <div ref={recaptchaContainerRef} style={{ minHeight: "76px" }} />
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "304px",
+                        maxWidth: "100%",
+                        height: "76px",
+                        padding: "0 14px",
+                        boxSizing: "border-box",
+                        border: "1px solid #D3D3D3",
+                        borderRadius: "4px",
+                        background: "#F9F9F9",
+                        fontSize: "14px",
+                      }}
+                    >
+                      <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(recaptchaToken)}
+                          onChange={(e) => setRecaptchaToken(e.target.checked ? "dev-token-ok" : null)}
+                          style={{ width: "24px", height: "24px" }}
+                        />
+                        {t.recaptchaNotRobot}
+                      </label>
+                      <span style={{ fontSize: "10px", color: "#6B6B6B", textAlign: "center" }}>[ reCAPTCHA ]</span>
+                    </div>
+                  )}
+
+                  {/* CGU Acceptance Checkbox */}
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "15px", lineHeight: 1.45 }}>
+                    <input
+                      type="checkbox"
+                      checked={cguAccepted}
+                      onChange={(e) => setCguAccepted(e.target.checked)}
+                      style={{ width: "20px", height: "20px", marginTop: "2px", accentColor: "#0A7A53" }}
+                    />
+                    <span>
+                      J’accepte les{" "}
+                      <Link href="/cgu" style={{ fontWeight: 700 }}>
+                        Conditions générales d’utilisation
+                      </Link>{" "}
+                      et la{" "}
+                      <Link href="/privacy" style={{ fontWeight: 700 }}>
+                        Politique de confidentialité
+                      </Link>
+                      .
+                    </span>
+                  </label>
+
+                  {/* Final Submit Button */}
+                  <button
+                    type="button"
+                    onClick={handleRegisterAndStartOnboarding}
+                    disabled={loading}
+                    style={{
+                      height: "56px",
+                      borderRadius: "14px",
+                      background: "#0A7A53",
+                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "17px",
+                      fontWeight: 800,
+                      border: 0,
+                      cursor: "pointer",
+                      gap: "10px",
+                    }}
+                  >
+                    {loading ? t.submitting : t.submitCreate}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+
+        {/* Aside: Live Preview Card */}
+        <aside
+          aria-label={t.livePreview}
+          style={{
+            flex: "1 1 320px",
+            minWidth: 0,
+            position: "sticky",
+            top: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+          }}
+        >
+          <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "1.5px", color: "#55645D" }}>
+            {t.livePreview}
+          </span>
+          <div
+            style={{
+              borderRadius: "28px",
+              background: "#06402C",
+              color: "#FFFFFF",
+              padding: "28px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "18px",
+              boxShadow: "0 24px 60px -24px rgba(6,64,44,.4)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <span
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "28px",
+                  background: "#F2B544",
+                  color: "#0F1A16",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  fontWeight: 800,
+                }}
+              >
+                {initial}
+              </span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <b style={{ fontSize: "20px" }}>
+                  {t.salam}, {firstName.trim() || (locale === "ar" ? "بيك" : "toi")}
+                </b>
+                <span style={{ fontSize: "14px", color: "#9FD8BE" }}>
+                  {city}, {country}
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderRadius: "18px",
+                background: "rgba(255,255,255,0.08)",
+                padding: "16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+            >
+              <span style={{ fontSize: "13px", color: "#9FD8BE" }}>{t.budgetCurrency}</span>
+              <b style={{ fontSize: "26px" }}>{currency}</b>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "14px", color: "#CFE6DB" }}>
+              <span style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "4px", background: "#7FD3AE" }} />
+                {t.adv1}
+              </span>
+              <span style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "4px", background: "#7FD3AE" }} />
+                {t.adv2}
+              </span>
+              <span style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "4px", background: "#7FD3AE" }} />
+                {t.adv3}
+              </span>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
