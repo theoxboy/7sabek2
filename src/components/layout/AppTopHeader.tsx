@@ -26,7 +26,7 @@ import useSWR from "swr";
 
 import type { AuthUser } from "@/lib/auth";
 import type { FloussyLocale } from "@/lib/localePreference";
-import { openLanguagePicker } from "@/components/i18n/LanguagePreferenceGate";
+import { setAppLocale } from "@/components/i18n/LanguagePreferenceGate";
 import { useQuickTx } from "@/state/QuickTxContext";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api";
@@ -319,11 +319,13 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   const [streakOpen, setStreakOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const streakRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const langRef = useRef<HTMLDivElement>(null);
 
   // Load guest tries from localStorage
   useEffect(() => {
@@ -340,6 +342,9 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
+      if (langOpen && langRef.current && !langRef.current.contains(target)) {
+        setLangOpen(false);
+      }
       if (streakOpen && streakRef.current && !streakRef.current.contains(target)) {
         setStreakOpen(false);
       }
@@ -355,7 +360,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [streakOpen, notificationsOpen, addMenuOpen, isPopoverOpen]);
+  }, [langOpen, streakOpen, notificationsOpen, addMenuOpen, isPopoverOpen]);
 
   // Global Keyboard shortcuts:
   // [N]: opens quick add menu / modal
@@ -364,6 +369,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        setLangOpen(false);
         setStreakOpen(false);
         setNotificationsOpen(false);
         setAddMenuOpen(false);
@@ -1093,28 +1099,167 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
 
         {/* Action icons & buttons */}
         <div className="dsh-act">
-          {/* Quick Language Selector */}
-          <button
-            type="button"
-            onClick={openLanguagePicker}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              border: "1px solid var(--dsh-line)",
-              background: "var(--dsh-card)",
-              color: "var(--dsh-ink)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-            }}
-            title="Langue / اللغة"
-            aria-label="Changer de langue"
-          >
-            <Globe size={18} />
-          </button>
+          {/* Quick Language Selector (Dropdown window matching notifications style) */}
+          <div ref={langRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setLangOpen(!langOpen);
+                setStreakOpen(false);
+                setNotificationsOpen(false);
+                setAddMenuOpen(false);
+              }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                border: langOpen
+                  ? "1px solid var(--dsh-brand-soft)"
+                  : "1px solid var(--dsh-line)",
+                background: langOpen
+                  ? "var(--dsh-brand-soft)"
+                  : "var(--dsh-card)",
+                color: langOpen
+                  ? "var(--dsh-brand-ink)"
+                  : "var(--dsh-ink)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                transition: "all 0.15s ease",
+              }}
+              title="Langue / اللغة"
+              aria-label="Changer de langue"
+              aria-expanded={langOpen}
+            >
+              <Globe size={18} />
+            </button>
+
+            {langOpen && (
+              <div
+                role="dialog"
+                aria-label="Sélection de la langue"
+                style={{
+                  position: "absolute",
+                  top: 48,
+                  [isRTL ? "left" : "right"]: 0,
+                  zIndex: 50,
+                  width: 230,
+                  borderRadius: 16,
+                  background: "var(--dsh-card)",
+                  boxShadow: "0 18px 45px rgba(0,0,0,0.22)",
+                  padding: "8px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                  border: "1px solid var(--dsh-line)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 8px 8px",
+                    borderBottom: "1px solid var(--dsh-line)",
+                    marginBottom: 2,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Globe size={14} style={{ color: "var(--dsh-muted)" }} />
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        color: "var(--dsh-muted)",
+                      }}
+                    >
+                      {locale === "ar" ? "اللغة" : "Langue"}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "2px 6px",
+                      borderRadius: 6,
+                      background: "var(--dsh-brand-soft)",
+                      color: "var(--dsh-brand-ink)",
+                    }}
+                  >
+                    {locale.toUpperCase()}
+                  </span>
+                </div>
+
+                {[
+                  { code: "fr", label: "Français", flag: "🇫🇷" },
+                  { code: "ar", label: "الدارجة (العربية)", flag: "🇲🇦" },
+                  { code: "en", label: "English", flag: "🇬🇧" },
+                ].map((item) => {
+                  const isSelected = locale === item.code;
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      onClick={() => {
+                        setAppLocale(item.code as FloussyLocale);
+                        setLangOpen(false);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "8px 10px",
+                        borderRadius: 10,
+                        border: isSelected
+                          ? "1px solid var(--dsh-brand-soft)"
+                          : "1px solid transparent",
+                        background: isSelected
+                          ? "var(--dsh-brand-soft)"
+                          : "transparent",
+                        color: isSelected
+                          ? "var(--dsh-brand-ink)"
+                          : "var(--dsh-ink)",
+                        fontWeight: isSelected ? 800 : 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        textAlign: isRTL ? "right" : "left",
+                        width: "100%",
+                      }}
+                      className="hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>{item.flag}</span>
+                        <span>{item.label}</span>
+                      </div>
+                      {isSelected && (
+                        <span
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 9,
+                            background: "#0A7A53",
+                            color: "#FFFFFF",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 11,
+                            fontWeight: 900,
+                          }}
+                        >
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Guest Mode Pill */}
           {isGuest ? (
@@ -1166,6 +1311,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                     setStreakOpen(!streakOpen);
                     setNotificationsOpen(false);
                     setAddMenuOpen(false);
+                    setLangOpen(false);
                   }}
                   style={{
                     height: 40,
@@ -1276,6 +1422,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                     setNotificationsOpen(!notificationsOpen);
                     setStreakOpen(false);
                     setAddMenuOpen(false);
+                    setLangOpen(false);
                   }}
                   style={{
                     position: "relative",

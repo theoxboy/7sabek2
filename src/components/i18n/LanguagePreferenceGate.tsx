@@ -35,6 +35,19 @@ export function openLanguagePicker() {
   window.dispatchEvent(new CustomEvent(OPEN_LANGUAGE_PICKER_EVENT));
 }
 
+export function setAppLocale(nextLocale: FloussyLocale) {
+  persistLocaleCookie(nextLocale);
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(LOCALE_LOCAL_STORAGE_KEY, nextLocale);
+  }
+  applyDocumentLocale(nextLocale);
+  window.dispatchEvent(
+    new CustomEvent(LANGUAGE_CHANGED_EVENT, {
+      detail: { locale: nextLocale },
+    })
+  );
+}
+
 export function getBrowserLocalePreference(): FloussyLocale | null {
   if (typeof document === "undefined") return null;
   const cookieLocale = readLocaleCookie(document.cookie);
@@ -83,19 +96,10 @@ export default function LanguagePreferenceGate() {
   );
 
   const handleSelectLocale = (nextLocale: FloussyLocale) => {
-    persistLocaleCookie(nextLocale);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LOCALE_LOCAL_STORAGE_KEY, nextLocale);
-    }
-    applyDocumentLocale(nextLocale);
+    setAppLocale(nextLocale);
     setLocale(nextLocale);
     setManualOpen(false);
     setDismissedAutoPrompt(false);
-    window.dispatchEvent(
-      new CustomEvent(LANGUAGE_CHANGED_EVENT, {
-        detail: { locale: nextLocale },
-      })
-    );
   };
 
   useEffect(() => {
