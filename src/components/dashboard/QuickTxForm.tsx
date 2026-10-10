@@ -429,6 +429,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
     const timer = setTimeout(async () => {
       setIsNlpLoading(true);
       try {
+        const availableCategories = allExpenseCategories.map((c) => c.name);
         const res = await apiFetch<{
           amount: number | null;
           date: string | null;
@@ -438,7 +439,10 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
           suggested_categories: string[];
         }>("/nlp/predict", {
           method: "POST",
-          body: { text: magicInput },
+          body: {
+            text: magicInput,
+            available_categories: availableCategories,
+          },
         });
         setNlpPrediction(res);
         setSelectedDisambiguationCategoryName(null);
@@ -447,10 +451,10 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       } finally {
         setIsNlpLoading(false);
       }
-    }, 600);
+    }, 280);
 
     return () => clearTimeout(timer);
-  }, [magicInput, quickTxMode]);
+  }, [magicInput, quickTxMode, allExpenseCategories]);
 
   // Helper to find an active expense category by canonical name or dictionary translation
   const getActiveCategoryByName = useCallback((catName: string) => {

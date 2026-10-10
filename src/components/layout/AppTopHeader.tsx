@@ -281,6 +281,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
     const timer = setTimeout(async () => {
       setIsNlpLoading(true);
       try {
+        const availableCategories = allExpenseCategories.map((c) => c.name);
         const res = await apiFetch<{
           amount: number | null;
           date: string | null;
@@ -290,7 +291,10 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
           suggested_categories: string[];
         }>("/nlp/predict", {
           method: "POST",
-          body: { text: query },
+          body: {
+            text: query,
+            available_categories: availableCategories,
+          },
         });
         setNlpPrediction(res);
         setSelectedDisambiguationCategoryName(null);
@@ -299,10 +303,10 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
       } finally {
         setIsNlpLoading(false);
       }
-    }, 350);
+    }, 280);
 
     return () => clearTimeout(timer);
-  }, [omarText]);
+  }, [omarText, allExpenseCategories]);
 
   const [streakOpen, setStreakOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
