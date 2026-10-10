@@ -197,6 +197,64 @@ function DashboardContent() {
   const [lastOmarTxId, setLastOmarTxId] = useState<string | null>(null);
   const [guestTries, setGuestTries] = useState(3);
 
+  // Ba Omar 3x/day real AI advice with slot caching per locale
+  const [baOmarAdvice, setBaOmarAdvice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const hour = now.getHours();
+    const slotIndex = hour < 12 ? 1 : hour < 18 ? 2 : 3;
+    const cacheKey = `floussy:ba_omar_advice:${dateStr}:slot${slotIndex}`;
+
+    let cachedMap: Record<string, string> = {};
+    try {
+      const raw = window.localStorage.getItem(cacheKey);
+      if (raw) cachedMap = JSON.parse(raw);
+    } catch {}
+
+    if (cachedMap[locale]) {
+      setBaOmarAdvice(cachedMap[locale]);
+      return;
+    }
+
+    let isCancelled = false;
+    const loadAiAdvice = async () => {
+      const prompts: Record<FloussyLocale, string> = {
+        ar: "عطيني نصيحة مالية سريعة ومختصرة بزاف (جملة أو جملتين بالدارجة كـ با عمر الحكيم) على حالة الميزانية الحالية ديالي.",
+        fr: "Donne-moi un conseil financier ultra court (1 à 2 phrases max, bienveillant et concret comme Ba Omar) sur l'état actuel de mon budget.",
+        en: "Give me a super short financial advice (1 to 2 sentences max, supportive and clear as Ba Omar) on my current budget status.",
+      };
+
+      try {
+        const res = await apiFetch<{ text: string }>("/advisor/chat", {
+          method: "POST",
+          body: {
+            messages: [{ role: "user", text: prompts[locale] || prompts.fr }],
+          },
+        });
+        if (!isCancelled && res?.text) {
+          const cleaned = res.text
+            .replace(/^(Ba Omar|با عمر)\s*:\s*/i, "")
+            .trim();
+          setBaOmarAdvice(cleaned);
+          cachedMap[locale] = cleaned;
+          try {
+            window.localStorage.setItem(cacheKey, JSON.stringify(cachedMap));
+          } catch {}
+        }
+      } catch {
+        // Fallback to contextual rule-based advice gracefully
+      }
+    };
+
+    loadAiAdvice();
+    return () => {
+      isCancelled = true;
+    };
+  }, [locale, data]);
+
   // Interactive drop-downs & popovers
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [streakOpen, setStreakOpen] = useState(false);
@@ -383,6 +441,7 @@ function DashboardContent() {
       const isDebt = Boolean(item.envelope.is_debt);
       const isCash = Boolean(item.envelope.is_cash);
       const isSavings = Boolean(item.envelope.is_default_savings);
+      const rollover_enabled = Boolean(item.envelope.rollover_enabled);
       const status: "ok" | "near" | "over" = isOver
         ? "over"
         : nearLimit
@@ -401,6 +460,7 @@ function DashboardContent() {
         isDebt,
         isCash,
         isSavings,
+        rollover_enabled,
         status,
         pct:
           allocated > 0
@@ -437,13 +497,99 @@ function DashboardContent() {
   const incomeTotal = Number(data?.period_income || 0);
   const netTotal = Number(data?.period_net || 0);
 
-  // Flexible remaining budget
+  // DEBT AND FIXED EXPENSE KEYWORDS (MULTILINGUAL: FR, AR, EN)
+  const DEBT_KEYWORDS = useMemo(
+    () => [
+      "dette", "dettes", "debt", "debts", "credit", "crédit", "kredit",
+      "loan", "loans", "salaf", "سلف", "دين", "الديون", "ديون", "قرض", "قروض", "كريدي", "تسليف"
+    ],
+    []
+  );
+
+  const FIXED_KEYWORDS = useMemo(
+    () => [
+      // French
+      "loyer", "charges", "factures", "facture", "abonnement", "abonnements",
+      "assurance", "assurances", "wifi", "internet", "électricité", "electricite",
+      "eau", "mutuelle", "impôt", "impots", "scolarité", "scolarite", "école", "ecole",
+      // Arabic
+      "كراء", "سكن", "فواتير", "فاتورة", "ماء", "كهرباء", "انترنت", "واي فاي", "ويفي",
+      "تأمين", "اشتراك", "اشتراكات", "مصاريف قارة", "ضريبة", "ضرائب", "تمدرس", "مدرسة", "تعليم", "واجبات",
+      // English
+      "rent", "bills", "bill", "housing", "utilities", "utility", "subscription",
+      "subscriptions", "insurance", "electricity", "water", "tuition", "school", "taxes", "tax"
+    ],
+    []
+  );
+
+  const isDebtNameMatch = useCallback((name: string) => {
+    if (!name) return false;
+    const n = name.trim().toLowerCase();
+    return DEBT_KEYWORDS.some((kw) => n.includes(kw));
+  }, [DEBT_KEYWORDS]);
+
+  const isFixedNameMatch = useCallback((name: string) => {
+    if (!name) return false;
+    const n = name.trim().toLowerCase();
+    return FIXED_KEYWORDS.some((kw) => n.includes(kw));
+  }, [FIXED_KEYWORDS]);
+
+  const fixedEnvelopeIds = useMemo(() => {
+    const ids = new Set<string>();
+    (distributionRules || []).forEach((rule) => {
+      if (
+        rule.target_type === "envelope" &&
+        rule.enabled &&
+        (rule.mode === "fixed" || rule.mode === "fixed_per_period")
+      ) {
+        ids.add(rule.target_id);
+      }
+    });
+    return ids;
+  }, [distributionRules]);
+
+  const isDebtEnvelopeItem = useCallback(
+    (e: { isDebt?: boolean; rawName?: string; name: string }) => {
+      return Boolean(e.isDebt) || isDebtNameMatch(e.rawName || "") || isDebtNameMatch(e.name);
+    },
+    [isDebtNameMatch]
+  );
+
+  const isFixedEnvelopeItem = useCallback(
+    (e: { id: string; rawName?: string; name: string }) => {
+      return (
+        fixedEnvelopeIds.has(e.id) ||
+        isFixedNameMatch(e.rawName || "") ||
+        isFixedNameMatch(e.name)
+      );
+    },
+    [fixedEnvelopeIds, isFixedNameMatch]
+  );
+
+  // Flexible remaining budget (Morona): remaining flexible envelopes PLUS available unallocated cash
   const flexibleRemaining = useMemo(() => {
-    const sum = focusEnvelopes
-      .filter((e) => !e.isDebt)
+    const flexEnvelopesSum = focusEnvelopes
+      .filter((e) => !isDebtEnvelopeItem(e) && !isFixedEnvelopeItem(e))
       .reduce((acc, e) => acc + Math.max(0, e.remaining), 0);
-    return sum > 0 ? sum : Number(data?.available_to_allocate || 1240);
-  }, [focusEnvelopes, data?.available_to_allocate]);
+
+    const availableCash = Math.max(0, Number(data?.available_to_allocate || 0));
+
+    return flexEnvelopesSum + availableCash;
+  }, [focusEnvelopes, isDebtEnvelopeItem, isFixedEnvelopeItem, data?.available_to_allocate]);
+
+  // Projected Tawfir sweep: unspent rollover-off envelopes plus active savings allocation rules
+  const projectedSweepAmount = useMemo(() => {
+    const nonRolloverFlexibleSum = focusEnvelopes
+      .filter((e) => !isDebtEnvelopeItem(e) && !isFixedEnvelopeItem(e) && !e.rollover_enabled)
+      .reduce((acc, e) => acc + Math.max(0, e.remaining), 0);
+
+    const savingsRuleAmount = (distributionRules || [])
+      .filter((r) => r.enabled && envelopesList.some((e) => e.id === r.target_id && e.isSavings))
+      .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+
+    const total = nonRolloverFlexibleSum + savingsRuleAmount;
+    return total > 0 ? total : Math.max(0, Math.round(flexibleRemaining * 0.15));
+  }, [focusEnvelopes, isDebtEnvelopeItem, isFixedEnvelopeItem, distributionRules, envelopesList, flexibleRemaining]);
 
   const dailyAllowance = Math.round(flexibleRemaining / daysRemaining);
 
@@ -603,7 +749,7 @@ function DashboardContent() {
       data?.sweep_bootstrap?.needs_first_income_declaration
     );
 
-    // 1. Première déclaration de revenu OU Salaire attendu
+    // 1. Première déclaration de revenu
     if (needsFirstIncome) {
       const bDate = data?.sweep_bootstrap?.last_income_date ?? null;
       const bAmt =
@@ -634,25 +780,42 @@ function DashboardContent() {
             bootstrapAmount: bAmt,
           }),
       });
-    } else if (incomeReminders.length > 0) {
-      const r = incomeReminders[0];
-      const dueDate = r.next_due_on || r.due_date || "prochainement";
-      const expectedAmt = data?.sweep_bootstrap?.expected_income_amount
-        ? formatMoney(data.sweep_bootstrap.expected_income_amount)
-        : "";
+    }
+
+    // 2. Cash disponible à répartir
+    const availCash = Number(data?.available_to_allocate || 0);
+    if (!needsFirstIncome && availCash > 0) {
       list.push({
-        id: "salary",
+        id: "cash-available-to-distribute",
         title:
           locale === "ar"
-            ? `الصالير منتظر فـ ${dueDate}`
-            : `Salaire attendu le ${dueDate}`,
+            ? `كاش متاح للتوزيع: ${formatMoney(availCash)} ${currency}`
+            : `Cash prêt à répartir : ${formatMoney(availCash)} ${currency}`,
         text:
           locale === "ar"
-            ? expectedAmt
-              ? `${expectedAmt} ${currency} متوقعة للتوزيع.`
-              : "مداخيل منتظرة للتوزيع على الأظرفة."
-            : expectedAmt
-            ? `${expectedAmt} ${currency} prévus pour le cycle.`
+            ? "عندك كاش جاهز للتوزيع على الأظرفة ديالك باش تحدد ميزانية كل قسم."
+            : "Du cash est disponible dans ton compte principal. Répartis-le sur tes enveloppes.",
+        cta: locale === "ar" ? "وزّع الكاش" : "Répartir le cash",
+        dot: "#0A7A53",
+        bg: "rgba(10, 122, 83, 0.12)",
+        icon: "plus",
+        action: () => router.push(isGuest ? "/repartir" : "/distribution"),
+      });
+    }
+
+    // 3. Salaire attendu / Rappels de revenus actifs
+    const dueReminders = (incomeReminders || []).filter((r) => r.is_active);
+    dueReminders.forEach((r) => {
+      const dueDate = r.next_due_on || r.due_date || "prochainement";
+      list.push({
+        id: `reminder-${r.id}`,
+        title:
+          locale === "ar"
+            ? `الصالير منتظر فـ ${dueDate} (${r.name})`
+            : `Salaire attendu le ${dueDate} (${r.name})`,
+        text:
+          locale === "ar"
+            ? "مداخيل منتظرة للتوزيع على الأظرفة."
             : "Revenus attendus pour alimenter tes enveloppes.",
         cta: locale === "ar" ? "صرّح بالدخل" : "Déclarer",
         dot: "#2457A6",
@@ -660,48 +823,9 @@ function DashboardContent() {
         icon: "plus",
         action: () => openQuickTx("income"),
       });
-    } else if (
-      !isGuest &&
-      Number(data?.period_income || 0) === 0 &&
-      Number(data?.available_to_allocate || 0) === 0 &&
-      (!data?.sweep_status || !data.sweep_status.income_declared)
-    ) {
-      list.push({
-        id: "cycle-salary-needed",
-        title:
-          locale === "ar"
-            ? "صرّح بدخل الدورة الحالية (الصالير)"
-            : "Déclare ton salaire pour ce cycle",
-        text:
-          locale === "ar"
-            ? "مازال ما كاين حتى دخل مسجل فهاد الدورة. صرّح بالدخل باش تعمر الأظرفة."
-            : "Aucun revenu déclaré pour ce cycle. Déclare ton salaire pour alimenter tes enveloppes.",
-        cta: locale === "ar" ? "صرّح بالدخل" : "Déclarer",
-        dot: "#0A7A53",
-        bg: "rgba(10, 122, 83, 0.12)",
-        icon: "plus",
-        action: () => openQuickTx("income"),
-      });
-    } else if (isGuest) {
-      list.push({
-        id: "guest-inc",
-        title:
-          locale === "ar"
-            ? "صرّح بأول دخل ديالك"
-            : "Déclare ton premier revenu",
-        text:
-          locale === "ar"
-            ? "باش تبدا الدورة ديالك وتوزع الكاش."
-            : "Pour démarrer ton premier cycle budgétaire.",
-        cta: locale === "ar" ? "صرّح دابا" : "Déclarer",
-        dot: "#0A7A53",
-        bg: "rgba(10, 122, 83, 0.10)",
-        icon: "plus",
-        action: () => openQuickTx("income"),
-      });
-    }
+    });
 
-    // 2. Catégories non reliées
+    // 4. Catégories non reliées
     if (manualUnmappedCount > 0) {
       list.push({
         id: "unmapped",
@@ -723,11 +847,11 @@ function DashboardContent() {
       });
     }
 
-    // 3. Enveloppes dépassées
-    const overEnv = focusEnvelopes.find(
+    // 5. Enveloppes dépassées
+    const overEnvs = focusEnvelopes.filter(
       (e) => (e.isOver || e.remaining < 0) && !coveredEnvelopes[e.name]
     );
-    if (overEnv) {
+    overEnvs.forEach((overEnv) => {
       const overAmount = Math.abs(overEnv.remaining);
       list.push({
         id: `over-${overEnv.id}`,
@@ -757,19 +881,39 @@ function DashboardContent() {
           });
         },
       });
+    });
+
+    // 6. Épargne automatique (Sweep) due
+    if (alerts?.sweep_due || (data?.sweep_status?.due && !data?.sweep_status?.already_swept)) {
+      list.push({
+        id: "sweep-ready",
+        title:
+          locale === "ar"
+            ? "التوفير التلقائي (Sweep) جاهز"
+            : "Épargne automatique prête (Sweep)",
+        text:
+          locale === "ar"
+            ? "الفائض من الأظرفة المرنة جاهز للتحويل لـ Tawfir."
+            : "L'argent restant des enveloppes flexibles peut être transféré dans Tawfir.",
+        cta: locale === "ar" ? "تنفيذ Sweep" : "Voir Sweep",
+        dot: "#0A7A53",
+        bg: "rgba(10, 122, 83, 0.12)",
+        icon: "plus",
+        action: () => setSweepOpen(true),
+      });
     }
 
     return list;
   }, [
     data?.sweep_bootstrap,
-    data?.period_income,
     data?.available_to_allocate,
     data?.sweep_status,
     incomeReminders,
-    isGuest,
     manualUnmappedCount,
     focusEnvelopes,
     coveredEnvelopes,
+    alerts,
+    isGuest,
     currency,
     locale,
     openQuickTx,
@@ -914,75 +1058,31 @@ function DashboardContent() {
     .map((v, i) => `${getLineX(i).toFixed(1)},${getLineY(v).toFixed(1)}`)
     .join(" ");
 
-  // REAL CASH ALLOCATION BREAKDOWN
-  // DEBT AND FIXED EXPENSE KEYWORDS (MULTILINGUAL: FR, AR, EN)
-  const DEBT_KEYWORDS = useMemo(
-    () => [
-      "dette", "dettes", "debt", "debts", "credit", "crédit", "kredit",
-      "loan", "loans", "salaf", "سلف", "دين", "الديون", "ديون", "قرض", "قروض", "كريدي", "تسليف"
-    ],
-    []
-  );
-
-  const FIXED_KEYWORDS = useMemo(
-    () => [
-      // French
-      "loyer", "charges", "factures", "facture", "abonnement", "abonnements",
-      "assurance", "assurances", "wifi", "internet", "électricité", "electricite",
-      "eau", "mutuelle", "impôt", "impots", "scolarité", "scolarite", "école", "ecole",
-      // Arabic
-      "كراء", "سكن", "فواتير", "فاتورة", "ماء", "كهرباء", "انترنت", "واي فاي", "ويفي",
-      "تأمين", "اشتراك", "اشتراكات", "مصاريف قارة", "ضريبة", "ضرائب", "تمدرس", "مدرسة", "تعليم", "واجبات",
-      // English
-      "rent", "bills", "bill", "housing", "utilities", "utility", "subscription",
-      "subscriptions", "insurance", "electricity", "water", "tuition", "school", "taxes", "tax"
-    ],
-    []
-  );
-
-  const isDebtNameMatch = useCallback((name: string) => {
-    if (!name) return false;
-    const n = name.trim().toLowerCase();
-    return DEBT_KEYWORDS.some((kw) => n.includes(kw));
-  }, [DEBT_KEYWORDS]);
-
-  const isFixedNameMatch = useCallback((name: string) => {
-    if (!name) return false;
-    const n = name.trim().toLowerCase();
-    return FIXED_KEYWORDS.some((kw) => n.includes(kw));
-  }, [FIXED_KEYWORDS]);
-
-  const fixedEnvelopeIds = useMemo(() => {
-    const ids = new Set<string>();
-    (distributionRules || []).forEach((rule) => {
-      if (
-        rule.target_type === "envelope" &&
-        rule.enabled &&
-        (rule.mode === "fixed" || rule.mode === "fixed_per_period")
-      ) {
-        ids.add(rule.target_id);
+  // Ba Omar rule-based fallback advice
+  const fallbackOmarAdvice = useMemo(() => {
+    if (locale === "ar") {
+      if (data?.sweep_bootstrap?.needs_first_income_declaration) {
+        return "باقي ما صرحتيش بأول صالير ديالك ! صرّح به من التنبيهات الفوق باش نوزعو الكاش ونعمرو الأظرفة ديالك.";
       }
-    });
-    return ids;
-  }, [distributionRules]);
-
-  const isDebtEnvelopeItem = useCallback(
-    (e: { isDebt?: boolean; rawName?: string; name: string }) => {
-      return Boolean(e.isDebt) || isDebtNameMatch(e.rawName || "") || isDebtNameMatch(e.name);
-    },
-    [isDebtNameMatch]
-  );
-
-  const isFixedEnvelopeItem = useCallback(
-    (e: { id: string; rawName?: string; name: string }) => {
-      return (
-        fixedEnvelopeIds.has(e.id) ||
-        isFixedNameMatch(e.rawName || "") ||
-        isFixedNameMatch(e.name)
-      );
-    },
-    [fixedEnvelopeIds, isFixedNameMatch]
-  );
+      if (Number(data?.period_expenses_mapped || 0) === 0) {
+        return "مازال ما كاينا حتى مصاريف مسجلة فهاد الدورة. استعمل الخانة الفوق ولا زر [N] باش تسجل أول عملية !";
+      }
+      if (envCounts.over > 0) {
+        return `رد البال، كاين ${envCounts.over} أظرفة فايتين السقف. تقدر تعاود توازن الميزانية.`;
+      }
+      return "المصاريف ديالك مضبوطة مزيان فهاد الدورة. واصل هكذا !";
+    }
+    if (data?.sweep_bootstrap?.needs_first_income_declaration) {
+      return "Ton premier salaire n'a pas encore été déclaré ! Déclare-le depuis les alertes ci-dessus pour alimenter tes enveloppes et démarrer ton cycle.";
+    }
+    if (Number(data?.period_expenses_mapped || 0) === 0) {
+      return "Aucune dépense enregistrée sur ce cycle. Utilise la barre ci-dessus ou le bouton [N] pour saisir une première opération !";
+    }
+    if (envCounts.over > 0) {
+      return `Attention : ${envCounts.over} enveloppe(s) ont dépassé leur limite. Pense à rééquilibrer tes allocations.`;
+    }
+    return "Ton budget est bien maîtrisé pour ce cycle. Continue sur ce rythme !";
+  }, [locale, data?.sweep_bootstrap?.needs_first_income_declaration, data?.period_expenses_mapped, envCounts.over]);
 
   // REAL DEBT OBLIGATIONS BREAKDOWN (COMBINING ENVELOPES + /debts)
   const debtPressureTotals = useMemo(() => {
@@ -2630,10 +2730,10 @@ function DashboardContent() {
                     <span style={{ flex: 1 }}>
                       {locale === "ar"
                         ? `+${formatMoney(
-                            Math.round(flexibleRemaining * 0.3)
+                            projectedSweepAmount
                           )} ${currency} غتمشي لـ Tawfir مع نهاية الدورة`
                         : `+${formatMoney(
-                            Math.round(flexibleRemaining * 0.3)
+                            projectedSweepAmount
                           )} ${currency} partiront vers Tawfir dans ${daysRemaining} jours`}
                     </span>
                     <span style={{ fontWeight: 800, textDecoration: "underline" }}>
@@ -3190,11 +3290,19 @@ function DashboardContent() {
 
                           <button
                             type="button"
-                            onClick={() =>
-                              openQuickTx(
-                                tx.type === "income" ? "income" : "expense"
-                              )
-                            }
+                            onClick={() => {
+                              if (isIncome) {
+                                toast({
+                                  title: locale === "ar" ? "عملية دخل" : "Revenu déjà réparti",
+                                  description:
+                                    locale === "ar"
+                                      ? "مداخيل موزعة مسبقاً على الأظرفة ولا يمكن تعديلها مباشرة."
+                                      : "Les revenus sont déjà répartis dans les enveloppes et ne peuvent pas être modifiés directement.",
+                                });
+                                return;
+                              }
+                              router.push(`/transactions?tx_id=${tx.id}&history_open=true`);
+                            }}
                             aria-label="Modifier"
                             style={{
                               width: 32,
@@ -3309,21 +3417,7 @@ function DashboardContent() {
                       </span>
                       <div style={{ flex: 1, fontSize: 13.5, lineHeight: 1.45 }}>
                         <b style={{ color: "#0A7A53" }}>Ba Omar :</b>{" "}
-                        {locale === "ar"
-                          ? data?.sweep_bootstrap?.needs_first_income_declaration
-                            ? "باقي ما صرحتيش بأول صالير ديالك ! صرّح به من التنبيهات الفوق باش نوزعو الكاش ونعمرو الأظرفة ديالك."
-                            : Number(data?.period_expenses_mapped || 0) === 0
-                            ? "مازال ما كاينا حتى مصاريف مسجلة فهاد الدورة. استعمل الخانة الفوق ولا زر [N] باش تسجل أول عملية !"
-                            : envCounts.over > 0
-                            ? `رد البال، كاين ${envCounts.over} أظرفة فايتين السقف. تقدر تعاود توازن الميزانية.`
-                            : "المصاريف ديالك مضبوطة مزيان فهاد الدورة. واصل هكذا !"
-                          : data?.sweep_bootstrap?.needs_first_income_declaration
-                          ? "Ton premier salaire n'a pas encore été déclaré ! Déclare-le depuis les alertes ci-dessus pour alimenter tes enveloppes et démarrer ton cycle."
-                          : Number(data?.period_expenses_mapped || 0) === 0
-                          ? "Aucune dépense enregistrée sur ce cycle. Utilise la barre ci-dessus ou le bouton [N] pour saisir une première opération !"
-                          : envCounts.over > 0
-                          ? `Attention : ${envCounts.over} enveloppe(s) ont dépassé leur limite. Pense à rééquilibrer tes allocations.`
-                          : `Ton budget est bien maîtrisé pour ce cycle. Continue sur ce rythme !`}
+                        {baOmarAdvice || fallbackOmarAdvice}
                       </div>
                     </div>
                   )}
@@ -3813,7 +3907,7 @@ function DashboardContent() {
                         color: "var(--dsh-ink)",
                         display: "flex",
                         flexDirection: "column",
-                        gap: 2,
+                        gap: 4,
                         textAlign: "start",
                         cursor: "pointer",
                       }}
@@ -3821,9 +3915,28 @@ function DashboardContent() {
                       <span style={{ fontSize: 12, color: "var(--dsh-muted)" }}>
                         {locale === "ar" ? "ديون / شهر" : "Dettes / mois"}
                       </span>
-                      <b style={{ fontSize: 18 }}>
-                        {formatMoney(debtPressureTotals.monthlyAllocation)} {currency}
-                      </b>
+                      {debtPressureTotals.count > 0 || debtPressureTotals.monthlyAllocation > 0 ? (
+                        <b style={{ fontSize: 18 }}>
+                          {formatMoney(debtPressureTotals.monthlyAllocation)} {currency}
+                        </b>
+                      ) : (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "3px 8px",
+                            borderRadius: 8,
+                            background: "var(--dsh-soft)",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "var(--dsh-brand-ink)",
+                          }}
+                        >
+                          <Plus size={13} strokeWidth={2.6} />
+                          {locale === "ar" ? "إضافة دين" : "Ajouter une dette"}
+                        </span>
+                      )}
                     </button>
 
                     <button
@@ -3835,7 +3948,7 @@ function DashboardContent() {
                         color: "var(--dsh-ink)",
                         display: "flex",
                         flexDirection: "column",
-                        gap: 2,
+                        gap: 4,
                         textAlign: "start",
                         cursor: "pointer",
                       }}
@@ -3845,7 +3958,26 @@ function DashboardContent() {
                           ? "الأهداف المحققة"
                           : "Objectifs atteints"}
                       </span>
-                      <b style={{ fontSize: 18 }}>{goalsCompletionPct} %</b>
+                      {goals.length > 0 && goalsPressureTotals.target > 0 ? (
+                        <b style={{ fontSize: 18 }}>{goalsCompletionPct} %</b>
+                      ) : (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "3px 8px",
+                            borderRadius: 8,
+                            background: "var(--dsh-soft)",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "var(--dsh-brand-ink)",
+                          }}
+                        >
+                          <Plus size={13} strokeWidth={2.6} />
+                          {locale === "ar" ? "تحديد هدف" : "Créer un objectif"}
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
