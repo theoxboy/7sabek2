@@ -239,8 +239,11 @@ export async function apiFetch<T>(
     throw new Error("Not authenticated");
   }
 
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   if (typeof window !== "undefined" && !path.startsWith("/auth")) {
     const actAs = window.sessionStorage.getItem("floussy.superadmin.act_as");
     if (actAs && !headers.has("x-user-id")) {
@@ -282,6 +285,8 @@ export async function apiFetch<T>(
         body:
           options.body === undefined
             ? undefined
+            : isFormData
+            ? (options.body as FormData)
             : typeof options.body === "string"
             ? options.body
             : JSON.stringify(options.body),
