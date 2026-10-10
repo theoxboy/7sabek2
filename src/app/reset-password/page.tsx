@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import BrandLogo from "@/components/BrandLogo";
+import { LanguageChip } from "@/components/i18n/LanguageChip";
 
 const arabicFont = { className: "font-cairo", variable: "--font-cairo" };
 
@@ -279,35 +280,7 @@ export default function ResetPasswordPage() {
           <BrandLogo locale={locale} className="h-9 w-auto brightness-0 invert" />
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div className="lg-chip" role="group" aria-label="Langues">
-            <button
-              type="button"
-              className={locale === "fr" ? "on" : ""}
-              onClick={() => changeLocale("fr")}
-              aria-pressed={locale === "fr"}
-              lang="fr"
-            >
-              FR
-            </button>
-            <button
-              type="button"
-              className={locale === "ar" ? "on" : ""}
-              onClick={() => changeLocale("ar")}
-              aria-pressed={locale === "ar"}
-              lang="ar"
-            >
-              العربية
-            </button>
-            <button
-              type="button"
-              className={locale === "en" ? "on" : ""}
-              onClick={() => changeLocale("en")}
-              aria-pressed={locale === "en"}
-              lang="en"
-            >
-              EN
-            </button>
-          </div>
+          <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="reset-top-lang" />
           <Link href="/" className="pw-pill">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
             <span>Accueil</span>
@@ -325,35 +298,7 @@ export default function ResetPasswordPage() {
           <span>Accueil</span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div className="lg-chip" role="group" aria-label="Langues">
-            <button
-              type="button"
-              className={locale === "fr" ? "on" : ""}
-              onClick={() => changeLocale("fr")}
-              aria-pressed={locale === "fr"}
-              lang="fr"
-            >
-              FR
-            </button>
-            <button
-              type="button"
-              className={locale === "ar" ? "on" : ""}
-              onClick={() => changeLocale("ar")}
-              aria-pressed={locale === "ar"}
-              lang="ar"
-            >
-              العربية
-            </button>
-            <button
-              type="button"
-              className={locale === "en" ? "on" : ""}
-              onClick={() => changeLocale("en")}
-              aria-pressed={locale === "en"}
-              lang="en"
-            >
-              EN
-            </button>
-          </div>
+          <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="reset-hdr-lang" />
           <Link
             href="/releases"
             className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"

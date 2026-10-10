@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import BrandLogo from "@/components/BrandLogo";
+import { LanguageChip } from "@/components/i18n/LanguageChip";
 
 const arabicFont = { className: "font-cairo", variable: "--font-cairo" };
 
@@ -155,35 +156,7 @@ export default function ForgotPasswordPage() {
           <BrandLogo locale={locale} className="h-9 w-auto brightness-0 invert" />
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div className="lg-chip" role="group" aria-label="Langues">
-            <button
-              type="button"
-              className={locale === "fr" ? "on" : ""}
-              onClick={() => changeLocale("fr")}
-              aria-pressed={locale === "fr"}
-              lang="fr"
-            >
-              FR
-            </button>
-            <button
-              type="button"
-              className={locale === "ar" ? "on" : ""}
-              onClick={() => changeLocale("ar")}
-              aria-pressed={locale === "ar"}
-              lang="ar"
-            >
-              العربية
-            </button>
-            <button
-              type="button"
-              className={locale === "en" ? "on" : ""}
-              onClick={() => changeLocale("en")}
-              aria-pressed={locale === "en"}
-              lang="en"
-            >
-              EN
-            </button>
-          </div>
+          <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="forgot-top-lang" />
           <Link href="/" className="pw-pill">
             <Home className="w-4 h-4" />
             <span>{copy.backHome}</span>
@@ -201,35 +174,7 @@ export default function ForgotPasswordPage() {
           <span>{copy.backHome}</span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div className="lg-chip" role="group" aria-label="Langues">
-            <button
-              type="button"
-              className={locale === "fr" ? "on" : ""}
-              onClick={() => changeLocale("fr")}
-              aria-pressed={locale === "fr"}
-              lang="fr"
-            >
-              FR
-            </button>
-            <button
-              type="button"
-              className={locale === "ar" ? "on" : ""}
-              onClick={() => changeLocale("ar")}
-              aria-pressed={locale === "ar"}
-              lang="ar"
-            >
-              العربية
-            </button>
-            <button
-              type="button"
-              className={locale === "en" ? "on" : ""}
-              onClick={() => changeLocale("en")}
-              aria-pressed={locale === "en"}
-              lang="en"
-            >
-              EN
-            </button>
-          </div>
+          <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="forgot-hdr-lang" />
           <Link
             href="/releases"
             className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"

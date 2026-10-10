@@ -27,9 +27,13 @@ body{margin:0}
 .lg-seg{display:grid; grid-template-columns:1fr 1fr; padding:4px; border-radius:14px; background:var(--soft)}
 .lg-seg button{height:40px; border:0; border-radius:11px; background:transparent; color:var(--sub); font-size:14px; font-weight:800; font-family:inherit; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px}
 .lg-seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12)}
-.lg-chip{height:36px; padding:0 4px; border-radius:18px; border:1px solid var(--line); background:var(--card); display:flex; align-items:center; gap:2px}
-.lg-chip button{height:28px; padding:0 10px; border:0; border-radius:14px; background:transparent; color:var(--sub); font-weight:800; font-size:13px; font-family:inherit; cursor:pointer}
-.lg-chip button.on{background:var(--brandSoft); color:var(--brandInk)}
+.lg-chip{position:relative; height:36px; padding:3px; border-radius:18px; border:1px solid var(--line); background:var(--card); display:inline-flex; align-items:center; gap:2px; box-sizing:border-box}
+.lg-chip button{position:relative; height:28px; padding:0 10px; border:0; border-radius:14px; background:transparent; color:var(--sub); font-weight:800; font-size:13px; font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; z-index:2; transition:color .18s ease, transform .12s ease; user-select:none; -webkit-tap-highlight-color:transparent}
+.lg-chip button:hover{color:var(--ink)}
+.lg-chip button:active{transform:scale(0.93)}
+.lg-chip button.on{color:var(--brandInk); background:var(--brandSoft)}
+.lg-chip.lg-chip-animated button.on{background:transparent !important}
+.lg-chip-active-pill{position:absolute; inset:0; border-radius:14px; background:var(--brandSoft); box-shadow:0 1px 4px rgba(10,122,83,.15); z-index:1; pointer-events:none}
 .lg-icon{width:40px; height:40px; border-radius:20px; border:1px solid var(--line); background:var(--card); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer}
 .lg-div{display:flex; align-items:center; gap:12px; font-size:13px; font-weight:700; color:var(--muted)}
 .lg-div::before,.lg-div::after{content:""; flex:1; height:1px; background:var(--line)}
@@ -94,7 +98,10 @@ body{margin:0}
  .lg-top > a{background:rgba(255,255,255,.12) !important; border-color:rgba(255,255,255,.25) !important; color:#FFFFFF !important}
  .lg-top .lg-chip{background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.25)}
  .lg-top .lg-chip button{color:#D8EEE4}
+ .lg-top .lg-chip button:hover{color:#FFFFFF}
  .lg-top .lg-chip button.on{background:#FFFFFF; color:#06402C}
+ .lg-top .lg-chip.lg-chip-animated button.on{background:transparent !important}
+ .lg-top .lg-chip.lg-chip-animated .lg-chip-active-pill{background:#FFFFFF; box-shadow:0 2px 8px rgba(0,0,0,.22)}
  .lg-top .lg-icon{background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.25); color:#FFFFFF}
  .lg-main{position:relative; z-index:1; flex:none !important; width:100%; max-width:560px; margin:0 auto; box-sizing:border-box; padding:40px !important; background:var(--card); border:1px solid var(--line); border-radius:28px; box-shadow:0 24px 60px -24px rgba(6,64,44,.4)}
 }

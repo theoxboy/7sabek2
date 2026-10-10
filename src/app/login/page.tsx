@@ -17,6 +17,7 @@ import { getBrowserLocalePreference, setAppLocale } from "@/components/i18n/Lang
 import { SbkWLoader } from "@/components/ui/SbkWLoader";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { getAppVersionLabel } from "@/lib/app-version";
+import { LanguageChip } from "@/components/i18n/LanguageChip";
 
 type LoginGeoPayload = {
   geo_lat: number;
@@ -893,35 +894,7 @@ export default function LoginPage() {
 
           <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
             {/* Language Chip */}
-            <div className="lg-chip" role="group" aria-label="Langues">
-              <button
-                type="button"
-                className={locale === "fr" ? "on" : ""}
-                onClick={() => changeLocale("fr")}
-                aria-pressed={locale === "fr"}
-                lang="fr"
-              >
-                FR
-              </button>
-              <button
-                type="button"
-                className={locale === "ar" ? "on" : ""}
-                onClick={() => changeLocale("ar")}
-                aria-pressed={locale === "ar"}
-                lang="ar"
-              >
-                العربية
-              </button>
-              <button
-                type="button"
-                className={locale === "en" ? "on" : ""}
-                onClick={() => changeLocale("en")}
-                aria-pressed={locale === "en"}
-                lang="en"
-              >
-                EN
-              </button>
-            </div>
+            <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="login-lang-pill" />
 
             {/* Dark / Light Theme Toggle */}
             <button

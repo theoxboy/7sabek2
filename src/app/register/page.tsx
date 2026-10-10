@@ -13,6 +13,7 @@ import { startGuestSession } from "@/lib/guestSession";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
 import { getBrowserLocalePreference, setAppLocale } from "@/components/i18n/LanguagePreferenceGate";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
+import { LanguageChip } from "@/components/i18n/LanguageChip";
 
 declare global {
   interface Window {
@@ -822,35 +823,7 @@ export default function RegisterPage() {
           </svg>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div className="lg-chip" role="group" aria-label="Langues">
-            <button
-              type="button"
-              className={locale === "fr" ? "on" : ""}
-              onClick={() => changeLocale("fr")}
-              aria-pressed={locale === "fr"}
-              lang="fr"
-            >
-              FR
-            </button>
-            <button
-              type="button"
-              className={locale === "ar" ? "on" : ""}
-              onClick={() => changeLocale("ar")}
-              aria-pressed={locale === "ar"}
-              lang="ar"
-            >
-              العربية
-            </button>
-            <button
-              type="button"
-              className={locale === "en" ? "on" : ""}
-              onClick={() => changeLocale("en")}
-              aria-pressed={locale === "en"}
-              lang="en"
-            >
-              EN
-            </button>
-          </div>
+          <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="register-top-lang" />
           <Link className="pw-pill" href="/login">
             {t.login}
           </Link>
@@ -893,35 +866,7 @@ export default function RegisterPage() {
           </svg>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div className="lg-chip" role="group" aria-label="Langues">
-            <button
-              type="button"
-              className={locale === "fr" ? "on" : ""}
-              onClick={() => changeLocale("fr")}
-              aria-pressed={locale === "fr"}
-              lang="fr"
-            >
-              FR
-            </button>
-            <button
-              type="button"
-              className={locale === "ar" ? "on" : ""}
-              onClick={() => changeLocale("ar")}
-              aria-pressed={locale === "ar"}
-              lang="ar"
-            >
-              العربية
-            </button>
-            <button
-              type="button"
-              className={locale === "en" ? "on" : ""}
-              onClick={() => changeLocale("en")}
-              aria-pressed={locale === "en"}
-              lang="en"
-            >
-              EN
-            </button>
-          </div>
+          <LanguageChip locale={locale} onChangeLocale={changeLocale} layoutId="register-hdr-lang" />
           <span style={{ fontSize: "15px", color: "#55645D" }}>
             {t.alreadyRegistered}{" "}
             <Link href="/login" style={{ fontWeight: 800 }}>
