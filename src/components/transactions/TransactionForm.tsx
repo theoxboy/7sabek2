@@ -128,12 +128,6 @@ const getExpectedSalaryDate = (
   incomeDeclared: boolean | undefined,
   today: string
 ): string => {
-  if (incomeDeclared === false && currentPeriodStart) {
-    return currentPeriodStart;
-  }
-  if (currentPeriodEnd && today < currentPeriodEnd) {
-    return currentPeriodEnd;
-  }
   return today;
 };
 

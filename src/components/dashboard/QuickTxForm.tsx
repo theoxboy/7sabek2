@@ -187,13 +187,11 @@ const getExpectedSalaryDate = (
   currentPeriodStart: string | undefined,
   currentPeriodEnd: string | undefined,
   incomeDeclared: boolean | undefined,
-  today: string
+  today: string,
+  bootstrapDate?: string | null
 ): string => {
-  if (incomeDeclared === false && currentPeriodStart) {
-    return currentPeriodStart;
-  }
-  if (currentPeriodEnd && today < currentPeriodEnd) {
-    return currentPeriodEnd;
+  if (bootstrapDate && bootstrapDate <= today) {
+    return bootstrapDate;
   }
   return today;
 };
@@ -899,7 +897,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
       const parsedBootstrapAmount = bootstrapOptions?.bootstrapAmount ? parseAmountInput(bootstrapOptions.bootstrapAmount) : null;
       const bootstrapDate = bootstrapOptions?.bootstrapDate ?? null;
       const validBootstrapDate = bootstrapDate && bootstrapDate <= today ? bootstrapDate : today;
-      const expectedSalaryDate = getExpectedSalaryDate(data?.current_period?.start, data?.current_period?.end, data?.sweep_status?.income_declared, today);
+      const expectedSalaryDate = getExpectedSalaryDate(data?.current_period?.start, data?.current_period?.end, data?.sweep_status?.income_declared, today, bootstrapDate);
       const initialDate = (bootstrapOptions?.type ?? defaultType ?? "expense") === "income" ? expectedSalaryDate : validBootstrapDate;
 
       setQuickTxError(null);

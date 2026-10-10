@@ -258,10 +258,11 @@ function DashboardContent() {
   // Compute date range for periods
   const computeDatesForPeriod = useCallback((p: "7" | "30" | "90" | "ytd") => {
     const today = getLocalTodayISO();
-    if (p === "7") return { start: addDays(today, -7), end: today };
-    if (p === "30") return { start: addDays(today, -30), end: today };
-    if (p === "90") return { start: addDays(today, -90), end: today };
-    if (p === "ytd") return { start: startOfYear(today), end: today };
+    const tomorrow = addDays(today, 1);
+    // "30" represents the user's active budget cycle, so let /dashboard resolve it directly
+    if (p === "7") return { start: addDays(today, -7), end: tomorrow };
+    if (p === "90") return { start: addDays(today, -90), end: tomorrow };
+    if (p === "ytd") return { start: startOfYear(today), end: tomorrow };
     return null;
   }, []);
 
