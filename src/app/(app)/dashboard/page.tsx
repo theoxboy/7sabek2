@@ -163,7 +163,15 @@ function DashboardContent() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [locale, setLocale] = useState<FloussyLocale>("fr");
+  const [locale, setLocale] = useState<FloussyLocale>(() => {
+    if (typeof document !== "undefined") {
+      try {
+        const stored = getBrowserLocalePreference();
+        if (stored) return stored;
+      } catch {}
+    }
+    return "fr";
+  });
   const [data, setData] = useState<DashboardOut | null>(null);
   const [categories, setCategories] = useState<CategoryOut[]>([]);
   const [goals, setGoals] = useState<GoalOut[]>([]);
@@ -208,44 +216,82 @@ function DashboardContent() {
     const slotIndex = hour < 12 ? 1 : hour < 18 ? 2 : 3;
     const cacheKey = `floussy:ba_omar_advice:${dateStr}:slot${slotIndex}`;
 
+    // Helper: strip [bouton: ...], [button: ...], markdown tags, prefixes
+    const cleanAdviceText = (raw: string): string => {
+      if (!raw) return "";
+      return raw
+        .replace(/^(Ba Omar|با عمر)\s*:\s*/i, "")
+        .replace(/\[(?:bouton|button|action|زر)[^\]]*\]/gi, "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    // Helper: verify that the advice text strictly matches the requested locale
+    const isMatchingLocale = (text: string, loc: FloussyLocale): boolean => {
+      if (!text || text.length < 5) return false;
+      const hasArabic = /[\u0600-\u06FF]/.test(text);
+      if (loc === "ar") return hasArabic;
+      return !hasArabic;
+    };
+
     let cachedMap: Record<string, string> = {};
     try {
       const raw = window.localStorage.getItem(cacheKey);
       if (raw) cachedMap = JSON.parse(raw);
     } catch {}
 
-    if (cachedMap[locale]) {
-      setBaOmarAdvice(cachedMap[locale]);
+    const cachedVal = cachedMap[locale];
+    if (cachedVal && isMatchingLocale(cachedVal, locale)) {
+      setBaOmarAdvice(cleanAdviceText(cachedVal));
       return;
+    } else if (cachedVal) {
+      // Purge invalid/mismatched cache entry (e.g. Arabic advice stored under 'fr')
+      delete cachedMap[locale];
+      try {
+        window.localStorage.setItem(cacheKey, JSON.stringify(cachedMap));
+      } catch {}
     }
 
     let isCancelled = false;
     const loadAiAdvice = async () => {
-      const prompts: Record<FloussyLocale, string> = {
-        ar: "عطيني نصيحة مالية سريعة ومختصرة بزاف (جملة أو جملتين بالدارجة كـ با عمر الحكيم) على حالة الميزانية الحالية ديالي.",
-        fr: "Donne-moi un conseil financier ultra court (1 à 2 phrases max, bienveillant et concret comme Ba Omar) sur l'état actuel de mon budget.",
-        en: "Give me a super short financial advice (1 to 2 sentences max, supportive and clear as Ba Omar) on my current budget status.",
+      const systemPrompts: Record<FloussyLocale, string> = {
+        fr: "RÈGLE LINGUISTIQUE CRITIQUE : Tu DOIS répondre exclusivement en Français moderne en tant que Ba Omar. INTERDICTION d'écrire en arabe ou en Darija. INTERDICTION STRICTE d'inclure des boutons ou des balises [bouton: ...] ou [button: ...]. Rédige uniquement 1 ou 2 phrases concrètes, percutantes et bienveillantes pour le dashboard.",
+        en: "CRITICAL LANGUAGE RULE: You MUST answer exclusively in English as Ba Omar. STRICTLY FORBIDDEN to use Arabic or French. STRICTLY FORBIDDEN to include buttons or tags like [button: ...] or [bouton: ...]. Provide only 1 or 2 supportive and actionable sentences for the dashboard.",
+        ar: "قاعدة لغوية حاسمة: أجب حصرياً بالدارجة المغربية المكتوبة بالحروف العربية كـ با عمر الحكيم. ممنوع الفرنسية أو الإنجليزية. ممنوع منعاً كلياً إضافة أزرار مثل [bouton: ...] أو [button: ...]. اكتب جملة أو جملتين فقط ومباشرة للوحة التحكم بدون أزرار.",
+      };
+
+      const userPrompts: Record<FloussyLocale, string> = {
+        fr: "Donne-moi un conseil financier ultra court (1 à 2 phrases max, en français uniquement comme Ba Omar) sur l'état de mon budget. N'inclus aucun bouton interactif.",
+        en: "Give me a super short financial advice (1 to 2 sentences max, in English only as Ba Omar) on my budget status. Do not include any interactive buttons.",
+        ar: "عطيني نصيحة مالية سريعة ومختصرة بزاف (جملة أو جملتين بالدارجة كـ با عمر) على حالة الميزانية الحالية ديالي. ما تزيد حتى زر تفاعلي.",
       };
 
       try {
         const res = await apiFetch<{ text: string }>("/advisor/chat", {
           method: "POST",
           body: {
-            messages: [{ role: "user", text: prompts[locale] || prompts.fr }],
+            messages: [{ role: "user", text: userPrompts[locale] || userPrompts.fr }],
+            system_prompt: systemPrompts[locale] || systemPrompts.fr,
           },
         });
         if (!isCancelled && res?.text) {
-          const cleaned = res.text
-            .replace(/^(Ba Omar|با عمر)\s*:\s*/i, "")
-            .trim();
-          setBaOmarAdvice(cleaned);
-          cachedMap[locale] = cleaned;
-          try {
-            window.localStorage.setItem(cacheKey, JSON.stringify(cachedMap));
-          } catch {}
+          const cleaned = cleanAdviceText(res.text);
+          if (isMatchingLocale(cleaned, locale)) {
+            setBaOmarAdvice(cleaned);
+            cachedMap[locale] = cleaned;
+            try {
+              window.localStorage.setItem(cacheKey, JSON.stringify(cachedMap));
+            } catch {}
+          } else {
+            // Mismatched language returned by AI: fall back to contextual localized advice
+            setBaOmarAdvice(null);
+          }
         }
       } catch {
-        // Fallback to contextual rule-based advice gracefully
+        if (!isCancelled) {
+          setBaOmarAdvice(null);
+        }
       }
     };
 
@@ -1071,6 +1117,18 @@ function DashboardContent() {
         return `رد البال، كاين ${envCounts.over} أظرفة فايتين السقف. تقدر تعاود توازن الميزانية.`;
       }
       return "المصاريف ديالك مضبوطة مزيان فهاد الدورة. واصل هكذا !";
+    }
+    if (locale === "en") {
+      if (data?.sweep_bootstrap?.needs_first_income_declaration) {
+        return "Your first salary hasn't been declared yet! Declare it from the alerts above to fund your envelopes and start your cycle.";
+      }
+      if (Number(data?.period_expenses_mapped || 0) === 0) {
+        return "No expenses recorded for this cycle yet. Use the top bar or [N] key to add your first transaction!";
+      }
+      if (envCounts.over > 0) {
+        return `Heads up: ${envCounts.over} envelope(s) exceeded their budget. Consider rebalancing your allocations.`;
+      }
+      return "Your budget is well under control for this cycle. Keep up the good work!";
     }
     if (data?.sweep_bootstrap?.needs_first_income_declaration) {
       return "Ton premier salaire n'a pas encore été déclaré ! Déclare-le depuis les alertes ci-dessus pour alimenter tes enveloppes et démarrer ton cycle.";
@@ -3416,7 +3474,7 @@ function DashboardContent() {
                         ع
                       </span>
                       <div style={{ flex: 1, fontSize: 13.5, lineHeight: 1.45 }}>
-                        <b style={{ color: "#0A7A53" }}>Ba Omar :</b>{" "}
+                        <b style={{ color: "#0A7A53" }}>{locale === "ar" ? "با عمر :" : "Ba Omar :"}</b>{" "}
                         {baOmarAdvice || fallbackOmarAdvice}
                       </div>
                     </div>
