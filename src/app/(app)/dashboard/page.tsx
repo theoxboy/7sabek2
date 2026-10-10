@@ -45,6 +45,7 @@ import type {
   DashboardAlertOut,
   DashboardOut,
   DashboardTrendPointOut,
+  DebtOut,
   DistributionSimulateOut,
   GoalOut,
   IncomeReminderOut,
@@ -171,6 +172,7 @@ function DashboardContent() {
   const [alerts, setAlerts] = useState<DashboardAlertOut | null>(null);
   const [manualUnmappedCount, setManualUnmappedCount] = useState(0);
   const [trendPoints, setTrendPoints] = useState<DashboardTrendPointOut[]>([]);
+  const [debts, setDebts] = useState<DebtOut[]>([]);
   const [distributionRules, setDistributionRules] = useState<DistributionRule[]>([]);
   const [cashSplitPreview, setCashSplitPreview] = useState<DistributionSimulateOut | null>(null);
   const [autoSweepEnabled, setAutoSweepEnabled] = useState<boolean | null>(null);
@@ -287,6 +289,7 @@ function DashboardContent() {
         unmappedRes,
         distRes,
         streakRes,
+        debtsRes,
       ] = await Promise.all([
         fetchDashboard(periodQuery ? `/dashboard${periodQuery}` : "/dashboard"),
         apiFetch<CategoryOut[]>("/categories").catch(() => []),
@@ -299,6 +302,7 @@ function DashboardContent() {
         apiFetch<CategoryOut[]>("/categories/unmapped-manual").catch(() => []),
         apiFetch<DistributionRule[]>("/distribution/rules").catch(() => []),
         apiFetch<{ current_streak_days: number }>("/gamification/summary").catch(() => null),
+        apiFetch<DebtOut[]>("/debts").catch(() => []),
       ]);
 
       setData(dash);
@@ -311,18 +315,21 @@ function DashboardContent() {
       setTrendPoints(trendRes);
       setManualUnmappedCount(unmappedRes.length);
       setDistributionRules(distRes);
+      setDebts(debtsRes);
       if (streakRes) setStreakDays(streakRes.current_streak_days || 0);
 
-      // Cash split preview
+      // Cash split preview: simulate based on available cash or period income
       const available = Number(dash.available_to_allocate ?? 0);
-      if (available > 0) {
+      const income = Number(dash.period_income ?? 0);
+      const simBase = available > 0 ? available : income;
+      if (simBase > 0) {
         try {
           const split = await apiFetch<DistributionSimulateOut>(
             "/distribution/simulate",
             {
               method: "POST",
               body: {
-                income_amount: available.toFixed(2),
+                income_amount: simBase.toFixed(2),
                 use_cash_available: false,
               },
             }
@@ -385,6 +392,7 @@ function DashboardContent() {
       return {
         id: item.envelope.id,
         name: localizeEnvelopeLabel(item.envelope.name, locale),
+        rawName: item.envelope.name,
         remaining,
         spent,
         allocated,
@@ -907,13 +915,110 @@ function DashboardContent() {
     .join(" ");
 
   // REAL CASH ALLOCATION BREAKDOWN
+  // DEBT AND FIXED EXPENSE KEYWORDS (MULTILINGUAL: FR, AR, EN)
+  const DEBT_KEYWORDS = useMemo(
+    () => [
+      "dette", "dettes", "debt", "debts", "credit", "crédit", "kredit",
+      "loan", "loans", "salaf", "سلف", "دين", "الديون", "ديون", "قرض", "قروض", "كريدي", "تسليف"
+    ],
+    []
+  );
+
+  const FIXED_KEYWORDS = useMemo(
+    () => [
+      // French
+      "loyer", "charges", "factures", "facture", "abonnement", "abonnements",
+      "assurance", "assurances", "wifi", "internet", "électricité", "electricite",
+      "eau", "mutuelle", "impôt", "impots", "scolarité", "scolarite", "école", "ecole",
+      // Arabic
+      "كراء", "سكن", "فواتير", "فاتورة", "ماء", "كهرباء", "انترنت", "واي فاي", "ويفي",
+      "تأمين", "اشتراك", "اشتراكات", "مصاريف قارة", "ضريبة", "ضرائب", "تمدرس", "مدرسة", "تعليم", "واجبات",
+      // English
+      "rent", "bills", "bill", "housing", "utilities", "utility", "subscription",
+      "subscriptions", "insurance", "electricity", "water", "tuition", "school", "taxes", "tax"
+    ],
+    []
+  );
+
+  const isDebtNameMatch = useCallback((name: string) => {
+    if (!name) return false;
+    const n = name.trim().toLowerCase();
+    return DEBT_KEYWORDS.some((kw) => n.includes(kw));
+  }, [DEBT_KEYWORDS]);
+
+  const isFixedNameMatch = useCallback((name: string) => {
+    if (!name) return false;
+    const n = name.trim().toLowerCase();
+    return FIXED_KEYWORDS.some((kw) => n.includes(kw));
+  }, [FIXED_KEYWORDS]);
+
+  const fixedEnvelopeIds = useMemo(() => {
+    const ids = new Set<string>();
+    (distributionRules || []).forEach((rule) => {
+      if (
+        rule.target_type === "envelope" &&
+        rule.enabled &&
+        (rule.mode === "fixed" || rule.mode === "fixed_per_period")
+      ) {
+        ids.add(rule.target_id);
+      }
+    });
+    return ids;
+  }, [distributionRules]);
+
+  const isDebtEnvelopeItem = useCallback(
+    (e: { isDebt?: boolean; rawName?: string; name: string }) => {
+      return Boolean(e.isDebt) || isDebtNameMatch(e.rawName || "") || isDebtNameMatch(e.name);
+    },
+    [isDebtNameMatch]
+  );
+
+  const isFixedEnvelopeItem = useCallback(
+    (e: { id: string; rawName?: string; name: string }) => {
+      return (
+        fixedEnvelopeIds.has(e.id) ||
+        isFixedNameMatch(e.rawName || "") ||
+        isFixedNameMatch(e.name)
+      );
+    },
+    [fixedEnvelopeIds, isFixedNameMatch]
+  );
+
+  // REAL DEBT OBLIGATIONS BREAKDOWN (COMBINING ENVELOPES + /debts)
   const debtPressureTotals = useMemo(() => {
-    const debtEnvelopes = focusEnvelopes.filter((e) => e.isDebt);
+    const debtEnvelopes = focusEnvelopes.filter((e) => isDebtEnvelopeItem(e));
+    const envelopeDebtAllocated = debtEnvelopes.reduce((sum, e) => sum + e.allocated, 0);
+
+    const debtsOwed = debts.filter((d) => !d.is_loan_given);
+    const debtsOwedRemaining = debtsOwed.reduce(
+      (sum, d) =>
+        sum +
+        Math.max(
+          0,
+          parseFloat(d.total_amount || "0") - parseFloat(d.paid_amount || "0")
+        ),
+      0
+    );
+
+    let monthlyAllocation = envelopeDebtAllocated;
+    if (monthlyAllocation === 0) {
+      const debtRuleAmount = (distributionRules || [])
+        .filter((r) => r.enabled && debtEnvelopes.some((e) => e.id === r.target_id))
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+      if (debtRuleAmount > 0) {
+        monthlyAllocation = debtRuleAmount;
+      } else if (debtsOwedRemaining > 0) {
+        monthlyAllocation = debtsOwedRemaining;
+      }
+    }
+
     return {
-      monthlyAllocation: debtEnvelopes.reduce((sum, e) => sum + e.allocated, 0),
-      count: debtEnvelopes.length,
+      monthlyAllocation,
+      count: debtEnvelopes.length + debtsOwed.length,
+      totalOwed: debtsOwedRemaining,
     };
-  }, [focusEnvelopes]);
+  }, [focusEnvelopes, debts, distributionRules, isDebtEnvelopeItem]);
 
   const goalsPressureTotals = useMemo(() => {
     return goals.reduce(
@@ -941,46 +1046,97 @@ function DashboardContent() {
         )
       : 0;
 
+  // REAL CASH ALLOCATION BREAKDOWN (REPRESENTING REALITY)
   const cashSegments = useMemo(() => {
-    const debtAmt = focusEnvelopes
-      .filter((e) => e.isDebt)
+    // 1. Calculate from active envelope allocations / spending if present
+    let debtAmt = focusEnvelopes
+      .filter((e) => isDebtEnvelopeItem(e))
       .reduce((s, e) => s + Math.max(0, e.allocated || e.spent), 0);
 
-    const fixedAmt = focusEnvelopes
-      .filter((e) => {
-        const n = e.name.toLowerCase();
-        return (
-          !e.isDebt &&
-          (n.includes("loyer") ||
-            n.includes("charges") ||
-            n.includes("factures") ||
-            n.includes("crédit") ||
-            n.includes("abonnement") ||
-            n.includes("assurance"))
-        );
-      })
+    let fixedAmt = focusEnvelopes
+      .filter((e) => !isDebtEnvelopeItem(e) && isFixedEnvelopeItem(e))
       .reduce((s, e) => s + Math.max(0, e.allocated || e.spent), 0);
 
-    const flexAmt = focusEnvelopes
-      .filter((e) => {
-        const n = e.name.toLowerCase();
-        return (
-          !e.isDebt &&
-          !n.includes("loyer") &&
-          !n.includes("charges") &&
-          !n.includes("factures") &&
-          !n.includes("crédit") &&
-          !n.includes("abonnement") &&
-          !n.includes("assurance")
-        );
-      })
+    let flexAmt = focusEnvelopes
+      .filter((e) => !isDebtEnvelopeItem(e) && !isFixedEnvelopeItem(e))
       .reduce((s, e) => s + Math.max(0, e.allocated || e.spent), 0);
 
-    const freeCashAmt =
+    let freeCashAmt =
       Math.max(0, Number(data?.available_to_allocate || 0)) +
       envelopesList
         .filter((e) => e.isSavings || e.isCash)
         .reduce((s, e) => s + Math.max(0, e.remaining), 0);
+
+    // 2. If envelope allocations/spendings are currently zero (e.g. freshly declared salary
+    // sitting in available_to_allocate, or beginning of cycle before manual distribution):
+    // Fallback to the user's active distribution plan / simulation so the widget represents reality!
+    if (debtAmt === 0 && fixedAmt === 0 && flexAmt === 0) {
+      if (cashSplitPreview?.items && cashSplitPreview.items.length > 0) {
+        let simDebt = 0;
+        let simFixed = 0;
+        let simFlex = 0;
+        for (const item of cashSplitPreview.items) {
+          const amt = Number(item.amount || 0);
+          if (amt <= 0) continue;
+          if (isDebtNameMatch(item.name)) {
+            simDebt += amt;
+          } else if (item.mode === "fixed" || isFixedNameMatch(item.name)) {
+            simFixed += amt;
+          } else {
+            simFlex += amt;
+          }
+        }
+        const simFree = Math.max(0, Number(cashSplitPreview.cash_after || 0));
+        if (simDebt + simFixed + simFlex + simFree > 0) {
+          debtAmt = simDebt;
+          fixedAmt = simFixed;
+          flexAmt = simFlex;
+          freeCashAmt = simFree;
+        }
+      } else if (distributionRules && distributionRules.length > 0) {
+        const baseIncome = Math.max(
+          0,
+          Number(data?.period_income || 0),
+          Number(data?.available_to_allocate || 0)
+        );
+        let ruleDebt = 0;
+        let ruleFixed = 0;
+        let ruleFlex = 0;
+        for (const rule of distributionRules) {
+          if (!rule.enabled) continue;
+          const targetEnv = envelopesList.find((e) => e.id === rule.target_id);
+          const envName = targetEnv?.rawName || targetEnv?.name || "";
+          let amt = 0;
+          if (rule.mode === "fixed" || rule.mode === "fixed_per_period") {
+            amt = Number(rule.amount || 0);
+          } else if (
+            baseIncome > 0 &&
+            (rule.mode === "percent" || rule.mode === "percent_of_income")
+          ) {
+            amt = (Number(rule.percent || 0) / 100) * baseIncome;
+          }
+          if ((targetEnv && isDebtEnvelopeItem(targetEnv)) || isDebtNameMatch(envName)) {
+            ruleDebt += amt;
+          } else if (
+            rule.mode === "fixed" ||
+            rule.mode === "fixed_per_period" ||
+            (targetEnv && isFixedEnvelopeItem(targetEnv)) ||
+            isFixedNameMatch(envName)
+          ) {
+            ruleFixed += amt;
+          } else {
+            ruleFlex += amt;
+          }
+        }
+        const ruleTotal = ruleDebt + ruleFixed + ruleFlex;
+        if (ruleTotal > 0) {
+          debtAmt = ruleDebt;
+          fixedAmt = ruleFixed;
+          flexAmt = ruleFlex;
+          freeCashAmt = Math.max(0, baseIncome - ruleTotal);
+        }
+      }
+    }
 
     const total = debtAmt + fixedAmt + flexAmt + freeCashAmt;
 
@@ -1020,7 +1176,19 @@ function DashboardContent() {
         color: "#C98A1A",
       },
     ];
-  }, [focusEnvelopes, envelopesList, data?.available_to_allocate, locale]);
+  }, [
+    focusEnvelopes,
+    envelopesList,
+    data?.available_to_allocate,
+    data?.period_income,
+    cashSplitPreview,
+    distributionRules,
+    isDebtEnvelopeItem,
+    isFixedEnvelopeItem,
+    isDebtNameMatch,
+    isFixedNameMatch,
+    locale,
+  ]);
 
   // Ba Omar ask submit with real transaction recording
   const handleAskOmar = async (e: React.FormEvent) => {
