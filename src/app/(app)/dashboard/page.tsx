@@ -3159,7 +3159,7 @@ function DashboardContent() {
                 {locale === "ar" ? "التوجهات" : "TENDANCES"}
               </h2>
 
-              <div className="dsh-1col">
+              <div className="dsh-1col dsh-trend">
                 {/* CARTE 1 : Donut Argent Flexible RÉEL */}
                 <div
                   style={{
@@ -3455,6 +3455,8 @@ function DashboardContent() {
                       </>
                     )}
                     <polyline
+                      className="dsh-line"
+                      pathLength={1}
                       points={linePointsString}
                       fill="none"
                       stroke="var(--dsh-brand)"

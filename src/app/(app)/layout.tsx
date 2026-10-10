@@ -41,6 +41,7 @@ import { SystemMessageCard } from "@/components/announcements/SystemMessageCard"
 import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopHeader } from "@/components/layout/AppTopHeader";
+import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
 import { GuestDistributionCard } from "@/components/guest/GuestDistributionCard";
@@ -2223,6 +2224,9 @@ function AppLayoutContent({
               betaAuthorized={betaAuthorized}
             />
           </aside>
+
+          {/* Navigation du bas Android / iPad (TabNav & Plus sheet) */}
+          <AppBottomNav user={user} locale={locale} streakDays={streakDays} />
         </>
       )}
       {locale === "ar" ? (

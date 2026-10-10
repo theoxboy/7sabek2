@@ -2231,9 +2231,16 @@ html[dir="rtl"] .tr-fast-bar {
   display: none;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .sbk-fab {
     display: flex;
+    position: fixed;
+    inset-inline-end: 20px;
+    bottom: 20px;
+    z-index: 45;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
   }
 }
 
@@ -2298,6 +2305,12 @@ html[dir="rtl"] .tr-fast-bar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 20px;
+}
+
+.dsh-trend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
 }
 
 .dsh-snap {
@@ -2393,6 +2406,120 @@ html[dir="rtl"] .tr-fast-bar {
     border-radius: 28px 28px 0 0 !important;
     padding: 22px 20px 32px !important;
     animation: dsh-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+/* =========================================================================
+   7sabek Dashboard Responsive (iPad 600px-1024px, PC >1024px, Mobile <600px)
+   ========================================================================= */
+
+/* iPad / Tablet (600px - 1024px) */
+@media (min-width: 600px) and (max-width: 1024px) {
+  body:has(.asb-tabnav) {
+    padding-bottom: 96px;
+  }
+  body:has(.asb-tabnav) .sbk-fab,
+  .sbk-fab {
+    bottom: 104px !important;
+    inset-inline-end: 24px !important;
+  }
+  .dsh-main {
+    padding: 20px 24px 104px !important;
+    gap: 24px !important;
+  }
+  .dsh-trend {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .dsh-trend > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Téléphone (< 600px) space reservation */
+@media (max-width: 599px) {
+  body:has(.asb-tabnav) {
+    padding-bottom: 88px;
+  }
+}
+
+/* FXKIT & MOTIONKIT (Animations Tableau de Bord) */
+:root {
+  --fx-e: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes fx-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fx-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fx-sheet {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fx-line {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes fx-ring {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.dsh-h1 {
+  animation: fx-up 0.45s var(--fx-e) both;
+}
+.dsh-h1 + * {
+  animation: fx-up 0.45s var(--fx-e) 0.04s both;
+}
+.dsh-snap > * {
+  animation: fx-up 0.5s var(--fx-e) both;
+}
+.dsh-snap > :nth-child(2) {
+  animation-delay: 0.08s;
+}
+.dsh-snap li, .dsh-snap [role=listitem] {
+  animation: fx-up 0.4s var(--fx-e) both;
+}
+.dsh-snap li:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.dsh-snap li:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+.dsh-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: fx-line 1.1s var(--fx-e) 0.3s both;
+}
+
+.dsh-trend svg[viewBox="0 0 200 200"] {
+  animation: fx-ring 0.6s var(--fx-e) 0.2s both;
+  transform-origin: center;
+}
+
+@media (max-width: 1024px) {
+  .dsh-main {
+    animation: fx-sheet 0.5s var(--fx-e) backwards;
+  }
+}
+
+@media (hover: none) {
+  .dsh-main :is(button, a[style*="border-radius"]):active {
+    transform: scale(0.98) !important;
+    transition-duration: 0.08s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-main *, .dsh-main {
+    animation: none !important;
+  }
+  .dsh-line {
+    stroke-dasharray: none;
   }
 }
 
