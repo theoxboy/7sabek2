@@ -31,6 +31,7 @@ import { useQuickTx } from "@/state/QuickTxContext";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api";
 import type { CategoryOut, TransactionOut } from "@/lib/types";
+import { BaOmarVoiceModal } from "./BaOmarVoiceModal";
 import {
   isInternalIncomeCategory,
   localizeCategoryName,
@@ -138,6 +139,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   // Magic Entry & NLP State
   const { data: categoriesData } = useSWR<CategoryOut[]>("/categories", apiFetch);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -627,7 +629,23 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   };
 
   // Open in full quick transaction modal
-  const handleOpenInFullModal = () => {
+  const handleOpenInFullModal = (
+    draftOverride?:
+      | {
+          amount: string;
+          category_id?: string;
+          occurred_on: string;
+          description: string;
+        }
+      | React.MouseEvent
+  ) => {
+    if (draftOverride && "amount" in draftOverride) {
+      openQuickTx("expense", draftOverride);
+      setIsPopoverOpen(false);
+      setOmarText("");
+      return;
+    }
+
     const fallbackMatch = omarText.match(/(\d+[\d\s,.]*)/);
     const parsedFallbackAmt = fallbackMatch
       ? parseFloat(fallbackMatch[1].replace(/\s+/g, "").replace(",", ".")) || 0
@@ -921,23 +939,19 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
 
             <button
               type="button"
-              aria-label={isListening || isRecordingAudio ? "Arrêter l'enregistrement" : "Enregistrer un vocal"}
-              onClick={toggleSpeechRecognition}
+              aria-label={locale === "ar" ? "هضر مع با عمر" : "Parler à Ba Omar"}
+              onClick={() => setIsVoiceModalOpen(true)}
               style={{
                 width: 36,
                 height: 36,
                 flexShrink: 0,
                 border: 0,
                 borderRadius: 18,
-                background: isListening || isRecordingAudio
-                  ? "rgba(239, 68, 68, 0.18)"
-                  : isTranscribingAudio
-                  ? "rgba(168, 85, 247, 0.18)"
+                background: isVoiceModalOpen
+                  ? "rgba(10, 122, 83, 0.18)"
                   : "transparent",
-                color: isListening || isRecordingAudio
-                  ? "#EF4444"
-                  : isTranscribingAudio
-                  ? "#9333EA"
+                color: isVoiceModalOpen
+                  ? "#0A7A53"
                   : "var(--dsh-muted)",
                 display: "flex",
                 alignItems: "center",
@@ -946,28 +960,16 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                 transition: "all 0.2s ease",
               }}
               title={
-                isListening || isRecordingAudio
-                  ? locale === "ar"
-                    ? "جاري الاستماع... اضغط للإيقاف والتحليل"
-                    : "Enregistrement en cours... Cliquez pour analyser"
-                  : isTranscribingAudio
-                  ? locale === "ar"
-                    ? "جاري تفريغ الصوت وتحليل المصروف..."
-                    : "Analyse audio IA en cours..."
-                  : locale === "ar"
-                    ? "قول مصروفك (تسجيل صوتي بالذكاء الاصطناعي)"
-                    : "Dicter ou enregistrer une dépense"
+                locale === "ar"
+                  ? "هضر مع با عمر (تسجيل صوتي ذكي)"
+                  : "Parler à Ba Omar (mode vocal intelligent)"
               }
             >
-              {isTranscribingAudio ? (
-                <Loader2 size={18} className="animate-spin text-purple-600" />
-              ) : (
-                <Mic
-                  size={18}
-                  className={isListening || isRecordingAudio ? "animate-pulse" : ""}
-                  strokeWidth={isListening || isRecordingAudio ? 2.6 : 2}
-                />
-              )}
+              <Mic
+                size={18}
+                className={isVoiceModalOpen ? "animate-pulse" : ""}
+                strokeWidth={2}
+              />
             </button>
 
             <button
@@ -2126,6 +2128,22 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
           </button>
         </div>
       )}
+      {/* Ba Omar Dedicated Voice Modal (Reference Design) */}
+      <BaOmarVoiceModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        locale={locale === "ar" ? "ar" : "fr"}
+        userCurrency={user?.currency ?? "MAD"}
+        categoriesData={categoriesData as any}
+        isGuest={isGuest}
+        onSuccessTransaction={(tx) => {
+          setLastOmarTxId(tx.id);
+        }}
+        onOpenInFullModal={handleOpenInFullModal}
+        onFocusSearchInput={() => {
+          inputRef.current?.focus();
+        }}
+      />
     </div>
   );
 };
