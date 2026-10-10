@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,7 +12,16 @@ import {
   Bell,
   Plus,
   Check,
+  Sparkles,
+  Loader2,
+  CheckCircle2,
+  MessageSquareText,
+  ExternalLink,
+  Tag,
+  Calendar,
+  X,
 } from "lucide-react";
+import useSWR from "swr";
 
 import type { AuthUser } from "@/lib/auth";
 import type { FloussyLocale } from "@/lib/localePreference";
@@ -20,7 +29,53 @@ import { openLanguagePicker } from "@/components/i18n/LanguagePreferenceGate";
 import { useQuickTx } from "@/state/QuickTxContext";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api";
-import type { TransactionOut } from "@/lib/types";
+import type { CategoryOut, TransactionOut } from "@/lib/types";
+import {
+  isInternalIncomeCategory,
+  localizeCategoryName,
+  getCanonicalCategoryKey,
+} from "@/lib/categoryCatalog";
+
+const CATEGORY_TRANSLATIONS_MAP: Record<string, string> = {
+  loisirs: "الترفيه",
+  الترفيه: "loisirs",
+  alimentation: "المأكولات",
+  المأكولات: "alimentation",
+  courses: "المأكولات",
+  groceries: "المأكولات",
+  transport: "النقل",
+  النقل: "transport",
+  sante: "الصحة",
+  الصحة: "sante",
+  abonnements: "لا بونومون",
+  "لا بونومون": "abonnements",
+  voyage: "السفر",
+  السفر: "voyage",
+  shopping: "الشوبينغ",
+  الشوبينغ: "shopping",
+  loyer: "الكراء",
+  الكراء: "loyer",
+  rent: "الكراء",
+  "cadeaux & dons": "الهدايا والتبرعات",
+  "الهدايا والتبرعات": "cadeaux & dons",
+};
+
+const formatLocaleDate = (dateStr: string, loc: FloussyLocale) => {
+  try {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    return dateObj.toLocaleDateString(
+      loc === "ar" ? "ar-MA" : loc === "fr" ? "fr-FR" : "en-US",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  } catch {
+    return dateStr;
+  }
+};
 
 export interface AppTopHeaderNotificationItem {
   id: string;
@@ -79,6 +134,176 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   const [omarReply, setOmarReply] = useState<string | null>(null);
   const [lastOmarTxId, setLastOmarTxId] = useState<string | null>(null);
 
+  // Magic Entry & NLP State
+  const { data: categoriesData } = useSWR<CategoryOut[]>("/categories", apiFetch);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const askContainerRef = useRef<HTMLDivElement>(null);
+
+  const [nlpPrediction, setNlpPrediction] = useState<{
+    amount: number | null;
+    date: string | null;
+    description: string;
+    category: string | null;
+    needs_disambiguation: boolean;
+    suggested_categories: string[];
+  } | null>(null);
+  const [isNlpLoading, setIsNlpLoading] = useState(false);
+  const [selectedDisambiguationCategoryName, setSelectedDisambiguationCategoryName] = useState<string | null>(null);
+
+  // Active expense categories
+  const allExpenseCategories = useMemo(() => {
+    return (categoriesData || []).filter((c) => !isInternalIncomeCategory(c.name));
+  }, [categoriesData]);
+
+  // Helper to find an active category by canonical name or dictionary translation
+  const getActiveCategoryByName = useCallback(
+    (catName: string) => {
+      if (!catName || allExpenseCategories.length === 0) return null;
+      const normName = catName.trim().toLowerCase();
+
+      // 1. Direct case-insensitive match on category name
+      let found = allExpenseCategories.find(
+        (c) => c.name.trim().toLowerCase() === normName
+      );
+      if (found) return found;
+
+      // 2. Translate using mapping dictionary
+      const mappedName = CATEGORY_TRANSLATIONS_MAP[normName];
+      if (mappedName) {
+        const normMapped = mappedName.toLowerCase();
+        found = allExpenseCategories.find(
+          (c) => c.name.trim().toLowerCase() === normMapped
+        );
+        if (found) return found;
+      }
+
+      // 3. Match via canonical keys
+      const canonicalKey = getCanonicalCategoryKey(catName).toLowerCase();
+      found = allExpenseCategories.find(
+        (c) => getCanonicalCategoryKey(c.name).toLowerCase() === canonicalKey
+      );
+      if (found) return found;
+
+      // 4. Reverse lookup translation mapping against candidate names
+      for (const key in CATEGORY_TRANSLATIONS_MAP) {
+        if (CATEGORY_TRANSLATIONS_MAP[key].toLowerCase() === normName) {
+          found = allExpenseCategories.find(
+            (c) => c.name.trim().toLowerCase() === key.toLowerCase()
+          );
+          if (found) return found;
+        }
+      }
+
+      return null;
+    },
+    [allExpenseCategories]
+  );
+
+  const getFallbackCategory = useCallback(() => {
+    if (allExpenseCategories.length === 0) return null;
+    const fallbackKeywords = ["divers", "miscellaneous", "مصاريف متنوعة", "مصاريف أخرى", "autre", "autres"];
+    for (const kw of fallbackKeywords) {
+      const matched = allExpenseCategories.find(
+        (c) => c.name.toLowerCase().includes(kw) || getCanonicalCategoryKey(c.name).toLowerCase() === "miscellaneous"
+      );
+      if (matched) return matched;
+    }
+    return allExpenseCategories[0] || null;
+  }, [allExpenseCategories]);
+
+  // Filter suggested categories to only contain active ones
+  const activeSuggestedCategories = useMemo(() => {
+    if (!nlpPrediction?.suggested_categories) return [];
+    return nlpPrediction.suggested_categories.filter((catName) =>
+      Boolean(getActiveCategoryByName(catName))
+    );
+  }, [nlpPrediction, getActiveCategoryByName]);
+
+  // Determine if disambiguation is needed
+  const activeNeedsDisambiguation = useMemo(() => {
+    if (!nlpPrediction) return false;
+    if (nlpPrediction.needs_disambiguation) {
+      return activeSuggestedCategories.length > 1;
+    }
+    return false;
+  }, [nlpPrediction, activeSuggestedCategories]);
+
+  // Compute resolved category name
+  const resolvedCategoryName = useMemo(() => {
+    if (!nlpPrediction) return null;
+
+    if (activeNeedsDisambiguation) {
+      return selectedDisambiguationCategoryName && getActiveCategoryByName(selectedDisambiguationCategoryName)
+        ? selectedDisambiguationCategoryName
+        : activeSuggestedCategories[0] || null;
+    }
+
+    if (activeSuggestedCategories.length === 1) {
+      return activeSuggestedCategories[0];
+    }
+
+    if (nlpPrediction.category) {
+      const matched = getActiveCategoryByName(nlpPrediction.category);
+      if (matched) return matched.name;
+    }
+
+    const fallback = getFallbackCategory();
+    return fallback ? fallback.name : null;
+  }, [nlpPrediction, activeNeedsDisambiguation, selectedDisambiguationCategoryName, activeSuggestedCategories, getActiveCategoryByName, getFallbackCategory]);
+
+  const resolvedCategoryId = useMemo(() => {
+    if (!resolvedCategoryName) return "";
+    const matched = getActiveCategoryByName(resolvedCategoryName);
+    return matched?.id || "";
+  }, [resolvedCategoryName, getActiveCategoryByName]);
+
+  const resolvedDescription = useMemo(() => {
+    if (!nlpPrediction) return omarText.trim();
+    let desc = nlpPrediction.description || omarText.trim();
+    if (resolvedCategoryId) {
+      desc = desc.replace(/\b(tserkila|tsserkila|tasserkila)\b/gi, "").replace(/\s+/g, " ").trim();
+    }
+    return desc;
+  }, [nlpPrediction, resolvedCategoryId, omarText]);
+
+  // Debounced NLP call when typing in Ba Omar bar
+  useEffect(() => {
+    const query = omarText.trim();
+    if (!query) {
+      setNlpPrediction(null);
+      setSelectedDisambiguationCategoryName(null);
+      setIsNlpLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsNlpLoading(true);
+      try {
+        const res = await apiFetch<{
+          amount: number | null;
+          date: string | null;
+          description: string;
+          category: string | null;
+          needs_disambiguation: boolean;
+          suggested_categories: string[];
+        }>("/nlp/predict", {
+          method: "POST",
+          body: { text: query },
+        });
+        setNlpPrediction(res);
+        setSelectedDisambiguationCategoryName(null);
+      } catch (err) {
+        console.error("NLP predict failed:", err);
+      } finally {
+        setIsNlpLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [omarText]);
+
   const [streakOpen, setStreakOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -99,7 +324,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
     } catch {}
   }, [isGuest]);
 
-  // Click outside to close open menus
+  // Click outside to close open menus and magic preview
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -112,21 +337,25 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
       if (addMenuOpen && addMenuRef.current && !addMenuRef.current.contains(target)) {
         setAddMenuOpen(false);
       }
+      if (isPopoverOpen && askContainerRef.current && !askContainerRef.current.contains(target)) {
+        setIsPopoverOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [streakOpen, notificationsOpen, addMenuOpen]);
+  }, [streakOpen, notificationsOpen, addMenuOpen, isPopoverOpen]);
 
   // Global Keyboard shortcuts:
   // [N]: opens quick add menu / modal
   // [O]: focuses Ba Omar input field
-  // [Escape]: closes dropdowns
+  // [Escape]: closes dropdowns and popover
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setStreakOpen(false);
         setNotificationsOpen(false);
         setAddMenuOpen(false);
+        setIsPopoverOpen(false);
         return;
       }
 
@@ -143,16 +372,113 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
       } else if (e.key.toLowerCase() === "o") {
         e.preventDefault();
         inputRef.current?.focus();
+        if (omarText.trim()) setIsPopoverOpen(true);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [omarText]);
 
-  // Submit Ba Omar text
-  const handleAskOmar = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Web Speech API Voice Dictation
+  const toggleSpeechRecognition = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast({
+        title: locale === "ar" ? "التسجيل الصوتي" : "Saisie vocale",
+        description:
+          locale === "ar"
+            ? "متصفحك لا يدعم التعرف الصوتي المباشر. يُفضل استخدام Google Chrome أو Edge."
+            : "Votre navigateur ne supporte pas la reconnaissance vocale Web Speech (utilisez Chrome ou Edge).",
+        variant: "default",
+      });
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = locale === "ar" ? "ar-MA" : "fr-FR";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setIsPopoverOpen(true);
+        toast({
+          title: locale === "ar" ? "🎙️ با عمر يستمع..." : "🎙️ Ba Omar vous écoute...",
+          description:
+            locale === "ar"
+              ? "قول مصروفك (مثال: خسرت 150 فالمارشي)"
+              : "Dites votre dépense (ex: khsert 150 f lmarche)",
+        });
+      };
+
+      recognition.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript.trim()) {
+          setOmarText(transcript);
+          setIsPopoverOpen(true);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error("Speech start error:", err);
+      setIsListening(false);
+    }
+  };
+
+  // Open in full quick transaction modal
+  const handleOpenInFullModal = () => {
+    const fallbackMatch = omarText.match(/(\d+[\d\s,.]*)/);
+    const parsedFallbackAmt = fallbackMatch
+      ? parseFloat(fallbackMatch[1].replace(/\s+/g, "").replace(",", ".")) || 0
+      : 0;
+
+    const effectiveAmount =
+      nlpPrediction && nlpPrediction.amount !== null
+        ? String(nlpPrediction.amount)
+        : parsedFallbackAmt > 0
+        ? String(parsedFallbackAmt)
+        : "";
+
+    openQuickTx("expense", {
+      amount: effectiveAmount,
+      category_id: resolvedCategoryId || undefined,
+      occurred_on: nlpPrediction?.date || getLocalTodayISO(),
+      description: resolvedDescription || omarText,
+    });
+    setIsPopoverOpen(false);
+    setOmarText("");
+  };
+
+  // Submit Ba Omar text (with smart category and amount resolution)
+  const handleAskOmar = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const query = omarText.trim();
     if (!query) return;
 
@@ -167,68 +493,102 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
       return;
     }
 
-    if (isGuest) {
-      setGuestTries((prev) => {
-        const next = Math.max(0, prev - 1);
-        try {
-          localStorage.setItem("floussy.guest_omar_tries", String(next));
-        } catch {}
-        return next;
-      });
-    }
+    // Determine amount: prioritize NLP extracted amount, otherwise fallback regex
+    const fallbackMatch = query.match(/(\d+[\d\s,.]*)/);
+    const parsedFallbackAmt = fallbackMatch
+      ? parseFloat(fallbackMatch[1].replace(/\s+/g, "").replace(",", ".")) || 0
+      : 0;
 
-    // Smart expense parsing e.g. "150 courses" or "khsert 150 f lmarche"
-    const matchAmount = query.match(/(\d+[\d\s,.]*)/);
-    if (matchAmount) {
-      const parsedAmt =
-        parseFloat(matchAmount[1].replace(/\s+/g, "").replace(",", ".")) || 0;
-      if (parsedAmt > 0) {
-        try {
-          setIsSubmitting(true);
-          const res = await apiFetch<TransactionOut>("/transactions", {
+    const effectiveAmount =
+      nlpPrediction && nlpPrediction.amount !== null
+        ? Number(nlpPrediction.amount)
+        : parsedFallbackAmt > 0
+        ? parsedFallbackAmt
+        : null;
+
+    if (effectiveAmount !== null && effectiveAmount > 0) {
+      if (isGuest) {
+        setGuestTries((prev) => {
+          const next = Math.max(0, prev - 1);
+          try {
+            localStorage.setItem("floussy.guest_omar_tries", String(next));
+          } catch {}
+          return next;
+        });
+      }
+
+      try {
+        setIsSubmitting(true);
+        const targetCatId = resolvedCategoryId || getFallbackCategory()?.id || undefined;
+        const targetDate = nlpPrediction?.date || getLocalTodayISO();
+        const targetDesc = resolvedDescription || query;
+
+        const res = await apiFetch<TransactionOut>("/transactions", {
+          method: "POST",
+          body: {
+            amount: effectiveAmount.toFixed(2),
+            type: "expense",
+            occurred_on: targetDate,
+            category_id: targetCatId,
+            description: targetDesc,
+          },
+        });
+
+        // Trigger background NLP feedback if category was predicted
+        if (nlpPrediction?.description && resolvedCategoryName) {
+          apiFetch("/nlp/feedback", {
             method: "POST",
             body: {
-              amount: parsedAmt.toFixed(2),
-              type: "expense",
-              occurred_on: getLocalTodayISO(),
-              description: query,
+              keyword: nlpPrediction.description,
+              category_name: resolvedCategoryName,
             },
-          });
-          setLastOmarTxId(res.id);
-          const formattedAmt = parsedAmt.toLocaleString("fr-FR", {
-            maximumFractionDigits: 2,
-          });
-          const replyText =
-            locale === "ar"
-              ? `با عمر: قيدت ${formattedAmt} درهم فـ المصاريف ديالك. تم تحديث الحسابات مباشرة.`
-              : `Ba Omar : c’est noté, ${formattedAmt} MAD enregistrés dans tes dépenses.`;
-          setOmarReply(replyText);
-          toast({
-            title: locale === "ar" ? "عملية مسجلة من با عمر" : "Dépense enregistrée",
-            description: `${formattedAmt} MAD`,
-            variant: "success",
-          });
-          setOmarText("");
-          window.dispatchEvent(new CustomEvent("floussy:data-updated"));
-          return;
-        } catch (err: any) {
-          toast({
-            title: locale === "ar" ? "خطأ" : "Erreur",
-            description:
-              err?.message ||
-              (locale === "ar"
-                ? "تعذر تسجيل العملية"
-                : "Impossible d'enregistrer la dépense"),
-            variant: "danger",
-          });
-        } finally {
-          setIsSubmitting(false);
+          }).catch(() => null);
         }
+
+        setLastOmarTxId(res.id);
+        const formattedAmt = effectiveAmount.toLocaleString("fr-FR", {
+          maximumFractionDigits: 2,
+        });
+        const catNameFormatted = resolvedCategoryName
+          ? localizeCategoryName(resolvedCategoryName, locale)
+          : "";
+
+        const replyText =
+          locale === "ar"
+            ? `با عمر: قيدت ${formattedAmt} ${user?.currency ?? "درهم"} فـ ${catNameFormatted || "المصاريف"}. تم تحديث الحسابات مباشرة.`
+            : `Ba Omar : c’est noté, ${formattedAmt} ${user?.currency ?? "MAD"} enregistrés dans ${catNameFormatted || "tes dépenses"}.`;
+
+        setOmarReply(replyText);
+        toast({
+          title: locale === "ar" ? "عملية مسجلة من با عمر ✨" : "Dépense enregistrée ✨",
+          description: `${formattedAmt} ${user?.currency ?? "MAD"} • ${catNameFormatted || "Dépense"}`,
+          variant: "success",
+        });
+
+        setOmarText("");
+        setIsPopoverOpen(false);
+        setNlpPrediction(null);
+        window.dispatchEvent(new CustomEvent("floussy:data-updated"));
+        return;
+      } catch (err: any) {
+        toast({
+          title: locale === "ar" ? "خطأ" : "Erreur",
+          description:
+            err?.message ||
+            (locale === "ar"
+              ? "تعذر تسجيل العملية"
+              : "Impossible d'enregistrer la dépense"),
+          variant: "danger",
+        });
+      } finally {
+        setIsSubmitting(false);
       }
+      return;
     }
 
     // Conversational question or advice: navigate to Ba Omar AI chat
     setOmarText("");
+    setIsPopoverOpen(false);
     router.push(`/chat?q=${encodeURIComponent(query)}`);
   };
 
@@ -281,128 +641,409 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
           <Menu size={20} />
         </button>
 
-        {/* Ba Omar smart prompt bar */}
-        <form className="dsh-ask" onSubmit={handleAskOmar}>
-          <span
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              flexShrink: 0,
-              background: "#F2B544",
-              color: "#0F1A16",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "Cairo, sans-serif",
-              fontWeight: 800,
-              fontSize: 16,
-            }}
-            title="Ba Omar [O]"
+        {/* Ba Omar smart prompt bar with Real-time Magic Detection HUD */}
+        <div
+          ref={askContainerRef}
+          style={{
+            position: "relative",
+            flex: "1 1 360px",
+            maxWidth: 640,
+            width: "100%",
+          }}
+        >
+          <form
+            className="dsh-ask"
+            onSubmit={handleAskOmar}
+            style={{ width: "100%", maxWidth: "100%" }}
           >
-            ع
-          </span>
-
-          <input
-            ref={inputRef}
-            value={omarText}
-            onChange={(e) => setOmarText(e.target.value)}
-            disabled={isSubmitting}
-            aria-label="Demander à Ba Omar"
-            placeholder={
-              locale === "ar"
-                ? "كتب ولا قول مصروف… (خسرت 150 فالمارشي)"
-                : "Écris ou dis une dépense… (khsert 150 f lmarche)"
-            }
-            style={{
-              flex: 1,
-              minWidth: 0,
-              border: 0,
-              outline: 0,
-              background: "transparent",
-              color: "var(--dsh-ink)",
-              fontFamily: "inherit",
-              fontSize: 14.5,
-              fontWeight: 500,
-            }}
-          />
-
-          {isGuest && (
             <span
               style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
                 flexShrink: 0,
-                padding: "3px 10px",
-                borderRadius: 999,
-                background: "var(--dsh-warn-soft)",
-                color: "var(--dsh-warn-ink)",
-                fontSize: 11.5,
+                background: "#F2B544",
+                color: "#0F1A16",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: "Cairo, sans-serif",
                 fontWeight: 800,
+                fontSize: 16,
+              }}
+              title="Ba Omar [O]"
+            >
+              ع
+            </span>
+
+            <input
+              ref={inputRef}
+              value={omarText}
+              onChange={(e) => {
+                setOmarText(e.target.value);
+                if (e.target.value.trim()) setIsPopoverOpen(true);
+              }}
+              onFocus={() => {
+                if (omarText.trim()) setIsPopoverOpen(true);
+              }}
+              disabled={isSubmitting}
+              aria-label="Demander à Ba Omar"
+              placeholder={
+                locale === "ar"
+                  ? "كتب ولا قول مصروف… (خسرت 150 فالمارشي)"
+                  : "Écris ou dis une dépense… (khsert 150 f lmarche)"
+              }
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: 0,
+                outline: 0,
+                background: "transparent",
+                color: "var(--dsh-ink)",
+                fontFamily: "inherit",
+                fontSize: 14.5,
+                fontWeight: 500,
+              }}
+            />
+
+            {isGuest && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  background: "var(--dsh-warn-soft)",
+                  color: "var(--dsh-warn-ink)",
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                }}
+              >
+                {locale === "ar"
+                  ? `${guestTries} محاولات متبقية`
+                  : `${guestTries} essai${guestTries > 1 ? "s" : ""} restant${
+                      guestTries > 1 ? "s" : ""
+                    }`}
+              </span>
+            )}
+
+            <button
+              type="button"
+              aria-label={isListening ? "Arrêter la dictée" : "Dicter"}
+              onClick={toggleSpeechRecognition}
+              style={{
+                width: 36,
+                height: 36,
+                flexShrink: 0,
+                border: 0,
+                borderRadius: 18,
+                background: isListening
+                  ? "rgba(239, 68, 68, 0.16)"
+                  : "transparent",
+                color: isListening ? "#EF4444" : "var(--dsh-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              title={
+                isListening
+                  ? locale === "ar"
+                    ? "جاري الاستماع... اضغط للإيقاف"
+                    : "Écoute en cours... Cliquez pour arrêter"
+                  : locale === "ar"
+                  ? "قول مصروفك (تسجيل صوتي)"
+                  : "Dicter une dépense"
+              }
+            >
+              <Mic
+                size={18}
+                className={isListening ? "animate-pulse" : ""}
+                strokeWidth={isListening ? 2.6 : 2}
+              />
+            </button>
+
+            <button
+              type="submit"
+              aria-label="Envoyer"
+              disabled={isSubmitting}
+              style={{
+                width: 36,
+                height: 36,
+                flexShrink: 0,
+                border: 0,
+                borderRadius: 18,
+                background: "#0A7A53",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 4px 10px rgba(10, 122, 83, 0.35)",
               }}
             >
-              {locale === "ar"
-                ? `${guestTries} محاولات متبقية`
-                : `${guestTries} essai${guestTries > 1 ? "s" : ""} restant${
-                    guestTries > 1 ? "s" : ""
-                  }`}
-            </span>
+              <ArrowRight
+                size={16}
+                strokeWidth={2.6}
+                style={{ transform: isRTL ? "scaleX(-1)" : "none" }}
+              />
+            </button>
+          </form>
+
+          {/* Floating Magic Detection HUD / Popover */}
+          {isPopoverOpen && omarText.trim().length > 0 && (
+            <div
+              role="region"
+              aria-label="Magic AI Preview"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                left: 0,
+                right: 0,
+                zIndex: 100,
+                boxShadow:
+                  "0 20px 40px -10px rgba(10, 122, 83, 0.18), 0 0 0 1px rgba(10, 122, 83, 0.12)",
+              }}
+              className="rounded-2xl border border-[var(--dsh-brand-soft)] bg-white/95 dark:bg-[#101b17]/95 p-3.5 sm:p-4 shadow-2xl backdrop-blur-xl transition-all duration-200 animate-in fade-in slide-in-from-top-2"
+            >
+              {/* Header inside HUD */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2.5 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-amber-400/20 text-amber-600 dark:text-amber-400">
+                    <Sparkles size={14} className="animate-spin-slow" />
+                  </span>
+                  <span className="text-xs font-extrabold text-[var(--dsh-ink)]">
+                    {locale === "ar"
+                      ? "با عمر — المعاينة الذكية للمصروف"
+                      : "Ba Omar — Aperçu Intelligent"}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isNlpLoading ? (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse">
+                      <Loader2 size={11} className="animate-spin" />
+                      {locale === "ar" ? "جاري التحليل..." : "Analyse IA..."}
+                    </span>
+                  ) : nlpPrediction?.amount !== null && nlpPrediction?.amount !== undefined ? (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 size={11} />
+                      {locale === "ar" ? "مصروف مكتشف" : "Dépense détectée"}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                      <MessageSquareText size={11} />
+                      {locale === "ar" ? "سؤال / محادثة" : "Question Ba Omar"}
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPopoverOpen(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors"
+                    aria-label="Fermer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body: when amount or valid draft detected */}
+              {(nlpPrediction?.amount !== null && nlpPrediction?.amount !== undefined) ||
+              Boolean(omarText.match(/(\d+[\d\s,.]*)/)) ? (
+                <div className="space-y-3">
+                  {/* Grid Cards (Amount, Category, Date, Description) */}
+                  <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                    {/* Amount Card */}
+                    <div className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm">
+                      <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                        <span className="text-xs">💰</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          {locale === "ar" ? "المبلغ" : "Montant"}
+                        </span>
+                      </div>
+                      <span className="font-extrabold text-sm text-red-600 dark:text-red-400">
+                        {nlpPrediction?.amount !== null && nlpPrediction?.amount !== undefined
+                          ? `${nlpPrediction.amount.toLocaleString("fr-FR")} ${
+                              user?.currency ?? "MAD"
+                            }`
+                          : omarText.match(/(\d+[\d\s,.]*)/)
+                          ? `${parseFloat(
+                              omarText
+                                .match(/(\d+[\d\s,.]*)/)![1]
+                                .replace(/\s+/g, "")
+                                .replace(",", ".")
+                            ).toLocaleString("fr-FR")} ${user?.currency ?? "MAD"}`
+                          : "—"}
+                      </span>
+                    </div>
+
+                    {/* Category Card */}
+                    <div className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm">
+                      <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                        <span className="text-xs">🏷️</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          {locale === "ar" ? "الفئة" : "Catégorie"}
+                        </span>
+                      </div>
+                      <span className="font-bold text-xs truncate text-emerald-700 dark:text-emerald-400">
+                        {resolvedCategoryName
+                          ? localizeCategoryName(resolvedCategoryName, locale)
+                          : locale === "ar"
+                          ? "المصاريف المتنوعة"
+                          : "Divers"}
+                      </span>
+                    </div>
+
+                    {/* Date Card */}
+                    <div className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm">
+                      <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                        <span className="text-xs">📅</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          {locale === "ar" ? "التاريخ" : "Date"}
+                        </span>
+                      </div>
+                      <span className="font-medium text-xs text-slate-700 dark:text-slate-300">
+                        {nlpPrediction?.date
+                          ? formatLocaleDate(nlpPrediction.date, locale)
+                          : locale === "ar"
+                          ? "اليوم"
+                          : "Aujourd'hui"}
+                      </span>
+                    </div>
+
+                    {/* Description Card */}
+                    <div className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm">
+                      <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                        <span className="text-xs">💬</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          {locale === "ar" ? "البيان" : "Description"}
+                        </span>
+                      </div>
+                      <span
+                        className="font-medium text-xs text-slate-700 dark:text-slate-300 truncate"
+                        title={resolvedDescription}
+                      >
+                        {resolvedDescription || omarText}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Disambiguation chips if multiple categories match */}
+                  {activeNeedsDisambiguation && activeSuggestedCategories.length > 1 && (
+                    <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                      <p className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                        {locale === "ar"
+                          ? "🔍 اختر الفئة الأنسب:"
+                          : "🔍 Précisez la catégorie :"}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeSuggestedCategories.map((catName) => {
+                          const isSelected =
+                            resolvedCategoryName?.toLowerCase() ===
+                            catName.toLowerCase();
+                          return (
+                            <button
+                              key={catName}
+                              type="button"
+                              onClick={() => setSelectedDisambiguationCategoryName(catName)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                                isSelected
+                                  ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                                  : "border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:border-emerald-400"
+                              }`}
+                            >
+                              {isSelected && <span className="mr-1">✓</span>}
+                              {localizeCategoryName(catName, locale)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleAskOmar()}
+                      disabled={isSubmitting}
+                      className="flex-1 py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                    >
+                      <Check size={15} strokeWidth={2.8} />
+                      <span>
+                        {locale === "ar"
+                          ? "قيد المصروف فوراً (Enter)"
+                          : "Enregistrer la dépense (Entrée)"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenInFullModal}
+                      className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                      title={
+                        locale === "ar"
+                          ? "تعديل في النموذج الكامل"
+                          : "Modifier dans le formulaire complet"
+                      }
+                    >
+                      <ExternalLink size={13} />
+                      <span className="hidden sm:inline">
+                        {locale === "ar" ? "تعديل" : "Modifier"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Conversational view (no price detected) */
+                <div className="space-y-2.5 py-1">
+                  <div className="flex items-start gap-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-700 dark:text-slate-200">
+                    <span className="text-base select-none mt-0.5">💬</span>
+                    <div className="flex-1 text-xs">
+                      <p className="font-bold text-amber-800 dark:text-amber-300 mb-0.5">
+                        {locale === "ar"
+                          ? "سؤال أو استشارة مالية لـ با عمر"
+                          : "Question ou conseil financier pour Ba Omar"}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {locale === "ar"
+                          ? "اضغط Enter لبدء المحادثة، أو اكتب مبلغا (مثال: خسرت 150 فالمارشي) لتسجيل مصروف."
+                          : "Appuyez sur Entrée pour discuter, ou ajoutez un montant (ex: 150 dh taxi) pour enregistrer une dépense."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAskOmar()}
+                    className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <MessageSquareText size={14} />
+                    <span>
+                      {locale === "ar"
+                        ? "طرح السؤال على با عمر (Enter)"
+                        : "Discuter avec Ba Omar (Entrée)"}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* Bottom hint */}
+              <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10.5px] text-slate-400">
+                <span>
+                  💡{" "}
+                  {locale === "ar"
+                    ? 'مثال: "خسرت 150 فالمارشي" أو "30 طاكسي"'
+                    : 'Exemple: "khsert 150 f lmarche" ou "30dh taxi"'}
+                </span>
+                <span className="font-mono text-[9.5px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                  ESC للغلق
+                </span>
+              </div>
+            </div>
           )}
-
-          <button
-            type="button"
-            aria-label="Dicter"
-            onClick={() => {
-              toast({
-                title:
-                  locale === "ar" ? "التسجيل الصوتي" : "Saisie vocale",
-                description:
-                  locale === "ar"
-                    ? "خاصية الميكروفون ستتوفر قريباً."
-                    : "L'écoute vocale arrive bientôt.",
-              });
-            }}
-            style={{
-              width: 36,
-              height: 36,
-              flexShrink: 0,
-              border: 0,
-              borderRadius: 18,
-              background: "transparent",
-              color: "var(--dsh-muted)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Mic size={18} />
-          </button>
-
-          <button
-            type="submit"
-            aria-label="Envoyer"
-            disabled={isSubmitting}
-            style={{
-              width: 36,
-              height: 36,
-              flexShrink: 0,
-              border: 0,
-              borderRadius: 18,
-              background: "#0A7A53",
-              color: "#FFFFFF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              boxShadow: "0 4px 10px rgba(10, 122, 83, 0.35)",
-            }}
-          >
-            <ArrowRight
-              size={16}
-              strokeWidth={2.6}
-              style={{ transform: isRTL ? "scaleX(-1)" : "none" }}
-            />
-          </button>
-        </form>
+        </div>
 
         {/* Action icons & buttons */}
         <div className="dsh-act">
