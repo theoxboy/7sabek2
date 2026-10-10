@@ -403,191 +403,227 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [omarText]);
 
-  // Voice Dictation & Audio Recording (MediaRecorder + AI Gateway / Web Speech)
-  const toggleSpeechRecognition = async () => {
-    // 1. If currently recording audio via MediaRecorder, stop and send to AI
-    if (isRecordingAudio) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      setIsRecordingAudio(false);
-      return;
-    }
-
-    // 2. If currently listening via Web Speech API, stop it
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setIsListening(false);
-      return;
-    }
-
-    // 3. Try high-fidelity MediaRecorder first (universal on Chrome, Safari, Edge, Firefox, iOS, Android)
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+  // Stop all active audio streams and speech recognition
+  const stopAllAudio = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaStreamRef.current = stream;
-        audioChunksRef.current = [];
-
-        let mimeType = "audio/webm";
-        if (typeof MediaRecorder !== "undefined") {
-          if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-            mimeType = "audio/webm;codecs=opus";
-          } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-            mimeType = "audio/mp4";
-          } else if (MediaRecorder.isTypeSupported("audio/aac")) {
-            mimeType = "audio/aac";
-          }
-        }
-
-        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-        mediaRecorderRef.current = recorder;
-
-        recorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            audioChunksRef.current.push(e.data);
-          }
-        };
-
-        recorder.onstop = async () => {
-          if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-            mediaStreamRef.current = null;
-          }
-
-          const chunks = audioChunksRef.current;
-          if (chunks.length === 0) return;
-
-          const audioBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-          setIsTranscribingAudio(true);
-          setIsPopoverOpen(true);
-
-          try {
-            const formData = new FormData();
-            const ext = recorder.mimeType.includes("mp4") ? "mp4" : "webm";
-            formData.append("file", audioBlob, `voice_note.${ext}`);
-            const availableCategories = allExpenseCategories.map((c) => c.name);
-            formData.append("available_categories", JSON.stringify(availableCategories));
-
-            const res = await apiFetch<{
-              transcript: string;
-              amount: number | null;
-              date: string | null;
-              description: string;
-              category: string | null;
-              needs_disambiguation: boolean;
-              suggested_categories: string[];
-            }>("/nlp/predict-audio", {
-              method: "POST",
-              body: formData,
-              timeoutMs: 40000,
-            });
-
-            if (res.transcript) {
-              setOmarText(res.transcript);
-            }
-            setNlpPrediction(res);
-            setIsPopoverOpen(true);
-
-            toast({
-              title: locale === "ar" ? "🎙️ تم تفريغ الصوت" : "🎙️ Vocal analysé avec succès",
-              description: res.transcript || res.description,
-            });
-          } catch (err: any) {
-            console.error("Audio predict error:", err);
-            toast({
-              title: locale === "ar" ? "خطأ في الصوت" : "Erreur audio IA",
-              description:
-                err?.message ||
-                (locale === "ar"
-                  ? "تعذر تحليل التسجيل الصوتي بالذكاء الاصطناعي."
-                  : "Impossible d'analyser le message audio par l'IA."),
-              variant: "danger",
-            });
-          } finally {
-            setIsTranscribingAudio(false);
-          }
-        };
-
-        recorder.start(250);
-        setIsRecordingAudio(true);
-        setIsPopoverOpen(true);
-
-        toast({
-          title: locale === "ar" ? "🎙️ با عمر يستمع..." : "🎙️ Ba Omar enregistre votre voix...",
-          description:
-            locale === "ar"
-              ? "قول مصروفك (مثال: خسرت 150 فالمارشي) ثم اضغط للإيقاف والتحليل."
-              : "Dites votre dépense (ex: khsert 150 f lmarche) puis réappuyez pour analyser.",
-        });
-        return;
-      } catch (micErr) {
-        console.warn("MediaRecorder failed, falling back to Web Speech:", micErr);
-      }
+        mediaRecorderRef.current.stop();
+      } catch {}
     }
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {}
+      mediaStreamRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    setIsListening(false);
+    setIsRecordingAudio(false);
+  };
 
-    // 4. Fallback to Web Speech API
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
+  // High-fidelity MediaRecorder fallback (for audio files / unsupported Web Speech)
+  const startMediaRecorder = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       toast({
-        title: locale === "ar" ? "التسجيل الصوتي" : "Saisie vocale",
+        title: locale === "ar" ? "غير مدعوم" : "Non supporté",
         description:
           locale === "ar"
-            ? "يرجى السماح بالوصول إلى الميكروفون في المتصفح."
-            : "Veuillez autoriser l'accès au microphone dans votre navigateur.",
-        variant: "default",
+            ? "متصفحك لا يدعم تسجيل الصوت أو أن الاتصال غير آمن (HTTPS مطلوب)."
+            : "Votre navigateur ne supporte pas le micro ou la connexion n'est pas sécurisée (HTTPS requis).",
+        variant: "danger",
       });
       return;
     }
 
     try {
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = locale === "ar" ? "ar-MA" : "fr-FR";
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
 
-      recognition.onstart = () => {
-        setIsListening(true);
+      let mimeType = "audio/webm";
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          mimeType = "audio/webm;codecs=opus";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        } else if (MediaRecorder.isTypeSupported("audio/aac")) {
+          mimeType = "audio/aac";
+        }
+      }
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
+
+        const chunks = audioChunksRef.current;
+        if (chunks.length === 0) return;
+
+        const audioBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        setIsTranscribingAudio(true);
         setIsPopoverOpen(true);
-        toast({
-          title: locale === "ar" ? "🎙️ با عمر يستمع..." : "🎙️ Ba Omar vous écoute...",
-          description:
-            locale === "ar"
-              ? "قول مصروفك (مثال: خسرت 150 فالمارشي)"
-              : "Dites votre dépense (ex: khsert 150 f lmarche)",
-        });
-      };
 
-      recognition.onresult = (event: any) => {
-        let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        if (transcript.trim()) {
-          setOmarText(transcript);
+        try {
+          const formData = new FormData();
+          const ext = recorder.mimeType.includes("mp4") ? "mp4" : "webm";
+          formData.append("file", audioBlob, `voice_note.${ext}`);
+          const availableCategories = allExpenseCategories.map((c) => c.name);
+          formData.append("available_categories", JSON.stringify(availableCategories));
+
+          const res = await apiFetch<{
+            transcript: string;
+            amount: number | null;
+            date: string | null;
+            description: string;
+            category: string | null;
+            needs_disambiguation: boolean;
+            suggested_categories: string[];
+          }>("/nlp/predict-audio", {
+            method: "POST",
+            body: formData,
+            timeoutMs: 40000,
+          });
+
+          if (res.transcript) {
+            setOmarText(res.transcript);
+          }
+          setNlpPrediction(res);
           setIsPopoverOpen(true);
+
+          toast({
+            title: locale === "ar" ? "🎙️ تم تفريغ الصوت" : "🎙️ Vocal analysé avec succès",
+            description: res.transcript || res.description,
+          });
+        } catch (err: any) {
+          console.error("Audio predict error:", err);
+          toast({
+            title: locale === "ar" ? "خطأ في الصوت" : "Erreur audio IA",
+            description:
+              err?.message ||
+              (locale === "ar"
+                ? "تعذر تحليل التسجيل الصوتي بالذكاء الاصطناعي."
+                : "Impossible d'analyser le message audio par l'IA."),
+            variant: "danger",
+          });
+        } finally {
+          setIsTranscribingAudio(false);
         }
       };
 
-      recognition.onerror = (event: any) => {
-        console.warn("Speech error:", event.error);
-        setIsListening(false);
-      };
+      recorder.start(250);
+      setIsRecordingAudio(true);
+      setIsPopoverOpen(true);
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (err) {
-      console.error("Speech start error:", err);
-      setIsListening(false);
+      toast({
+        title: locale === "ar" ? "🎙️ با عمر يستمع..." : "🎙️ Ba Omar vous écoute...",
+        description:
+          locale === "ar"
+            ? "تحدث بمصروفك الآن ثم اضغط لإنهاء التسجيل والتحليل."
+            : "Dites votre dépense puis réappuyez pour analyser.",
+      });
+    } catch (micErr: any) {
+      console.warn("getUserMedia failed or denied:", micErr);
+      setIsRecordingAudio(false);
+      toast({
+        title: locale === "ar" ? "⚠️ الميكروفون محظور" : "⚠️ Microphone bloqué",
+        description:
+          locale === "ar"
+            ? "يرجى تفعيل إذن الميكروفون في إعدادات المتصفح."
+            : "Veuillez autoriser l'accès au microphone dans les paramètres de votre navigateur.",
+        variant: "danger",
+      });
     }
+  };
+
+  // Voice Dictation & Audio Processing
+  const toggleSpeechRecognition = () => {
+    // 1. If currently recording audio or listening, stop cleanly
+    if (isRecordingAudio || isListening) {
+      stopAllAudio();
+      return;
+    }
+
+    // 2. Try Web Speech API first for real-time live transcription (word-by-word into input)
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = locale === "ar" ? "ar-MA" : "fr-FR";
+
+        recognition.onstart = () => {
+          setIsListening(true);
+          setIsPopoverOpen(true);
+          toast({
+            title: locale === "ar" ? "🎙️ با عمر يستمع إليك..." : "🎙️ Ba Omar vous écoute...",
+            description:
+              locale === "ar"
+                ? "تحدث بمصروفك الآن (مثال: خسرت 150 درهم ف مرجان)"
+                : "Dites votre dépense (ex: 150 dh courses Marjane)",
+          });
+        };
+
+        recognition.onresult = (event: any) => {
+          let transcript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          if (transcript.trim()) {
+            setOmarText(transcript);
+            setIsPopoverOpen(true);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn("Speech error:", event.error);
+          setIsListening(false);
+          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            toast({
+              title: locale === "ar" ? "⚠️ الميكروفون محظور" : "⚠️ Microphone bloqué",
+              description:
+                locale === "ar"
+                  ? "يرجى السماح بالوصول إلى الميكروفون في إعدادات المتصفح."
+                  : "Veuillez autoriser l'accès au microphone dans les paramètres de votre navigateur.",
+              variant: "danger",
+            });
+          } else if (event.error !== "no-speech") {
+            // Fallback to MediaRecorder audio upload
+            startMediaRecorder();
+          }
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognition.start();
+        return;
+      } catch (err) {
+        console.warn("SpeechRecognition failed, falling back to MediaRecorder:", err);
+      }
+    }
+
+    // 3. Fallback to MediaRecorder if Web Speech is unavailable
+    startMediaRecorder();
   };
 
   // Open in full quick transaction modal
@@ -794,7 +830,16 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
           <form
             className="dsh-ask"
             onSubmit={handleAskOmar}
-            style={{ width: "100%", maxWidth: "100%" }}
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+              borderColor: isListening || isRecordingAudio ? "#EF4444" : undefined,
+              boxShadow:
+                isListening || isRecordingAudio
+                  ? "0 0 0 2px rgba(239, 68, 68, 0.35), 0 4px 14px rgba(239, 68, 68, 0.15)"
+                  : undefined,
+              transition: "all 0.25s ease",
+            }}
           >
             <span
               style={{
@@ -824,12 +869,20 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                 if (e.target.value.trim()) setIsPopoverOpen(true);
               }}
               onFocus={() => {
-                if (omarText.trim()) setIsPopoverOpen(true);
+                if (omarText.trim() || isListening || isRecordingAudio) setIsPopoverOpen(true);
               }}
               disabled={isSubmitting}
               aria-label="Demander à Ba Omar"
               placeholder={
-                locale === "ar"
+                isListening || isRecordingAudio
+                  ? locale === "ar"
+                    ? "🎙️ با عمر يستمع إليك... تحدث بمصروفك الآن"
+                    : "🎙️ Ba Omar vous écoute... Parlez maintenant"
+                  : isTranscribingAudio
+                  ? locale === "ar"
+                    ? "⏳ جاري تفريغ الصوت وتحليل المصروف..."
+                    : "⏳ Analyse audio IA en cours..."
+                  : locale === "ar"
                   ? "كتب ولا قول مصروف… (خسرت 150 فالمارشي)"
                   : "Écris ou dis une dépense… (khsert 150 f lmarche)"
               }
@@ -945,7 +998,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
           </form>
 
           {/* Floating Magic Detection HUD / Popover */}
-          {isPopoverOpen && omarText.trim().length > 0 && (
+          {isPopoverOpen && (omarText.trim().length > 0 || isListening || isRecordingAudio || isTranscribingAudio) && (
             <div
               role="region"
               aria-label="Magic AI Preview"
@@ -979,6 +1032,11 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                       <Loader2 size={11} className="animate-spin" />
                       {locale === "ar" ? "تفريغ الصوت..." : "Transcription IA..."}
                     </span>
+                  ) : isListening || isRecordingAudio ? (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 animate-pulse">
+                      <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+                      {locale === "ar" ? "استماع مباشر..." : "Écoute en direct..."}
+                    </span>
                   ) : isNlpLoading ? (
                     <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse">
                       <Loader2 size={11} className="animate-spin" />
@@ -1007,30 +1065,43 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                 </div>
               </div>
 
-              {/* Active Voice Recording Status Banner */}
-              {isRecordingAudio && (
-                <div className="mb-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-between animate-pulse">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
-                    <span className="text-xs font-bold text-red-600 dark:text-red-400">
-                      {locale === "ar"
-                        ? "🎙️ با عمر يستمع... تحدث بمصروفك"
-                        : "🎙️ Ba Omar vous écoute... Parlez"}
-                    </span>
+              {/* Active Voice Listening / Recording Status Banner */}
+              {(isListening || isRecordingAudio) && (
+                <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/25 flex flex-col sm:flex-row items-center justify-between gap-2.5 animate-in fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex items-center justify-center">
+                      <span className="w-7 h-7 rounded-full bg-red-500/25 animate-ping absolute" />
+                      <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-sm">
+                        <Mic size={14} className="animate-pulse" />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-red-600 dark:text-red-400 block">
+                        {locale === "ar"
+                          ? "🎙️ با عمر يستمع إليك... تحدث بمصروفك الآن"
+                          : "🎙️ Ba Omar vous écoute... Parlez maintenant"}
+                      </span>
+                      <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block">
+                        {locale === "ar"
+                          ? "مثال: «خسرت 150 فالمارشي» أو «30 طاكسي»"
+                          : "Ex: « 150 dh courses Marjane » ou « 30 dh taxi »"}
+                      </span>
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={toggleSpeechRecognition}
-                    className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] shadow-sm transition-all"
+                    className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] shadow-sm transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
-                    {locale === "ar" ? "إنهاء وتحليل ✓" : "Arrêter et analyser ✓"}
+                    <Check size={13} strokeWidth={2.5} />
+                    <span>{locale === "ar" ? "إنهاء وتحليل ✓" : "Arrêter et analyser ✓"}</span>
                   </button>
                 </div>
               )}
 
               {/* Transcribing Audio Loader Banner */}
               {isTranscribingAudio && (
-                <div className="mb-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2.5 text-purple-700 dark:text-purple-300 animate-pulse">
+                <div className="mb-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-center gap-2.5 text-purple-700 dark:text-purple-300 animate-pulse">
                   <Loader2 size={16} className="animate-spin text-purple-600" />
                   <span className="text-xs font-semibold">
                     {locale === "ar"
@@ -1218,6 +1289,20 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                       </span>
                     </button>
                   </div>
+                </div>
+              ) : isListening || isRecordingAudio ? (
+                /* Listening active indicator when nothing transcribed yet */
+                <div className="py-3 px-2 text-center text-xs text-slate-500 dark:text-slate-400">
+                  <p className="font-bold text-slate-700 dark:text-slate-200 mb-1">
+                    {locale === "ar"
+                      ? "جاري الاستماع... قل المصروف بصوت واضح"
+                      : "Écoute en cours... Parlez distinctement"}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {locale === "ar"
+                      ? "سيظهر النص هنا وتُحدد الفئة والمبلغ تلقائياً"
+                      : "Le texte s'affichera ici en direct avec la détection automatique"}
+                  </p>
                 </div>
               ) : (
                 /* Conversational view (no price detected) */
