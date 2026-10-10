@@ -309,6 +309,11 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
           timeoutMs: 25000,
         });
 
+        if (res.transcript) {
+          setTranscript(res.transcript);
+          transcriptRef.current = res.transcript;
+        }
+
         if (res.amount !== null && res.amount !== undefined && res.amount > 0) {
           setTranscript(res.transcript || res.description);
           setPrediction(res);
