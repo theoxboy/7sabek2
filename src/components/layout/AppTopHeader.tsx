@@ -20,6 +20,7 @@ import {
   Tag,
   Calendar,
   X,
+  ChevronDown,
 } from "lucide-react";
 import useSWR from "swr";
 
@@ -151,6 +152,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   } | null>(null);
   const [isNlpLoading, setIsNlpLoading] = useState(false);
   const [selectedDisambiguationCategoryName, setSelectedDisambiguationCategoryName] = useState<string | null>(null);
+  const [manualCategoryName, setManualCategoryName] = useState<string | null>(null);
 
   // Active expense categories
   const allExpenseCategories = useMemo(() => {
@@ -232,6 +234,11 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
 
   // Compute resolved category name
   const resolvedCategoryName = useMemo(() => {
+    // 1. User manual override takes absolute priority
+    if (manualCategoryName && getActiveCategoryByName(manualCategoryName)) {
+      return manualCategoryName;
+    }
+
     if (!nlpPrediction) return null;
 
     if (activeNeedsDisambiguation) {
@@ -251,7 +258,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
 
     const fallback = getFallbackCategory();
     return fallback ? fallback.name : null;
-  }, [nlpPrediction, activeNeedsDisambiguation, selectedDisambiguationCategoryName, activeSuggestedCategories, getActiveCategoryByName, getFallbackCategory]);
+  }, [manualCategoryName, nlpPrediction, activeNeedsDisambiguation, selectedDisambiguationCategoryName, activeSuggestedCategories, getActiveCategoryByName, getFallbackCategory]);
 
   const resolvedCategoryId = useMemo(() => {
     if (!resolvedCategoryName) return "";
@@ -274,6 +281,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
     if (!query) {
       setNlpPrediction(null);
       setSelectedDisambiguationCategoryName(null);
+      setManualCategoryName(null);
       setIsNlpLoading(false);
       return;
     }
@@ -572,6 +580,8 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
         setOmarText("");
         setIsPopoverOpen(false);
         setNlpPrediction(null);
+        setSelectedDisambiguationCategoryName(null);
+        setManualCategoryName(null);
         window.dispatchEvent(new CustomEvent("floussy:data-updated"));
         return;
       } catch (err: any) {
@@ -882,21 +892,53 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
                       </span>
                     </div>
 
-                    {/* Category Card */}
-                    <div className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm">
-                      <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
-                        <span className="text-xs">🏷️</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider">
-                          {locale === "ar" ? "الفئة" : "Catégorie"}
-                        </span>
+                    {/* Category Card with interactive envelope switcher */}
+                    <div className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm transition-all">
+                      <div className="flex items-center justify-between text-slate-400 dark:text-slate-500">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs">🏷️</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider">
+                            {locale === "ar" ? "الفئة" : "Catégorie"}
+                          </span>
+                        </div>
+                        {manualCategoryName ? (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            {locale === "ar" ? "تعديلك ✏️" : "Manuel ✏️"}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500">
+                            {locale === "ar" ? "تغيير ▾" : "Modifier ▾"}
+                          </span>
+                        )}
                       </div>
-                      <span className="font-bold text-xs truncate text-emerald-700 dark:text-emerald-400">
-                        {resolvedCategoryName
-                          ? localizeCategoryName(resolvedCategoryName, locale)
-                          : locale === "ar"
-                          ? "المصاريف المتنوعة"
-                          : "Divers"}
-                      </span>
+                      <div className="relative mt-0.5">
+                        <select
+                          value={resolvedCategoryName || ""}
+                          onChange={(e) => {
+                            setManualCategoryName(e.target.value);
+                            setSelectedDisambiguationCategoryName(e.target.value);
+                          }}
+                          className="w-full appearance-none bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg py-1 px-2.5 pe-6 text-xs font-bold text-emerald-800 dark:text-emerald-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all truncate"
+                          title={
+                            locale === "ar"
+                              ? "انقر لتغيير الفئة إذا أخطأ الذكاء الاصطناعي"
+                              : "Cliquez pour changer la catégorie si l'IA s'est trompée"
+                          }
+                        >
+                          {allExpenseCategories.map((c) => (
+                            <option
+                              key={c.id}
+                              value={c.name}
+                              className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-medium"
+                            >
+                              {localizeCategoryName(c.name, locale)}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 end-2 flex items-center text-emerald-600 dark:text-emerald-400">
+                          <ChevronDown size={12} strokeWidth={2.5} />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Date Card */}

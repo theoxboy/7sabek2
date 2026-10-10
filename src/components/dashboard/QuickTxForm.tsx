@@ -409,6 +409,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
   } | null>(null);
   const [isNlpLoading, setIsNlpLoading] = useState(false);
   const [selectedDisambiguationCategoryName, setSelectedDisambiguationCategoryName] = useState<string | null>(null);
+  const [manualCategoryName, setManualCategoryName] = useState<string | null>(null);
 
   const [aiWarning, setAiWarning] = useState<{
     explanation: string;
@@ -423,6 +424,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
     if (quickTxMode !== "magic" || !magicInput.trim()) {
       setNlpPrediction(null);
       setSelectedDisambiguationCategoryName(null);
+      setManualCategoryName(null);
       return;
     }
 
@@ -528,6 +530,11 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
 
   // Compute resolved category from prediction (for magic preview)
   const resolvedCategoryName = useMemo(() => {
+    // 1. User manual override takes absolute priority
+    if (manualCategoryName && getActiveCategoryByName(manualCategoryName)) {
+      return manualCategoryName;
+    }
+
     if (!nlpPrediction) return null;
     
     if (activeNeedsDisambiguation) {
@@ -550,7 +557,7 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
     // Fallback if no matching category was found
     const fallback = getFallbackCategory();
     return fallback ? fallback.name : null;
-  }, [nlpPrediction, activeNeedsDisambiguation, selectedDisambiguationCategoryName, activeSuggestedCategories, getActiveCategoryByName, getFallbackCategory]);
+  }, [manualCategoryName, nlpPrediction, activeNeedsDisambiguation, selectedDisambiguationCategoryName, activeSuggestedCategories, getActiveCategoryByName, getFallbackCategory]);
 
   const resolvedCategoryId = useMemo(() => {
     if (!resolvedCategoryName) return "";
@@ -2115,26 +2122,55 @@ export const QuickTxForm: React.FC<QuickTxFormProps> = ({
                         </span>
                       </div>
 
-                      {/* Category Card */}
+                      {/* Category Card with interactive envelope switcher */}
                       <div 
                         style={{ animationDelay: '75ms' }}
-                        className="opacity-0 animate-card-fade-in flex flex-col gap-1.5 p-3 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm hover:shadow transition-all duration-200 hover:-translate-y-0.5"
+                        className="opacity-0 animate-card-fade-in flex flex-col gap-1 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm hover:shadow transition-all duration-200"
                       >
-                        <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
-                          <span className="text-xs select-none">🏷️</span>
-                          <span className="text-[10px] uppercase font-bold tracking-wider">
-                            {locale === "ar" ? "الفئة" : locale === "fr" ? "Catégorie" : "Category"}
-                          </span>
+                        <div className="flex items-center justify-between text-slate-400 dark:text-slate-500">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs select-none">🏷️</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider">
+                              {locale === "ar" ? "الفئة" : locale === "fr" ? "Catégorie" : "Category"}
+                            </span>
+                          </div>
+                          {manualCategoryName ? (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/30">
+                              {locale === "ar" ? "تعديلك ✏️" : locale === "fr" ? "Manuel ✏️" : "Manual ✏️"}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500">
+                              {locale === "ar" ? "تغيير ▾" : locale === "fr" ? "Modifier ▾" : "Change ▾"}
+                            </span>
+                          )}
                         </div>
-                        <span className={`font-semibold text-xs truncate max-w-full ${
-                          resolvedCategoryName 
-                            ? "text-slate-800 dark:text-slate-200 bg-violet-500/5 dark:bg-violet-500/10 px-2 py-0.5 rounded-lg inline-block w-fit" 
-                            : "text-slate-400 dark:text-slate-500 italic text-xs"
-                        }`}>
-                          {resolvedCategoryName
-                            ? localizeCategoryName(resolvedCategoryName, locale)
-                            : (locale === "ar" ? "غير محدد" : locale === "fr" ? "Non détecté" : "Not detected")}
-                        </span>
+                        <div className="relative mt-0.5">
+                          <select
+                            value={resolvedCategoryName || ""}
+                            onChange={(e) => {
+                              setManualCategoryName(e.target.value);
+                              setSelectedDisambiguationCategoryName(e.target.value);
+                              setQuickTxError(null);
+                            }}
+                            className="w-full appearance-none bg-violet-50/70 dark:bg-violet-950/30 hover:bg-violet-100/70 dark:hover:bg-violet-950/50 border border-violet-200/80 dark:border-violet-800/60 rounded-lg py-1 px-2.5 pe-6 text-xs font-bold text-violet-900 dark:text-violet-200 cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all truncate"
+                            title={locale === "ar" ? "انقر لاختيار فئة أخرى" : locale === "fr" ? "Cliquez pour changer d'enveloppe" : "Click to change envelope"}
+                          >
+                            {allExpenseCategories.map((c) => (
+                              <option
+                                key={c.id}
+                                value={c.name}
+                                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-medium"
+                              >
+                                {localizeCategoryName(c.name, locale)}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 end-2 flex items-center text-violet-600 dark:text-violet-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Date Card */}
