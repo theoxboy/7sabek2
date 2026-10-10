@@ -7,6 +7,7 @@ import { ArrowLeft, Home, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { requestPasswordReset } from "@/lib/auth";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
+import { setAppLocale } from "@/components/i18n/LanguagePreferenceGate";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { getAppVersionLabel } from "@/lib/app-version";
 import { Button } from "@/components/ui/Button";
@@ -115,6 +116,10 @@ export default function ForgotPasswordPage() {
   const appVersionLabel = getAppVersionLabel();
   const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "forgot-arabic-font" : ""}`;
 
+  const changeLocale = (next: FloussyLocale) => {
+    setAppLocale(next);
+  };
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -149,10 +154,41 @@ export default function ForgotPasswordPage() {
         <Link href="/" className="pw-logo">
           <BrandLogo locale={locale} className="h-9 w-auto brightness-0 invert" />
         </Link>
-        <Link href="/" className="pw-pill">
-          <Home className="w-4 h-4" />
-          <span>{copy.backHome}</span>
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="lg-chip" role="group" aria-label="Langues">
+            <button
+              type="button"
+              className={locale === "fr" ? "on" : ""}
+              onClick={() => changeLocale("fr")}
+              aria-pressed={locale === "fr"}
+              lang="fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              className={locale === "ar" ? "on" : ""}
+              onClick={() => changeLocale("ar")}
+              aria-pressed={locale === "ar"}
+              lang="ar"
+            >
+              العربية
+            </button>
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => changeLocale("en")}
+              aria-pressed={locale === "en"}
+              lang="en"
+            >
+              EN
+            </button>
+          </div>
+          <Link href="/" className="pw-pill">
+            <Home className="w-4 h-4" />
+            <span>{copy.backHome}</span>
+          </Link>
+        </div>
       </div>
 
       {/* Desktop Header */}
@@ -164,13 +200,44 @@ export default function ForgotPasswordPage() {
           <Home className="w-[18px] h-[18px]" />
           <span>{copy.backHome}</span>
         </Link>
-        <Link
-          href="/releases"
-          className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"
-        >
-          <span className="w-[7px] h-[7px] rounded-[4px] bg-[#0A7A53] dark:bg-[#2FB27A]" />
-          <span>v{appVersionLabel}</span>
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="lg-chip" role="group" aria-label="Langues">
+            <button
+              type="button"
+              className={locale === "fr" ? "on" : ""}
+              onClick={() => changeLocale("fr")}
+              aria-pressed={locale === "fr"}
+              lang="fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              className={locale === "ar" ? "on" : ""}
+              onClick={() => changeLocale("ar")}
+              aria-pressed={locale === "ar"}
+              lang="ar"
+            >
+              العربية
+            </button>
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => changeLocale("en")}
+              aria-pressed={locale === "en"}
+              lang="en"
+            >
+              EN
+            </button>
+          </div>
+          <Link
+            href="/releases"
+            className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"
+          >
+            <span className="w-[7px] h-[7px] rounded-[4px] bg-[#0A7A53] dark:bg-[#2FB27A]" />
+            <span>v{appVersionLabel}</span>
+          </Link>
+        </div>
       </header>
 
       {/* Main Container */}

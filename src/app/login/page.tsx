@@ -13,7 +13,7 @@ import { usePlatformStatus } from "@/lib/usePlatformStatus";
 import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
 import { getLoginOptions, verifyLogin } from "@/lib/passkeys";
-import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
+import { getBrowserLocalePreference, setAppLocale } from "@/components/i18n/LanguagePreferenceGate";
 import { SbkWLoader } from "@/components/ui/SbkWLoader";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { getAppVersionLabel } from "@/lib/app-version";
@@ -433,10 +433,15 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    setLocale(getBrowserLocalePreference() ?? "fr");
-    const syncLocale = () => setLocale(getBrowserLocalePreference() ?? "fr");
-    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
-    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
+    const initial = getBrowserLocalePreference() ?? "fr";
+    setLocale(initial);
+    const syncLocale = (event?: Event) => {
+      const customEvent = event as CustomEvent<{ locale?: FloussyLocale }> | undefined;
+      const next = customEvent?.detail?.locale || getBrowserLocalePreference() || "fr";
+      setLocale(next);
+    };
+    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale as EventListener);
+    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale as EventListener);
   }, []);
 
   useEffect(() => {
@@ -458,10 +463,7 @@ export default function LoginPage() {
 
   const changeLocale = (next: FloussyLocale) => {
     setLocale(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("floussy_locale", next);
-      window.dispatchEvent(new CustomEvent(LANGUAGE_CHANGED_EVENT, { detail: next }));
-    }
+    setAppLocale(next);
   };
 
   const handleLogin = async (e: React.FormEvent) => {

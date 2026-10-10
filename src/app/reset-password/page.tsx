@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { confirmPasswordReset, getPasswordResetTokenInfo } from "@/lib/auth";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
+import { setAppLocale } from "@/components/i18n/LanguagePreferenceGate";
 import type { FloussyLocale } from "@/lib/localePreference";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -162,6 +163,10 @@ export default function ResetPasswordPage() {
   const token = useMemo(() => (searchParams.get("token") || "").trim(), [searchParams]);
   const hasValidTokenFormat = token.length >= 16;
 
+  const changeLocale = (next: FloussyLocale) => {
+    setAppLocale(next);
+  };
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [superadminCode, setSuperadminCode] = useState("");
@@ -273,10 +278,41 @@ export default function ResetPasswordPage() {
         <Link href="/" className="pw-logo">
           <BrandLogo locale={locale} className="h-9 w-auto brightness-0 invert" />
         </Link>
-        <Link href="/" className="pw-pill">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
-          <span>Accueil</span>
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="lg-chip" role="group" aria-label="Langues">
+            <button
+              type="button"
+              className={locale === "fr" ? "on" : ""}
+              onClick={() => changeLocale("fr")}
+              aria-pressed={locale === "fr"}
+              lang="fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              className={locale === "ar" ? "on" : ""}
+              onClick={() => changeLocale("ar")}
+              aria-pressed={locale === "ar"}
+              lang="ar"
+            >
+              العربية
+            </button>
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => changeLocale("en")}
+              aria-pressed={locale === "en"}
+              lang="en"
+            >
+              EN
+            </button>
+          </div>
+          <Link href="/" className="pw-pill">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+            <span>Accueil</span>
+          </Link>
+        </div>
       </div>
 
       {/* Desktop Header */}
@@ -288,13 +324,44 @@ export default function ResetPasswordPage() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
           <span>Accueil</span>
         </Link>
-        <Link
-          href="/releases"
-          className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"
-        >
-          <span className="w-[7px] h-[7px] rounded-[4px] bg-[#0A7A53] dark:bg-[#2FB27A]" />
-          <span>v1.7.0</span>
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="lg-chip" role="group" aria-label="Langues">
+            <button
+              type="button"
+              className={locale === "fr" ? "on" : ""}
+              onClick={() => changeLocale("fr")}
+              aria-pressed={locale === "fr"}
+              lang="fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              className={locale === "ar" ? "on" : ""}
+              onClick={() => changeLocale("ar")}
+              aria-pressed={locale === "ar"}
+              lang="ar"
+            >
+              العربية
+            </button>
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => changeLocale("en")}
+              aria-pressed={locale === "en"}
+              lang="en"
+            >
+              EN
+            </button>
+          </div>
+          <Link
+            href="/releases"
+            className="h-[34px] px-3 rounded-[17px] bg-[#E2F1E8] dark:bg-[#173A2D] flex items-center gap-1.5 text-[#06402C] dark:text-[#BFEBD6] text-[13px] font-extrabold no-underline"
+          >
+            <span className="w-[7px] h-[7px] rounded-[4px] bg-[#0A7A53] dark:bg-[#2FB27A]" />
+            <span>v1.7.0</span>
+          </Link>
+        </div>
       </header>
 
       {/* Main Container */}

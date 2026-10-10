@@ -11,7 +11,7 @@ import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
 import { startGuestSession } from "@/lib/guestSession";
 import { shouldShowDiscoveryWelcome } from "@/lib/guestWelcome";
-import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
+import { getBrowserLocalePreference, setAppLocale } from "@/components/i18n/LanguagePreferenceGate";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 
 declare global {
@@ -470,11 +470,21 @@ export default function RegisterPage() {
   const allowRecaptchaBypass = isDev && !recaptchaSiteKey;
 
   useEffect(() => {
-    setLocale(getBrowserLocalePreference() ?? "fr");
-    const syncLocale = () => setLocale(getBrowserLocalePreference() ?? "fr");
-    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
-    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale);
+    const initial = getBrowserLocalePreference() ?? "fr";
+    setLocale(initial);
+    const syncLocale = (event?: Event) => {
+      const customEvent = event as CustomEvent<{ locale?: FloussyLocale }> | undefined;
+      const next = customEvent?.detail?.locale || getBrowserLocalePreference() || "fr";
+      setLocale(next);
+    };
+    window.addEventListener(LANGUAGE_CHANGED_EVENT, syncLocale as EventListener);
+    return () => window.removeEventListener(LANGUAGE_CHANGED_EVENT, syncLocale as EventListener);
   }, []);
+
+  const changeLocale = (next: FloussyLocale) => {
+    setLocale(next);
+    setAppLocale(next);
+  };
 
   useEffect(() => {
     fetchMe().then(setUser).catch(() => setUser(null));
@@ -811,9 +821,40 @@ export default function RegisterPage() {
             <circle cx="1273" cy="1316" r="45" fill="#43B95E" />
           </svg>
         </Link>
-        <Link className="pw-pill" href="/login">
-          {t.login}
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="lg-chip" role="group" aria-label="Langues">
+            <button
+              type="button"
+              className={locale === "fr" ? "on" : ""}
+              onClick={() => changeLocale("fr")}
+              aria-pressed={locale === "fr"}
+              lang="fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              className={locale === "ar" ? "on" : ""}
+              onClick={() => changeLocale("ar")}
+              aria-pressed={locale === "ar"}
+              lang="ar"
+            >
+              العربية
+            </button>
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => changeLocale("en")}
+              aria-pressed={locale === "en"}
+              lang="en"
+            >
+              EN
+            </button>
+          </div>
+          <Link className="pw-pill" href="/login">
+            {t.login}
+          </Link>
+        </div>
       </div>
 
       {/* Desktop Top Header */}
@@ -851,12 +892,43 @@ export default function RegisterPage() {
             <circle cx="1273" cy="1316" r="45" fill="#43B95E" />
           </svg>
         </Link>
-        <span style={{ fontSize: "15px", color: "#55645D" }}>
-          {t.alreadyRegistered}{" "}
-          <Link href="/login" style={{ fontWeight: 800 }}>
-            {t.login}
-          </Link>
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div className="lg-chip" role="group" aria-label="Langues">
+            <button
+              type="button"
+              className={locale === "fr" ? "on" : ""}
+              onClick={() => changeLocale("fr")}
+              aria-pressed={locale === "fr"}
+              lang="fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              className={locale === "ar" ? "on" : ""}
+              onClick={() => changeLocale("ar")}
+              aria-pressed={locale === "ar"}
+              lang="ar"
+            >
+              العربية
+            </button>
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => changeLocale("en")}
+              aria-pressed={locale === "en"}
+              lang="en"
+            >
+              EN
+            </button>
+          </div>
+          <span style={{ fontSize: "15px", color: "#55645D" }}>
+            {t.alreadyRegistered}{" "}
+            <Link href="/login" style={{ fontWeight: 800 }}>
+              {t.login}
+            </Link>
+          </span>
+        </div>
       </header>
 
       {/* Main Body */}
