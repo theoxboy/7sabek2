@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
-import { Cairo, Geist, Geist_Mono, Manrope } from "next/font/google";
+import { Cairo, Fraunces, Geist, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/Toaster";
 import { GlobalMessageLayer } from "@/components/announcements/GlobalMessageLayer";
@@ -18,6 +18,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["600", "700"],
 });
 
 const cairo = Cairo({
@@ -87,7 +93,7 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${cairo.className} ${cairo.variable} antialiased`}
+        className={`${cairo.className} ${cairo.variable} ${fraunces.variable} antialiased`}
         style={{ fontFamily: '"Cairo", var(--font-cairo), sans-serif' }}
       >
         <MicrosoftClarity />

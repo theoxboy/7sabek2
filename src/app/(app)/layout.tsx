@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Cairo, Fraunces, Manrope } from "next/font/google";
+import { Cairo } from "next/font/google";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -365,18 +365,6 @@ const APP_MODAL_COPY = {
     superadminOnly: string;
   }
 >;
-
-const displayFont = Fraunces({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-  variable: "--font-fraunces",
-});
-
-const bodyFont = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-manrope",
-});
 
 const arabicFont = Cairo({
   subsets: ["arabic", "latin"],

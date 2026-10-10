@@ -23,7 +23,6 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { Cairo, Fraunces, Manrope } from "next/font/google";
 
 import { apiFetch, resetAuthClientState } from "@/lib/api";
 import { fetchMe, logout, refreshAuthSession, markAuthSessionHint, type AuthUser } from "@/lib/auth";
@@ -62,8 +61,6 @@ declare global {
     onRecaptchaV2Loaded?: () => void;
   }
 }
-
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
 
 const DEFAULT_SWEEP_INTERVAL_DAYS = 7;
 type CurrencyCode = "MAD" | "DZD" | "TND" | "EGP";
@@ -607,8 +604,8 @@ export default function RegisterPage() {
   const appVersionLabel = getAppVersionLabel();
   const countryLabels = COUNTRY_LABELS[locale];
   const pageDir = getLocaleDirection(locale);
-  const pageFontClass = `${arabicFont.className} ${locale === "ar" ? "register-arabic-font" : ""}`;
-  const headingClass = arabicFont.className;
+  const pageFontClass = locale === "ar" ? "register-arabic-font" : "";
+  const headingClass = locale === "ar" ? "register-arabic-font" : "";
   const copyClass = locale === "ar" ? "register-copy" : "";
 
   const [guestLoading, setGuestLoading] = useState(false);
