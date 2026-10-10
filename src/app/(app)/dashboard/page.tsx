@@ -73,12 +73,12 @@ const cairo = Cairo({
 });
 
 const formatMoney = (value: string | number | undefined) => {
-  if (value === undefined || value === null) return "0.00";
+  if (value === undefined || value === null) return "0";
   const num = typeof value === "number" ? value : parseFloat(String(value));
-  if (isNaN(num)) return "0.00";
+  if (isNaN(num)) return "0";
   return Math.round(num)
     .toLocaleString("fr-FR")
-    .replace(/ | /g, " ");
+    .replace(/[\u202F\s]/g, "\u00A0");
 };
 
 const getLocalTodayISO = () => {
@@ -2536,10 +2536,10 @@ function DashboardContent() {
                 }}
               >
                 {[
-                  { id: "7", label: locale === "ar" ? "7 أيام" : "7 jours" },
-                  { id: "30", label: locale === "ar" ? "30 يوم" : "30 jours" },
-                  { id: "90", label: locale === "ar" ? "90 يوم" : "90 jours" },
-                  { id: "ytd", label: locale === "ar" ? "السنة" : "Année" },
+                  { id: "7", num: "7", unit: locale === "ar" ? "أيام" : "jours" },
+                  { id: "30", num: "30", unit: locale === "ar" ? "يوم" : "jours" },
+                  { id: "90", num: "90", unit: locale === "ar" ? "يوم" : "jours" },
+                  { id: "ytd", num: "", unit: locale === "ar" ? "السنة" : "Année" },
                 ].map((p) => {
                   const on = period === p.id;
                   return (
@@ -2562,9 +2562,21 @@ function DashboardContent() {
                         fontWeight: 700,
                         cursor: "pointer",
                         transition: "all 0.15s ease",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
                       }}
                     >
-                      {p.label}
+                      {p.num ? (
+                        <>
+                          <span dir="ltr" style={{ unicodeBidi: "isolate" }}>
+                            {p.num}
+                          </span>
+                          <span>{p.unit}</span>
+                        </>
+                      ) : (
+                        <span>{p.unit}</span>
+                      )}
                     </button>
                   );
                 })}
@@ -2624,14 +2636,19 @@ function DashboardContent() {
                     }}
                   >
                     <span
+                      dir="ltr"
                       style={{
                         fontSize: 52,
                         fontWeight: 800,
                         letterSpacing: -2,
                         lineHeight: 1,
+                        display: "inline-flex",
+                        alignItems: "baseline",
+                        gap: 8,
+                        unicodeBidi: "isolate",
                       }}
                     >
-                      {formatMoney(flexibleRemaining)}{" "}
+                      <span>{formatMoney(flexibleRemaining)}</span>
                       <span style={{ fontSize: 20, color: "#9FD8BE" }}>
                         {currency}
                       </span>
@@ -2644,11 +2661,26 @@ function DashboardContent() {
                         background: "rgba(255,255,255,0.12)",
                         fontSize: 14.5,
                         fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
-                      {locale === "ar"
-                        ? `${formatMoney(dailyAllowance)} ${currency} فالنهار · ${daysRemaining} أيام`
-                        : `${formatMoney(dailyAllowance)} ${currency} / jour · ${daysRemaining} jours`}
+                      {locale === "ar" ? (
+                        <>
+                          <span dir="ltr" style={{ unicodeBidi: "isolate" }}>
+                            {formatMoney(dailyAllowance)} {currency}
+                          </span>
+                          <span>فالنهار</span>
+                          <span style={{ opacity: 0.7 }}>·</span>
+                          <span dir="ltr" style={{ unicodeBidi: "isolate" }}>
+                            {daysRemaining}
+                          </span>
+                          <span>أيام</span>
+                        </>
+                      ) : (
+                        `${formatMoney(dailyAllowance)} ${currency} / jour · ${daysRemaining} jours`
+                      )}
                     </span>
                   </div>
 
@@ -2697,10 +2729,22 @@ function DashboardContent() {
                       }}
                     >
                       <span>
-                        <b style={{ color: "#FFFFFF" }}>{pctBudgetConsumed} %</b>{" "}
-                        {locale === "ar"
-                          ? "من الميزانية تستهلكات"
-                          : "du budget consommé"}
+                        <b
+                          dir="ltr"
+                          style={{
+                            color: "#FFFFFF",
+                            display: "inline-block",
+                            unicodeBidi: "isolate",
+                            marginInlineEnd: 4,
+                          }}
+                        >
+                          {pctBudgetConsumed} %
+                        </b>{" "}
+                        <span>
+                          {locale === "ar"
+                            ? "من الميزانية تستهلكات"
+                            : "du budget consommé"}
+                        </span>
                       </span>
                       <span>
                         <span
@@ -2714,10 +2758,22 @@ function DashboardContent() {
                             marginInlineEnd: 4,
                           }}
                         />
-                        <b style={{ color: "#FFFFFF" }}>{pctCycleElapsed} %</b>{" "}
-                        {locale === "ar"
-                          ? "من الوقت داز · راك في أمان"
-                          : "du cycle écoulé · tu es en avance"}
+                        <b
+                          dir="ltr"
+                          style={{
+                            color: "#FFFFFF",
+                            display: "inline-block",
+                            unicodeBidi: "isolate",
+                            marginInlineEnd: 4,
+                          }}
+                        >
+                          {pctCycleElapsed} %
+                        </b>{" "}
+                        <span>
+                          {locale === "ar"
+                            ? "من الوقت داز · راك في أمان"
+                            : "du cycle écoulé · tu es en avance"}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -2736,7 +2792,15 @@ function DashboardContent() {
                       <span style={{ fontSize: 12, color: "#9FD8BE" }}>
                         {locale === "ar" ? "كاش للتوزيع" : "Cash à répartir"}
                       </span>
-                      <b style={{ fontSize: 17, display: "block" }}>
+                      <b
+                        dir="ltr"
+                        style={{
+                          fontSize: 17,
+                          display: "block",
+                          unicodeBidi: "isolate",
+                          textAlign: isRTL ? "right" : "left",
+                        }}
+                      >
                         {formatMoney(data?.available_to_allocate)}
                       </b>
                     </div>
@@ -2744,7 +2808,15 @@ function DashboardContent() {
                       <span style={{ fontSize: 12, color: "#9FD8BE" }}>
                         {locale === "ar" ? "المصاريف" : "Dépenses"}
                       </span>
-                      <b style={{ fontSize: 17, display: "block" }}>
+                      <b
+                        dir="ltr"
+                        style={{
+                          fontSize: 17,
+                          display: "block",
+                          unicodeBidi: "isolate",
+                          textAlign: isRTL ? "right" : "left",
+                        }}
+                      >
                         {formatMoney(expenseTotal)}
                       </b>
                     </div>
@@ -2752,7 +2824,15 @@ function DashboardContent() {
                       <span style={{ fontSize: 12, color: "#9FD8BE" }}>
                         {locale === "ar" ? "المداخيل" : "Revenus"}
                       </span>
-                      <b style={{ fontSize: 17, display: "block" }}>
+                      <b
+                        dir="ltr"
+                        style={{
+                          fontSize: 17,
+                          display: "block",
+                          unicodeBidi: "isolate",
+                          textAlign: isRTL ? "right" : "left",
+                        }}
+                      >
                         {formatMoney(incomeTotal)}
                       </b>
                     </div>
@@ -2760,7 +2840,15 @@ function DashboardContent() {
                       <span style={{ fontSize: 12, color: "#9FD8BE" }}>
                         {locale === "ar" ? "الصافي" : "Net"}
                       </span>
-                      <b style={{ fontSize: 17, display: "block" }}>
+                      <b
+                        dir="ltr"
+                        style={{
+                          fontSize: 17,
+                          display: "block",
+                          unicodeBidi: "isolate",
+                          textAlign: isRTL ? "right" : "left",
+                        }}
+                      >
                         {netTotal >= 0 ? "+" : ""}
                         {formatMoney(netTotal)}
                       </b>
@@ -2785,14 +2873,26 @@ function DashboardContent() {
                     }}
                   >
                     <Sparkles size={18} color="#F2B544" />
-                    <span style={{ flex: 1 }}>
-                      {locale === "ar"
-                        ? `+${formatMoney(
-                            projectedSweepAmount
-                          )} ${currency} غتمشي لـ Tawfir مع نهاية الدورة`
-                        : `+${formatMoney(
-                            projectedSweepAmount
-                          )} ${currency} partiront vers Tawfir dans ${daysRemaining} jours`}
+                    <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {locale === "ar" ? (
+                        <>
+                          <span
+                            dir="ltr"
+                            style={{
+                              display: "inline-block",
+                              unicodeBidi: "isolate",
+                              fontWeight: 700,
+                            }}
+                          >
+                            +{formatMoney(projectedSweepAmount)} {currency}
+                          </span>
+                          <span>غتمشي لـ Tawfir مع نهاية الدورة</span>
+                        </>
+                      ) : (
+                        `+${formatMoney(
+                          projectedSweepAmount
+                        )} ${currency} partiront vers Tawfir dans ${daysRemaining} jours`
+                      )}
                     </span>
                     <span style={{ fontWeight: 800, textDecoration: "underline" }}>
                       {locale === "ar" ? "التفاصيل" : "Détails"}
