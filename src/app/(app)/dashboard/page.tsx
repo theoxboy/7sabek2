@@ -17,10 +17,12 @@ import {
   AlertTriangle,
   ArrowRight,
   Bell,
+  Calendar,
   Check,
   CheckCircle2,
   ChevronDown,
   CircleHelp,
+  Clock,
   Edit3,
   Flame,
   Globe,
@@ -111,6 +113,31 @@ const formatLocaleMonth = (isoDate: string, locale: FloussyLocale) => {
     locale === "ar" ? "ar-MA" : locale === "fr" ? "fr-FR" : "en-US",
     { month: "short" }
   );
+};
+
+const formatCycleDate = (isoDate: string, locale: FloussyLocale): string => {
+  if (!isoDate) return "";
+  const parts = isoDate.split("-");
+  if (parts.length < 3) return isoDate;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const d = new Date(year, month, day);
+  if (isNaN(d.getTime())) return isoDate;
+
+  if (locale === "ar") {
+    const arabicMonths = [
+      "يناير", "فبراير", "مارس", "أبريل", "ماي", "يونيو",
+      "يوليوز", "غشت", "شتنبر", "أكتوبر", "نونبر", "دجنبر"
+    ];
+    return `${day} ${arabicMonths[month] || ""}`;
+  }
+
+  const frenchMonths = [
+    "janv.", "févr.", "mars", "avr.", "mai", "juin",
+    "juil.", "août", "sept.", "oct.", "nov.", "déc."
+  ];
+  return `${day} ${frenchMonths[month] || ""}`;
 };
 
 const NOTIFICATION_STORAGE_KEY = "floussy.notifications.read.v1";
@@ -1928,15 +1955,113 @@ function DashboardContent() {
                 <h1 className="dsh-h1">
                   {locale === "ar" ? "لوحة القيادة" : "Dashboard"}
                 </h1>
-                <span style={{ fontSize: 14.5, color: "var(--dsh-muted)" }}>
-                  {isGuest
-                    ? locale === "ar"
+                {isGuest ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 13.5,
+                      color: "var(--dsh-muted)",
+                      marginTop: 4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: 6,
+                        background: "var(--dsh-warn-soft)",
+                        color: "var(--dsh-warn-ink)",
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}
+                    >
+                      {locale === "ar" ? "وضع الاكتشاف" : "Mode Découverte"}
+                    </span>
+                    {locale === "ar"
                       ? "جلسة استكشافية · البيانات محفوظة في هذا المتصفح"
-                      : "Session découverte · données dans ce navigateur"
-                    : locale === "ar"
-                    ? `دورة من ${cycleStart} إلى ${cycleEnd} · يوم ${daysElapsed} من ${totalCycleDays}`
-                    : `Cycle du ${cycleStart} au ${cycleEnd} · jour ${daysElapsed} sur ${totalCycleDays}`}
-                </span>
+                      : "Session découverte · données dans ce navigateur"}
+                  </span>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 8,
+                      marginTop: 6,
+                      fontSize: 13.5,
+                    }}
+                  >
+                    {/* Badge Titre Période */}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        padding: "3px 9px",
+                        borderRadius: 8,
+                        background: "var(--dsh-card)",
+                        border: "1px solid var(--dsh-line)",
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: "var(--dsh-ink)",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <Calendar size={13} style={{ color: "#0A7A53" }} />
+                      {locale === "ar" ? "دورة الصالير" : "Cycle de paie"}
+                    </span>
+
+                    {/* Plage de dates avec mois en clair */}
+                    <span
+                      dir="ltr"
+                      style={{
+                        unicodeBidi: "isolate",
+                        fontWeight: 700,
+                        color: "var(--dsh-ink)",
+                      }}
+                    >
+                      {formatCycleDate(cycleStart, locale)} – {formatCycleDate(cycleEnd, locale)}
+                    </span>
+
+                    {/* Jour actuel dans le cycle */}
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--dsh-muted)",
+                        fontSize: 13,
+                      }}
+                    >
+                      {locale === "ar"
+                        ? `(اليوم ${Math.min(totalCycleDays, Math.max(1, daysElapsed + 1))} من ${totalCycleDays})`
+                        : `(Jour ${Math.min(totalCycleDays, Math.max(1, daysElapsed + 1))} sur ${totalCycleDays})`}
+                    </span>
+
+                    <span style={{ color: "var(--dsh-line)", opacity: 0.8 }}>·</span>
+
+                    {/* Pill Décompte salaire mis en valeur */}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        padding: "3px 11px",
+                        borderRadius: 999,
+                        background: "var(--dsh-brand-soft)",
+                        color: "var(--dsh-brand-ink)",
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        boxShadow: "0 1px 4px rgba(10, 122, 83, 0.08)",
+                      }}
+                    >
+                      <Clock size={13} />
+                      {locale === "ar"
+                        ? `باقي ${daysRemaining} يوم حتى للصالير`
+                        : `${daysRemaining} jour${daysRemaining > 1 ? "s" : ""} restants avant la paie`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Sélecteur de période dynamique */}
