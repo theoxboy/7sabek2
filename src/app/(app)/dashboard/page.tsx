@@ -362,25 +362,22 @@ function DashboardContent() {
   }, []);
 
   // Compute date range for periods
+  // Compute date range for periods
   const computeDatesForPeriod = useCallback((p: "7" | "30" | "90" | "ytd") => {
     const today = getLocalTodayISO();
     const tomorrow = addDays(today, 1);
-    // "30" represents the user's active budget cycle, so let /dashboard resolve it directly
     if (p === "7") return { start: addDays(today, -7), end: tomorrow };
+    if (p === "30") return { start: addDays(today, -30), end: tomorrow };
     if (p === "90") return { start: addDays(today, -90), end: tomorrow };
     if (p === "ytd") return { start: startOfYear(today), end: tomorrow };
     return null;
   }, []);
 
-  // Fetch core data (with dynamic period filtering)
-  const loadData = useCallback(async (selectedPeriod: "7" | "30" | "90" | "ytd" = period) => {
+  // Fetch core data (cycle-level + initial batch of transactions)
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const range = computeDatesForPeriod(selectedPeriod);
-      const periodQuery = range ? `?start=${range.start}&end=${range.end}` : "";
-      const txQuery = range ? `/transactions${periodQuery}` : "/transactions?limit=25";
-
       const [
         dash,
         catsRes,
@@ -395,10 +392,10 @@ function DashboardContent() {
         streakRes,
         debtsRes,
       ] = await Promise.all([
-        fetchDashboard(periodQuery ? `/dashboard${periodQuery}` : "/dashboard"),
+        fetchDashboard("/dashboard"),
         apiFetch<CategoryOut[]>("/categories").catch(() => []),
         apiFetch<GoalOut[]>("/goals").catch(() => []),
-        apiFetch<TransactionOut[]>(txQuery).catch(() => []),
+        apiFetch<TransactionOut[]>("/transactions?limit=250").catch(() => []),
         apiFetch<SettingsResponse>("/users/me/settings").catch(() => null),
         apiFetch<DashboardAlertOut>("/dashboard/alerts").catch(() => null),
         apiFetch<IncomeReminderOut[]>("/income-reminders").catch(() => []),
@@ -446,7 +443,37 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [period, computeDatesForPeriod]);
+  }, []);
+
+  // Background fetch for extended range if needed (without triggering loading screen)
+  useEffect(() => {
+    if (period === "30" || period === "7") return;
+    const range = computeDatesForPeriod(period);
+    if (!range) return;
+    const oldestLoaded =
+      transactions.length > 0
+        ? String(transactions[transactions.length - 1].occurred_on)
+        : null;
+    if (oldestLoaded && oldestLoaded > range.start) {
+      apiFetch<TransactionOut[]>(
+        `/transactions?start=${range.start}&end=${range.end}&limit=500`
+      )
+        .then((extraTxs) => {
+          if (extraTxs && extraTxs.length > 0) {
+            setTransactions((prev) => {
+              const map = new Map(prev.map((t) => [t.id, t]));
+              for (const t of extraTxs) map.set(t.id, t);
+              return Array.from(map.values()).sort(
+                (a, b) =>
+                  new Date(String(b.occurred_on)).getTime() -
+                  new Date(String(a.occurred_on)).getTime()
+              );
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [period, transactions, computeDatesForPeriod]);
 
   useEffect(() => {
     loadData();
@@ -539,9 +566,49 @@ function DashboardContent() {
     Math.round((daysElapsed / totalCycleDays) * 100)
   );
 
-  const expenseTotal = Number(data?.period_expenses_mapped || 0);
-  const incomeTotal = Number(data?.period_income || 0);
-  const netTotal = Number(data?.period_net || 0);
+  // Dynamic in-memory filtering for instant 0ms period switching
+  const filteredTransactions = useMemo(() => {
+    if (period === "30") {
+      if (cycleStart && cycleEnd) {
+        const inCycle = transactions.filter(
+          (t) =>
+            String(t.occurred_on) >= cycleStart &&
+            String(t.occurred_on) <= cycleEnd
+        );
+        if (inCycle.length > 0) return inCycle;
+      }
+      return transactions;
+    }
+    const range = computeDatesForPeriod(period);
+    if (!range) return transactions;
+    return transactions.filter(
+      (t) =>
+        String(t.occurred_on) >= range.start && String(t.occurred_on) <= range.end
+    );
+  }, [transactions, period, cycleStart, cycleEnd, computeDatesForPeriod]);
+
+  // Recalculate period totals dynamically
+  const periodStats = useMemo(() => {
+    if (period === "30" && data) {
+      return {
+        expenses: Number(data.period_expenses_mapped || 0),
+        income: Number(data.period_income || 0),
+        net: Number(data.period_net || 0),
+      };
+    }
+    const expenses = filteredTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + Math.abs(parseFloat(String(t.amount || "0"))), 0);
+    const income = filteredTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + Math.abs(parseFloat(String(t.amount || "0"))), 0);
+    const net = income - expenses;
+    return { expenses, income, net };
+  }, [period, data, filteredTransactions]);
+
+  const expenseTotal = periodStats.expenses;
+  const incomeTotal = periodStats.income;
+  const netTotal = periodStats.net;
 
   // DEBT AND FIXED EXPENSE KEYWORDS (MULTILINGUAL: FR, AR, EN)
   const DEBT_KEYWORDS = useMemo(
@@ -985,20 +1052,41 @@ function DashboardContent() {
     return showAllEnvelopes ? list : list.slice(0, 5);
   }, [focusEnvelopes, envelopeFilter, showAllEnvelopes]);
 
-  // REAL DONUT DATA: from data.spending_by_envelope or fallback to envelopes list
+  // REAL DONUT DATA: from data.spending_by_envelope or fallback to envelopes list or filtered transactions
   const donutColors = ["#0A7A53", "#2457A6", "#C2410C", "#7C4DBA", "#C98A1A"];
   const donutData = useMemo(() => {
-    const rawItems = (data?.spending_by_envelope || []).map((se) => ({
-      name: localizeEnvelopeLabel(se.envelope_name, locale),
-      amount: Math.max(0, Number(se.total || 0)),
-    }));
+    let candidateList: { name: string; amount: number }[] = [];
 
-    let candidateList = rawItems.length > 0
-      ? rawItems
-      : focusEnvelopes.map((e) => ({
-          name: e.name,
-          amount: Math.max(0, e.spent),
-        }));
+    if (period === "30") {
+      const rawItems = (data?.spending_by_envelope || []).map((se) => ({
+        name: localizeEnvelopeLabel(se.envelope_name, locale),
+        amount: Math.max(0, Number(se.total || 0)),
+      }));
+
+      candidateList =
+        rawItems.length > 0
+          ? rawItems
+          : focusEnvelopes.map((e) => ({
+              name: e.name,
+              amount: Math.max(0, e.spent),
+            }));
+    } else {
+      const catTotals: Record<string, number> = {};
+      const catMap = new Map(categories.map((c) => [c.id, c.name]));
+      for (const tx of filteredTransactions) {
+        if (tx.type !== "expense") continue;
+        const name =
+          (tx.category_id && catMap.get(tx.category_id)) ||
+          tx.description ||
+          (locale === "ar" ? "أخرى" : "Autre");
+        const amt = Math.abs(parseFloat(String(tx.amount || "0")));
+        catTotals[name] = (catTotals[name] || 0) + amt;
+      }
+      candidateList = Object.entries(catTotals).map(([name, amount]) => ({
+        name: localizeEnvelopeLabel(name, locale),
+        amount,
+      }));
+    }
 
     if (!inclFixed) {
       candidateList = candidateList.filter((d) => {
@@ -1006,7 +1094,10 @@ function DashboardContent() {
         return (
           !lower.includes("loyer") &&
           !lower.includes("crédit") &&
-          !lower.includes("charges")
+          !lower.includes("charges") &&
+          !lower.includes("كراء") &&
+          !lower.includes("سكن") &&
+          !lower.includes("قرض")
         );
       });
     }
@@ -1018,7 +1109,15 @@ function DashboardContent() {
 
     // Real data only: return empty list if 0 spending recorded
     return sorted;
-  }, [data?.spending_by_envelope, focusEnvelopes, inclFixed, locale]);
+  }, [
+    period,
+    data?.spending_by_envelope,
+    focusEnvelopes,
+    filteredTransactions,
+    categories,
+    inclFixed,
+    locale,
+  ]);
 
   const donutTotal = useMemo(
     () => donutData.reduce((acc, d) => acc + d.amount, 0),
@@ -1402,7 +1501,7 @@ function DashboardContent() {
             variant: "success",
           });
           setOmarText("");
-          void loadData(period);
+          void loadData();
           return;
         } catch {}
       }
@@ -1425,7 +1524,7 @@ function DashboardContent() {
         toast({
           title: locale === "ar" ? "تم التراجع عن العملية" : "Opération annulée",
         });
-        void loadData(period);
+        void loadData();
       } catch {}
     }
     setOmarReply(null);
@@ -1474,7 +1573,7 @@ function DashboardContent() {
         variant: "success",
       });
       setExpressTxOpen(false);
-      void loadData(period);
+      void loadData();
     } catch {
       setExpressTxOpen(false);
       openQuickTx(expressTxType, { amount: amt.toString() });
@@ -2549,7 +2648,6 @@ function DashboardContent() {
                       aria-checked={on}
                       onClick={() => {
                         setPeriod(p.id as any);
-                        void loadData(p.id as any);
                       }}
                       style={{
                         height: 34,
@@ -3371,115 +3469,132 @@ function DashboardContent() {
                       </Link>
                     </div>
 
-                    {transactions.slice(0, 5).map((tx) => {
-                      const isIncome = tx.type === "income";
-                      const initials = (tx.description || "TX")
-                        .slice(0, 2)
-                        .toUpperCase();
+                    {filteredTransactions.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "20px 0",
+                          textAlign: "center",
+                          color: "var(--dsh-muted)",
+                          fontSize: 13,
+                        }}
+                      >
+                        {locale === "ar"
+                          ? "لا توجد أي عملية مسجلة فهاد الفترة."
+                          : "Aucune opération enregistrée sur cette période."}
+                      </div>
+                    ) : (
+                      filteredTransactions.slice(0, 5).map((tx) => {
+                        const isIncome = tx.type === "income";
+                        const initials = (tx.description || "TX")
+                          .slice(0, 2)
+                          .toUpperCase();
 
-                      return (
-                        <div
-                          key={tx.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                            padding: "9px 0",
-                            borderBottom: "1px solid var(--dsh-line)",
-                          }}
-                        >
-                          <span
+                        return (
+                          <div
+                            key={tx.id}
                             style={{
-                              width: 34,
-                              height: 34,
-                              flexShrink: 0,
-                              borderRadius: 10,
-                              background: isIncome
-                                ? "rgba(67, 56, 202, 0.12)"
-                                : "var(--dsh-soft)",
-                              color: isIncome ? "#4338CA" : "var(--dsh-ink)",
                               display: "flex",
                               alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 12,
-                              fontWeight: 800,
+                              gap: 12,
+                              padding: "9px 0",
+                              borderBottom: "1px solid var(--dsh-line)",
                             }}
                           >
-                            {initials}
-                          </span>
-
-                          <div
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              display: "flex",
-                              flexDirection: "column",
-                            }}
-                          >
-                            <b
-                              style={{
-                                fontSize: 14,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {tx.description}
-                            </b>
                             <span
                               style={{
+                                width: 34,
+                                height: 34,
+                                flexShrink: 0,
+                                borderRadius: 10,
+                                background: isIncome
+                                  ? "rgba(67, 56, 202, 0.12)"
+                                  : "var(--dsh-soft)",
+                                color: isIncome ? "#4338CA" : "var(--dsh-ink)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
                                 fontSize: 12,
-                                color: "var(--dsh-muted)",
+                                fontWeight: 800,
                               }}
                             >
-                              {tx.occurred_on}
+                              {initials}
                             </span>
+
+                            <div
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                              }}
+                            >
+                              <b
+                                style={{
+                                  fontSize: 14,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {tx.description}
+                              </b>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "var(--dsh-muted)",
+                                }}
+                              >
+                                {tx.occurred_on}
+                              </span>
+                            </div>
+
+                            <b
+                              dir="ltr"
+                              style={{
+                                fontSize: 14.5,
+                                color: isIncome ? "#0A7A53" : "var(--dsh-ink)",
+                                unicodeBidi: "isolate",
+                              }}
+                            >
+                              {isIncome ? "+" : "−"}
+                              {formatMoney(tx.amount)} {currency}
+                            </b>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isIncome) {
+                                  toast({
+                                    title: locale === "ar" ? "عملية دخل" : "Revenu déjà réparti",
+                                    description:
+                                      locale === "ar"
+                                        ? "مداخيل موزعة مسبقاً على الأظرفة ولا يمكن تعديلها مباشرة."
+                                        : "Les revenus sont déjà répartis dans les enveloppes et ne peuvent pas être modifiés directement.",
+                                  });
+                                  return;
+                                }
+                                router.push(`/transactions?tx_id=${tx.id}&history_open=true`);
+                              }}
+                              aria-label="Modifier"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                border: 0,
+                                borderRadius: 8,
+                                background: "transparent",
+                                color: "var(--dsh-muted)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Edit3 size={15} />
+                            </button>
                           </div>
-
-                          <b
-                            style={{
-                              fontSize: 14.5,
-                              color: isIncome ? "#0A7A53" : "var(--dsh-ink)",
-                            }}
-                          >
-                            {isIncome ? "+" : "−"}
-                            {formatMoney(tx.amount)} {currency}
-                          </b>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (isIncome) {
-                                toast({
-                                  title: locale === "ar" ? "عملية دخل" : "Revenu déjà réparti",
-                                  description:
-                                    locale === "ar"
-                                      ? "مداخيل موزعة مسبقاً على الأظرفة ولا يمكن تعديلها مباشرة."
-                                      : "Les revenus sont déjà répartis dans les enveloppes et ne peuvent pas être modifiés directement.",
-                                });
-                                return;
-                              }
-                              router.push(`/transactions?tx_id=${tx.id}&history_open=true`);
-                            }}
-                            aria-label="Modifier"
-                            style={{
-                              width: 32,
-                              height: 32,
-                              border: 0,
-                              borderRadius: 8,
-                              background: "transparent",
-                              color: "var(--dsh-muted)",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <Edit3 size={15} />
-                          </button>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
 
                   {/* Nudge Invité ou Conseil Ba Omar */}
