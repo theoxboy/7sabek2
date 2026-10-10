@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Cairo } from "next/font/google";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -55,11 +54,11 @@ const writeRegulationIntroSeen = () => {
     // Ignore storage write failures.
   }
 };
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const cairo = {
+  className: "font-cairo",
   variable: "--font-cairo",
-});
+  style: { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' },
+};
 
 const REGULATION_COPY: Record<
   FloussyLocale,

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, Eye, EyeOff, Fingerprint, Home } from "lucide-react";
-import { Cairo } from "next/font/google";
 import { startAuthentication } from "@simplewebauthn/browser";
 
 import { API_BASE, apiFetch, resetAuthClientState } from "@/lib/api";
@@ -28,7 +27,7 @@ import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { getAppVersionLabel } from "@/lib/app-version";
 import { getRandomLoginFact, LOGIN_FACTS } from "@/lib/facts-quotes";
 
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700"] });
+const arabicFont = { className: "font-cairo", variable: "--font-cairo" };
 
 type LoginGeoPayload = {
   geo_lat: number;

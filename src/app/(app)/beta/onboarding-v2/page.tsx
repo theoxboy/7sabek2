@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Cairo } from "next/font/google";
 import { getLocaleDirection, type FloussyLocale } from "@/lib/localePreference";
 import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { getBrowserLocalePreference } from "@/components/i18n/LanguagePreferenceGate";
@@ -151,11 +150,11 @@ const MONEY_PLAN_QUESTION_IDS = new Set([
   "E11b_distribution_setup",
   "E12_smart_settings",
 ]);
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const cairo = {
+  className: "font-cairo",
   variable: "--font-cairo",
-});
+  style: { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' },
+};
 
 type QuestionKind =
   | "single"

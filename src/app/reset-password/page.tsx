@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Cairo, Manrope } from "next/font/google";
-
 import { confirmPasswordReset, getPasswordResetTokenInfo } from "@/lib/auth";
 import { useAppLocale, useForceArabicDocumentFont } from "@/lib/appLocale";
 import type { FloussyLocale } from "@/lib/localePreference";
@@ -14,8 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import BrandLogo from "@/components/BrandLogo";
 
-const bodyFont = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
+const arabicFont = { className: "font-cairo", variable: "--font-cairo" };
 
 const COPY: Record<
   FloussyLocale,

@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Cairo } from "next/font/google";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -366,11 +365,11 @@ const APP_MODAL_COPY = {
   }
 >;
 
-const arabicFont = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const arabicFont = {
+  className: "font-cairo",
   variable: "--font-cairo",
-});
+  style: { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' },
+};
 
 function UserSummaryCard({
   initials,

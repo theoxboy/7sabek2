@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Cairo } from "next/font/google";
 import { ArrowLeft, Home, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { requestPasswordReset } from "@/lib/auth";
@@ -15,7 +14,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import BrandLogo from "@/components/BrandLogo";
 
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
+const arabicFont = { className: "font-cairo", variable: "--font-cairo" };
 
 const COPY: Record<
   FloussyLocale,

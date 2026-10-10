@@ -115,6 +115,14 @@ a svg {
 
 /* reCAPTCHA v2 checkbox — no badge hiding needed */
 
+.font-cairo {
+  font-family: var(--font-cairo), "Cairo", system-ui, sans-serif !important;
+}
+
+.font-manrope {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+}
+
 .app-display-font {
   font-family: var(--font-cairo), "Cairo", system-ui, sans-serif !important;
   letter-spacing: -0.015em;

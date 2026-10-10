@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Cairo } from "next/font/google";
 import {
   KeyRound,
   ArrowRight,
@@ -38,7 +37,11 @@ import { GuestClaimDialog } from "@/components/guest/GuestGate";
 import { Button } from "@/components/ui/Button";
 import BrandLogo from "@/components/BrandLogo";
 
-const arabicFont = Cairo({ subsets: ["arabic", "latin"], weight: ["400", "500", "600", "700", "800"] });
+const arabicFont = {
+  className: "font-cairo",
+  variable: "--font-cairo",
+  style: { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' },
+};
 
 const STEP_ICONS = [Sparkles, Layers, Coins, Wallet, KeyRound];
 const STEP_KEY = "7sabek.guest.decouverte_step";

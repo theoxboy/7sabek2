@@ -12,7 +12,6 @@ import React, {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Cairo } from "next/font/google";
 import {
   AlertTriangle,
   ArrowRight,
@@ -68,11 +67,11 @@ import { localizeEnvelopeLabel } from "@/lib/envelopeLocalization";
 import { addDays, startOfYear } from "@/lib/reports/compute";
 import { isFixedMode, isPercentMode, type DistributionRule } from "@/lib/distribution";
 
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const cairo = {
+  className: "font-cairo",
   variable: "--font-cairo",
-});
+  style: { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' },
+};
 
 const formatMoney = (value: string | number | undefined) => {
   if (value === undefined || value === null) return "0";

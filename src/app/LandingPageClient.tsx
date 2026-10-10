@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Cairo, Manrope } from "next/font/google";
 
 import { resetAuthClientState } from "@/lib/api";
 import { fetchMe, hasAuthSessionHint, logout, markAuthSessionHint, type AuthUser } from "@/lib/auth";
@@ -19,17 +18,17 @@ import {
   type FloussyLocale,
 } from "@/lib/localePreference";
 
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
+const cairo = {
+  className: "font-cairo",
+  variable: "--font-cairo",
+  style: { fontFamily: 'var(--font-cairo), "Cairo", sans-serif' },
+};
 
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
+const manrope = {
+  className: "font-manrope",
+  variable: "--font-manrope",
+  style: { fontFamily: 'var(--font-manrope), "Manrope", sans-serif' },
+};
 
 const LANGUAGE_CHANGED_EVENT = "floussy:locale-changed";
 
