@@ -41,6 +41,7 @@ import { getVisibleAnnouncements } from "@/lib/announcementVisibility";
 import { SystemMessageCard } from "@/components/announcements/SystemMessageCard";
 import BrandLogo from "@/components/BrandLogo";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppTopHeader } from "@/components/layout/AppTopHeader";
 import { GuestGateBanner } from "@/components/guest/GuestGate";
 import { GuestAccountPanel, GuestModeChip, GuestProtectionPill } from "@/components/guest/GuestAccountPanel";
 import { GuestDistributionCard } from "@/components/guest/GuestDistributionCard";
@@ -2092,20 +2093,32 @@ function AppLayoutContent({
             onToggleCollapse={toggleSidebarCollapsed}
           />
 
-          {/* Contenu principal adapté (plein écran pour le dashboard) */}
+          {/* Contenu principal adapté avec Top Header unifié */}
           {(() => {
             const isDashboardPage = pathname === "/dashboard" || pathname === "/dashboard/";
             return (
               <div
                 className={`sb-main-island ${
                   sidebarCollapsed ? "closed" : ""
-                } min-h-screen ${
-                  isDashboardPage
-                    ? "p-0 overflow-x-hidden"
-                    : "px-4 pb-12 pt-4 sm:px-6 lg:px-8"
-                }`}
+                } min-h-screen p-0 overflow-x-hidden`}
               >
-                <div className={isDashboardPage ? "w-full" : "mx-auto w-full max-w-[1240px]"}>
+                {/* Global App Top Header (Ba Omar, Streak, Notifications, + Ajouter [N], [O]) */}
+                <AppTopHeader
+                  user={user}
+                  locale={locale}
+                  streakDays={streakDays}
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  readNotificationIds={readNotificationIds}
+                  markAllNotificationsRead={markAllNotificationsRead}
+                  markNotificationRead={markNotificationRead}
+                  onOpenMobileNav={() => {
+                    tourForcedNavRef.current = false;
+                    setMobileNavOpen(true);
+                  }}
+                />
+
+                <div className={isDashboardPage ? "w-full" : "mx-auto w-full max-w-[1240px] px-4 pb-12 pt-4 sm:px-6 lg:px-8"}>
                   {user?.role === "superadmin" && actAsId ? (
                     <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
                       <span className="flex items-center gap-2">
@@ -2154,236 +2167,31 @@ function AppLayoutContent({
                     </div>
                   ) : null}
                   {!isDashboardPage && (
-                    <div className="floussy-topbar-wrap">
-                <div className="floussy-topbar">
-                  <div className="floussy-topbar__left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="lg:hidden"
-                      onClick={() => {
-                        tourForcedNavRef.current = false;
-                        setMobileNavOpen(true);
-                      }}
-                      aria-label={shellCopy.openMenu}
-                    >
-                      <Menu className="h-5 w-5" aria-hidden />
-                    </Button>
-                    {user?.is_guest ? (
-                      <>
-                        <GuestModeChip locale={locale} dir={pageDir} />
-                        <GuestProtectionPill user={user} locale={locale} />
-                      </>
-                    ) : null}
-                  </div>
-                  <div className="floussy-topbar__right">
-                    {!user?.is_guest && typeof streakDays === "number" ? (
-                      <Link
-                        href="/gamification"
-                        className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:border-amber-300 hover:bg-amber-100"
-                        title="Voir le ranking"
-                      >
-                        <Flame className="h-4 w-4" />
-                        <span>{streakDays}</span>
-                      </Link>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={openLanguagePicker}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] shadow-sm transition hover:border-emerald-200 hover:text-emerald-600"
-                      aria-label={shellCopy.language}
-                      title={shellCopy.language}
-                    >
-                      <Globe className="h-4 w-4" />
-                    </button>
-                    {/* Notifications are hidden for guests — no bell, no drawer. */}
-                    {!user?.is_guest && (!hydrated ? (
-                      <button
-                        type="button"
-                        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] shadow-sm transition hover:border-emerald-200 hover:text-emerald-600"
-                        aria-label={shellCopy.notifications}
-                      >
-                        <Bell className="h-4 w-4" />
-                        {unreadCount > 0 ? (
-                          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-semibold text-white shadow">
-                            {unreadCount > 9 ? "9+" : unreadCount}
-                          </span>
-                        ) : null}
-                      </button>
-                    ) : (
-                      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] shadow-sm transition hover:border-emerald-200 hover:text-emerald-600"
-                            aria-label={shellCopy.notifications}
-                          >
-                            <Bell className="h-4 w-4" />
-                            {unreadCount > 0 ? (
-                              <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-semibold text-white shadow">
-                                {unreadCount > 9 ? "9+" : unreadCount}
-                              </span>
-                            ) : null}
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="end"
-                          sideOffset={12}
-                          className="w-[440px] rounded-3xl border border-[var(--border)] bg-[var(--surface-2)] p-0 text-[var(--ink)] shadow-2xl"
-                        >
-                        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--ink)]">
-                              {shellCopy.notifications}
-                            </p>
-                            <p className="text-xs text-[var(--muted)]">
-                              {notifications.length === 0
-                                ? shellCopy.noNotifications
-                                : shellCopy.unread(unreadCount)}
-                            </p>
-                          </div>
-                          {unreadCount > 0 ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={markAllNotificationsRead}
-                              className="h-7 px-2 text-xs"
-                            >
-                              <Check className="mr-1 h-3 w-3" />
-                              {shellCopy.markAllRead}
-                            </Button>
-                          ) : null}
-                        </div>
-                        <div className="max-h-[65vh] overflow-auto">
-                          {notifications.length === 0 ? (
-                            <div className="px-4 py-6 text-center text-sm text-[var(--muted)]">
-                              {shellCopy.budgetUpToDate}
-                            </div>
-                          ) : (
-                            notifications.map((item) => {
-                              const isUnread = !readNotificationIds.includes(item.id);
-                              const ToneIcon = item.icon;
-                              const rowClass = `group border-b border-[var(--border)] px-4 py-3 transition ${
-                                isUnread ? "bg-emerald-50/40" : "bg-[var(--surface)]"
-                              } hover:bg-emerald-50/60`;
-                              const content = (
-                                <div className="flex w-full items-start gap-3 text-left">
-                                  <span
-                                    className={`mt-2 h-2 w-2 rounded-full ${
-                                      isUnread ? "bg-emerald-500" : "bg-transparent"
-                                    }`}
-                                  />
-                                  <span
-                                    className={`flex h-10 w-10 items-center justify-center rounded-2xl ${NOTIFICATION_TONE_STYLES[item.tone]}`}
-                                  >
-                                    <ToneIcon className="h-5 w-5" />
-                                  </span>
-                                  <div className="flex-1 text-left">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-sm font-medium text-[var(--ink)]">
-                                        {item.title}
-                                      </p>
-                                      {item.meta ? (
-                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-                                          {item.meta}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <p className="text-xs text-[var(--muted)]">
-                                      {item.description}
-                                    </p>
-                                  </div>
-                                </div>
-                              );
-                              return (
-                                <div key={item.id} className={rowClass}>
-                                  {content}
-                                  <div className="mt-3 flex flex-wrap justify-end gap-2">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      className="h-8 rounded-xl px-3 text-xs"
-                                      onClick={() => {
-                                        markNotificationRead(item.id);
-                                        setNotificationsOpen(false);
-                                        if (item.onSelect) {
-                                          item.onSelect();
-                                          return;
-                                        }
-                                        router.push(item.href);
-                                      }}
-                                    >
-                                      {shellCopy.fixNow}
-                                    </Button>
-                                    {item.dismissible ? (
-                                      <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        className="h-8 rounded-xl px-3 text-xs"
-                                        onClick={(event) => {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          dismissNotificationAsNormal(item.id);
-                                        }}
-                                      >
-                                        {shellCopy.markNormal}
-                                      </Button>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                        {notifications.length > 0 ? (
-                          <div className="border-t border-[var(--border)] px-4 py-2 text-[10px] text-[var(--muted)] text-center">
-                            {shellCopy.notificationsFooter}
-                          </div>
-                        ) : null}
-                        <div className="border-t border-[var(--border)]/60 px-4 py-3 bg-[var(--surface-2)]/35 flex justify-center rounded-b-3xl">
-                          <Link
-                            href="/notifications"
-                            onClick={() => setNotificationsOpen(false)}
-                            className="inline-flex items-center justify-center gap-1.5 text-xs font-black text-emerald-600 hover:text-emerald-700 hover:underline active:scale-95 transition-all"
-                          >
-                            <Bell className="w-3.5 h-3.5" />
-                            <span>{shellCopy.betaNotificationsLink}</span>
-                          </Link>
-                        </div>
-                        </PopoverContent>
-                      </Popover>
-                    ))}
-                  </div>
+                    <GuestGateBanner
+                      isGuest={Boolean(user?.is_guest)}
+                      pathname={pathname}
+                      locale={locale}
+                      dir={pageDir}
+                    />
+                  )}
+                  {user?.is_guest && pathname?.startsWith("/settings") ? (
+                    <div className="mx-auto mb-4 w-full max-w-3xl px-1">
+                      <GuestAccountPanel user={user} locale={locale} dir={pageDir} />
+                    </div>
+                  ) : null}
+                  {!isDashboardPage && user?.is_guest && pathname?.startsWith("/dashboard") ? (
+                    <GuestDistributionCard locale={locale} dir={pageDir} />
+                  ) : null}
+                  {!isDashboardPage &&
+                  !user?.is_guest &&
+                  user?.claimed_at &&
+                  !user?.first_name &&
+                  pathname?.startsWith("/dashboard") ? (
+                    <GuestClaimedProfileCard user={user} locale={locale} dir={pageDir} />
+                  ) : null}
+                  {renderChildren()}
                 </div>
               </div>
-              )}
-              {!isDashboardPage && (
-                <GuestGateBanner
-                  isGuest={Boolean(user?.is_guest)}
-                  pathname={pathname}
-                  locale={locale}
-                  dir={pageDir}
-                />
-              )}
-              {user?.is_guest && pathname?.startsWith("/settings") ? (
-                <div className="mx-auto mb-4 w-full max-w-3xl px-1">
-                  <GuestAccountPanel user={user} locale={locale} dir={pageDir} />
-                </div>
-              ) : null}
-              {!isDashboardPage && user?.is_guest && pathname?.startsWith("/dashboard") ? (
-                <GuestDistributionCard locale={locale} dir={pageDir} />
-              ) : null}
-              {!isDashboardPage &&
-              !user?.is_guest &&
-              user?.claimed_at &&
-              !user?.first_name &&
-              pathname?.startsWith("/dashboard") ? (
-                <GuestClaimedProfileCard user={user} locale={locale} dir={pageDir} />
-              ) : null}
-              {renderChildren()}
-            </div>
-          </div>
             );
           })()}
 
