@@ -110,6 +110,11 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
 
   // Audio / Speech refs
+  const transcriptRef = useRef("");
+  const interimTextRef = useRef("");
+  transcriptRef.current = transcript;
+  interimTextRef.current = interimText;
+
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -168,6 +173,15 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       try {
         mediaRecorderRef.current.stop();
@@ -179,20 +193,14 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
       } catch {}
       mediaStreamRef.current = null;
     }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-    }
   }, []);
 
   // Process text through NLP
   const processQuery = useCallback(
-    async (textToAnalyze: string) => {
+    async (textToAnalyze: string): Promise<boolean> => {
       const query = textToAnalyze.trim();
       if (!query) {
-        setStep("error");
-        return;
+        return false;
       }
 
       setStep("think");
@@ -226,6 +234,7 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
             : parsedFallbackAmt;
 
         if (effectiveAmt !== null && effectiveAmt > 0) {
+          setTranscript(query);
           setPrediction({
             ...res,
             amount: effectiveAmt,
@@ -247,44 +256,162 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
 
           setSelectedCategoryName(matchedCatName);
           setStep("result");
+          return true;
         } else {
-          setStep("error");
+          return false;
         }
       } catch (err) {
         console.error("NLP error in voice modal:", err);
-        setStep("error");
+        return false;
       }
     },
     [allExpenseCategories, getActiveCategoryByName, getFallbackCategory, stopAudio]
   );
 
-  // Start speech recognition
-  const startListening = useCallback(() => {
+  // Finish audio recording and analyze with AI
+  const finishRecordingAndAnalyze = useCallback(async () => {
+    const finalAccumulatedText = `${transcriptRef.current} ${interimTextRef.current}`.trim();
+    stopAudio();
+    setStep("think");
+
+    // 1. Try recognized text from SpeechRecognition first
+    if (finalAccumulatedText.length >= 3) {
+      const ok = await processQuery(finalAccumulatedText);
+      if (ok) return;
+    }
+
+    // 2. Fallback to sending recorded audio blob to backend /nlp/predict-audio
+    const chunks = audioChunksRef.current;
+    if (chunks.length > 0) {
+      try {
+        let mimeType = "audio/webm";
+        if (mediaRecorderRef.current?.mimeType) {
+          mimeType = mediaRecorderRef.current.mimeType;
+        }
+        const audioBlob = new Blob(chunks, { type: mimeType });
+        const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+        const formData = new FormData();
+        formData.append("file", audioBlob, `voice_note.${ext}`);
+        const availableCategories = allExpenseCategories.map((c) => c.name);
+        formData.append("available_categories", JSON.stringify(availableCategories));
+
+        const res = await apiFetch<{
+          transcript: string;
+          amount: number | null;
+          date: string | null;
+          description: string;
+          category: string | null;
+          needs_disambiguation: boolean;
+          suggested_categories: string[];
+        }>("/nlp/predict-audio", {
+          method: "POST",
+          body: formData,
+          timeoutMs: 40000,
+        });
+
+        if (res.amount !== null && res.amount !== undefined && res.amount > 0) {
+          setTranscript(res.transcript || res.description);
+          setPrediction(res);
+          let matchedCatName = res.category;
+          if (!matchedCatName && res.suggested_categories?.length > 0) {
+            const firstValid = res.suggested_categories.find((c) =>
+              Boolean(getActiveCategoryByName(c))
+            );
+            if (firstValid) matchedCatName = firstValid;
+          }
+          if (!matchedCatName) {
+            matchedCatName = getFallbackCategory()?.name || null;
+          }
+          setSelectedCategoryName(matchedCatName);
+          setStep("result");
+          return;
+        }
+      } catch (err) {
+        console.warn("predict-audio fallback error:", err);
+      }
+    }
+
+    // 3. If neither recognized an expense, show error step
+    setStep("error");
+  }, [allExpenseCategories, getActiveCategoryByName, getFallbackCategory, processQuery, stopAudio]);
+
+  // Start listening (requests microphone permission explicitly)
+  const startListening = useCallback(async () => {
     stopAudio();
     setStep("listen");
     setSeconds(0);
     setTranscript("");
     setInterimText("");
+    transcriptRef.current = "";
+    interimTextRef.current = "";
     setPrediction(null);
     setSelectedCategoryName(null);
+    audioChunksRef.current = [];
 
-    // Timer
+    // Always request microphone access via getUserMedia first.
+    // This triggers the native browser dialog ("Allow 7sabek.ma to use your microphone").
+    let stream: MediaStream | null = null;
+    try {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+      } else {
+        throw new Error("getUserMedia non supporté");
+      }
+    } catch (err: any) {
+      console.warn("Microphone access denied or error:", err);
+      toast({
+        title: locale === "ar" ? "⚠️ الميكروفون غير مفعل" : "⚠️ Microphone non autorisé",
+        description:
+          locale === "ar"
+            ? "يرجى الضغط على أيقونة القفل أو الميكروفون في شريط المتصفح وتفعيل الميكروفون."
+            : "Veuillez autoriser l'accès au microphone dans la barre d'adresse de votre navigateur.",
+        variant: "danger",
+      });
+      setStep("error");
+      return;
+    }
+
+    // Start UI timer
     timerIntervalRef.current = setInterval(() => {
       setSeconds((prev) => prev + 1);
     }, 1000);
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+    // Initialize MediaRecorder to capture audio chunks
+    try {
+      let mimeType = "audio/webm";
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          mimeType = "audio/webm;codecs=opus";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        }
+      }
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+      recorder.start(250);
+    } catch (recorderErr) {
+      console.warn("MediaRecorder start notice:", recorderErr);
+    }
 
-    const langCode =
-      spokenLang === "darija" ? "ar-MA" : spokenLang === "fr" ? "fr-FR" : "ar-SA";
+    // Parallel Web Speech recognition if supported for live word-by-word streaming
+    try {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognition) {
-      try {
+      const langCode =
+        spokenLang === "darija" ? "ar-MA" : spokenLang === "fr" ? "fr-FR" : "ar-SA";
+
+      if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = langCode;
 
@@ -300,138 +427,44 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
             }
           }
           if (currentFinal) {
-            setTranscript((prev) => (prev ? `${prev} ${currentFinal}` : currentFinal));
+            setTranscript((prev) => {
+              const updated = prev ? `${prev} ${currentFinal}` : currentFinal;
+              transcriptRef.current = updated;
+              return updated;
+            });
             setInterimText("");
+            interimTextRef.current = "";
           } else {
             setInterimText(currentInterim);
+            interimTextRef.current = currentInterim;
           }
         };
 
         recognition.onerror = (e: any) => {
-          console.warn("Voice modal speech recognition error:", e.error);
-          if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-            toast({
-              title: locale === "ar" ? "⚠️ الميكروفون محظور" : "⚠️ Microphone bloqué",
-              description:
-                locale === "ar"
-                  ? "يرجى تفعيل الميكروفون في إعدادات المتصفح."
-                  : "Veuillez autoriser l'accès au microphone dans votre navigateur.",
-              variant: "danger",
-            });
-            setStep("error");
-          }
+          // Do not interrupt the UI if Web Speech API errors; MediaRecorder is recording.
+          console.warn("SpeechRecognition notice:", e.error);
         };
 
-        recognition.onend = () => {
-          // If text was accumulated, finalize
-          setTranscript((curr) => {
-            const finalQuery = curr.trim() || interimText.trim();
-            if (finalQuery) {
-              processQuery(finalQuery);
-            }
-            return curr;
-          });
-        };
+        recognition.onend = () => {};
 
         recognition.start();
-        return;
-      } catch (err) {
-        console.warn("SpeechRecognition init failed, falling back to MediaRecorder:", err);
       }
+    } catch (recErr) {
+      console.warn("SpeechRecognition start notice:", recErr);
     }
+  }, [locale, spokenLang, stopAudio, toast]);
 
-    // MediaRecorder fallback
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          mediaStreamRef.current = stream;
-          audioChunksRef.current = [];
-
-          let mimeType = "audio/webm";
-          if (typeof MediaRecorder !== "undefined") {
-            if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-              mimeType = "audio/webm;codecs=opus";
-            } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-              mimeType = "audio/mp4";
-            }
-          }
-
-          const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-          mediaRecorderRef.current = recorder;
-
-          recorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-              audioChunksRef.current.push(e.data);
-            }
-          };
-
-          recorder.onstop = async () => {
-            const chunks = audioChunksRef.current;
-            if (chunks.length === 0) return;
-            const audioBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-
-            setStep("think");
-            try {
-              const formData = new FormData();
-              const ext = recorder.mimeType.includes("mp4") ? "mp4" : "webm";
-              formData.append("file", audioBlob, `voice_note.${ext}`);
-              const availableCategories = allExpenseCategories.map((c) => c.name);
-              formData.append("available_categories", JSON.stringify(availableCategories));
-
-              const res = await apiFetch<{
-                transcript: string;
-                amount: number | null;
-                date: string | null;
-                description: string;
-                category: string | null;
-                needs_disambiguation: boolean;
-                suggested_categories: string[];
-              }>("/nlp/predict-audio", {
-                method: "POST",
-                body: formData,
-                timeoutMs: 40000,
-              });
-
-              if (res.amount !== null && res.amount !== undefined && res.amount > 0) {
-                setTranscript(res.transcript || res.description);
-                setPrediction(res);
-                setSelectedCategoryName(res.category || getFallbackCategory()?.name || null);
-                setStep("result");
-              } else {
-                setStep("error");
-              }
-            } catch (err) {
-              console.error("predict-audio error:", err);
-              setStep("error");
-            }
-          };
-
-          recorder.start(250);
-        })
-        .catch((err) => {
-          console.error("getUserMedia error:", err);
-          toast({
-            title: locale === "ar" ? "⚠️ الميكروفون محظور" : "⚠️ Microphone bloqué",
-            description:
-              locale === "ar"
-                ? "يرجى تفعيل الميكروفون في إعدادات المتصفح."
-                : "Veuillez autoriser l'accès au microphone dans votre navigateur.",
-            variant: "danger",
-          });
-          setStep("error");
-        });
+  // Handle switching spoken language
+  const handleLangChange = useCallback((newLang: SpokenLang) => {
+    setSpokenLang(newLang);
+    if (recognitionRef.current) {
+      try {
+        const langCode =
+          newLang === "darija" ? "ar-MA" : newLang === "fr" ? "fr-FR" : "ar-SA";
+        recognitionRef.current.lang = langCode;
+      } catch {}
     }
-  }, [
-    spokenLang,
-    stopAudio,
-    processQuery,
-    interimText,
-    locale,
-    toast,
-    allExpenseCategories,
-    getFallbackCategory,
-  ]);
+  }, []);
 
   // Lifecycle when modal opens/closes
   useEffect(() => {
@@ -677,21 +710,21 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
               <button
                 type="button"
                 className={spokenLang === "darija" ? "on" : ""}
-                onClick={() => setSpokenLang("darija")}
+                onClick={() => handleLangChange("darija")}
               >
                 Darija
               </button>
               <button
                 type="button"
                 className={spokenLang === "fr" ? "on" : ""}
-                onClick={() => setSpokenLang("fr")}
+                onClick={() => handleLangChange("fr")}
               >
                 Français
               </button>
               <button
                 type="button"
                 className={spokenLang === "ar" ? "on" : ""}
-                onClick={() => setSpokenLang("ar")}
+                onClick={() => handleLangChange("ar")}
               >
                 العربية
               </button>
@@ -764,15 +797,7 @@ export const BaOmarVoiceModal: React.FC<BaOmarVoiceModalProps> = ({
               <button
                 type="button"
                 className="v-stop"
-                onClick={() => {
-                  const finalTxt = `${transcript} ${interimText}`.trim();
-                  if (finalTxt) {
-                    processQuery(finalTxt);
-                  } else {
-                    stopAudio();
-                    setStep("error");
-                  }
-                }}
+                onClick={finishRecordingAndAnalyze}
                 aria-label={locale === "ar" ? "إنهاء وإرسال" : "Terminer et envoyer"}
                 title={locale === "ar" ? "إنهاء وإرسال" : "Terminer et envoyer"}
               >
