@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
-import { Fraunces, Geist, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/Toaster";
 import { GlobalMessageLayer } from "@/components/announcements/GlobalMessageLayer";
@@ -10,32 +9,30 @@ import AddToHomeScreenPrompt from "@/components/pwa/AddToHomeScreenPrompt";
 import { CookieConsentManager } from "@/components/privacy/CookieConsentManager";
 import { getLocaleDirection, readLocaleCookie } from "@/lib/localePreference";
 
-const geistSans = Geist({
+const geistSans = {
+  className: "font-geist-sans",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+};
 
-const geistMono = Geist_Mono({
+const geistMono = {
+  className: "font-geist-mono",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+};
 
-const fraunces = Fraunces({
+const fraunces = {
+  className: "font-fraunces",
   variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["600", "700"],
-});
+};
 
 const cairo = {
   className: "font-cairo",
   variable: "--font-cairo",
 };
 
-const manrope = Manrope({
+const manrope = {
+  className: "font-manrope",
   variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
+};
 
 export const metadata: Metadata = {
   title: "7sabek",
@@ -87,7 +84,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
