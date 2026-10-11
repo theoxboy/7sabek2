@@ -821,40 +821,7 @@ export const AppTopHeader: React.FC<AppTopHeaderProps> = ({
   return (
     <div style={{ width: "100%" }}>
       <header className="dsh-hdr">
-        {/* Mobile / iPad Logo Icon (Link to dashboard) */}
-        <Link
-          href="/dashboard"
-          className="flex lg:hidden items-center justify-center shrink-0 focus:outline-none"
-          aria-label="7sabek"
-          style={{ width: "28px", height: "36px", overflow: "hidden" }}
-        >
-          <svg
-            viewBox="10 540 1880 840"
-            width="80"
-            height="36"
-            style={{ overflow: "visible" }}
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient
-                id="hdr-logo-g"
-                gradientUnits="userSpaceOnUse"
-                x1="520"
-                y1="560"
-                x2="140"
-                y2="1290"
-              >
-                <stop offset="0" stopColor="#00D284" />
-                <stop offset="1" stopColor="#00884F" />
-              </linearGradient>
-            </defs>
-            <path
-              fill="url(#hdr-logo-g)"
-              d="M143.9 1281.0 27.0 1280.7 23.3 1278.6 22.5 1273.5 26.0 1266.8 65.5 1209.8 80.1 1187.1 100.9 1157.7 107.5 1147.0 178.4 1045.5 276.4 902.2 291.8 880.9 316.8 843.1 339.3 811.7 388.6 738.9 404.8 716.6 417.8 697.5 419.2 693.2 418.2 691.2 415.4 690.4 298.2 691.0 42.7 690.6 39.9 688.9 38.3 686.5 39.7 678.5 57.5 639.4 66.4 617.6 74.1 602.2 79.9 587.7 86.4 576.7 95.5 566.5 104.8 560.2 113.9 556.6 127.6 554.1 633.8 554.1 645.8 556.6 652.9 560.0 657.8 563.5 662.6 568.7 668.2 578.7 671.3 591.4 671.0 605.1 668.6 616.4 663.2 629.8 654.9 644.5 636.2 671.5 535.6 810.6 411.4 985.5 317.2 1115.2 281.8 1166.1 255.8 1201.0 218.5 1254.2 205.1 1267.2 191.3 1275.0 183.0 1277.9 171.0 1280.4 143.9 1281.0Z"
-            />
-            <circle cx="625" cy="1276" r="50" fill="#43B95E" />
-          </svg>
-        </Link>
+
 
         {/* Ba Omar smart prompt bar with Real-time Magic Detection HUD */}
         <div
