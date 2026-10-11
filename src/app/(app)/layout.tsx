@@ -2084,11 +2084,15 @@ function AppLayoutContent({
           {/* Contenu principal adapté avec Top Header unifié */}
           {(() => {
             const isDashboardPage = pathname === "/dashboard" || pathname === "/dashboard/";
+            // Pages au nouveau design plein écran (elles gèrent leurs propres marges,
+            // en-tête et bandeau invité) : pas de conteneur centré autour.
+            const isFullBleedPage =
+              isDashboardPage || pathname === "/envelopes" || pathname === "/envelopes/";
             return (
               <div
                 className={`sb-main-island ${
                   sidebarCollapsed ? "closed" : ""
-                } min-h-screen p-0 overflow-x-hidden`}
+                } min-h-screen p-0 overflow-x-clip`}
               >
                 {/* Global App Top Header (Ba Omar, Streak, Notifications, + Ajouter [N], [O]) */}
                 <AppTopHeader
@@ -2106,7 +2110,7 @@ function AppLayoutContent({
                   }}
                 />
 
-                <div className={isDashboardPage ? "w-full" : "mx-auto w-full max-w-[1240px] px-4 pb-12 pt-4 sm:px-6 lg:px-8"}>
+                <div className={isFullBleedPage ? "w-full" : "mx-auto w-full max-w-[1240px] px-4 pb-12 pt-4 sm:px-6 lg:px-8"}>
                   {user?.role === "superadmin" && actAsId ? (
                     <div className="sticky top-2 z-40 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--ink)] shadow-[var(--shadow-soft)]">
                       <span className="flex items-center gap-2">
@@ -2154,7 +2158,7 @@ function AppLayoutContent({
                       ) : null}
                     </div>
                   ) : null}
-                  {!isDashboardPage && (
+                  {!isFullBleedPage && (
                     <GuestGateBanner
                       isGuest={Boolean(user?.is_guest)}
                       pathname={pathname}

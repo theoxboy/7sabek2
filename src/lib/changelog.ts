@@ -38,6 +38,11 @@ export const CHANGELOG: Release[] = [
             en: "Envelopes page in Arabic: amounts now display in the right order, with the + or − sign in the right place.",
             ar: "صفحة الأظرفة بالعربية: المبالغ ولاو كيبانو بالترتيب الصحيح، والعلامة + ولا − فبلاصتها.",
           },
+          {
+            fr: "Page Enveloppes : affichage corrigé sur téléphone et iPad (pleine largeur, barre de recherche et filtres qui reste visible en défilant).",
+            en: "Envelopes page: layout fixed on phone and iPad (full width, search and filter bar stays visible while scrolling).",
+            ar: "صفحة الأظرفة: تصلّح العرض فالتيليفون والآيباد (العرض كامل، وشريط البحث والفلاتر كيبقى باين ملي كتنزل).",
+          },
         ],
       },
     ],
