@@ -10,6 +10,7 @@ import {
   Info,
   Landmark,
   Pencil,
+  Plus,
   RotateCcw,
   SlidersHorizontal,
   Target,
@@ -117,6 +118,44 @@ const ENVELOPE_THEMES = [
   { accent: "#4f46e5", paper: "#eef2ff", paper2: "#c7d2fe", ink: "#312e81", darkPaper: "#1d1b3f", darkPaper2: "#292766", darkInk: "#e0e7ff" },
   { accent: "#15803d", paper: "#f0fdf4", paper2: "#bbf7d0", ink: "#14532d", darkPaper: "#102d1d", darkPaper2: "#17442a", darkInk: "#dcfce7" },
 ];
+
+
+function getEnvelopeBanknotes(amount: number, locale: string) {
+  let r = Math.max(0, Math.round(amount));
+  const out: number[] = [];
+  for (const d of [200, 100, 50, 20]) {
+    while (r >= d && out.length < 5) {
+      out.push(d);
+      r -= d;
+    }
+  }
+  const coin = r >= 10 && out.length < 5;
+  out.reverse();
+  const mid = out.length > 0 ? ((out.length - 1) / 2).toFixed(1) : "0";
+  return {
+    notes: out.map((denom, i) => ({
+      cls: `eb-note n${denom}`,
+      denom,
+      i,
+      mid,
+    })),
+    coin,
+    nCount: out.length,
+    noMoney: out.length === 0 && !coin,
+    noMoneyText:
+      amount < 0
+        ? locale === "ar"
+          ? "ناقص"
+          : locale === "en"
+          ? "overdrawn"
+          : "à découvert"
+        : locale === "ar"
+        ? "خاوي"
+        : locale === "en"
+        ? "empty"
+        : "vide",
+  };
+}
 
 const getEnvelopeTheme = (value: string) => {
   const score = Array.from(value).reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -246,6 +285,20 @@ const ENVELOPES_COPY = {
     currentBalance: "Solde actuel",
     trendClosingBalance: "Tendance (solde de clôture par période)",
     periodHistory: "Historique des périodes",
+    totalRemaining: "Reste total",
+    allocatedBudget: "Budget alloué",
+    totalSpent: "Total consommé",
+    savingsBalance: "Épargne",
+    searchPlaceholder: "Chercher une enveloppe...",
+    filterAll: "Toutes",
+    filterRolloverOff: "Rollover OFF",
+    filterRolloverOn: "Rollover ON",
+    filterWatch: "À surveiller",
+    filterFixed: "Fixes",
+    filterFlex: "Flexibles",
+    attentionTitle: "À régler",
+    attentionDesc: "Enveloppes à découvert : couvre-les avant la clôture.",
+    noFilterResults: "Aucune enveloppe ne correspond à ta recherche.",
     noPeriodsYet: "Aucune période pour l'instant. Commence avec une allocation ou une transaction.",
     period: "Période",
     allocated: "Alloué",
@@ -302,6 +355,20 @@ const ENVELOPES_COPY = {
   en: {
     pageTitle: "Envelopes",
     pageSubtitle: "Balances reflect the current period.",
+    totalRemaining: "Total remaining",
+    allocatedBudget: "Allocated budget",
+    totalSpent: "Total spent",
+    savingsBalance: "Savings",
+    searchPlaceholder: "Search an envelope...",
+    filterAll: "All",
+    filterRolloverOff: "Rollover OFF",
+    filterRolloverOn: "Rollover ON",
+    filterWatch: "To watch",
+    filterFixed: "Fixed",
+    filterFlex: "Flexible",
+    attentionTitle: "To resolve",
+    attentionDesc: "Overdrawn envelopes: cover them before cycle close.",
+    noFilterResults: "No envelope matches your search.",
     loading: "Loading...",
     unknownError: "Unknown error",
     guestEnvelopeCap: `In discovery mode you can create up to ${GUEST_LIMITS.envelopes} envelopes. Create your free account for as many as you want — your current envelopes are kept.`,
@@ -475,6 +542,20 @@ const ENVELOPES_COPY = {
   ar: {
     pageTitle: "الأظرفة",
     pageSubtitle: "الأرصدة كتعكس الفترة الحالية.",
+    totalRemaining: "الباقي الإجمالي",
+    allocatedBudget: "الميزانية الموزعة",
+    totalSpent: "المصروف الإجمالي",
+    savingsBalance: "الادخار",
+    searchPlaceholder: "قلب على شي ظرف...",
+    filterAll: "الكل",
+    filterRolloverOff: "Rollover OFF",
+    filterRolloverOn: "Rollover ON",
+    filterWatch: "للمراقبة",
+    filterFixed: "ثابتة",
+    filterFlex: "مرنة",
+    attentionTitle: "للتسوية",
+    attentionDesc: "أظرفة برصيد سلبي : سوّيها قبل نهاية الدورة.",
+    noFilterResults: "حتى ظرف ما كيطابق هاد البحث.",
     loading: "كيتحمّل...",
     unknownError: "وقع مشكل غير معروف",
     guestEnvelopeCap: `ف وضع الاكتشاف تقدر تصاوب حتى ${GUEST_LIMITS.envelopes} ظرف. صاوب حسابك المجاني باش يكونو عندك بلا حدود — الأظرفة اللي عندك دابا كتبقى محفوظة.`,
@@ -818,6 +899,8 @@ export default function EnvelopesPage() {
   const [editingName, setEditingName] = useState("");
   const [editingIsDebt, setEditingIsDebt] = useState(false);
   const [editingCanDebt, setEditingCanDebt] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [envelopeFilter, setEnvelopeFilter] = useState<"all" | "rollover_off" | "rollover_on" | "watch" | "fixed" | "flex">("all");
   const [updating, setUpdating] = useState(false);
   const [rolloverUpdatingId, setRolloverUpdatingId] = useState<string | null>(null);
   const [rolloverDialogOpen, setRolloverDialogOpen] = useState(false);
@@ -1211,6 +1294,7 @@ export default function EnvelopesPage() {
       }),
     [rolloverOnEnvelopes, fixedEnvelopeIdSet]
   );
+
   const goalByEnvelopeId = useMemo(() => {
     const map = new Map<string, GoalOut>();
     goals.forEach((goal) => map.set(goal.envelope_id, goal));
@@ -1275,6 +1359,89 @@ export default function EnvelopesPage() {
   const defaultSavingsEnvelope = useMemo(() => {
     return envelopes.find((env) => env.is_default_savings) ?? null;
   }, [envelopes]);
+
+  const kpis = useMemo(() => {
+    let totalBalance = 0;
+    let totalAllocated = 0;
+    let totalSpent = 0;
+    let overdrawnCount = 0;
+
+    envelopes.forEach((env) => {
+      const bal = Number(balanceOverrides[env.id] ?? envelopeBalances.get(env.id) ?? 0);
+      totalBalance += bal;
+      if (bal < 0) overdrawnCount += 1;
+
+      const dbEnv = dashboard?.envelopes.find((item) => item.envelope.id === env.id);
+      if (dbEnv) {
+        totalAllocated += Number(dbEnv.balance.total_allocations || 0);
+        totalSpent += Number(dbEnv.balance.total_spent || 0);
+      }
+    });
+
+    const spentPct = totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0;
+    const savingsBal = defaultSavingsEnvelope
+      ? Number(balanceOverrides[defaultSavingsEnvelope.id] ?? envelopeBalances.get(defaultSavingsEnvelope.id) ?? 0)
+      : 0;
+
+    return {
+      totalBalance,
+      totalAllocated,
+      totalSpent,
+      spentPct,
+      savingsBal,
+      overdrawnCount,
+      activeCount: envelopes.length,
+    };
+  }, [envelopes, balanceOverrides, envelopeBalances, dashboard, defaultSavingsEnvelope]);
+
+  const matchesSearch = useCallback(
+    (env: EnvelopeOut) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.trim().toLowerCase();
+      const localizedName = localizeEnvelopeName(env.name).toLowerCase();
+      return env.name.toLowerCase().includes(q) || localizedName.includes(q);
+    },
+    [searchQuery]
+  );
+
+  const matchesFilter = useCallback(
+    (env: EnvelopeOut) => {
+      if (!matchesSearch(env)) return false;
+      if (envelopeFilter === "all") return true;
+      if (envelopeFilter === "rollover_off") return !env.rollover_enabled;
+      if (envelopeFilter === "rollover_on") return env.rollover_enabled;
+      if (envelopeFilter === "fixed") return fixedEnvelopeIdSet.has(env.id);
+      if (envelopeFilter === "flex") return !fixedEnvelopeIdSet.has(env.id);
+      if (envelopeFilter === "watch") {
+        const bal = Number(balanceOverrides[env.id] ?? envelopeBalances.get(env.id) ?? 0);
+        if (bal < 0) return true;
+        const dbEnv = dashboard?.envelopes.find((item) => item.envelope.id === env.id);
+        const alloc = Number(dbEnv?.balance.total_allocations || 0);
+        const spent = Number(dbEnv?.balance.total_spent || 0);
+        return alloc > 0 && spent / alloc >= 0.9;
+      }
+      return true;
+    },
+    [matchesSearch, envelopeFilter, fixedEnvelopeIdSet, balanceOverrides, envelopeBalances, dashboard]
+  );
+
+  const filteredRolloverOff = useMemo(
+    () => rolloverOffSortedEnvelopes.filter(matchesFilter),
+    [rolloverOffSortedEnvelopes, matchesFilter]
+  );
+
+  const filteredRolloverOn = useMemo(
+    () => rolloverOnSortedEnvelopes.filter(matchesFilter),
+    [rolloverOnSortedEnvelopes, matchesFilter]
+  );
+
+  const allFilteredEnvelopes = useMemo(
+    () => [...filteredRolloverOff, ...filteredRolloverOn],
+    [filteredRolloverOff, filteredRolloverOn]
+  );
+
+
+
   const sweepEligibleEnvelopes = useMemo(() => {
     return envelopes.filter(
       (env) =>
@@ -1852,7 +2019,10 @@ export default function EnvelopesPage() {
       balanceOverrides[env.id] ??
       envelopeBalances.get(env.id) ??
       "0.00";
+    const numBalance = Number(balance) || 0;
     const theme = getEnvelopeTheme(env.name);
+    const envelopeColor = theme.accent;
+
     const dashboardEnvelope = dashboard?.envelopes.find(
       (item) => item.envelope.id === env.id
     );
@@ -1860,225 +2030,196 @@ export default function EnvelopesPage() {
     const spent = Number(dashboardEnvelope?.balance.total_spent ?? 0);
     const spendPercent =
       allocated > 0 ? Math.min(Math.max((spent / allocated) * 100, 0), 100) : 0;
-    const envelopeStyle = {
-      "--envelope-accent": theme.accent,
-      "--envelope-paper": theme.paper,
-      "--envelope-paper-2": theme.paper2,
-      "--envelope-ink": theme.ink,
-      "--envelope-paper-dark": theme.darkPaper,
-      "--envelope-paper-2-dark": theme.darkPaper2,
-      "--envelope-ink-dark": theme.darkInk,
-      "--envelope-panel": "rgba(255,255,255,0.58)",
-      "--envelope-panel-strong": "rgba(255,255,255,0.76)",
-      "--envelope-line": "rgba(255,255,255,0.62)",
-      "--envelope-grain": "rgba(15,23,42,0.2)",
-      "--envelope-rotate": `${(index % 3) - 1}deg`,
-    } as CSSProperties;
+
+    const { notes, coin, noMoney, noMoneyText, nCount } = getEnvelopeBanknotes(numBalance, locale);
+    const isDebt = looksLikeDebt(env.name);
+    const isGoal = goalByEnvelopeId.has(env.id);
+
+    const postmarkText = isDebt
+      ? (locale === "ar" ? "دين" : "DETTE")
+      : isGoal
+      ? (locale === "ar" ? "هدف" : "OBJECTIF")
+      : (locale === "ar" ? "الدار البيضاء · 7SABEK" : "CASABLANCA · 7SABEK");
+
     return (
       <article
         key={env.id}
-        className="envelope-card group relative min-h-[292px] overflow-hidden rounded-xl border border-[color:var(--envelope-accent)]/35 bg-[var(--envelope-paper)] p-0 text-[var(--envelope-ink)] shadow-[0_14px_28px_rgba(15,23,42,0.12)] transition duration-200 hover:-translate-y-1 hover:rotate-0 hover:shadow-[0_24px_54px_rgba(15,23,42,0.18)] motion-reduce:transform-none md:rotate-[var(--envelope-rotate)]"
-        style={envelopeStyle}
+        className="sbk-card eb-full relative overflow-hidden flex flex-col justify-between"
+        style={{
+          ["--c" as any]: envelopeColor,
+          ["--n" as any]: nCount,
+          minHeight: "310px",
+          padding: "16px 18px",
+        }}
       >
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.23]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, var(--envelope-grain) 1px, transparent 0)",
-            backgroundSize: "18px 18px",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-x-4 top-4 h-1 rounded-full bg-[var(--envelope-line)]" />
-        <div
-          className="envelope-flap pointer-events-none absolute inset-x-0 top-0 h-32 bg-[var(--envelope-paper-2)] opacity-95 transition duration-200 group-hover:-translate-y-3"
-          style={{
-            clipPath: "polygon(0 0, 100% 0, 50% 100%)",
-          }}
-        />
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-[var(--envelope-panel)]"
-          style={{
-            clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 border-r border-[color:var(--envelope-accent)]/20" />
-        <div
-          className="pointer-events-none absolute bottom-0 left-0 h-32 w-1/2 border-t border-[color:var(--envelope-accent)]/25"
-          style={{ clipPath: "polygon(0 100%, 100% 0, 100% 100%)" }}
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 h-32 w-1/2 border-t border-[color:var(--envelope-accent)]/25"
-          style={{ clipPath: "polygon(0 0, 100% 100%, 0 100%)" }}
-        />
-        <div
-          className={cn(
-            "pointer-events-none absolute top-5 grid h-12 w-10 place-items-center rounded-sm border border-dashed border-[color:var(--envelope-accent)]/55 bg-[var(--envelope-panel)] text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--envelope-accent)]",
-            pageDir === "rtl" ? "left-5" : "right-5"
-          )}
-        >
-          <span className="h-7 w-5 rounded-[2px] border border-[color:var(--envelope-accent)]/35 bg-[var(--envelope-panel-strong)]" />
-        </div>
-        <div className="pointer-events-none absolute left-1/2 top-[104px] h-12 w-12 -translate-x-1/2 rounded-full border border-[var(--border)] bg-[var(--envelope-accent)]/90 shadow-lg shadow-black/10">
-          <div className="absolute inset-2 rounded-full border border-[var(--border)]" />
-        </div>
-        <div className="relative z-10 flex min-h-[292px] flex-col justify-between p-5 pt-20">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 rounded-lg border border-[color:var(--envelope-accent)]/30 bg-[var(--envelope-panel-strong)] px-4 py-3 shadow-sm backdrop-blur">
-                <p
-                  className={cn(
-                    "text-xs font-bold uppercase text-[var(--envelope-accent)]",
-                    locale === "ar"
-                      ? "max-w-[11rem] break-words leading-4"
-                      : "max-w-[13rem] truncate"
-                  )}
-                >
-                  {localizeEnvelopeName(env.name)}
-                </p>
-                <p className="mt-2 text-3xl font-black leading-none text-[var(--envelope-ink)] sm:text-4xl">
-                  {formatMoneyWithCurrency(balance)}
-                </p>
-              </div>
-              <div className="flex max-w-[44%] flex-wrap justify-end gap-1.5">
-                <Badge
-                  tone={env.rollover_enabled ? "accent" : "success"}
-                  title={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-                  aria-label={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-                >
-                  {env.rollover_enabled ? (
-                    <ArrowUpCircle className="h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowDownCircle className="h-3.5 w-3.5" />
-                  )}
-                </Badge>
-                {isVirtualStructureEnvelopeName(env.name) ? (
-                  <Badge tone="muted">
-                    {locale === "ar"
-                      ? "ظرف هيكلي"
-                      : locale === "en"
-                      ? "Structure envelope"
-                      : "Enveloppe structure"}
-                  </Badge>
-                ) : null}
-                {isEnvelopeLocked(env) ? (
-                  <Badge tone="warning">{copy.locked}</Badge>
-                ) : null}
-                <Badge tone={isFixedActive ? "success" : "muted"}>
-                  {locale === "ar" ? (isFixedActive ? "ثابت" : "مرن") : locale === "en" ? (isFixedActive ? "Fixed" : "Flexible") : (isFixedActive ? "Fixe" : "Flexible")}
-                </Badge>
-              </div>
+        {/* Pocket Header with Banknotes */}
+        <div className="eb-hd" aria-hidden="true">
+          <span className="eb-pm">{postmarkText}</span>
+          <div className="eb-clip">
+            <div className="eb-notes">
+              {notes.map((nt) => (
+                <span
+                  key={nt.i}
+                  className={nt.cls}
+                  style={{
+                    ["--i" as any]: nt.i,
+                    ["--mid" as any]: nt.mid,
+                  }}
+                />
+              ))}
+              {coin && <span className="eb-coin" />}
+              {noMoney && <span className="eb-miss">{noMoneyText}</span>}
             </div>
-            <div className="rounded-xl border border-[var(--envelope-line)] bg-[var(--envelope-panel)] p-3 shadow-sm backdrop-blur">
-              {allocated > 0 ? (
-                <>
-                  <div className="space-y-1 text-xs font-medium text-[var(--envelope-ink)]/75">
-                    <div className="flex items-center justify-between gap-3">
-                      <span>{copy.spent}</span>
-                      <span className="text-right">{formatMoneyWithCurrency(spent)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>{locale === "ar" ? "الميزانية" : locale === "en" ? "Budget" : "Budget"}</span>
-                      <span className="text-right">{formatMoneyWithCurrency(allocated)}</span>
-                    </div>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--envelope-panel-strong)]">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-[width] duration-500",
-                        spendPercent >= 90
-                          ? "bg-[var(--error)]"
-                          : "bg-[var(--envelope-accent)]"
-                      )}
-                      style={{ width: `${spendPercent}%` }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs font-semibold text-[var(--envelope-ink)]/75">
-                  {copy.noBudgetYet}
-                </p>
+          </div>
+          <span className="eb-lip" />
+        </div>
+
+        {/* Top Title, Badges, and Amount */}
+        <div className="relative z-10 pt-24 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <h3
+              className={cn(
+                "text-base font-bold text-white drop-shadow-sm leading-snug truncate",
+                locale === "ar" ? "font-cairo" : "font-manrope"
+              )}
+              title={localizeEnvelopeName(env.name)}
+            >
+              {localizeEnvelopeName(env.name)}
+            </h3>
+
+            <div className="flex flex-wrap items-center gap-1 shrink-0">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase backdrop-blur-md",
+                  env.rollover_enabled
+                    ? "bg-white/20 text-white"
+                    : "bg-emerald-400/25 text-emerald-100"
+                )}
+                title={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
+              >
+                {env.rollover_enabled ? (
+                  <>
+                    <ArrowUpCircle className="h-3 w-3" />
+                    <span>ON</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownCircle className="h-3 w-3" />
+                    <span>OFF</span>
+                  </>
+                )}
+              </span>
+
+              {isFixedActive && (
+                <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
+                  {locale === "ar" ? "ثابت" : "Fixe"}
+                </span>
               )}
             </div>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-[var(--envelope-line)] bg-[var(--envelope-panel)] p-2 backdrop-blur">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="col-span-2 gap-1.5 border-[var(--envelope-line)] bg-[var(--envelope-panel-strong)] text-[var(--envelope-ink)] hover:opacity-90"
-              onClick={() => setSelectedEnvelopeId(env.id)}
-            >
-              <Eye className="h-3.5 w-3.5" aria-hidden />
-              <span>{copy.viewDetails}</span>
-            </Button>
-            {!isEnvelopeLocked(env) ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                type="button"
-                className="min-h-9 gap-1.5 border border-[var(--envelope-line)] bg-[var(--envelope-panel)] px-2 text-[11px] leading-tight text-[var(--envelope-ink)] hover:opacity-90"
-                onClick={() => handleEdit(env)}
-                aria-label={copy.rename}
-                title={copy.rename}
-              >
-                <Pencil className="h-3.5 w-3.5" aria-hidden />
-                <span className="whitespace-normal text-start">{copy.rename}</span>
-              </Button>
-            ) : null}
-            <Button
-              size="sm"
-              variant="secondary"
+
+          {/* Big Balance Amount */}
+          <div className="eb-amt flex items-baseline gap-1 text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">
+            <span>{formatMoneyWithCurrency(balance)}</span>
+          </div>
+        </div>
+
+        {/* Bottom Area: Meter Bar & Action buttons (smooth cross-fade on hover/focus) */}
+        <div className="relative z-10 mt-4 min-h-[44px]">
+          {/* Progress Bar / Budget info */}
+          <div className="eb-meter flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-xs text-white/90 font-medium">
+              <span>
+                {allocated > 0
+                  ? `${locale === "ar" ? "المصروف" : "Dépensé"} ${formatMoneyWithCurrency(spent)} / ${formatMoneyWithCurrency(allocated)}`
+                  : (locale === "ar" ? "بدون ميزانية محددة" : "Sans budget défini")}
+              </span>
+              {allocated > 0 && (
+                <span className="font-bold text-white">{Math.round(spendPercent)}%</span>
+              )}
+            </div>
+
+            <div role="meter" className="h-1.5 w-full rounded-full bg-white/25 overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  spendPercent >= 90 ? "bg-amber-300" : "bg-white"
+                )}
+                style={{ width: `${spendPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Action buttons (revealed on hover/focus, or static on touch) */}
+          <div className="eb-acts flex items-center gap-1.5">
+            <button
               type="button"
-              className="min-h-9 gap-1.5 border-[var(--envelope-line)] bg-[var(--envelope-panel)] px-2 text-[11px] leading-tight text-[var(--envelope-ink)] hover:opacity-90"
-              onClick={() => handleStartCorrection(env)}
-              aria-label={copy.correction}
-              title={copy.correction}
+              className="sbk-act flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+              onClick={() => setSelectedEnvelopeId(env.id)}
+              title={copy.viewDetails}
             >
-              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-              <span className="whitespace-normal text-start">{copy.correction}</span>
-            </Button>
-            {!isEnvelopeLocked(env) ? (
-              <Button
-                size="sm"
-                variant="ghost"
+              <Eye className="h-3.5 w-3.5" />
+              <span>{copy.viewDetails}</span>
+            </button>
+
+            <button
+              type="button"
+              className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+              onClick={() => handleStartCorrection(env)}
+              title={copy.correction}
+              aria-label={copy.correction}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </button>
+
+            {!isEnvelopeLocked(env) && (
+              <button
                 type="button"
-                className="min-h-9 gap-1.5 border border-[var(--envelope-line)] bg-[var(--envelope-panel)] px-2 text-[11px] leading-tight text-[var(--envelope-ink)] hover:opacity-90"
+                className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+                onClick={() => handleEdit(env)}
+                title={copy.rename}
+                aria-label={copy.rename}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {!isEnvelopeLocked(env) && (
+              <button
+                type="button"
+                className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
                 onClick={() => {
                   setRolloverTarget(env);
                   setRolloverNextValue(!env.rollover_enabled);
                   setRolloverDialogOpen(true);
                 }}
-                isLoading={rolloverUpdatingId === env.id}
-                aria-label={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
                 title={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
+                aria-label={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
               >
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                <span className="whitespace-normal text-start">
-                  {env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-                </span>
-              </Button>
-            ) : null}
-            {!isEnvelopeLocked(env) ? (
-              <Button
-                size="sm"
-                variant="danger"
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {!isEnvelopeLocked(env) && (
+              <button
                 type="button"
-                className="min-h-9 gap-1.5 px-2 text-[11px] leading-tight"
+                className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold text-red-200 hover:text-white transition shadow-sm active:scale-95"
                 onClick={() => {
                   setDeleteTarget(env);
                   setDeleteOpen(true);
                 }}
-                aria-label={copy.delete}
                 title={copy.delete}
+                aria-label={copy.delete}
               >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                <span className="whitespace-normal text-start">{copy.delete}</span>
-              </Button>
-            ) : null}
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </article>
     );
   };
+
   const renderSpecialEnvelopeCard = (
     env: EnvelopeOut,
     kind: "debt" | "goal"
@@ -2087,24 +2228,18 @@ export default function EnvelopesPage() {
       balanceOverrides[env.id] ??
       envelopeBalances.get(env.id) ??
       "0.00";
+    const numBalance = Number(balance) || 0;
     const isGoalKind = kind === "goal";
     const fixedAmount = fixedEnvelopeAmounts[env.id];
-    const currentBalance = Number(balance) || 0;
+    const currentBalance = numBalance;
     const goal = isGoalKind ? goalByEnvelopeId.get(env.id) ?? null : null;
     const goalTarget = goal ? Number(goal.target_amount || "0") : 0;
     const goalProgress = goalTarget > 0 ? Math.max(0, Math.min(1, currentBalance / goalTarget)) : 0;
-    // A debt envelope accumulates money towards clearing the debt: its balance
-    // is what has been set aside, not what is still owed. Reading the balance
-    // as the outstanding amount inverted both readouts - an envelope holding
-    // nothing looked like a debt with nothing left to pay, so wiping the income
-    // made every debt appear due to clear this very month.
     const debtOutstanding = isGoalKind ? 0 : lookupDebtRemaining(env.name) ?? debtInitialRemaining ?? 0;
     const debtProgress =
       debtOutstanding > 0 ? Math.max(0, Math.min(1, currentBalance / debtOutstanding)) : 0;
     const progressRatio = isGoalKind ? goalProgress : debtProgress;
-    const progressPct = `${(progressRatio * 100).toFixed(1)}%`;
-    // Goal contributions live on the goal record (target_type "goal"), not in
-    // fixedEnvelopeAmounts which is built from "envelope" distribution rules.
+    const progressPct = `${(progressRatio * 100).toFixed(0)}%`;
     const monthlyContribution = isGoalKind
       ? Number(goal?.contribution_amount ?? 0) || Number(fixedAmount ?? 0)
       : Number(fixedAmount ?? 0);
@@ -2127,126 +2262,106 @@ export default function EnvelopesPage() {
             });
           })()
         : null;
-    const tone = isGoalKind
-      ? {
-          card: "border-indigo-200 bg-gradient-to-br from-indigo-50 via-[var(--surface)] to-violet-50",
-          title: "text-indigo-800",
-          barBg: "bg-indigo-100",
-          barFill: "bg-indigo-500",
-          amount: "text-indigo-900",
-          fixed: "text-indigo-700",
-          badge: "accent" as const,
-        }
-      : {
-          card: "border-rose-200 bg-gradient-to-br from-rose-50 via-[var(--surface)] to-orange-50",
-          title: "text-rose-800",
-          barBg: "bg-rose-100",
-          barFill: "bg-rose-500",
-          amount: "text-rose-900",
-          fixed: "text-rose-700",
-          badge: "warning" as const,
-        };
+
+    const themeColor = isGoalKind ? "#4F46E5" : "#BE123C";
+    const { notes, coin, noMoney, noMoneyText, nCount } = getEnvelopeBanknotes(numBalance, locale);
+
+    const postmarkText = isGoalKind
+      ? (locale === "ar" ? "هدف · GOAL" : "OBJECTIF")
+      : (locale === "ar" ? "دين · DETTE" : "DETTE / CRÉDIT");
+
     return (
-      <Card key={env.id} className={cn("border p-4", tone.card)}>
-          <div className="flex items-start justify-between gap-3">
+      <article
+        key={env.id}
+        className="sbk-card eb-full relative overflow-hidden flex flex-col justify-between"
+        style={{
+          ["--c" as any]: themeColor,
+          ["--n" as any]: nCount,
+          minHeight: "310px",
+          padding: "16px 18px",
+        }}
+      >
+        {/* Pocket Header with Banknotes */}
+        <div className="eb-hd" aria-hidden="true">
+          <span className="eb-pm">{postmarkText}</span>
+          <div className="eb-clip">
+            <div className="eb-notes">
+              {notes.map((nt) => (
+                <span
+                  key={nt.i}
+                  className={nt.cls}
+                  style={{
+                    ["--i" as any]: nt.i,
+                    ["--mid" as any]: nt.mid,
+                  }}
+                />
+              ))}
+              {coin && <span className="eb-coin" />}
+              {noMoney && <span className="eb-miss">{noMoneyText}</span>}
+            </div>
+          </div>
+          <span className="eb-lip" />
+        </div>
+
+        {/* Top Title, Badges, and Amount */}
+        <div className="relative z-10 pt-24 space-y-2">
+          <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-white/70">
                 {isGoalKind
-                  ? locale === "ar"
-                    ? "ظرف هدف"
-                    : locale === "en"
-                    ? "Goal envelope"
-                    : "Enveloppe objectif"
-                  : locale === "ar"
-                  ? "ظرف ديون"
-                  : locale === "en"
-                  ? "Debt envelope"
-                  : "Enveloppe dette"}
-              </p>
-              <p className="mt-1 text-base font-semibold text-[var(--ink)] break-words">
-                {localizeEnvelopeName(env.name)}
-              </p>
-            </div>
-            <Badge tone={tone.badge}>
-              {isGoalKind ? (
-                <Target className="h-3.5 w-3.5" />
-              ) : (
-                <Landmark className="h-3.5 w-3.5" />
-              )}
-            </Badge>
-          </div>
-          <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
-            <p className="text-xs text-[var(--muted)]">
-              {locale === "ar" ? "الرصيد الحالي" : locale === "en" ? "Current balance" : "Solde actuel"}
-            </p>
-            <p className={cn("mt-1 text-2xl font-black", tone.amount)}>
-              {formatMoneyWithCurrency(balance)}
-            </p>
-            {Number.isFinite(fixedAmount) && fixedAmount > 0 ? (
-              <p className={cn("mt-1 text-xs font-semibold", tone.fixed)}>
-                {locale === "ar"
-                  ? `مبلغ ثابت فالتوزيع: ${formatMoneyWithCurrency(fixedAmount)}`
-                  : locale === "en"
-                  ? `Fixed amount in distribution: ${formatMoneyWithCurrency(fixedAmount)}`
-                  : `Montant fixe dans la répartition : ${formatMoneyWithCurrency(fixedAmount)}`}
-              </p>
-            ) : null}
-          </div>
-          <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className={cn("font-semibold", tone.title)}>
-                {isGoalKind
-                  ? locale === "ar"
-                    ? "تقدم الهدف"
-                    : locale === "en"
-                    ? "Goal progress"
-                    : "Progression objectif"
-                  : locale === "ar"
-                  ? "تسديد الدين"
-                  : locale === "en"
-                  ? "Debt payoff progress"
-                  : "Progression remboursement"}
+                  ? (locale === "ar" ? "ظرف هدف" : "Enveloppe Objectif")
+                  : (locale === "ar" ? "ظرف دين" : "Enveloppe Dette")}
               </span>
-              <span className="font-semibold text-[var(--ink)]">{progressPct}</span>
+              <h3
+                className={cn(
+                  "text-base font-bold text-white drop-shadow-sm leading-snug truncate",
+                  locale === "ar" ? "font-cairo" : "font-manrope"
+                )}
+                title={localizeEnvelopeName(env.name)}
+              >
+                {localizeEnvelopeName(env.name)}
+              </h3>
             </div>
-            <div className={cn("h-2 overflow-hidden rounded-full", tone.barBg)}>
+
+            <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
+              {isGoalKind ? <Target className="h-3 w-3" /> : <Landmark className="h-3 w-3" />}
+            </span>
+          </div>
+
+          {/* Big Balance Amount */}
+          <div className="eb-amt flex items-baseline gap-1 text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">
+            <span>{formatMoneyWithCurrency(balance)}</span>
+          </div>
+        </div>
+
+        {/* Bottom Area: Progress & Actions */}
+        <div className="relative z-10 mt-4 min-h-[44px]">
+          {/* Progress Bar & Target */}
+          <div className="eb-meter flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-xs text-white/90 font-medium">
+              <span>
+                {hasTarget
+                  ? `${progressPct} · ${etaDate ? (locale === "ar" ? `توقع: ${etaDate}` : `Estimé : ${etaDate}`) : ""}`
+                  : (Number.isFinite(fixedAmount) && fixedAmount > 0
+                    ? `${locale === "ar" ? "شهرياً:" : "Mensuel :"} ${formatMoneyWithCurrency(fixedAmount)}`
+                    : "")}
+              </span>
+              <span className="font-bold text-white">{progressPct}</span>
+            </div>
+
+            <div role="meter" className="h-1.5 w-full rounded-full bg-white/25 overflow-hidden">
               <div
-                className={cn("h-full rounded-full transition-all", tone.barFill)}
-                style={{ width: progressPct }}
+                className="h-full rounded-full bg-white transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.round(progressRatio * 100))}%` }}
               />
             </div>
-            <p className="mt-2 text-[11px] text-[var(--muted)]">
-              {etaDate
-                ? locale === "ar"
-                  ? `تاريخ التوقع: ${etaDate}`
-                  : locale === "en"
-                  ? `Estimated date: ${etaDate}`
-                  : `Date estimée : ${etaDate}`
-                : locale === "ar"
-                ? "تاريخ التوقع: —"
-                : locale === "en"
-                ? "Estimated date: —"
-                : "Date estimée : —"}
-            </p>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-            {isGoalKind
-              ? locale === "ar"
-                ? "هاد الظرف كيبقى مستقل على sweeps وكيخدم غير لتحقيق الهدف."
-                : locale === "en"
-                ? "This envelope stays separate from sweeps and is dedicated to goal progress."
-                : "Cette enveloppe reste séparée des sweeps et sert uniquement à l’objectif."
-              : locale === "ar"
-              ? "هاد الظرف كيتعامل معاه بنظام خاص وما كيتطبقش عليه sweep."
-              : locale === "en"
-              ? "This envelope uses a dedicated debt flow and is excluded from sweeps."
-              : "Cette enveloppe suit un flux dette dédié et reste exclue des sweeps."}
-          </p>
-          <div className="mt-3">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="w-full"
+
+          {/* Action buttons */}
+          <div className="eb-acts flex items-center gap-1.5">
+            <button
+              type="button"
+              className="sbk-act flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
               onClick={() => {
                 if (isGoalKind) {
                   router.push("/goals");
@@ -2254,12 +2369,14 @@ export default function EnvelopesPage() {
                 }
                 setSelectedEnvelopeId(env.id);
               }}
+              title={copy.viewDetails}
             >
-              <Eye className="h-3.5 w-3.5" aria-hidden />
+              <Eye className="h-3.5 w-3.5" />
               <span>{copy.viewDetails}</span>
-            </Button>
+            </button>
           </div>
-      </Card>
+        </div>
+      </article>
     );
   };
   return (
@@ -2287,170 +2404,264 @@ export default function EnvelopesPage() {
 
       <div ref={currentRef}>
         <Section title={copy.currentBalances}>
-        <Card className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-[var(--ink)]">
-              {copy.collectiveRollover}
-            </p>
-            <p className="text-xs text-[var(--muted)]">
-              {copy.selectEnvelopesToEdit}
-            </p>
+          {/* Header Quick Actions Bar */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                type="button"
+                className="gap-1.5 shadow-sm"
+                onClick={() => setBulkRolloverOpen(true)}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>{copy.collectiveRollover}</span>
+              </Button>
+              {mounted && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  type="button"
+                  className="gap-1.5 border border-[var(--border)]"
+                  onClick={() => setAdvancedOpen(true)}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <span>{copy.advancedSettings}</span>
+                </Button>
+              )}
+            </div>
+
+            {mounted && (
+              <Button
+                size="sm"
+                type="button"
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{copy.addEnvelope}</span>
+              </Button>
+            )}
           </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            type="button"
-            onClick={() => setBulkRolloverOpen(true)}
-          >
-            {copy.select}
-          </Button>
-        </Card>
 
-        {defaultSavingsEnvelope ? (
-          <Card className="mb-4 border-emerald-200 bg-gradient-to-br from-emerald-50 via-[var(--surface)] to-teal-50">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-base font-semibold text-emerald-800">
-                    {locale === "ar" ? "ظرف الادخار" : locale === "en" ? "Savings envelope" : "Enveloppe Épargne"}
-                  </p>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-300 bg-[var(--surface)] text-emerald-700 hover:bg-emerald-100"
-                        aria-label={locale === "ar" ? "معلومات" : locale === "en" ? "Information" : "Informations"}
-                      >
-                        <Info className="h-3.5 w-3.5" />
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>
-                          {locale === "ar" ? "كيفاش كيخدم التحويل نحو الادخار؟" : locale === "en" ? "How does transfer to savings work?" : "Comment fonctionne le transfert vers l’épargne ?"}
-                        </DialogTitle>
-                        <DialogDescription>
-                          {locale === "ar"
-                            ? "فآخر كل فترة، أي ظرف عادي عندو رصيد موجب وماشي rollover كيتحوّل الرصيد ديالو تلقائياً لظرف الادخار."
-                            : locale === "en"
-                            ? "At the end of each period, any regular envelope with a positive balance and rollover disabled transfers that unused amount to savings."
-                            : "À la fin de chaque période, toute enveloppe normale avec un solde positif et rollover désactivé transfère automatiquement ce reliquat vers l’épargne."}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
-                        <li>
-                          {locale === "ar"
-                            ? "الأظرفة المشمولة: عادية فقط (ماشي Cash، ماشي Épargne، ماشي Goals)."
-                            : locale === "en"
-                            ? "Included envelopes: regular only (not Cash, not Savings, not Goals)."
-                            : "Enveloppes concernées: seulement les enveloppes normales (pas Cash, pas Épargne, pas Goals)."}
-                        </li>
-                        <li>
-                          {locale === "ar"
-                            ? "خاص rollover يكون OFF."
-                            : locale === "en"
-                            ? "Rollover must be OFF."
-                            : "Le rollover doit être OFF."}
-                        </li>
-                        <li>
-                          {locale === "ar"
-                            ? "غير الرصيد غير المستعمل (الموجب) هو اللي كيتحوّل."
-                            : locale === "en"
-                            ? "Only unused positive balance is transferred."
-                            : "Seul le solde non utilisé (positif) est transféré."}
-                        </li>
-                      </ul>
-                      <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
-                        <p className="text-xs font-semibold text-[var(--ink)]">
-                          {locale === "ar"
-                            ? "الأظرفة المعنية حالياً:"
-                            : locale === "en"
-                            ? "Currently affected envelopes:"
-                            : "Enveloppes affectées actuellement :"}
-                        </p>
-                        {sweepEligibleEnvelopes.length > 0 ? (
-                          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
-                            {sweepEligibleEnvelopes.map((env) => (
-                              <li key={env.id}>{localizeEnvelopeName(env.name)}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-2 text-sm text-[var(--muted)]">
-                            {locale === "ar"
-                              ? "حالياً ما كاين حتى ظرف مؤهل (يمكن يكون rollover ON أو ظرف خاص)."
-                              : locale === "en"
-                              ? "No envelope is currently eligible (rollover may be ON or envelope is special)."
-                              : "Aucune enveloppe n’est actuellement éligible (rollover ON ou enveloppe spéciale)."}
-                          </p>
-                        )}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+          {/* 4 KPI Summary Tiles */}
+          <div className="env-kpi mb-6" role="group" aria-label="KPIs">
+            <div className="sbk-tile">
+              <span className="text-xs font-semibold text-[var(--muted)]">
+                {copy.totalRemaining}
+              </span>
+              <b className="text-2xl font-black text-[var(--ink)] tracking-tight">
+                {formatMoneyWithCurrency(kpis.totalBalance)}
+              </b>
+              <span className="text-[11px] text-[var(--muted)]">
+                {kpis.activeCount} {locale === "ar" ? "أظرفة نشطة" : "enveloppes actives"}
+              </span>
+            </div>
+
+            <div className="sbk-tile">
+              <span className="text-xs font-semibold text-[var(--muted)]">
+                {copy.allocatedBudget}
+              </span>
+              <b className="text-2xl font-black text-[var(--ink)] tracking-tight">
+                {formatMoneyWithCurrency(kpis.totalAllocated)}
+              </b>
+              <span className="text-[11px] text-[var(--muted)]">
+                {locale === "ar" ? "المجموع المخصص" : "Budget total de la période"}
+              </span>
+            </div>
+
+            <div className="sbk-tile">
+              <span className="text-xs font-semibold text-[var(--muted)]">
+                {copy.totalSpent}
+              </span>
+              <b className="text-2xl font-black text-[var(--ink)] tracking-tight">
+                {formatMoneyWithCurrency(kpis.totalSpent)}
+              </b>
+              <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex-1 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      kpis.spentPct >= 90 ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    style={{ width: `${Math.min(100, kpis.spentPct)}%` }}
+                  />
                 </div>
-                <p className="text-sm text-emerald-900/80">
-                  {locale === "ar"
-                    ? "هاد الظرف كيتجمع فيه الفائض اللي ما تصرفش من الأظرفة المؤهلة مع نهاية الدورة."
-                    : locale === "en"
-                    ? "This envelope collects unused surplus from eligible envelopes at cycle end."
-                    : "Cette enveloppe reçoit les soldes non utilisés des enveloppes éligibles en fin de période."}
-                </p>
-                <Badge tone="accent">
-                  {locale === "ar" ? "الوجهة التلقائية ديال sweep" : locale === "en" ? "Automatic sweep target" : "Destination automatique des sweeps"}
-                </Badge>
-              </div>
-              <div className="min-w-[180px] rounded-2xl border border-emerald-200 bg-[var(--surface)] px-4 py-3 text-right">
-                <p className="text-xs uppercase tracking-wide text-emerald-700">
-                  {localizeEnvelopeName(defaultSavingsEnvelope.name)}
-                </p>
-                <p className="mt-2 text-3xl font-black text-emerald-900">
-                  {formatMoneyWithCurrency(getEnvelopeBalance(defaultSavingsEnvelope.id))}
-                </p>
+                <span className="text-[11px] font-bold text-[var(--ink)]">{kpis.spentPct}%</span>
               </div>
             </div>
-          </Card>
-        ) : null}
-        {debtEnvelopes.length > 0 ? (
-          <Card className="mb-4 border-rose-200 bg-gradient-to-br from-rose-50/70 via-[var(--surface)] to-orange-50/70">
-            <div className="mb-3 flex items-center gap-2">
-              <Landmark className="h-4 w-4 text-rose-700" />
-              <p className="text-base font-semibold text-rose-800">
-                {locale === "ar" ? "أظرفة الديون" : locale === "en" ? "Debt envelopes" : "Enveloppes dettes"}
-              </p>
-            </div>
-            <p className="mb-4 text-sm text-rose-900/80">
-              {locale === "ar"
-                ? "أظرفة بخاصية خاصة بالديون، مستقلة على تحويلات sweep."
-                : locale === "en"
-                ? "Debt-specific envelopes, separated from sweep transfers."
-                : "Enveloppes dédiées aux dettes, séparées des transferts sweep."}
-            </p>
-            <div className="space-y-4">
-              {debtEnvelopes.map((env) => renderSpecialEnvelopeCard(env, "debt"))}
-            </div>
-          </Card>
-        ) : null}
-        {goalEnvelopes.length > 0 ? (
-          <Card className="mb-4 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-[var(--surface)] to-violet-50/70">
-            <div className="mb-3 flex items-center gap-2">
-              <Target className="h-4 w-4 text-indigo-700" />
-              <p className="text-base font-semibold text-indigo-800">
-                {locale === "ar" ? "أظرفة الأهداف" : locale === "en" ? "Goal envelopes" : "Enveloppes objectifs"}
-              </p>
-            </div>
-            <p className="mb-4 text-sm text-indigo-900/80">
-              {locale === "ar"
-                ? "أظرفة مخصصة للأهداف، كتخدم بتتبع مستقل خارج sweep."
-                : locale === "en"
-                ? "Goal-focused envelopes with independent tracking outside sweeps."
-                : "Enveloppes orientées objectifs avec suivi indépendant hors sweeps."}
-            </p>
-            <div className="space-y-4">
-              {goalEnvelopes.map((env) => renderSpecialEnvelopeCard(env, "goal"))}
-            </div>
-          </Card>
-        ) : null}
 
-        {mounted ? (
+            <div className="sbk-tile">
+              <span className="text-xs font-semibold text-[var(--muted)]">
+                {copy.savingsBalance}
+              </span>
+              <b className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                {formatMoneyWithCurrency(kpis.savingsBal)}
+              </b>
+              <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                {locale === "ar" ? "وجهة التحويل التلقائي" : "Cible du balayage automatique"}
+              </span>
+            </div>
+          </div>
+
+          {/* Attention Banner if any overdrawn envelope */}
+          {kpis.overdrawnCount > 0 && (
+            <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50/80 dark:border-rose-900/50 dark:bg-rose-950/20 p-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 font-bold">
+                  !
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-rose-900 dark:text-rose-200">
+                    {copy.attentionTitle} · {kpis.overdrawnCount} {locale === "ar" ? "أظرفة برصيد سلبي" : "enveloppe(s) à découvert"}
+                  </p>
+                  <p className="text-xs text-rose-700 dark:text-rose-300">
+                    {copy.attentionDesc}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => setEnvelopeFilter("watch")}
+              >
+                {locale === "ar" ? "شوف الأظرفة" : "Voir les enveloppes"}
+              </Button>
+            </div>
+          )}
+
+          {/* Savings Envelope Sweep Highlight */}
+          {defaultSavingsEnvelope && (
+            <Card className="mb-6 border-emerald-200 bg-gradient-to-br from-emerald-50 via-[var(--surface)] to-teal-50 dark:from-emerald-950/30 dark:via-[var(--surface)] dark:to-teal-950/30">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300">
+                      {locale === "ar" ? "ظرف الادخار" : locale === "en" ? "Savings envelope" : "Enveloppe Épargne"}
+                    </p>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-300 bg-[var(--surface)] text-emerald-700 hover:bg-emerald-100"
+                          aria-label={locale === "ar" ? "معلومات" : locale === "en" ? "Information" : "Informations"}
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>
+                            {locale === "ar" ? "كيفاش كيخدم التحويل نحو الادخار؟" : locale === "en" ? "How does transfer to savings work?" : "Comment fonctionne le transfert vers l’épargne ?"}
+                          </DialogTitle>
+                          <DialogDescription>
+                            {locale === "ar"
+                              ? "فآخر كل فترة، أي ظرف عادي عندو رصيد موجب وماشي rollover كيتحوّل الرصيد ديالو تلقائياً لظرف الادخار."
+                              : locale === "en"
+                              ? "At the end of each period, any regular envelope with a positive balance and rollover disabled transfers that unused amount to savings."
+                              : "À la fin de chaque période, toute enveloppe normale avec un solde positif et rollover désactivé transfère automatiquement ce reliquat vers l’épargne."}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
+                          <li>
+                            {locale === "ar"
+                              ? "الأظرفة المشمولة: عادية فقط (ماشي Cash، ماشي Épargne، ماشي Goals)."
+                              : locale === "en"
+                              ? "Included envelopes: regular only (not Cash, not Savings, not Goals)."
+                              : "Enveloppes concernées: seulement les enveloppes normales (pas Cash, pas Épargne, pas Goals)."}
+                          </li>
+                          <li>
+                            {locale === "ar"
+                              ? "خاص rollover يكون OFF."
+                              : locale === "en"
+                              ? "Rollover must be OFF."
+                              : "Le rollover doit être OFF."}
+                          </li>
+                          <li>
+                            {locale === "ar"
+                              ? "غير الرصيد غير المستعمل (الموجب) هو اللي كيتحوّل."
+                              : locale === "en"
+                              ? "Only unused positive balance is transferred."
+                              : "Seul le solde non utilisé (positif) est transféré."}
+                          </li>
+                        </ul>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  <p className="text-sm text-emerald-900/80 dark:text-emerald-200/80">
+                    {locale === "ar"
+                      ? "هاد الظرف كيتجمع فيه الفائض اللي ما تصرفش من الأظرفة المؤهلة مع نهاية الدورة."
+                      : locale === "en"
+                      ? "This envelope collects unused surplus from eligible envelopes at cycle end."
+                      : "Cette enveloppe reçoit les soldes non utilisés des enveloppes éligibles en fin de période."}
+                  </p>
+                  <Badge tone="accent">
+                    {locale === "ar" ? "الوجهة التلقائية ديال sweep" : locale === "en" ? "Automatic sweep target" : "Destination automatique des sweeps"}
+                  </Badge>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="self-center"
+                  onClick={() => setSelectedEnvelopeId(defaultSavingsEnvelope.id)}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>{copy.viewDetails}</span>
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Interactive Search & Filter Bar */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={copy.searchPlaceholder}
+                className="w-full h-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute inset-y-0 end-2 flex items-center text-xs text-[var(--muted)] hover:text-[var(--ink)]"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+              {[
+                { key: "all", label: copy.filterAll },
+                { key: "rollover_off", label: copy.filterRolloverOff },
+                { key: "rollover_on", label: copy.filterRolloverOn },
+                { key: "watch", label: copy.filterWatch },
+                { key: "fixed", label: copy.filterFixed },
+                { key: "flex", label: copy.filterFlex },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setEnvelopeFilter(f.key as any)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition",
+                    envelopeFilter === f.key
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)] border border-[var(--border)]"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bulk Rollover Dialog */}
+          {mounted ? (
           <Dialog open={bulkRolloverOpen} onOpenChange={setBulkRolloverOpen}>
             <DialogContent>
               <DialogHeader>
@@ -2545,89 +2756,93 @@ export default function EnvelopesPage() {
           </Dialog>
         ) : null}
 
-        {sortedEnvelopes.length === 0 ? (
-          <EmptyState
-            title={copy.noEnvelopes}
-            description={copy.createToStart}
-          />
-        ) : (
-          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-2)]/55 p-3 shadow-inner sm:p-5">
+          {/* Envelopes Banknote Grid */}
+          {allFilteredEnvelopes.length === 0 ? (
+            searchQuery || envelopeFilter !== "all" ? (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center space-y-3">
+                <p className="text-sm font-semibold text-[var(--ink)]">{copy.noFilterResults}</p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setEnvelopeFilter("all");
+                  }}
+                >
+                  {locale === "ar" ? "مسح الفلتر" : "Réinitialiser les filtres"}
+                </Button>
+              </div>
+            ) : (
+              <EmptyState
+                title={copy.noEnvelopes}
+                description={copy.createToStart}
+              />
+            )
+          ) : envelopeFilter !== "all" ? (
+            <div className="env-grid">
+              {allFilteredEnvelopes.map((env, index) =>
+                renderEnvelopeCard(env, index, fixedEnvelopeIdSet.has(env.id))
+              )}
+            </div>
+          ) : (
             <div className="space-y-8">
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <ArrowDownCircle className="h-4 w-4 text-emerald-600" />
-                  <p className="text-sm font-semibold text-[var(--ink)]">
-                    {locale === "ar"
-                      ? "الأظرفة اللي كتحوّل الفائض نحو الادخار (Rollover OFF)"
-                      : locale === "en"
-                      ? "Envelopes sending unused balance to savings (Rollover OFF)"
-                      : "Enveloppes qui transfèrent le reliquat vers l’épargne (Rollover OFF)"}
-                  </p>
-                </div>
-                <p className="mb-3 text-xs text-[var(--muted)]">
-                  {locale === "ar"
-                    ? `${rolloverOffEnvelopes.length} ظرف (${rolloverOffEnvelopes.filter((env) => fixedEnvelopeIdSet.has(env.id)).length} ثابت، ${rolloverOffEnvelopes.filter((env) => !fixedEnvelopeIdSet.has(env.id)).length} مرن)`
-                    : locale === "en"
-                    ? `${rolloverOffEnvelopes.length} envelopes (${rolloverOffEnvelopes.filter((env) => fixedEnvelopeIdSet.has(env.id)).length} fixed, ${rolloverOffEnvelopes.filter((env) => !fixedEnvelopeIdSet.has(env.id)).length} flexible)`
-                    : `${rolloverOffEnvelopes.length} enveloppes (${rolloverOffEnvelopes.filter((env) => fixedEnvelopeIdSet.has(env.id)).length} fixes, ${rolloverOffEnvelopes.filter((env) => !fixedEnvelopeIdSet.has(env.id)).length} flexibles)`}
-                </p>
-                {rolloverOffEnvelopes.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">
-                    {locale === "ar"
-                      ? "ما كاين حتى ظرف بـ Rollover OFF."
-                      : locale === "en"
-                      ? "No envelope with Rollover OFF."
-                      : "Aucune enveloppe avec Rollover OFF."}
-                  </p>
-                ) : (
-                  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {rolloverOffSortedEnvelopes.map((env, index) =>
+              {filteredRolloverOff.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowDownCircle className="h-4 w-4 text-emerald-600" />
+                      <p className="text-sm font-bold text-[var(--ink)]">
+                        {locale === "ar"
+                          ? "الأظرفة اللي كتحوّل الفائض نحو الادخار (Rollover OFF)"
+                          : locale === "en"
+                          ? "Envelopes sending unused balance to savings (Rollover OFF)"
+                          : "Enveloppes qui transfèrent le reliquat vers l’épargne (Rollover OFF)"}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-[var(--muted)]">
+                      {filteredRolloverOff.length} {locale === "ar" ? "أظرفة" : "enveloppes"}
+                    </span>
+                  </div>
+
+                  <div className="env-grid">
+                    {filteredRolloverOff.map((env, index) =>
                       renderEnvelopeCard(env, index, fixedEnvelopeIdSet.has(env.id))
                     )}
                   </div>
-                )}
-              </div>
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <ArrowUpCircle className="h-4 w-4 text-sky-600" />
-                  <p className="text-sm font-semibold text-[var(--ink)]">
-                    {locale === "ar"
-                      ? "الأظرفة اللي كتحافظ على الرصيد للفترة الجاية (Rollover ON)"
-                      : locale === "en"
-                      ? "Envelopes keeping balance for next period (Rollover ON)"
-                      : "Enveloppes qui conservent le solde pour la période suivante (Rollover ON)"}
-                  </p>
                 </div>
-                <p className="mb-3 text-xs text-[var(--muted)]">
-                  {locale === "ar"
-                    ? `${rolloverOnEnvelopes.length} ظرف (${rolloverOnEnvelopes.filter((env) => fixedEnvelopeIdSet.has(env.id)).length} ثابت، ${rolloverOnEnvelopes.filter((env) => !fixedEnvelopeIdSet.has(env.id)).length} مرن)`
-                    : locale === "en"
-                    ? `${rolloverOnEnvelopes.length} envelopes (${rolloverOnEnvelopes.filter((env) => fixedEnvelopeIdSet.has(env.id)).length} fixed, ${rolloverOnEnvelopes.filter((env) => !fixedEnvelopeIdSet.has(env.id)).length} flexible)`
-                    : `${rolloverOnEnvelopes.length} enveloppes (${rolloverOnEnvelopes.filter((env) => fixedEnvelopeIdSet.has(env.id)).length} fixes, ${rolloverOnEnvelopes.filter((env) => !fixedEnvelopeIdSet.has(env.id)).length} flexibles)`}
-                </p>
-                {rolloverOnEnvelopes.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">
-                    {locale === "ar"
-                      ? "ما كاين حتى ظرف بـ Rollover ON."
-                      : locale === "en"
-                      ? "No envelope with Rollover ON."
-                      : "Aucune enveloppe avec Rollover ON."}
-                  </p>
-                ) : (
-                  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {rolloverOnSortedEnvelopes.map((env, index) =>
+              )}
+
+              {filteredRolloverOn.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpCircle className="h-4 w-4 text-sky-600" />
+                      <p className="text-sm font-bold text-[var(--ink)]">
+                        {locale === "ar"
+                          ? "الأظرفة اللي كتحافظ على الرصيد للفترة الجاية (Rollover ON)"
+                          : locale === "en"
+                          ? "Envelopes keeping balance for next period (Rollover ON)"
+                          : "Enveloppes qui conservent le solde pour la période suivante (Rollover ON)"}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-[var(--muted)]">
+                      {filteredRolloverOn.length} {locale === "ar" ? "أظرفة" : "enveloppes"}
+                    </span>
+                  </div>
+
+                  <div className="env-grid">
+                    {filteredRolloverOn.map((env, index) =>
                       renderEnvelopeCard(
                         env,
-                        index + rolloverOffSortedEnvelopes.length,
+                        index + filteredRolloverOff.length,
                         fixedEnvelopeIdSet.has(env.id)
                       )
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
         </Section>
       </div>
 

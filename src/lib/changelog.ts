@@ -27,6 +27,32 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.8.0",
+    date: "2026-10-10",
+    groups: [
+      {
+        kind: "added",
+        items: [
+          {
+            fr: "Page Enveloppes repensée : résumé du reste, du budget alloué et des dépenses, recherche et filtres, et mise en avant des enveloppes à découvert.",
+            en: "Redesigned Envelopes page: summary of remaining, allocated and spent amounts, search and filters, and overdrawn envelopes highlighted.",
+            ar: "صفحة الأظرفة تجددات: ملخص ديال الباقي والميزانية الموزعة والمصروف، البحث والفلاتر، والأظرفة اللي ناقصة باينين مزيان.",
+          },
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          {
+            fr: "Nouvelle icône de l'application et nouvelles couleurs à l'installation sur téléphone.",
+            en: "New app icon and refreshed colours when installed on your phone.",
+            ar: "أيقونة جديدة للتطبيق وألوان جداد ملي كتثبتو فالتيليفون.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-10-08",
     groups: [

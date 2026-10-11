@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');
 @import "tailwindcss";
 @import "./page9-auth.css";
+@import "./page11-envelopes.css";
 
 /*
  * Dark mode in this app is a manual, explicit toggle (Réglages > Thème) that
