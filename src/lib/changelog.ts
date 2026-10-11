@@ -38,6 +38,11 @@ export const CHANGELOG: Release[] = [
             en: "Redesigned Envelopes page: summary of remaining, allocated and spent amounts, search and filters, and overdrawn envelopes highlighted.",
             ar: "صفحة الأظرفة تجددات: ملخص ديال الباقي والميزانية الموزعة والمصروف، البحث والفلاتر، والأظرفة اللي ناقصة باينين مزيان.",
           },
+          {
+            fr: "Enveloppes au nouveau design « billets » : sections Dettes, Objectifs, Fixes et Flexibles, vue en liste, aperçu de la clôture, allocation rapide depuis Cash et fiche détaillée par enveloppe.",
+            en: "Envelopes in the new “banknotes” design: Debts, Goals, Fixed and Flexible sections, list view, closing preview, quick allocation from Cash and a detailed sheet for each envelope.",
+            ar: "الأظرفة بالتصميم الجديد ديال «البياسات»: أقسام الديون والأهداف والثابتين والمرنين، عرض لائحة، شوف شنو غادي يوقع فالإغلاق، توزيع سريع من لكاش وتفاصيل كل ظرف.",
+          },
         ],
       },
       {

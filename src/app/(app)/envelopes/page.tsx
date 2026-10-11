@@ -1,20 +1,25 @@
 "use client";
 
-import { type CSSProperties, useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Eye,
-  Info,
-  Landmark,
+  AlertTriangle,
+  Check,
+  Download,
+  LayoutGrid,
+  List,
+  Loader2,
+  Lock,
+  MoreHorizontal,
   Pencil,
   Plus,
   RotateCcw,
+  Search,
   SlidersHorizontal,
   Target,
   Trash2,
+  X,
 } from "lucide-react";
 
 import { apiFetch, fetchDashboard } from "@/lib/api";
@@ -31,34 +36,11 @@ import type {
   OnboardingV2RecordOut,
   TransactionOut,
 } from "@/lib/types";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { IssueAlert } from "@/components/ui/IssueAlert";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Section } from "@/components/ui/Section";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/Drawer";
-import { useToast } from "@/components/ui/Toast";
 import {
   PageTour,
 } from "@/components/tour/GlobalTour";
 import { usePageTour } from "@/components/tour/usePageTour";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/Dialog";
 import {
   getLocaleDirection,
   type FloussyLocale,
@@ -71,6 +53,17 @@ import { cn } from "@/lib/cn";
 import type { AuthUser } from "@/lib/auth";
 import { GUEST_LIMITS, checkEnvelopeQuota } from "@/lib/guestQuota";
 import { guestEvent } from "@/lib/guestAnchorApi";
+import {
+  ENV_COPY,
+  EnvDrawer,
+  EnvModal,
+  EnvToastView,
+  SEALS_DARK,
+  SEALS_LIGHT,
+  getBanknotes,
+  sealIndex,
+  type EnvToast,
+} from "./envelopes-ui";
 
 const RESERVED_NAMES = ["cash", "epargnes"];
 // Fire the "hit the 20-envelope wall" analytics event at most once per page load.
@@ -109,58 +102,6 @@ const ENVELOPE_PRESET_PACKS = [
     envelopeKeys: ["equipment", "training", "work_travel"],
   },
 ];
-
-const ENVELOPE_THEMES = [
-  { accent: "#0f766e", paper: "#f0fdfa", paper2: "#ccfbf1", ink: "#134e4a", darkPaper: "#102b2a", darkPaper2: "#16413f", darkInk: "#d5fffb" },
-  { accent: "#b45309", paper: "#fff7ed", paper2: "#fed7aa", ink: "#7c2d12", darkPaper: "#33230f", darkPaper2: "#4a3215", darkInk: "#ffedd5" },
-  { accent: "#be123c", paper: "#fff1f2", paper2: "#fecdd3", ink: "#881337", darkPaper: "#35141c", darkPaper2: "#4c1d2a", darkInk: "#ffe4e6" },
-  { accent: "#2563eb", paper: "#eff6ff", paper2: "#bfdbfe", ink: "#1e3a8a", darkPaper: "#132342", darkPaper2: "#1d3764", darkInk: "#dbeafe" },
-  { accent: "#4f46e5", paper: "#eef2ff", paper2: "#c7d2fe", ink: "#312e81", darkPaper: "#1d1b3f", darkPaper2: "#292766", darkInk: "#e0e7ff" },
-  { accent: "#15803d", paper: "#f0fdf4", paper2: "#bbf7d0", ink: "#14532d", darkPaper: "#102d1d", darkPaper2: "#17442a", darkInk: "#dcfce7" },
-];
-
-
-function getEnvelopeBanknotes(amount: number, locale: string) {
-  let r = Math.max(0, Math.round(amount));
-  const out: number[] = [];
-  for (const d of [200, 100, 50, 20]) {
-    while (r >= d && out.length < 5) {
-      out.push(d);
-      r -= d;
-    }
-  }
-  const coin = r >= 10 && out.length < 5;
-  out.reverse();
-  const mid = out.length > 0 ? ((out.length - 1) / 2).toFixed(1) : "0";
-  return {
-    notes: out.map((denom, i) => ({
-      cls: `eb-note n${denom}`,
-      denom,
-      i,
-      mid,
-    })),
-    coin,
-    nCount: out.length,
-    noMoney: out.length === 0 && !coin,
-    noMoneyText:
-      amount < 0
-        ? locale === "ar"
-          ? "ناقص"
-          : locale === "en"
-          ? "overdrawn"
-          : "à découvert"
-        : locale === "ar"
-        ? "خاوي"
-        : locale === "en"
-        ? "empty"
-        : "vide",
-  };
-}
-
-const getEnvelopeTheme = (value: string) => {
-  const score = Array.from(value).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return ENVELOPE_THEMES[score % ENVELOPE_THEMES.length];
-};
 
 const ENVELOPES_COPY = {
   fr: {
@@ -782,48 +723,6 @@ const formatLocalDate = (value: string | undefined, locale: FloussyLocale) => {
   });
 };
 
-function Sparkline({ data }: { data: number[] }) {
-  const points = useMemo(() => {
-    if (data.length === 0) return [];
-    const max = Math.max(...data, 1);
-    const min = Math.min(...data, 0);
-    const range = max - min || 1;
-    return data.map((value, index) => ({
-      x: (index / Math.max(data.length - 1, 1)) * 100,
-      y: 100 - ((value - min) / range) * 100,
-    }));
-  }, [data]);
-
-  if (points.length === 0) {
-    return (
-      <div className="h-16 rounded-2xl bg-[var(--surface-2)]" aria-hidden="true" />
-    );
-  }
-
-  const path = points
-    .map((point, index) =>
-      `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`
-    )
-    .join(" ");
-
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      className="h-16 w-full"
-      role="img"
-      aria-label="Spending trend"
-    >
-      <path
-        d={path}
-        fill="none"
-        stroke="var(--accent-strong)"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 export default function EnvelopesPage() {
   const [locale, setLocale] = useState<FloussyLocale>("fr");
   const router = useRouter();
@@ -832,7 +731,16 @@ export default function EnvelopesPage() {
   const currentRef = useRef<HTMLDivElement | null>(null);
   const createRef = useRef<HTMLDivElement | null>(null);
   const advancedRef = useRef<HTMLDivElement | null>(null);
-  const { toast } = useToast();
+  const [envToast, setEnvToast] = useState<EnvToast | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const toast = useCallback(
+    ({ title, description, variant }: { title: string; description?: string; variant?: "success" | "danger" | "default" }) => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      setEnvToast({ id: Date.now(), text: description ? `${title} ${description}` : title, bad: variant === "danger" });
+      toastTimerRef.current = window.setTimeout(() => setEnvToast(null), 4200);
+    },
+    []
+  );
   const fetcher = (url: string) => apiFetch<any>(url);
 
   const { data: dashboardData, error: dashboardError, mutate: mutateDashboard } = useSWR<DashboardOut>("/dashboard", () => fetchDashboard());
@@ -900,14 +808,13 @@ export default function EnvelopesPage() {
   const [editingIsDebt, setEditingIsDebt] = useState(false);
   const [editingCanDebt, setEditingCanDebt] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [envelopeFilter, setEnvelopeFilter] = useState<"all" | "rollover_off" | "rollover_on" | "watch" | "fixed" | "flex">("all");
+  const [envelopeFilter, setEnvelopeFilter] = useState<"all" | "watch" | "neg" | "off">("all");
   const [updating, setUpdating] = useState(false);
   const [rolloverUpdatingId, setRolloverUpdatingId] = useState<string | null>(null);
   const [rolloverDialogOpen, setRolloverDialogOpen] = useState(false);
   const [rolloverTarget, setRolloverTarget] = useState<EnvelopeOut | null>(null);
   const [rolloverNextValue, setRolloverNextValue] = useState(false);
   const [bulkRolloverOpen, setBulkRolloverOpen] = useState(false);
-  const [bulkRolloverIds, setBulkRolloverIds] = useState<string[]>([]);
   const [bulkRolloverLoading, setBulkRolloverLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -946,6 +853,19 @@ export default function EnvelopesPage() {
   const [advancedSelectedNames, setAdvancedSelectedNames] = useState<string[]>([]);
   const [advancedCustomText, setAdvancedCustomText] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [sortBy, setSortBy] = useState<"perso" | "bal" | "pct" | "name">("perso");
+  const [view, setView] = useState<"cards" | "list">("cards");
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [drawerTab, setDrawerTab] = useState<"ov" | "tx" | "log">("ov");
+  const [quickTarget, setQuickTarget] = useState<EnvelopeOut | null>(null);
+  const [quickAmount, setQuickAmount] = useState("");
+  const [quickError, setQuickError] = useState<string | null>(null);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [closingOpen, setClosingOpen] = useState(false);
+  const [rollDraft, setRollDraft] = useState<Record<string, boolean>>({});
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [txDeleteTarget, setTxDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [coveringId, setCoveringId] = useState<string | null>(null);
   const autoFixRunningRef = useRef(false);
   const copy = ENVELOPES_COPY[locale];
   const pageDir = getLocaleDirection(locale);
@@ -1057,12 +977,6 @@ export default function EnvelopesPage() {
       .filter(Boolean);
     return Array.from(new Set(raw));
   }, [advancedCustomText]);
-
-  const availableAdvancedNames = useMemo(() => {
-    return Array.from(
-      new Set([...advancedPresetList, ...customEnvelopeList])
-    );
-  }, [advancedPresetList, customEnvelopeList]);
 
   const localizedPresetPacks = useMemo(
     () =>
@@ -1191,14 +1105,6 @@ export default function EnvelopesPage() {
       return a.name.localeCompare(b.name);
     });
   }, [envelopes]);
-  const goalEnvelopes = useMemo(
-    () => sortedEnvelopes.filter((env) => Boolean(env.is_goal)),
-    [sortedEnvelopes]
-  );
-  const debtEnvelopes = useMemo(
-    () => sortedEnvelopes.filter((env) => !env.is_goal && isDebtEnvelope(env)),
-    [sortedEnvelopes]
-  );
   const standardEnvelopes = useMemo(
     () => sortedEnvelopes.filter((env) => !env.is_goal && !isDebtEnvelope(env)),
     [sortedEnvelopes]
@@ -1250,51 +1156,7 @@ export default function EnvelopesPage() {
     return Array.from(ids);
   }, [activeSavedEnvelopeFixedRows, distributionRules]);
 
-  const fixedEnvelopeAmounts = useMemo(() => {
-    const amounts: Record<string, number> = {};
-
-    (distributionRules ?? []).forEach((rule) => {
-      if (rule.target_type === "envelope" && rule.enabled && isFixedMode(rule.mode)) {
-        const amount = Number(rule.amount ?? "0");
-        if (Number.isFinite(amount) && amount > 0) {
-          amounts[rule.target_id] = amount;
-        }
-      }
-    });
-
-    // The saved config carries the user's intended figure; let it win.
-    activeSavedEnvelopeFixedRows.forEach((row) => {
-      const amount = Number(row.fixed_amount ?? "0");
-      if (Number.isFinite(amount) && amount > 0) {
-        amounts[row.target_id] = amount;
-      }
-    });
-
-    return amounts;
-  }, [activeSavedEnvelopeFixedRows, distributionRules]);
-
   const fixedEnvelopeIdSet = useMemo(() => new Set(fixedEnvelopeIds), [fixedEnvelopeIds]);
-  const rolloverOffSortedEnvelopes = useMemo(
-    () =>
-      [...rolloverOffEnvelopes].sort((a, b) => {
-        const af = fixedEnvelopeIdSet.has(a.id) ? 0 : 1;
-        const bf = fixedEnvelopeIdSet.has(b.id) ? 0 : 1;
-        if (af !== bf) return af - bf;
-        return a.name.localeCompare(b.name);
-      }),
-    [rolloverOffEnvelopes, fixedEnvelopeIdSet]
-  );
-  const rolloverOnSortedEnvelopes = useMemo(
-    () =>
-      [...rolloverOnEnvelopes].sort((a, b) => {
-        const af = fixedEnvelopeIdSet.has(a.id) ? 0 : 1;
-        const bf = fixedEnvelopeIdSet.has(b.id) ? 0 : 1;
-        if (af !== bf) return af - bf;
-        return a.name.localeCompare(b.name);
-      }),
-    [rolloverOnEnvelopes, fixedEnvelopeIdSet]
-  );
-
   const goalByEnvelopeId = useMemo(() => {
     const map = new Map<string, GoalOut>();
     goals.forEach((goal) => map.set(goal.envelope_id, goal));
@@ -1320,14 +1182,6 @@ export default function EnvelopesPage() {
     }
     return map;
   }, [onboardingRecord]);
-
-  const debtInitialRemaining = useMemo(() => {
-    let total = 0;
-    debtRemainingByName.forEach((amount) => {
-      total += amount;
-    });
-    return total > 0 ? total : null;
-  }, [debtRemainingByName]);
 
   // Debt envelopes are named "الديون — x" / "Dettes — x" after the debt itself.
   const lookupDebtRemaining = useCallback(
@@ -1360,98 +1214,6 @@ export default function EnvelopesPage() {
     return envelopes.find((env) => env.is_default_savings) ?? null;
   }, [envelopes]);
 
-  const kpis = useMemo(() => {
-    let totalBalance = 0;
-    let totalAllocated = 0;
-    let totalSpent = 0;
-    let overdrawnCount = 0;
-
-    envelopes.forEach((env) => {
-      const bal = Number(balanceOverrides[env.id] ?? envelopeBalances.get(env.id) ?? 0);
-      totalBalance += bal;
-      if (bal < 0) overdrawnCount += 1;
-
-      const dbEnv = dashboard?.envelopes.find((item) => item.envelope.id === env.id);
-      if (dbEnv) {
-        totalAllocated += Number(dbEnv.balance.total_allocations || 0);
-        totalSpent += Number(dbEnv.balance.total_spent || 0);
-      }
-    });
-
-    const spentPct = totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0;
-    const savingsBal = defaultSavingsEnvelope
-      ? Number(balanceOverrides[defaultSavingsEnvelope.id] ?? envelopeBalances.get(defaultSavingsEnvelope.id) ?? 0)
-      : 0;
-
-    return {
-      totalBalance,
-      totalAllocated,
-      totalSpent,
-      spentPct,
-      savingsBal,
-      overdrawnCount,
-      activeCount: envelopes.length,
-    };
-  }, [envelopes, balanceOverrides, envelopeBalances, dashboard, defaultSavingsEnvelope]);
-
-  const matchesSearch = useCallback(
-    (env: EnvelopeOut) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.trim().toLowerCase();
-      const localizedName = localizeEnvelopeName(env.name).toLowerCase();
-      return env.name.toLowerCase().includes(q) || localizedName.includes(q);
-    },
-    [searchQuery]
-  );
-
-  const matchesFilter = useCallback(
-    (env: EnvelopeOut) => {
-      if (!matchesSearch(env)) return false;
-      if (envelopeFilter === "all") return true;
-      if (envelopeFilter === "rollover_off") return !env.rollover_enabled;
-      if (envelopeFilter === "rollover_on") return env.rollover_enabled;
-      if (envelopeFilter === "fixed") return fixedEnvelopeIdSet.has(env.id);
-      if (envelopeFilter === "flex") return !fixedEnvelopeIdSet.has(env.id);
-      if (envelopeFilter === "watch") {
-        const bal = Number(balanceOverrides[env.id] ?? envelopeBalances.get(env.id) ?? 0);
-        if (bal < 0) return true;
-        const dbEnv = dashboard?.envelopes.find((item) => item.envelope.id === env.id);
-        const alloc = Number(dbEnv?.balance.total_allocations || 0);
-        const spent = Number(dbEnv?.balance.total_spent || 0);
-        return alloc > 0 && spent / alloc >= 0.9;
-      }
-      return true;
-    },
-    [matchesSearch, envelopeFilter, fixedEnvelopeIdSet, balanceOverrides, envelopeBalances, dashboard]
-  );
-
-  const filteredRolloverOff = useMemo(
-    () => rolloverOffSortedEnvelopes.filter(matchesFilter),
-    [rolloverOffSortedEnvelopes, matchesFilter]
-  );
-
-  const filteredRolloverOn = useMemo(
-    () => rolloverOnSortedEnvelopes.filter(matchesFilter),
-    [rolloverOnSortedEnvelopes, matchesFilter]
-  );
-
-  const allFilteredEnvelopes = useMemo(
-    () => [...filteredRolloverOff, ...filteredRolloverOn],
-    [filteredRolloverOff, filteredRolloverOn]
-  );
-
-
-
-  const sweepEligibleEnvelopes = useMemo(() => {
-    return envelopes.filter(
-      (env) =>
-        !env.is_cash &&
-        !env.is_default_savings &&
-        !env.is_goal &&
-        !env.rollover_enabled
-    );
-  }, [envelopes]);
-
   const envelopeTransactions = useMemo(() => {
     if (!selectedEnvelope) return [];
     const mappedCategories = new Set(
@@ -1468,14 +1230,6 @@ export default function EnvelopesPage() {
       return mappedCategories.has(tx.category_id);
     });
   }, [selectedEnvelope, mappings, transactions]);
-
-  const periodTrend = useMemo(() => {
-    if (periods.length === 0) return [] as number[];
-    return periods
-      .slice()
-      .reverse()
-      .map((period) => Number(period.closing_balance));
-  }, [periods]);
 
   const handleCreate = async () => {
     setError(null);
@@ -1775,101 +1529,17 @@ export default function EnvelopesPage() {
     );
   };
 
-  const handleAdvancedNameToggle = (name: string) => {
-    setAdvancedSelectedNames((prev) =>
-      prev.includes(name)
-        ? prev.filter((item) => item !== name)
-        : [...prev, name]
-    );
-  };
-
-  const handleCreateAdvancedEnvelopes = async () => {
-    if (advancedSelectedNames.length === 0 && customEnvelopeList.length === 0) {
-      toast({
-        title: copy.noSelection,
-        description: copy.selectAtLeastOneEnvelope,
-      });
-      return;
-    }
-
-    const selected = new Set(advancedSelectedNames);
-    customEnvelopeList.forEach((name) => {
-      if (advancedSelectedNames.includes(name)) {
-        selected.add(name);
-      }
-    });
-    const names = Array.from(selected);
-
-    const existing = new Set(
-      envelopes.map((env) => env.name.trim().toLowerCase())
-    );
-    const toCreate = names.filter((name) => {
-      const normalized = name.trim().toLowerCase();
-      if (!normalized) return false;
-      if (RESERVED_NAMES.includes(normalized)) return false;
-      return !existing.has(normalized);
-    });
-
-    if (toCreate.length === 0) {
-      toast({
-        title: copy.nothingToAdd,
-        description: copy.allEnvelopesExist,
-      });
-      setAdvancedOpen(false);
-      return;
-    }
-
-    if (isGuest && toCreate.length > guestEnvelopeQuota.remaining) {
-      setError(copy.guestEnvelopeCap);
-      toast({
-        title: copy.addFailed,
-        description: copy.guestEnvelopeCap,
-        variant: "danger",
-      });
-      if (!guestEnvelopeCapHitSent) {
-        guestEnvelopeCapHitSent = true;
-        guestEvent("guest_wall_hit", { wall: "envelopes_cap", route: "/envelopes" });
-      }
-      return;
-    }
-
-    setAdvancedSaving(true);
-    setError(null);
-    try {
-      const created = await Promise.all(
-        toCreate.map((name) =>
-          apiFetch<EnvelopeOut>("/envelopes", {
-            method: "POST",
-            body: { name, rollover_enabled: false },
-          })
-        )
-      );
-      await loadData();
-      setAdvancedOpen(false);
-      toast({
-        title: copy.addSuccess,
-        description: copy.addCreated(created.length),
-        variant: "success",
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : copy.unknownError;
-      setError(message);
-      toast({
-        title: copy.addFailed,
-        description: message,
-        variant: "danger",
-      });
-    } finally {
-      setAdvancedSaving(false);
-    }
-  };
-
   const envelopeActivity = useMemo(() => {
     if (!selectedEnvelope) return [];
     return envelopeTransactions
       .slice()
+      .filter((tx) => {
+        const start = dashboard?.current_period?.start;
+        const end = dashboard?.current_period?.end;
+        if (!start || !end) return true;
+        return tx.occurred_on >= start && tx.occurred_on <= end;
+      })
       .sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))
-      .slice(0, 8)
       .map((tx) => {
         const category = categories.find((cat) => cat.id === tx.category_id);
         return {
@@ -1877,12 +1547,9 @@ export default function EnvelopesPage() {
           category_name: category?.name ?? "-",
         };
       });
-  }, [selectedEnvelope, envelopeTransactions, categories]);
+  }, [selectedEnvelope, envelopeTransactions, categories, dashboard]);
 
   const handleDeleteEnvelopeActivity = async (transactionId: string) => {
-    const ok = window.confirm(copy.deleteActivityConfirm);
-    if (!ok) return;
-
     setActivityDeletingId(transactionId);
     try {
       await apiFetch(`/transactions/${transactionId}`, { method: "DELETE" });
@@ -1903,9 +1570,6 @@ export default function EnvelopesPage() {
 
   const handleDeleteAllEnvelopeActivity = async () => {
     if (!selectedEnvelope) return;
-    const ok = window.confirm(copy.deleteAllActivityConfirm);
-    if (!ok) return;
-
     setActivityDeletingAll(true);
     try {
       const ids = envelopeActivity.map((tx) => tx.id);
@@ -2014,1548 +1678,1751 @@ export default function EnvelopesPage() {
     ...(mounted ? { advanced: { ref: advancedRef } } : {}),
   });
 
-  const renderEnvelopeCard = (env: EnvelopeOut, index: number, isFixedActive = false) => {
-    const balance =
-      balanceOverrides[env.id] ??
-      envelopeBalances.get(env.id) ??
-      "0.00";
-    const numBalance = Number(balance) || 0;
-    const theme = getEnvelopeTheme(env.name);
-    const envelopeColor = theme.accent;
+  /* ================================================================== */
+  /* Page 11 · Enveloppes — rendu (maquette WebEnvelopes)               */
+  /* ================================================================== */
 
-    const dashboardEnvelope = dashboard?.envelopes.find(
-      (item) => item.envelope.id === env.id
-    );
-    const allocated = Number(dashboardEnvelope?.balance.total_allocations ?? 0);
-    const spent = Number(dashboardEnvelope?.balance.total_spent ?? 0);
-    const spendPercent =
-      allocated > 0 ? Math.min(Math.max((spent / allocated) * 100, 0), 100) : 0;
+  const t = ENV_COPY[locale];
+  const numberLocale = locale === "en" ? "en-US" : "fr-FR";
+  const currency = locale === "ar" ? "درهم" : "DH";
+  const fmt = (value: number) =>
+    `${value < 0 ? "−" : ""}${Math.abs(value)
+      .toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      .replace(/[  ]/g, " ")} ${currency}`;
+  const fmt0 = (value: number) =>
+    `${value < 0 ? "−" : ""}${Math.round(Math.abs(value))
+      .toLocaleString(numberLocale)
+      .replace(/[  ]/g, " ")} ${currency}`;
+  const parseAmount = (raw: string) => {
+    const cleaned = raw.replace(/[\s  ]/g, "").replace(",", ".");
+    return /^-?\d+(\.\d{1,2})?$/.test(cleaned) ? Number(cleaned) : Number.NaN;
+  };
+  const bcp47 = LOCALE_TO_BCP47[locale];
 
-    const { notes, coin, noMoney, noMoneyText, nCount } = getEnvelopeBanknotes(numBalance, locale);
-    const isDebt = looksLikeDebt(env.name);
-    const isGoal = goalByEnvelopeId.has(env.id);
+  // Période en cours : « 28 sept → 27 oct · jour 11 / 30 »
+  const periodInfo = (() => {
+    const start = dashboard?.current_period?.start;
+    const end = dashboard?.current_period?.end;
+    if (!start || !end) return null;
+    const startDate = new Date(`${start}T00:00:00`);
+    const endDate = new Date(`${end}T00:00:00`);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+    const dayMs = 86_400_000;
+    const days = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / dayMs) + 1);
+    const today = Math.min(days, Math.max(1, Math.floor((Date.now() - startDate.getTime()) / dayMs) + 1));
+    const short = (date: Date) => date.toLocaleDateString(bcp47, { day: "numeric", month: "short" });
+    return {
+      label: `${short(startDate)} ${locale === "ar" ? "←" : "→"} ${short(endDate)}`,
+      endLabel: short(endDate),
+      days,
+      today,
+      timePct: today / days,
+      dayToDate: (n: number) => short(new Date(startDate.getTime() + Math.floor(n) * dayMs)),
+    };
+  })();
+  const endLabel = periodInfo?.endLabel ?? "—";
 
-    const postmarkText = isDebt
-      ? (locale === "ar" ? "دين" : "DETTE")
-      : isGoal
-      ? (locale === "ar" ? "هدف" : "OBJECTIF")
-      : (locale === "ar" ? "الدار البيضاء · 7SABEK" : "CASABLANCA · 7SABEK");
-
-    return (
-      <article
-        key={env.id}
-        className="sbk-card eb-full relative overflow-hidden flex flex-col justify-between"
-        style={{
-          ["--c" as any]: envelopeColor,
-          ["--n" as any]: nCount,
-          minHeight: "310px",
-          padding: "16px 18px",
-        }}
-      >
-        {/* Pocket Header with Banknotes */}
-        <div className="eb-hd" aria-hidden="true">
-          <span className="eb-pm">{postmarkText}</span>
-          <div className="eb-clip">
-            <div className="eb-notes">
-              {notes.map((nt) => (
-                <span
-                  key={nt.i}
-                  className={nt.cls}
-                  style={{
-                    ["--i" as any]: nt.i,
-                    ["--mid" as any]: nt.mid,
-                  }}
-                />
-              ))}
-              {coin && <span className="eb-coin" />}
-              {noMoney && <span className="eb-miss">{noMoneyText}</span>}
-            </div>
-          </div>
-          <span className="eb-lip" />
-        </div>
-
-        {/* Top Title, Badges, and Amount */}
-        <div className="relative z-10 pt-24 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className={cn(
-                "text-base font-bold text-white drop-shadow-sm leading-snug truncate",
-                locale === "ar" ? "font-cairo" : "font-manrope"
-              )}
-              title={localizeEnvelopeName(env.name)}
-            >
-              {localizeEnvelopeName(env.name)}
-            </h3>
-
-            <div className="flex flex-wrap items-center gap-1 shrink-0">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase backdrop-blur-md",
-                  env.rollover_enabled
-                    ? "bg-white/20 text-white"
-                    : "bg-emerald-400/25 text-emerald-100"
-                )}
-                title={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-              >
-                {env.rollover_enabled ? (
-                  <>
-                    <ArrowUpCircle className="h-3 w-3" />
-                    <span>ON</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownCircle className="h-3 w-3" />
-                    <span>OFF</span>
-                  </>
-                )}
-              </span>
-
-              {isFixedActive && (
-                <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
-                  {locale === "ar" ? "ثابت" : "Fixe"}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Big Balance Amount */}
-          <div className="eb-amt flex items-baseline gap-1 text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">
-            <span>{formatMoneyWithCurrency(balance)}</span>
-          </div>
-        </div>
-
-        {/* Bottom Area: Meter Bar & Action buttons (smooth cross-fade on hover/focus) */}
-        <div className="relative z-10 mt-4 min-h-[44px]">
-          {/* Progress Bar / Budget info */}
-          <div className="eb-meter flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs text-white/90 font-medium">
-              <span>
-                {allocated > 0
-                  ? `${locale === "ar" ? "المصروف" : "Dépensé"} ${formatMoneyWithCurrency(spent)} / ${formatMoneyWithCurrency(allocated)}`
-                  : (locale === "ar" ? "بدون ميزانية محددة" : "Sans budget défini")}
-              </span>
-              {allocated > 0 && (
-                <span className="font-bold text-white">{Math.round(spendPercent)}%</span>
-              )}
-            </div>
-
-            <div role="meter" className="h-1.5 w-full rounded-full bg-white/25 overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-300",
-                  spendPercent >= 90 ? "bg-amber-300" : "bg-white"
-                )}
-                style={{ width: `${spendPercent}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Action buttons (revealed on hover/focus, or static on touch) */}
-          <div className="eb-acts flex items-center gap-1.5">
-            <button
-              type="button"
-              className="sbk-act flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
-              onClick={() => setSelectedEnvelopeId(env.id)}
-              title={copy.viewDetails}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>{copy.viewDetails}</span>
-            </button>
-
-            <button
-              type="button"
-              className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
-              onClick={() => handleStartCorrection(env)}
-              title={copy.correction}
-              aria-label={copy.correction}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-            </button>
-
-            {!isEnvelopeLocked(env) && (
-              <button
-                type="button"
-                className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
-                onClick={() => handleEdit(env)}
-                title={copy.rename}
-                aria-label={copy.rename}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
-
-            {!isEnvelopeLocked(env) && (
-              <button
-                type="button"
-                className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
-                onClick={() => {
-                  setRolloverTarget(env);
-                  setRolloverNextValue(!env.rollover_enabled);
-                  setRolloverDialogOpen(true);
-                }}
-                title={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-                aria-label={env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            )}
-
-            {!isEnvelopeLocked(env) && (
-              <button
-                type="button"
-                className="sbk-act inline-flex items-center justify-center h-9 w-9 rounded-xl text-xs font-bold text-red-200 hover:text-white transition shadow-sm active:scale-95"
-                onClick={() => {
-                  setDeleteTarget(env);
-                  setDeleteOpen(true);
-                }}
-                title={copy.delete}
-                aria-label={copy.delete}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </article>
-    );
+  type EnvKind = "debt" | "goal" | "fixe" | "flex";
+  type EnvInfo = {
+    env: EnvelopeOut;
+    name: string;
+    bal: number;
+    alloc: number;
+    spent: number;
+    kind: EnvKind;
+    pct: number;
+    spend: boolean;
+    watch: boolean;
+    over: boolean;
+    locked: boolean;
+    seal: number;
+    pace: { text: string; tone: "bad" | "warn" | null } | null;
+    meterLabel: string;
+    meterPct: number;
+    extra: string;
+    isNew: boolean;
   };
 
-  const renderSpecialEnvelopeCard = (
-    env: EnvelopeOut,
-    kind: "debt" | "goal"
-  ) => {
-    const balance =
-      balanceOverrides[env.id] ??
-      envelopeBalances.get(env.id) ??
-      "0.00";
-    const numBalance = Number(balance) || 0;
-    const isGoalKind = kind === "goal";
-    const fixedAmount = fixedEnvelopeAmounts[env.id];
-    const currentBalance = numBalance;
-    const goal = isGoalKind ? goalByEnvelopeId.get(env.id) ?? null : null;
-    const goalTarget = goal ? Number(goal.target_amount || "0") : 0;
-    const goalProgress = goalTarget > 0 ? Math.max(0, Math.min(1, currentBalance / goalTarget)) : 0;
-    const debtOutstanding = isGoalKind ? 0 : lookupDebtRemaining(env.name) ?? debtInitialRemaining ?? 0;
-    const debtProgress =
-      debtOutstanding > 0 ? Math.max(0, Math.min(1, currentBalance / debtOutstanding)) : 0;
-    const progressRatio = isGoalKind ? goalProgress : debtProgress;
-    const progressPct = `${(progressRatio * 100).toFixed(0)}%`;
-    const monthlyContribution = isGoalKind
-      ? Number(goal?.contribution_amount ?? 0) || Number(fixedAmount ?? 0)
-      : Number(fixedAmount ?? 0);
-    const remainingToHit = isGoalKind
-      ? Math.max(0, goalTarget - currentBalance)
-      : Math.max(0, debtOutstanding - currentBalance);
-    const hasTarget = isGoalKind ? goalTarget > 0 : debtOutstanding > 0;
-    const etaMonths =
-      hasTarget && monthlyContribution > 0
-        ? Math.max(0, Math.ceil(remainingToHit / monthlyContribution))
-        : null;
-    const etaDate =
-      etaMonths !== null
-        ? (() => {
-            const next = new Date();
-            next.setMonth(next.getMonth() + etaMonths);
-            return next.toLocaleDateString(LOCALE_TO_BCP47[locale], {
-              month: "short",
-              year: "numeric",
-            });
-          })()
-        : null;
+  const dashboardBalanceById = new Map(
+    (dashboard?.envelopes ?? []).map((item) => [item.envelope.id, item.balance] as const)
+  );
+  const balanceOf = (id: string) => Number(balanceOverrides[id] ?? envelopeBalances.get(id) ?? 0) || 0;
+  const cashEnvelope = envelopes.find((env) => env.is_cash) ?? null;
+  const cashAvailable = Number(
+    dashboard?.available_to_allocate ?? dashboard?.cash_balance ?? (cashEnvelope ? balanceOf(cashEnvelope.id) : 0)
+  ) || 0;
+  const recentCutoff = Date.now() - 3 * 86_400_000;
 
-    const themeColor = isGoalKind ? "#4F46E5" : "#BE123C";
-    const { notes, coin, noMoney, noMoneyText, nCount } = getEnvelopeBanknotes(numBalance, locale);
+  const buildInfo = (env: EnvelopeOut): EnvInfo => {
+    const name = localizeEnvelopeName(env.name);
+    const bal = balanceOf(env.id);
+    const period = dashboardBalanceById.get(env.id);
+    const alloc = Number(period?.total_allocations ?? 0) || 0;
+    const spent = Number(period?.total_spent ?? 0) || 0;
+    const kind: EnvKind = env.is_goal
+      ? "goal"
+      : isDebtEnvelope(env)
+      ? "debt"
+      : fixedEnvelopeIdSet.has(env.id)
+      ? "fixe"
+      : "flex";
+    const spend = kind === "fixe" || kind === "flex";
+    const goal = kind === "goal" ? goalByEnvelopeId.get(env.id) ?? null : null;
+    const target = goal ? Number(goal.target_amount || 0) || 0 : 0;
+    const pct = kind === "goal" ? (target > 0 ? bal / target : 0) : alloc > 0 ? spent / alloc : 0;
+    const over = spend && pct > 0.9;
+    const watch = spend && (bal < 0 || pct > 0.9);
 
-    const postmarkText = isGoalKind
-      ? (locale === "ar" ? "هدف · GOAL" : "OBJECTIF")
-      : (locale === "ar" ? "دين · DETTE" : "DETTE / CRÉDIT");
+    let pace: EnvInfo["pace"] = null;
+    if (spend && alloc > 0) {
+      if (bal < 0) pace = { text: t.overdrawn(fmt0(-bal)), tone: "bad" };
+      else if (spent <= 0) pace = { text: t.noSpendYet, tone: null };
+      else if (bal === 0) pace = { text: t.emptyEnv, tone: "warn" };
+      else if (periodInfo) {
+        const rate = spent / periodInfo.today;
+        const day = periodInfo.today + bal / rate;
+        pace =
+          day < periodInfo.days
+            ? { text: t.emptyOn(periodInfo.dayToDate(day)), tone: "warn" }
+            : { text: t.willLast, tone: null };
+      }
+    }
 
-    return (
-      <article
-        key={env.id}
-        className="sbk-card eb-full relative overflow-hidden flex flex-col justify-between"
-        style={{
-          ["--c" as any]: themeColor,
-          ["--n" as any]: nCount,
-          minHeight: "310px",
-          padding: "16px 18px",
-        }}
-      >
-        {/* Pocket Header with Banknotes */}
-        <div className="eb-hd" aria-hidden="true">
-          <span className="eb-pm">{postmarkText}</span>
-          <div className="eb-clip">
-            <div className="eb-notes">
-              {notes.map((nt) => (
-                <span
-                  key={nt.i}
-                  className={nt.cls}
-                  style={{
-                    ["--i" as any]: nt.i,
-                    ["--mid" as any]: nt.mid,
-                  }}
-                />
-              ))}
-              {coin && <span className="eb-coin" />}
-              {noMoney && <span className="eb-miss">{noMoneyText}</span>}
-            </div>
-          </div>
-          <span className="eb-lip" />
-        </div>
+    let meterLabel: string;
+    if (kind === "goal") meterLabel = target > 0 ? t.goalOf(fmt0(bal).replace(` ${currency}`, ""), fmt0(target)) : fmt0(bal);
+    else if (kind === "debt") meterLabel = t.setAside(fmt0(alloc));
+    else meterLabel = alloc > 0 ? t.spentOf(fmt0(spent).replace(` ${currency}`, ""), fmt0(alloc)) : t.noBudget;
 
-        {/* Top Title, Badges, and Amount */}
-        <div className="relative z-10 pt-24 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[10px] font-bold tracking-wider uppercase text-white/70">
-                {isGoalKind
-                  ? (locale === "ar" ? "ظرف هدف" : "Enveloppe Objectif")
-                  : (locale === "ar" ? "ظرف دين" : "Enveloppe Dette")}
-              </span>
-              <h3
-                className={cn(
-                  "text-base font-bold text-white drop-shadow-sm leading-snug truncate",
-                  locale === "ar" ? "font-cairo" : "font-manrope"
-                )}
-                title={localizeEnvelopeName(env.name)}
-              >
-                {localizeEnvelopeName(env.name)}
-              </h3>
-            </div>
+    let extra = "";
+    if (kind === "goal" && goal?.target_date && target > 0) {
+      const deadline = new Date(`${goal.target_date}T00:00:00`);
+      if (!Number.isNaN(deadline.getTime())) {
+        const now = new Date();
+        const months = Math.max(
+          1,
+          (deadline.getFullYear() - now.getFullYear()) * 12 + (deadline.getMonth() - now.getMonth())
+        );
+        const need = Math.max(0, target - bal) / months;
+        extra = t.goalNeed(
+          deadline.toLocaleDateString(bcp47, { month: "long", year: "numeric" }),
+          fmt0(need),
+          months
+        );
+      }
+    }
+    if (kind === "debt") {
+      const due = lookupDebtRemaining(env.name);
+      if (due && due > 0) extra = t.debtLeft(fmt0(due));
+    }
 
-            <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
-              {isGoalKind ? <Target className="h-3 w-3" /> : <Landmark className="h-3 w-3" />}
-            </span>
-          </div>
-
-          {/* Big Balance Amount */}
-          <div className="eb-amt flex items-baseline gap-1 text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">
-            <span>{formatMoneyWithCurrency(balance)}</span>
-          </div>
-        </div>
-
-        {/* Bottom Area: Progress & Actions */}
-        <div className="relative z-10 mt-4 min-h-[44px]">
-          {/* Progress Bar & Target */}
-          <div className="eb-meter flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs text-white/90 font-medium">
-              <span>
-                {hasTarget
-                  ? `${progressPct} · ${etaDate ? (locale === "ar" ? `توقع: ${etaDate}` : `Estimé : ${etaDate}`) : ""}`
-                  : (Number.isFinite(fixedAmount) && fixedAmount > 0
-                    ? `${locale === "ar" ? "شهرياً:" : "Mensuel :"} ${formatMoneyWithCurrency(fixedAmount)}`
-                    : "")}
-              </span>
-              <span className="font-bold text-white">{progressPct}</span>
-            </div>
-
-            <div role="meter" className="h-1.5 w-full rounded-full bg-white/25 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-white transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.round(progressRatio * 100))}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="eb-acts flex items-center gap-1.5">
-            <button
-              type="button"
-              className="sbk-act flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
-              onClick={() => {
-                if (isGoalKind) {
-                  router.push("/goals");
-                  return;
-                }
-                setSelectedEnvelopeId(env.id);
-              }}
-              title={copy.viewDetails}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>{copy.viewDetails}</span>
-            </button>
-          </div>
-        </div>
-      </article>
-    );
+    const createdAt = env.created_at ? new Date(env.created_at).getTime() : 0;
+    return {
+      env,
+      name,
+      bal,
+      alloc,
+      spent,
+      kind,
+      pct,
+      spend,
+      watch,
+      over,
+      locked: isEnvelopeLocked(env),
+      seal: sealIndex(env.name),
+      pace,
+      meterLabel,
+      meterPct: Math.round(Math.min(1, Math.max(0, pct)) * 100),
+      extra,
+      isNew: createdAt > recentCutoff,
+    };
   };
-  return (
-    <div className="flex flex-col gap-8" dir={pageDir}>
-      <PageTour tour={tour} />
-      <div ref={headerRef}>
-        <PageHeader
-          title={copy.pageTitle}
-          subtitle={copy.pageSubtitle}
-        />
+
+  const gridInfos = sortedEnvelopes.map(buildInfo);
+  const liveCount = gridInfos.length;
+  const watchCount = gridInfos.filter((info) => info.watch).length;
+  const negInfos = gridInfos.filter((info) => info.spend && info.bal < 0);
+  const inEnvelopes = gridInfos.reduce((sum, info) => sum + info.bal, 0);
+  const sweepRows = gridInfos.filter((info) => info.spend && !info.locked);
+  const sweepEligible = sweepRows.filter((info) => !info.env.rollover_enabled && info.bal > 0);
+  const sweepTotal = sweepEligible.reduce((sum, info) => sum + info.bal, 0);
+  const savingsBalance = defaultSavingsEnvelope ? balanceOf(defaultSavingsEnvelope.id) : 0;
+
+  const q = searchQuery.trim().toLowerCase();
+  const passes = (info: EnvInfo) =>
+    (!q || info.name.toLowerCase().includes(q) || info.env.name.toLowerCase().includes(q)) &&
+    (envelopeFilter === "all" ||
+      (envelopeFilter === "watch" && info.watch) ||
+      (envelopeFilter === "neg" && info.bal < 0) ||
+      (envelopeFilter === "off" && info.spend && !info.env.rollover_enabled));
+  const sortInfos = (list: EnvInfo[]) => {
+    const copyList = [...list];
+    if (sortBy === "bal") copyList.sort((a, b) => b.bal - a.bal);
+    else if (sortBy === "pct") copyList.sort((a, b) => b.pct - a.pct);
+    else if (sortBy === "name") copyList.sort((a, b) => a.name.localeCompare(b.name, bcp47));
+    return copyList;
+  };
+  const shown = gridInfos.filter(passes);
+  const sectionDefs: { key: EnvKind; title: string; sub: string; cls: string }[] = [
+    { key: "debt", title: t.debts, sub: t.debtsSub, cls: "env-sec is-debt" },
+    { key: "goal", title: t.goals, sub: t.goalsSub, cls: "env-sec is-goal" },
+    { key: "fixe", title: t.fixed, sub: t.fixedSub, cls: "env-sec" },
+    { key: "flex", title: t.flex, sub: t.flexSub, cls: "env-sec" },
+  ];
+  const sections = sectionDefs
+    .map((def) => ({ ...def, items: sortInfos(shown.filter((info) => info.kind === def.key)) }))
+    .filter((sec) => sec.items.length > 0);
+  const hasEnvelopes = liveCount > 0;
+  const isFiltered = Boolean(q) || envelopeFilter !== "all";
+
+  const tone = (value: "bad" | "warn" | null) =>
+    value === "bad" ? "var(--dsh-bad-ink)" : value === "warn" ? "var(--dsh-warn-ink)" : "var(--dsh-muted)";
+  const sealStyle = (index: number) =>
+    ({ "--c-l": SEALS_LIGHT[index], "--c-d": SEALS_DARK[index] }) as CSSProperties;
+
+  /* ---------------- actions ---------------- */
+
+  const todayIso = () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  };
+
+  const allocateFromCash = async (env: EnvelopeOut, amount: number) => {
+    await apiFetch(`/envelopes/${env.id}/allocate-from-cash`, {
+      method: "POST",
+      body: { amount: amount.toFixed(2), occurred_on: todayIso() },
+    });
+    setBalanceOverrides((prev) => {
+      const next = { ...prev };
+      delete next[env.id];
+      return next;
+    });
+    await loadData();
+  };
+
+  const coverFromCash = async (info: EnvInfo) => {
+    const need = Math.round(-info.bal * 100) / 100;
+    if (need <= 0) return;
+    setCoveringId(info.env.id);
+    try {
+      await allocateFromCash(info.env, need);
+      toast({ title: `${info.name} : +${fmt(need)}`, variant: "success" });
+    } catch (err) {
+      toast({ title: copy.updateFailed, description: err instanceof Error ? err.message : copy.unknownError, variant: "danger" });
+    } finally {
+      setCoveringId(null);
+    }
+  };
+
+  const openQuick = (env: EnvelopeOut) => {
+    setMenuId(null);
+    setQuickTarget(env);
+    setQuickAmount("");
+    setQuickError(null);
+  };
+
+  const submitQuick = async () => {
+    if (!quickTarget) return;
+    const value = parseAmount(quickAmount);
+    if (!Number.isFinite(value) || value <= 0) {
+      setQuickError(t.amountInvalid);
+      return;
+    }
+    if (value > cashAvailable + 0.001) {
+      setQuickError(t.amountTooHigh);
+      return;
+    }
+    setQuickSaving(true);
+    setQuickError(null);
+    try {
+      await allocateFromCash(quickTarget, value);
+      toast({ title: `${localizeEnvelopeName(quickTarget.name)} : +${fmt(value)}`, variant: "success" });
+      setQuickTarget(null);
+    } catch (err) {
+      setQuickError(err instanceof Error ? err.message : copy.unknownError);
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const openRoll = (env: EnvelopeOut) => {
+    setMenuId(null);
+    setRolloverTarget(env);
+    setRolloverNextValue(!env.rollover_enabled);
+    setRolloverDialogOpen(true);
+  };
+
+  const openRename = (env: EnvelopeOut) => {
+    setMenuId(null);
+    setError(null);
+    handleEdit(env);
+  };
+
+  const openCorrection = (env: EnvelopeOut) => {
+    setMenuId(null);
+    handleStartCorrection(env);
+    setCorrectionStep(2);
+  };
+
+  const openDelete = (env: EnvelopeOut) => {
+    setMenuId(null);
+    setDeleteTarget(env);
+    setDeleteOpen(true);
+  };
+
+  const openDetails = (env: EnvelopeOut) => {
+    setMenuId(null);
+    setDrawerTab("ov");
+    setSelectedEnvelopeId(env.id);
+  };
+
+  const openRollBulk = () => {
+    const draft: Record<string, boolean> = {};
+    sweepRows.forEach((info) => {
+      draft[info.env.id] = info.env.rollover_enabled;
+    });
+    setRollDraft(draft);
+    setBulkRolloverOpen(true);
+  };
+
+  const rollChanges = sweepRows.filter(
+    (info) => rollDraft[info.env.id] !== undefined && rollDraft[info.env.id] !== info.env.rollover_enabled
+  );
+
+  const applyRollDraft = async () => {
+    const toOn = rollChanges.filter((info) => rollDraft[info.env.id]).map((info) => info.env.id);
+    const toOff = rollChanges.filter((info) => !rollDraft[info.env.id]).map((info) => info.env.id);
+    if (toOn.length) await handleBulkRollover(true, toOn);
+    if (toOff.length) await handleBulkRollover(false, toOff);
+    setBulkRolloverOpen(false);
+  };
+
+  // Packs + liste rapide → noms à créer (les existants sont ignorés)
+  const existingNames = new Set(envelopes.map((env) => env.name.trim().toLowerCase()));
+  const advRequested = Array.from(
+    new Set([
+      ...advancedPackKeys.flatMap((key) => localizedPresetPacks.find((pack) => pack.key === key)?.envelopes ?? []),
+      ...customEnvelopeList,
+    ])
+  );
+  const advToCreate = advRequested.filter((name) => {
+    const normalized = name.trim().toLowerCase();
+    return normalized && !RESERVED_NAMES.includes(normalized) && !existingNames.has(normalized);
+  });
+  const advSkipped = advRequested.filter((name) => existingNames.has(name.trim().toLowerCase()));
+
+  const createNames = async (names: string[]) => {
+    if (names.length === 0) return;
+    if (isGuest && names.length > guestEnvelopeQuota.remaining) {
+      toast({ title: copy.addFailed, description: copy.guestEnvelopeCap, variant: "danger" });
+      if (!guestEnvelopeCapHitSent) {
+        guestEnvelopeCapHitSent = true;
+        guestEvent("guest_wall_hit", { wall: "envelopes_cap", route: "/envelopes" });
+      }
+      return;
+    }
+    setAdvancedSaving(true);
+    try {
+      await Promise.all(
+        names.map((name) =>
+          apiFetch<EnvelopeOut>("/envelopes", {
+            method: "POST",
+            body: { name, rollover_enabled: false },
+          })
+        )
+      );
+      await loadData();
+      setAdvancedOpen(false);
+      toast({ title: copy.addSuccess, description: copy.addCreated(names.length), variant: "success" });
+    } catch (err) {
+      toast({ title: copy.addFailed, description: err instanceof Error ? err.message : copy.unknownError, variant: "danger" });
+    } finally {
+      setAdvancedSaving(false);
+    }
+  };
+
+  const addEssentials = () => {
+    const pack = localizedPresetPacks.find((item) => item.key === "essentiels");
+    if (!pack) return;
+    void createNames(pack.envelopes.filter((name) => !existingNames.has(name.trim().toLowerCase())));
+  };
+
+  const exportCsv = () => {
+    if (!selectedEnvelope) return;
+    const rows = [
+      ["date", "libelle", "categorie", "montant"],
+      ...envelopeActivity.map((tx) => [tx.occurred_on, tx.description ?? "", tx.category_name ?? "", tx.amount]),
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${selectedEnvelope.name.replace(/[^\p{L}\p{N}]+/gu, "-")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /* ---------------- morceaux de rendu ---------------- */
+
+  const menuItems = (info: EnvInfo) => {
+    const items: { label: string; icon: ReactNode; danger?: boolean; go: () => void }[] = [];
+    if (info.kind === "goal") items.push({ label: t.menuGoal, icon: <Target size={16} aria-hidden="true" />, go: () => router.push("/goals") });
+    if (!info.locked) items.push({ label: t.menuRename, icon: <Pencil size={16} aria-hidden="true" />, go: () => openRename(info.env) });
+    items.push({ label: t.menuFix, icon: <SlidersHorizontal size={16} aria-hidden="true" />, go: () => openCorrection(info.env) });
+    if (!info.locked) items.push({ label: t.menuRoll, icon: <RotateCcw size={16} aria-hidden="true" />, go: () => openRoll(info.env) });
+    if (!info.locked) items.push({ label: t.menuDelete, icon: <Trash2 size={16} aria-hidden="true" />, danger: true, go: () => openDelete(info.env) });
+    return items;
+  };
+
+  const renderMenu = (info: EnvInfo, down?: boolean) =>
+    menuId === info.env.id ? (
+      <div role="menu" className={down ? "env-menu env-menu--down" : "env-menu"}>
+        {menuItems(info).map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            role="menuitem"
+            className={item.danger ? "is-danger" : undefined}
+            onClick={item.go}
+          >
+            {item.icon}
+            {item.label}
+          </button>
+        ))}
       </div>
+    ) : null;
 
-      {loading ? <p className="text-sm text-[var(--muted)]">{copy.loading}</p> : null}
-      {issue ? <IssueAlert issue={issue} tone="error" /> : null}
-      {notificationIssueGuidance ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm font-semibold text-amber-900">
-            {notificationIssueGuidance.title}
-          </p>
-          <p className="mt-1 text-sm text-amber-800">
-            {notificationIssueGuidance.description}
-          </p>
-        </div>
-      ) : null}
-
-      <div ref={currentRef}>
-        <Section title={copy.currentBalances}>
-          {/* Header Quick Actions Bar */}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                type="button"
-                className="gap-1.5 shadow-sm"
-                onClick={() => setBulkRolloverOpen(true)}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>{copy.collectiveRollover}</span>
-              </Button>
-              {mounted && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  type="button"
-                  className="gap-1.5 border border-[var(--border)]"
-                  onClick={() => setAdvancedOpen(true)}
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  <span>{copy.advancedSettings}</span>
-                </Button>
-              )}
-            </div>
-
-            {mounted && (
-              <Button
-                size="sm"
-                type="button"
-                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>{copy.addEnvelope}</span>
-              </Button>
-            )}
-          </div>
-
-          {/* 4 KPI Summary Tiles */}
-          <div className="env-kpi mb-6" role="group" aria-label="KPIs">
-            <div className="sbk-tile">
-              <span className="text-xs font-semibold text-[var(--muted)]">
-                {copy.totalRemaining}
-              </span>
-              <b className="text-2xl font-black text-[var(--ink)] tracking-tight">
-                {formatMoneyWithCurrency(kpis.totalBalance)}
-              </b>
-              <span className="text-[11px] text-[var(--muted)]">
-                {kpis.activeCount} {locale === "ar" ? "أظرفة نشطة" : "enveloppes actives"}
-              </span>
-            </div>
-
-            <div className="sbk-tile">
-              <span className="text-xs font-semibold text-[var(--muted)]">
-                {copy.allocatedBudget}
-              </span>
-              <b className="text-2xl font-black text-[var(--ink)] tracking-tight">
-                {formatMoneyWithCurrency(kpis.totalAllocated)}
-              </b>
-              <span className="text-[11px] text-[var(--muted)]">
-                {locale === "ar" ? "المجموع المخصص" : "Budget total de la période"}
-              </span>
-            </div>
-
-            <div className="sbk-tile">
-              <span className="text-xs font-semibold text-[var(--muted)]">
-                {copy.totalSpent}
-              </span>
-              <b className="text-2xl font-black text-[var(--ink)] tracking-tight">
-                {formatMoneyWithCurrency(kpis.totalSpent)}
-              </b>
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="flex-1 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      kpis.spentPct >= 90 ? "bg-amber-500" : "bg-emerald-500"
-                    )}
-                    style={{ width: `${Math.min(100, kpis.spentPct)}%` }}
-                  />
-                </div>
-                <span className="text-[11px] font-bold text-[var(--ink)]">{kpis.spentPct}%</span>
-              </div>
-            </div>
-
-            <div className="sbk-tile">
-              <span className="text-xs font-semibold text-[var(--muted)]">
-                {copy.savingsBalance}
-              </span>
-              <b className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
-                {formatMoneyWithCurrency(kpis.savingsBal)}
-              </b>
-              <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                {locale === "ar" ? "وجهة التحويل التلقائي" : "Cible du balayage automatique"}
-              </span>
-            </div>
-          </div>
-
-          {/* Attention Banner if any overdrawn envelope */}
-          {kpis.overdrawnCount > 0 && (
-            <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50/80 dark:border-rose-900/50 dark:bg-rose-950/20 p-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 font-bold">
-                  !
-                </span>
-                <div>
-                  <p className="text-sm font-bold text-rose-900 dark:text-rose-200">
-                    {copy.attentionTitle} · {kpis.overdrawnCount} {locale === "ar" ? "أظرفة برصيد سلبي" : "enveloppe(s) à découvert"}
-                  </p>
-                  <p className="text-xs text-rose-700 dark:text-rose-300">
-                    {copy.attentionDesc}
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setEnvelopeFilter("watch")}
-              >
-                {locale === "ar" ? "شوف الأظرفة" : "Voir les enveloppes"}
-              </Button>
-            </div>
-          )}
-
-          {/* Savings Envelope Sweep Highlight */}
-          {defaultSavingsEnvelope && (
-            <Card className="mb-6 border-emerald-200 bg-gradient-to-br from-emerald-50 via-[var(--surface)] to-teal-50 dark:from-emerald-950/30 dark:via-[var(--surface)] dark:to-teal-950/30">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300">
-                      {locale === "ar" ? "ظرف الادخار" : locale === "en" ? "Savings envelope" : "Enveloppe Épargne"}
-                    </p>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-300 bg-[var(--surface)] text-emerald-700 hover:bg-emerald-100"
-                          aria-label={locale === "ar" ? "معلومات" : locale === "en" ? "Information" : "Informations"}
-                        >
-                          <Info className="h-3.5 w-3.5" />
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>
-                            {locale === "ar" ? "كيفاش كيخدم التحويل نحو الادخار؟" : locale === "en" ? "How does transfer to savings work?" : "Comment fonctionne le transfert vers l’épargne ?"}
-                          </DialogTitle>
-                          <DialogDescription>
-                            {locale === "ar"
-                              ? "فآخر كل فترة، أي ظرف عادي عندو رصيد موجب وماشي rollover كيتحوّل الرصيد ديالو تلقائياً لظرف الادخار."
-                              : locale === "en"
-                              ? "At the end of each period, any regular envelope with a positive balance and rollover disabled transfers that unused amount to savings."
-                              : "À la fin de chaque période, toute enveloppe normale avec un solde positif et rollover désactivé transfère automatiquement ce reliquat vers l’épargne."}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
-                          <li>
-                            {locale === "ar"
-                              ? "الأظرفة المشمولة: عادية فقط (ماشي Cash، ماشي Épargne، ماشي Goals)."
-                              : locale === "en"
-                              ? "Included envelopes: regular only (not Cash, not Savings, not Goals)."
-                              : "Enveloppes concernées: seulement les enveloppes normales (pas Cash, pas Épargne, pas Goals)."}
-                          </li>
-                          <li>
-                            {locale === "ar"
-                              ? "خاص rollover يكون OFF."
-                              : locale === "en"
-                              ? "Rollover must be OFF."
-                              : "Le rollover doit être OFF."}
-                          </li>
-                          <li>
-                            {locale === "ar"
-                              ? "غير الرصيد غير المستعمل (الموجب) هو اللي كيتحوّل."
-                              : locale === "en"
-                              ? "Only unused positive balance is transferred."
-                              : "Seul le solde non utilisé (positif) est transféré."}
-                          </li>
-                        </ul>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                  <p className="text-sm text-emerald-900/80 dark:text-emerald-200/80">
-                    {locale === "ar"
-                      ? "هاد الظرف كيتجمع فيه الفائض اللي ما تصرفش من الأظرفة المؤهلة مع نهاية الدورة."
-                      : locale === "en"
-                      ? "This envelope collects unused surplus from eligible envelopes at cycle end."
-                      : "Cette enveloppe reçoit les soldes non utilisés des enveloppes éligibles en fin de période."}
-                  </p>
-                  <Badge tone="accent">
-                    {locale === "ar" ? "الوجهة التلقائية ديال sweep" : locale === "en" ? "Automatic sweep target" : "Destination automatique des sweeps"}
-                  </Badge>
-                </div>
-
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="self-center"
-                  onClick={() => setSelectedEnvelopeId(defaultSavingsEnvelope.id)}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  <span>{copy.viewDetails}</span>
-                </Button>
-              </div>
-            </Card>
-          )}
-
-          {/* Interactive Search & Filter Bar */}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={copy.searchPlaceholder}
-                className="w-full h-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 end-2 flex items-center text-xs text-[var(--muted)] hover:text-[var(--ink)]"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-              {[
-                { key: "all", label: copy.filterAll },
-                { key: "rollover_off", label: copy.filterRolloverOff },
-                { key: "rollover_on", label: copy.filterRolloverOn },
-                { key: "watch", label: copy.filterWatch },
-                { key: "fixed", label: copy.filterFixed },
-                { key: "flex", label: copy.filterFlex },
-              ].map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setEnvelopeFilter(f.key as any)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition",
-                    envelopeFilter === f.key
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)] border border-[var(--border)]"
-                  )}
-                >
-                  {f.label}
-                </button>
+  const renderCard = (info: EnvInfo) => {
+    const money = getBanknotes(info.bal);
+    const showMark = info.spend && info.alloc > 0 && periodInfo;
+    const barWidth = info.kind === "debt" ? 100 : info.meterPct;
+    return (
+      <article
+        key={info.env.id}
+        className={menuId === info.env.id ? "sbk-card is-menu" : "sbk-card"}
+        tabIndex={-1}
+        aria-label={info.name}
+        style={{ ...sealStyle(info.seal), ["--n" as string]: money.nCount } as CSSProperties}
+      >
+        <div className="eb-hd" aria-hidden="true">
+          <div className="eb-clip">
+            <div className="eb-notes">
+              {money.notes.map((note) => (
+                <span
+                  key={note.i}
+                  className={note.cls}
+                  style={{ ["--i" as string]: note.i, ["--mid" as string]: note.mid } as CSSProperties}
+                />
               ))}
+              {money.coin ? <span className="eb-coin" /> : null}
+              {money.noMoney ? <span className="eb-miss">{info.bal < 0 ? t.negNote : t.emptyNote}</span> : null}
             </div>
           </div>
+          <span className="eb-lip" />
+        </div>
 
-          {/* Bulk Rollover Dialog */}
-          {mounted ? (
-          <Dialog open={bulkRolloverOpen} onOpenChange={setBulkRolloverOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{copy.bulkRolloverTitle}</DialogTitle>
-                <DialogDescription>{copy.bulkRolloverDesc}</DialogDescription>
-              </DialogHeader>
-              <div className="mt-2 grid gap-2">
-                <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={
-                        bulkRolloverIds.length > 0 &&
-                        bulkRolloverIds.length ===
-                          envelopes.filter((env) => !isEnvelopeLocked(env)).length
-                      }
-                      onChange={() => {
-                        const eligible = envelopes
-                          .filter((env) => !isEnvelopeLocked(env))
-                          .map((env) => env.id);
-                        setBulkRolloverIds((prev) =>
-                          prev.length === eligible.length ? [] : eligible
-                        );
-                      }}
-                    />
-                    <span className="font-medium text-[var(--ink)]">
-                      {copy.selectAll}
-                    </span>
-                  </label>
-                  <Badge tone="muted">
-                    {copy.selectedCount(bulkRolloverIds.length)}
-                  </Badge>
-                </div>
-                <div className="max-h-60 space-y-2 overflow-y-auto pr-1 text-sm">
-                  {envelopes
-                    .filter((env) => !isEnvelopeLocked(env))
-                    .map((env) => (
-                      <label
-                        key={env.id}
-                        className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={bulkRolloverIds.includes(env.id)}
-                          onChange={() =>
-                            setBulkRolloverIds((prev) =>
-                              prev.includes(env.id)
-                                ? prev.filter((id) => id !== env.id)
-                                : [...prev, env.id]
-                            )
-                          }
-                        />
-                        <span className="font-medium text-[var(--ink)]">
-                          {localizeEnvelopeName(env.name)}
-                        </span>
-                        <Badge tone={env.rollover_enabled ? "accent" : "muted"}>
-                          {env.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-                        </Badge>
-                      </label>
-                    ))}
-                </div>
-              </div>
-              <DialogFooter className="mt-4">
-                <DialogClose asChild>
-                  <Button variant="secondary" type="button">
-                    {copy.cancel}
-                  </Button>
-                </DialogClose>
-                <Button
-                  type="button"
-                  isLoading={bulkRolloverLoading}
-                  onClick={async () => {
-                    await handleBulkRollover(true, bulkRolloverIds);
-                    setBulkRolloverOpen(false);
-                  }}
-                >
-                  {copy.enable}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  isLoading={bulkRolloverLoading}
-                  onClick={async () => {
-                    await handleBulkRollover(false, bulkRolloverIds);
-                    setBulkRolloverOpen(false);
-                  }}
-                >
-                  {copy.disable}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        <div className="eb-title">
+          <h3 title={info.name}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{info.name}</span>
+            {info.isNew ? <span className="eb-new">{t.newBadge}</span> : null}
+          </h3>
+          <span className="eb-amt">{fmt(info.bal)}</span>
+        </div>
+
+        <div className="eb-meter">
+          <span className="eb-meter__label">{info.meterLabel}</span>
+          <span
+            role="meter"
+            aria-label={info.meterLabel}
+            aria-valuenow={info.meterPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="eb-meter__track"
+          >
+            <span style={{ width: `${barWidth}%`, opacity: info.kind === "debt" ? 0.35 : 1 }} />
+            {showMark ? (
+              <i title={t.todayMark} style={{ insetInlineStart: `${Math.round(periodInfo.timePct * 100)}%` }} />
+            ) : null}
+          </span>
+        </div>
+
+        <div className="eb-acts">
+          <button type="button" className="sbk-act sbk-act--main" onClick={() => openDetails(info.env)}>
+            {t.details}
+          </button>
+          {!info.locked || info.kind === "goal" ? (
+            <button type="button" className="sbk-act" title={t.qAlloc} onClick={() => openQuick(info.env)}>
+              <Plus size={14} aria-hidden="true" />
+              {t.qAllocShort}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="sbk-act sbk-act--icon"
+            aria-haspopup="menu"
+            aria-expanded={menuId === info.env.id}
+            aria-label={t.moreFor(info.name)}
+            title={t.moreFor(info.name)}
+            onClick={() => setMenuId(menuId === info.env.id ? null : info.env.id)}
+          >
+            <MoreHorizontal size={18} aria-hidden="true" />
+          </button>
+          {renderMenu(info)}
+        </div>
+      </article>
+    );
+  };
+
+  const renderRow = (info: EnvInfo) => {
+    const sub = [info.pace?.text ?? "", info.extra].filter(Boolean).join(" · ") ||
+      (info.kind === "fixe" ? t.kindFixe(info.env.rollover_enabled) : info.kind === "flex" ? t.kindFlex(info.env.rollover_enabled) : info.kind === "debt" ? t.kindDebt : t.kindGoal);
+    return (
+      <div key={info.env.id} className={menuId === info.env.id ? "env-row is-menu" : "env-row"} style={sealStyle(info.seal)}>
+        <span className="env-ini" aria-hidden="true">{info.name.trim().charAt(0).toUpperCase()}</span>
+        <span className="env-row__name">
+          <b title={info.name}>{info.name}</b>
+          <span style={{ color: tone(info.pace?.tone ?? null) }}>{sub}</span>
+        </span>
+        <span className="env-row__meter">
+          <span>
+            {info.meterLabel}
+            {info.kind !== "debt" ? ` · ${info.meterPct} %` : ""}
+          </span>
+          <span className="env-row__track">
+            <span className={info.over ? "is-over" : undefined} style={{ width: `${info.kind === "debt" ? 100 : info.meterPct}%` }} />
+          </span>
+        </span>
+        <b className={info.bal < 0 ? "env-row__bal is-neg" : "env-row__bal"}>{fmt(info.bal)}</b>
+        <span className="env-row__acts">
+          <button type="button" className="env-btn" onClick={() => openDetails(info.env)}>{t.details}</button>
+          {!info.locked || info.kind === "goal" ? (
+            <button type="button" className="env-btn env-btn--plus" title={t.qAlloc} aria-label={t.qAlloc} onClick={() => openQuick(info.env)}>
+              <Plus size={14} aria-hidden="true" />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="env-btn env-btn--icon"
+            aria-haspopup="menu"
+            aria-expanded={menuId === info.env.id}
+            aria-label={t.moreFor(info.name)}
+            onClick={() => setMenuId(menuId === info.env.id ? null : info.env.id)}
+          >
+            <MoreHorizontal size={16} aria-hidden="true" />
+          </button>
+          {renderMenu(info, true)}
+        </span>
+      </div>
+    );
+  };
+
+  /* ---------------- tiroir détails ---------------- */
+
+  const drawerInfo = selectedEnvelope ? buildInfo(selectedEnvelope) : null;
+  const drawerKind = !selectedEnvelope
+    ? ""
+    : selectedEnvelope.is_cash || selectedEnvelope.is_default_savings
+    ? t.kindSys
+    : drawerInfo?.kind === "debt"
+    ? t.kindDebt
+    : drawerInfo?.kind === "goal"
+    ? drawerInfo.extra || t.kindGoal
+    : drawerInfo?.kind === "fixe"
+    ? t.kindFixe(selectedEnvelope.rollover_enabled)
+    : t.kindFlex(selectedEnvelope.rollover_enabled);
+  const drawerSeal = selectedEnvelope ? sealIndex(selectedEnvelope.name) : 0;
+  const chronological = periods.slice(0, 6).reverse();
+  const series = chronological.map((period) => Number(period.closing_balance) || 0);
+  const sparkMin = Math.min(0, ...series);
+  const sparkMax = Math.max(1, ...series);
+  const sparkX = (index: number) => (series.length <= 1 ? 260 : 10 + (index * 500) / (series.length - 1));
+  const sparkY = (value: number) => 80 - ((value - sparkMin) / (sparkMax - sparkMin || 1)) * 70;
+  const monthOf = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString(bcp47, { month: "short" });
+  const barPeriods = periods.slice(0, 4).reverse();
+  const barMax = Math.max(
+    1,
+    ...barPeriods.map((period) => Math.max(Number(period.total_allocations) || 0, Number(period.total_spent) || 0))
+  );
+  const drawerBalance = Number(periods[0]?.closing_balance ?? (selectedEnvelope ? balanceOf(selectedEnvelope.id) : 0)) || 0;
+  const shortDate = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString(bcp47, { day: "2-digit", month: "2-digit" });
+  const periodLabel = (start: string, end: string) => `${shortDate(start)} ${locale === "ar" ? "←" : "→"} ${shortDate(end)}`;
+
+  const closeDrawer = () => setSelectedEnvelopeId(null);
+
+  /* ---------------- rendu ---------------- */
+
+  const quotaUsed = envelopes.length;
+  const quotaMax = GUEST_LIMITS.envelopes;
+  const quotaWarn = quotaUsed >= quotaMax - 4;
+  const quickInfo = quickTarget ? buildInfo(quickTarget) : null;
+  const quickValue = parseAmount(quickAmount);
+  const quickChips = [
+    ...(quickInfo && quickInfo.bal < 0 ? [Math.ceil(-quickInfo.bal)] : []),
+    100,
+    200,
+    500,
+  ].filter((value, index, list) => list.indexOf(value) === index);
+  const correctionInfo = correctionTarget ? buildInfo(correctionTarget) : null;
+  const correctionNew = Number(correctionValue);
+  const correctionDelta = correctionInfo && Number.isFinite(correctionNew) ? correctionNew - correctionInfo.bal : 0;
+  const rollForbidden = rolloverTarget ? isRolloverOffForbiddenEnvelope(rolloverTarget) : false;
+  const issueText = issue ? `${issue.title} ${issue.description}`.trim() : null;
+
+  return (
+    <div className="env11" dir={pageDir} onKeyDown={(event) => { if (event.key === "Escape") setMenuId(null); }}>
+      <PageTour tour={tour} />
+
+      <header className="env-hdr" ref={headerRef}>
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <h1>{t.title}</h1>
+          <span className="env-sub">
+            {t.sub} {periodInfo ? (
+              <>
+                <b>{periodInfo.label}</b> · {t.dayOf(periodInfo.today, periodInfo.days)}
+              </>
+            ) : null}
+          </span>
+        </div>
+        <div className="env-act">
+          <button type="button" className="env-btn" onClick={openRollBulk}>
+            <RotateCcw size={16} aria-hidden="true" />
+            {t.rollBulk}
+          </button>
+          <div ref={advancedRef} style={{ display: "contents" }}>
+            <button type="button" className="env-btn" onClick={() => setAdvancedOpen(true)}>
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {t.adv}
+            </button>
+          </div>
+          <div ref={createRef} style={{ display: "contents" }}>
+            <button
+              type="button"
+              className="env-btn env-btn--cta"
+              onClick={() => {
+                setError(null);
+                setCreateOpen(true);
+              }}
+            >
+              <Plus size={16} aria-hidden="true" />
+              {t.add}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="env-main" ref={currentRef}>
+        {isGuest ? (
+          <div className={quotaWarn ? "env-quota is-warn" : "env-quota"}>
+            <span style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 280px" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800 }}>
+                <span className="env-dot" style={{ width: 8, height: 8, background: "var(--dsh-brand)" }} />
+                {t.guestMode} · {t.quotaText(quotaUsed, quotaMax)}
+              </span>
+              <span
+                role="meter"
+                aria-label={t.quotaText(quotaUsed, quotaMax)}
+                aria-valuenow={quotaUsed}
+                aria-valuemin={0}
+                aria-valuemax={quotaMax}
+                className="env-quota__bar"
+              >
+                <span style={{ width: `${Math.min(100, (quotaUsed / quotaMax) * 100)}%` }} />
+              </span>
+            </span>
+            <span style={{ flex: "2 1 320px", fontSize: 14, lineHeight: 1.45 }}>
+              {quotaUsed >= quotaMax ? t.quotaMsgFull : quotaWarn ? t.quotaMsgSoon(quotaMax - quotaUsed) : t.quotaMsgOk}
+            </span>
+            <a href="/register" className="env-btn env-btn--cta" style={{ height: 40 }}>
+              {t.createAccount}
+            </a>
+          </div>
         ) : null}
 
-          {/* Envelopes Banknote Grid */}
-          {allFilteredEnvelopes.length === 0 ? (
-            searchQuery || envelopeFilter !== "all" ? (
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center space-y-3">
-                <p className="text-sm font-semibold text-[var(--ink)]">{copy.noFilterResults}</p>
-                <Button
-                  size="sm"
-                  variant="secondary"
+        {issueText && !createOpen && !renameOpen ? <IssueAlert issue={issue!} tone="error" /> : null}
+        {notificationIssueGuidance ? (
+          <div className="env-note env-note--warn">
+            <b>{notificationIssueGuidance.title}</b> {notificationIssueGuidance.description}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="env-grid" aria-busy="true" aria-label={copy.loading}>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="env-skel" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="env-kpi" role="group" aria-label={t.summary}>
+              <button type="button" className="sbk-tile" onClick={() => setEnvelopeFilter("all")}>
+                <span className="sbk-tile__label">{t.inEnvelopes}</span>
+                <b className="sbk-tile__value">{fmt(inEnvelopes)}</b>
+                <span className="sbk-tile__hint">{t.activeCount(liveCount)}</span>
+              </button>
+              <a href="/allocate" className="sbk-tile">
+                <span className="sbk-tile__label">{t.cashToSplit}</span>
+                <b className="sbk-tile__value">{fmt(cashAvailable)}</b>
+                <span className="sbk-tile__hint">{t.openAllocation}</span>
+              </a>
+              <button
+                type="button"
+                aria-pressed={envelopeFilter === "watch"}
+                className={
+                  envelopeFilter === "watch" ? "sbk-tile is-on" : watchCount > 0 ? "sbk-tile is-warn" : "sbk-tile"
+                }
+                onClick={() => setEnvelopeFilter(envelopeFilter === "watch" ? "all" : "watch")}
+              >
+                <span className="sbk-tile__label">{t.toWatch}</span>
+                <b className="sbk-tile__value">{watchCount}</b>
+                <span className="sbk-tile__hint">{t.toWatchHint}</span>
+              </button>
+              <button type="button" className="sbk-tile" onClick={() => setClosingOpen(true)}>
+                <span className="sbk-tile__label">{t.sweepOn(endLabel)}</span>
+                <b className="sbk-tile__value">+{fmt(sweepTotal)}</b>
+                <span className="sbk-tile__hint">{t.sweepHint(sweepEligible.length)}</span>
+              </button>
+            </div>
+
+            {defaultSavingsEnvelope ? (
+              <section className="env-sav" aria-label={t.savings}>
+                <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <b style={{ fontSize: 18 }}>{t.savings}</b>
+                    <span className="env-sav__pill">{t.sweepTarget}</span>
+                    <span className="env-sav__pill">
+                      <Lock size={12} aria-hidden="true" />
+                      {t.locked}
+                    </span>
+                  </span>
+                  <span className="env-sav__bal">{fmt(savingsBalance)}</span>
+                  <span style={{ fontSize: 14, opacity: 0.9, lineHeight: 1.5, maxWidth: 560 }}>{t.sweepExplain}</span>
+                </div>
+                <div className="env-sav__box">
+                  <span style={{ fontSize: 13, fontWeight: 700, opacity: 0.85 }}>{t.nextSweep(endLabel)}</span>
+                  <b style={{ fontSize: 26 }}>+{fmt(sweepTotal)}</b>
+                  <span style={{ fontSize: 13, opacity: 0.9 }}>
+                    {t.sweepCount(sweepEligible.length, sweepEligible.map((info) => info.name).join(locale === "ar" ? "، " : ", "))}
+                  </span>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" className="env-sav__btn env-sav__btn--light" onClick={() => setClosingOpen(true)}>
+                      {t.closingPreview}
+                    </button>
+                    <button type="button" className="env-sav__btn" onClick={() => openDetails(defaultSavingsEnvelope)}>
+                      {t.details}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            {negInfos.length > 0 ? (
+              <section className="env-fix" aria-label={t.toFix}>
+                <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <b style={{ fontSize: 16, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <AlertTriangle size={16} aria-hidden="true" />
+                    {t.toFix}
+                  </b>
+                  <span style={{ fontSize: 13 }}>{t.toFixSub}</span>
+                  <a href="/allocate" style={{ marginInlineStart: "auto", fontSize: 13, fontWeight: 800, color: "inherit" }}>
+                    {t.otherWay} {locale === "ar" ? "←" : "→"}
+                  </a>
+                </span>
+                {negInfos.map((info) => {
+                  const need = -info.bal;
+                  return (
+                    <div key={info.env.id} className="env-fix__row" style={sealStyle(info.seal)}>
+                      <span className="env-dot env-ini" style={{ width: 10, height: 10 }} aria-hidden="true" />
+                      <b style={{ flex: "1 1 140px", fontSize: 15 }}>{info.name}</b>
+                      <b style={{ color: "var(--dsh-bad-ink)", fontSize: 15 }}>{fmt(info.bal)}</b>
+                      <button
+                        type="button"
+                        className="env-btn env-btn--cta"
+                        disabled={cashAvailable < need || coveringId === info.env.id}
+                        aria-busy={coveringId === info.env.id}
+                        onClick={() => void coverFromCash(info)}
+                      >
+                        {coveringId === info.env.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : null}
+                        {t.coverFromCash(fmt0(need))}
+                      </button>
+                    </div>
+                  );
+                })}
+              </section>
+            ) : null}
+
+            <div className="env-bar">
+              <span className="env-search">
+                <Search size={16} color="var(--dsh-muted)" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label={t.search}
+                  placeholder={t.search}
+                />
+              </span>
+              <div className="env-filters" role="tablist" aria-label={t.filters}>
+                {(
+                  [
+                    ["all", t.fAll],
+                    ["watch", `${t.fWatch} · ${watchCount}`],
+                    ["neg", `${t.fNeg} · ${negInfos.length}`],
+                    ["off", t.fOff],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={envelopeFilter === key}
+                    onClick={() => setEnvelopeFilter(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="env-tools">
+                <label>
+                  {t.sortBy}
+                  <select
+                    className="env-select"
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+                  >
+                    <option value="perso">{t.sPerso}</option>
+                    <option value="bal">{t.sBal}</option>
+                    <option value="pct">{t.sPct}</option>
+                    <option value="name">{t.sName}</option>
+                  </select>
+                </label>
+                <span className="env-views" role="group" aria-label={t.viewLabel}>
+                  <button type="button" aria-pressed={view === "cards"} title={t.vCards} aria-label={t.vCards} onClick={() => setView("cards")}>
+                    <LayoutGrid size={16} aria-hidden="true" />
+                  </button>
+                  <button type="button" aria-pressed={view === "list"} title={t.vList} aria-label={t.vList} onClick={() => setView("list")}>
+                    <List size={16} aria-hidden="true" />
+                  </button>
+                </span>
+              </span>
+            </div>
+
+            {!hasEnvelopes ? (
+              <div className="env-empty">
+                <b>{t.emptyTitle}</b>
+                <span>{t.emptyText}</span>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                  <button
+                    type="button"
+                    className="env-btn env-btn--cta env-btn--lg"
+                    onClick={addEssentials}
+                    aria-busy={advancedSaving}
+                  >
+                    {advancedSaving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+                    {t.addEssentials}
+                  </button>
+                  <button type="button" className="env-btn env-btn--soft env-btn--lg" onClick={() => setAdvancedOpen(true)}>
+                    {t.otherPacks}
+                  </button>
+                </div>
+              </div>
+            ) : sections.length === 0 && isFiltered ? (
+              <div className="env-empty" style={{ padding: 26 }}>
+                <b style={{ fontSize: 17 }}>{t.noResult}</b>
+                <button
+                  type="button"
+                  className="env-btn env-btn--soft"
                   onClick={() => {
                     setSearchQuery("");
                     setEnvelopeFilter("all");
                   }}
                 >
-                  {locale === "ar" ? "مسح الفلتر" : "Réinitialiser les filtres"}
-                </Button>
+                  {t.reset}
+                </button>
               </div>
-            ) : (
-              <EmptyState
-                title={copy.noEnvelopes}
-                description={copy.createToStart}
-              />
-            )
-          ) : envelopeFilter !== "all" ? (
-            <div className="env-grid">
-              {allFilteredEnvelopes.map((env, index) =>
-                renderEnvelopeCard(env, index, fixedEnvelopeIdSet.has(env.id))
-              )}
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {filteredRolloverOff.length > 0 && (
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ArrowDownCircle className="h-4 w-4 text-emerald-600" />
-                      <p className="text-sm font-bold text-[var(--ink)]">
-                        {locale === "ar"
-                          ? "الأظرفة اللي كتحوّل الفائض نحو الادخار (Rollover OFF)"
-                          : locale === "en"
-                          ? "Envelopes sending unused balance to savings (Rollover OFF)"
-                          : "Enveloppes qui transfèrent le reliquat vers l’épargne (Rollover OFF)"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold text-[var(--muted)]">
-                      {filteredRolloverOff.length} {locale === "ar" ? "أظرفة" : "enveloppes"}
-                    </span>
-                  </div>
+            ) : null}
 
-                  <div className="env-grid">
-                    {filteredRolloverOff.map((env, index) =>
-                      renderEnvelopeCard(env, index, fixedEnvelopeIdSet.has(env.id))
-                    )}
-                  </div>
+            {menuId ? <div className="env-menu-scrim" onClick={() => setMenuId(null)} /> : null}
+
+            {sections.map((sec) => (
+              <section key={sec.key} className={sec.cls} aria-label={sec.title}>
+                <div className="env-sec__head">
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 320px" }}>
+                    <h2>
+                      {sec.title} <span>· {sec.items.length}</span>
+                    </h2>
+                    <span className="env-sec__sub">{sec.sub}</span>
+                  </span>
+                  <b style={{ fontSize: 15 }}>{fmt(sec.items.reduce((sum, info) => sum + info.bal, 0))}</b>
                 </div>
-              )}
+                {view === "cards" ? (
+                  <div className="env-grid">{sec.items.map(renderCard)}</div>
+                ) : (
+                  <div className="env-list">{sec.items.map(renderRow)}</div>
+                )}
+              </section>
+            ))}
 
-              {filteredRolloverOn.length > 0 && (
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ArrowUpCircle className="h-4 w-4 text-sky-600" />
-                      <p className="text-sm font-bold text-[var(--ink)]">
-                        {locale === "ar"
-                          ? "الأظرفة اللي كتحافظ على الرصيد للفترة الجاية (Rollover ON)"
-                          : locale === "en"
-                          ? "Envelopes keeping balance for next period (Rollover ON)"
-                          : "Enveloppes qui conservent le solde pour la période suivante (Rollover ON)"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold text-[var(--muted)]">
-                      {filteredRolloverOn.length} {locale === "ar" ? "أظرفة" : "enveloppes"}
-                    </span>
-                  </div>
+            {hasEnvelopes ? <span className="env-hint">{t.tip}</span> : null}
+          </>
+        )}
+      </main>
 
-                  <div className="env-grid">
-                    {filteredRolloverOn.map((env, index) =>
-                      renderEnvelopeCard(
-                        env,
-                        index + filteredRolloverOff.length,
-                        fixedEnvelopeIdSet.has(env.id)
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </Section>
-      </div>
-
-      <div ref={createRef}>
-        <Section title={copy.createEnvelope}>
-        <div className="flex flex-wrap items-center gap-2">
-          {mounted ? (
-            <Dialog
-              open={createOpen}
-              onOpenChange={(next) => {
-                setCreateOpen(next);
-                if (!next) {
-                  setNewName("");
-                  setNewIsDebt(false);
-                  setNewIsDebtManual(false);
-                  setError(null);
-                }
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button type="button">{copy.addEnvelope}</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{copy.newEnvelope}</DialogTitle>
-                  <DialogDescription>{copy.addEnvelopeDesc}</DialogDescription>
-                  {isGuest ? (
-                    <p className="mt-1 text-xs font-semibold text-[var(--accent-strong,#0b8f53)]">
-                      {locale === "ar"
-                        ? `وضع الاكتشاف: ${envelopes.length}/${GUEST_LIMITS.envelopes} ظرف مستعمل`
-                        : locale === "en"
-                          ? `Discovery mode: ${envelopes.length}/${GUEST_LIMITS.envelopes} envelopes used`
-                          : `Mode découverte : ${envelopes.length}/${GUEST_LIMITS.envelopes} enveloppes créées`}
-                    </p>
-                  ) : null}
-                </DialogHeader>
-                <div className="mt-2 grid gap-3">
-                  <input
-                    value={newName}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setNewName(value);
-                      if (!newIsDebtManual) setNewIsDebt(looksLikeDebt(value));
-                    }}
-                    className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
-                    placeholder={copy.envelopeNamePlaceholder}
-                  />
-                  <label className="flex items-start gap-2.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={newIsDebt}
-                      onChange={(event) => {
-                        setNewIsDebt(event.target.checked);
-                        setNewIsDebtManual(true);
-                      }}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent,#0f766e)]"
-                    />
-                    <span>
-                      {copy.isDebtLabel}
-                      <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                        {copy.isDebtHint}
-                      </span>
-                    </span>
-                  </label>
-                  {error ? (
-                    <p className="text-sm text-[var(--error)]">{error}</p>
-                  ) : null}
-                </div>
-                <DialogFooter className="mt-4">
-                  <DialogClose asChild>
-                    <Button variant="secondary" type="button">
-                      {copy.cancel}
-                    </Button>
-                  </DialogClose>
-                  <Button
-                    type="button"
-                    onClick={handleCreate}
-                    isLoading={updating}
-                    disabled={isGuest && !guestEnvelopeQuota.allowed}
-                  >
-                    {isGuest && !guestEnvelopeQuota.allowed
-                      ? locale === "ar"
-                        ? "بلغت الحد الأقصى (20)"
-                        : locale === "en"
-                          ? "Limit reached (20)"
-                          : "Plafond atteint (20)"
-                      : copy.add}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          ) : null}
-          {mounted ? (
-            <Dialog open={advancedOpen} onOpenChange={setAdvancedOpen}>
-              <DialogTrigger asChild>
-                <div ref={advancedRef}>
-                  <Button variant="secondary" type="button">
-                    {copy.advancedSettings}
-                  </Button>
-                </div>
-              </DialogTrigger>
-              <DialogContent>
-                <>
-                    <DialogHeader>
-                      <DialogTitle>{copy.advancedSettingsTitle}</DialogTitle>
-                      <DialogDescription>{copy.advancedSettingsDesc}</DialogDescription>
-                    </DialogHeader>
-
-                    <div className="grid gap-3">
-                      {localizedPresetPacks.map((pack) => (
-                        <label
-                          key={pack.key}
-                          className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={advancedPackKeys.includes(pack.key)}
-                            onChange={() => handleAdvancedPackToggle(pack.key)}
-                            className="mt-1"
-                          />
-                          <span>
-                            <span className="block font-medium text-[var(--ink)]">
-                              {pack.label}
-                            </span>
-                            <span className="text-xs text-[var(--muted)]">
-                              {pack.description}
-                            </span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-
-                    <div className="mt-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                        {copy.quickList}
-                      </p>
-                      <textarea
-                        value={advancedCustomText}
-                        onChange={(event) => setAdvancedCustomText(event.target.value)}
-                        className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                        rows={3}
-                        placeholder={copy.quickListPlaceholder}
-                      />
-                    </div>
-
-                    <div className="mt-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                        {copy.suggestedEnvelopes}
-                      </p>
-                      {advancedPresetList.length === 0 && customEnvelopeList.length === 0 ? (
-                        <p className="mt-2 text-sm text-[var(--muted)]">
-                          {copy.choosePackOrList}
-                        </p>
-                      ) : (
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                          {availableAdvancedNames.map((name) => (
-                            <label
-                              key={name}
-                              className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={advancedSelectedNames.includes(name)}
-                                onChange={() => handleAdvancedNameToggle(name)}
-                              />
-                              <span>{name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <DialogFooter className="mt-4">
-                      <DialogClose asChild>
-                        <Button variant="secondary" type="button">
-                          {copy.cancel}
-                        </Button>
-                      </DialogClose>
-                      <Button
-                        type="button"
-                        onClick={handleCreateAdvancedEnvelopes}
-                        isLoading={advancedSaving}
-                        disabled={advancedSelectedNames.length === 0}
-                      >
-                        {copy.add}
-                      </Button>
-                    </DialogFooter>
-                  </>
-              </DialogContent>
-            </Dialog>
-          ) : null}
-          {mounted ? (
-            <Dialog
-              open={deleteOpen}
-              onOpenChange={(open) => {
-                setDeleteOpen(open);
-                if (!open) setDeleteTarget(null);
-              }}
-            >
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{copy.deleteEnvelope}</DialogTitle>
-                  <DialogDescription>{copy.deleteEnvelopeDesc}</DialogDescription>
-                </DialogHeader>
-                {deleteTarget ? (
-                  <div className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--muted)]">
-                    {copy.transferFromEnvelope}: <strong>{localizeEnvelopeName(deleteTarget.name)}</strong>.
-                  </div>
-                ) : null}
-                <DialogFooter className="mt-4">
-                  <DialogClose asChild>
-                    <Button variant="secondary" type="button">
-                      {copy.cancel}
-                    </Button>
-                  </DialogClose>
-                  <Button
-                    variant="danger"
-                    type="button"
-                    onClick={() => {
-                      if (deleteTarget) {
-                        handleDelete(deleteTarget).finally(() => {
-                          setDeleteOpen(false);
-                          setDeleteTarget(null);
-                        });
-                      }
-                    }}
-                    isLoading={updating}
-                    disabled={!deleteTarget}
-                  >
-                    {copy.delete}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          ) : null}
-          {mounted ? (
-            <Dialog
-              open={correctionOpen}
-              onOpenChange={(open) => {
-                setCorrectionOpen(open);
-              }}
-            >
-              <DialogContent>
-                {correctionStep === 1 ? (
-                  <>
-                    <DialogHeader>
-                      <DialogTitle>{copy.manualCorrection}</DialogTitle>
-                      <DialogDescription>{copy.manualCorrectionDesc}</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-3 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm">
-                      <p className="font-medium text-[var(--ink)]">
-                        {correctionTarget
-                          ? localizeEnvelopeName(correctionTarget.name)
-                          : copy.manualCorrection}
-                      </p>
-                      <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--surface)] px-3 py-2">
-                        <span className="text-[var(--muted)]">{copy.currentBalance}</span>
-                        <span className="font-semibold text-[var(--ink)]">
-                          {correctionTarget
-                            ? formatMoneyWithCurrency(getEnvelopeBalance(correctionTarget.id))
-                            : formatMoneyWithCurrency(0)}
-                        </span>
-                      </div>
-                      <p className="text-[var(--muted)]">
-                        {copy.currentBudgetModified}
-                      </p>
-                    </div>
-                    <DialogFooter className="mt-4">
-                      <DialogClose asChild>
-                        <Button variant="secondary" type="button">
-                          {copy.cancel}
-                        </Button>
-                      </DialogClose>
-                      <Button type="button" onClick={handleCorrectionContinue}>
-                        {copy.continue}
-                      </Button>
-                    </DialogFooter>
-                  </>
-                ) : null}
-
-                {correctionStep === 2 && correctionTarget ? (
-                  <>
-                    <DialogHeader>
-                      <DialogTitle>{copy.newValue}</DialogTitle>
-                      <DialogDescription>{copy.newValueDesc}</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-3 grid gap-2">
-                      <input
-                        value={correctionValue}
-                        onChange={(event) => setCorrectionValue(event.target.value)}
-                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
-                        placeholder="0.00"
-                      />
-                      {correctionError ? (
-                        <p className="text-sm text-[var(--error)]">
-                          {correctionError}
-                        </p>
-                      ) : null}
-                    </div>
-                    <DialogFooter className="mt-4">
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        onClick={() => setCorrectionStep(1)}
-                      >
-                        {copy.back}
-                      </Button>
-                      <Button type="button" onClick={handleCorrectionContinue}>
-                        {copy.continue}
-                      </Button>
-                    </DialogFooter>
-                  </>
-                ) : null}
-
-                {correctionStep === 3 && correctionTarget ? (
-                  <>
-                    <DialogHeader>
-                      <DialogTitle>{copy.confirmCorrection}</DialogTitle>
-                      <DialogDescription>{copy.confirmCorrectionDesc}</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-3 grid gap-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[var(--muted)]">{copy.oldValue}</span>
-                        <span className="font-semibold">
-                          {formatMoneyWithCurrency(getEnvelopeBalance(correctionTarget.id))}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[var(--muted)]">{copy.newValue}</span>
-                        <span className="font-semibold">
-                          {formatMoneyWithCurrency(correctionValue)}
-                        </span>
-                      </div>
-                      {correctionError ? (
-                        <p className="text-sm text-[var(--error)]">
-                          {correctionError}
-                        </p>
-                      ) : null}
-                    </div>
-                    <DialogFooter className="mt-4">
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        onClick={() => setCorrectionStep(2)}
-                      >
-                        {copy.back}
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={handleConfirmCorrection}
-                        isLoading={correctionSaving}
-                      >
-                        {copy.confirm}
-                      </Button>
-                    </DialogFooter>
-                  </>
-                ) : null}
-              </DialogContent>
-            </Dialog>
-          ) : null}
-          {mounted ? (
-            <Dialog
-              open={renameOpen}
-              onOpenChange={(open) => {
-                setRenameOpen(open);
-                if (!open) {
-                  setEditingId(null);
-                  setEditingName("");
-                }
-              }}
-            >
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{copy.renameEnvelope}</DialogTitle>
-                  <DialogDescription>{copy.renameEnvelopeDesc}</DialogDescription>
-                </DialogHeader>
-                <div className="mt-2 grid gap-3">
-                  <input
-                    value={editingName}
-                    onChange={(event) => setEditingName(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
-                    placeholder={copy.newNamePlaceholder}
-                  />
-                  {editingCanDebt ? (
-                    <label className="flex items-start gap-2.5 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={editingIsDebt}
-                        onChange={(event) => setEditingIsDebt(event.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent,#0f766e)]"
-                      />
-                      <span>
-                        {copy.isDebtLabel}
-                        <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                          {copy.isDebtHint}
-                        </span>
-                      </span>
-                    </label>
-                  ) : null}
-                  {error ? (
-                    <p className="text-sm text-[var(--error)]">{error}</p>
-                  ) : null}
-                </div>
-                <DialogFooter className="mt-4">
-                  <DialogClose asChild>
-                    <Button variant="secondary" type="button">
-                      {copy.cancel}
-                    </Button>
-                  </DialogClose>
-                  <Button type="button" onClick={handleUpdate} isLoading={updating}>
-                    {copy.save}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          ) : null}
-        </div>
-      </Section>
-      </div>
-
-      <Dialog
-        open={rolloverDialogOpen}
-        onOpenChange={(open) => {
-          setRolloverDialogOpen(open);
-          if (!open) {
-            setRolloverTarget(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{copy.rolloverChangeTitle}</DialogTitle>
-            <DialogDescription>
-              {copy.rolloverChangeDesc}{" "}
-              <span className="font-medium text-[var(--ink)]">
-                {rolloverTarget ? localizeEnvelopeName(rolloverTarget.name) : ""}
-              </span>
-              .
-            </DialogDescription>
-          </DialogHeader>
-          {rolloverTarget ? (
-            <div className="mt-2 space-y-3 text-sm">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-                <p className="font-medium text-[var(--ink)]">
-                  {copy.currentState} :{" "}
-                  {rolloverTarget.rollover_enabled ? copy.rolloverOn : copy.rolloverOff}
-                </p>
-                <p className="text-xs text-[var(--muted)]">
-                  {copy.afterConfirm} :{" "}
-                  {rolloverNextValue ? copy.rolloverOn : copy.rolloverOff}
-                </p>
-              </div>
-              <ul className="list-disc space-y-2 pl-5 text-[var(--muted)]">
-                {(rolloverNextValue
-                  ? copy.rolloverEnableBullets
-                  : copy.rolloverDisableBullets
-                ).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <p className="text-xs text-[var(--muted)]">
-                {copy.rolloverTransferInfo}
-              </p>
-            </div>
-          ) : null}
-          <DialogFooter className="mt-4">
-            <DialogClose asChild>
-              <Button variant="secondary" type="button">
-                {copy.cancel}
-              </Button>
-            </DialogClose>
-            <Button
-              type="button"
-              isLoading={rolloverUpdatingId === rolloverTarget?.id}
-              disabled={!rolloverTarget}
-              onClick={async () => {
-                if (!rolloverTarget) return;
-                await handleToggleRollover(rolloverTarget, rolloverNextValue);
-                setRolloverDialogOpen(false);
-                setRolloverTarget(null);
-              }}
-            >
-              {copy.confirm}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {editingId ? <div /> : null}
-
-      <Drawer
+      {/* ---------------- tiroir : détails d'une enveloppe ---------------- */}
+      <EnvDrawer
         open={Boolean(selectedEnvelope)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedEnvelopeId(null);
-        }}
+        label={selectedEnvelope ? localizeEnvelopeName(selectedEnvelope.name) : t.details}
+        onClose={closeDrawer}
+        dir={pageDir}
+        top={
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span className="env-drawer__ini" style={sealStyle(drawerSeal)} aria-hidden="true">
+                {selectedEnvelope ? localizeEnvelopeName(selectedEnvelope.name).trim().charAt(0).toUpperCase() : ""}
+              </span>
+              <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                <b style={{ fontSize: 18 }}>{selectedEnvelope ? localizeEnvelopeName(selectedEnvelope.name) : ""}</b>
+                <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>{drawerKind}</span>
+              </span>
+              <button type="button" className="env-btn" style={{ height: 38, fontSize: 13, fontWeight: 800 }} onClick={exportCsv}>
+                <Download size={14} aria-hidden="true" />
+                {t.exportCsv}
+              </button>
+              <button type="button" data-close className="env-dlg__close" style={{ width: 40, height: 40, background: "var(--dsh-card)" }} onClick={closeDrawer} aria-label={t.close}>
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="env-tabs" role="tablist" aria-label={selectedEnvelope?.name ?? t.details}>
+              {(
+                [
+                  ["ov", t.tabOv],
+                  ["tx", t.tabTx],
+                  ["log", t.tabLog],
+                ] as const
+              ).map(([key, label]) => (
+                <button key={key} type="button" role="tab" aria-selected={drawerTab === key} onClick={() => setDrawerTab(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        }
       >
-        <DrawerContent className="h-screen overflow-y-auto">
-          <style jsx>{`
-            @keyframes envelope-detail-rise {
-              from {
-                opacity: 0;
-                transform: translateY(14px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-
-            .envelope-detail-enter {
-              animation: envelope-detail-rise 420ms ease-out both;
-            }
-
-            @media (prefers-reduced-motion: reduce) {
-              .envelope-detail-enter {
-                animation: none;
-              }
-            }
-          `}</style>
-          <DrawerHeader className="envelope-detail-enter">
-	            <DrawerTitle>{selectedEnvelope ? localizeEnvelopeName(selectedEnvelope.name) : copy.pageTitle}</DrawerTitle>
-	            <p className="text-sm text-[var(--muted)]">
-	              {copy.currentBalance}{" "}
-	              {formatMoneyWithCurrency(
-	                periods[0]?.closing_balance ??
-	                  envelopeBalances.get(selectedEnvelope?.id ?? "") ??
-	                  "0.00"
-              )}
-            </p>
-          </DrawerHeader>
-
-          <div className="mt-6 space-y-6">
-            <div className="envelope-detail-enter" style={{ animationDelay: "60ms" }}>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.trendClosingBalance}
-              </p>
-              <Sparkline data={periodTrend} />
+        {drawerTab === "ov" ? (
+          <>
+            <div className="env-panel" style={{ padding: "18px 20px", gap: 10 }}>
+              <span className="env-panel__muted">{t.closingNow}</span>
+              <span style={{ fontSize: 36, fontWeight: 800, color: drawerBalance < 0 ? "var(--dsh-bad-ink)" : "var(--dsh-ink)" }}>
+                {fmt(drawerBalance)}
+              </span>
+              {drawerInfo?.pace ? (
+                <span style={{ fontSize: 13, fontWeight: 700, color: tone(drawerInfo.pace.tone) }}>{drawerInfo.pace.text}</span>
+              ) : null}
+              {periodLoading ? (
+                <div className="env-skel" style={{ height: 90 }} />
+              ) : series.length > 0 ? (
+                <>
+                  <svg
+                    viewBox="0 0 520 90"
+                    width="100%"
+                    height="90"
+                    role="img"
+                    aria-label={`${t.closingNow} : ${series.map((value) => fmt0(value)).join(", ")}`}
+                    style={{ display: "block" }}
+                  >
+                    <line x1="0" y1={sparkY(0)} x2="520" y2={sparkY(0)} stroke="var(--dsh-line)" strokeWidth="1" />
+                    <polyline
+                      points={series.map((value, index) => `${sparkX(index)},${sparkY(value).toFixed(1)}`).join(" ")}
+                      fill="none"
+                      stroke="var(--dsh-brand)"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                    />
+                    <circle
+                      cx={sparkX(series.length - 1)}
+                      cy={sparkY(series[series.length - 1]).toFixed(1)}
+                      r="4.5"
+                      fill="var(--dsh-brand)"
+                    />
+                  </svg>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--dsh-muted)" }}>
+                    {chronological.map((period) => (
+                      <span key={period.id}>{monthOf(period.period_start)}</span>
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
 
-            <div className="envelope-detail-enter" style={{ animationDelay: "120ms" }}>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.periodHistory}
-              </p>
+            {barPeriods.length > 0 ? (
+              <div className="env-panel" style={{ gap: 10 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <b className="env-panel__title" style={{ flex: 1 }}>{t.budgetVsReal}</b>
+                  <span className="env-legend"><i style={{ background: "var(--e-chart-a)" }} />{t.colAlloc}</span>
+                  <span className="env-legend"><i style={{ background: "var(--e-chart-b)" }} />{t.colSpent}</span>
+                </span>
+                <div
+                  className="env-bars"
+                  role="img"
+                  aria-label={`${t.budgetVsReal} : ${barPeriods
+                    .map((period) => `${monthOf(period.period_start)} ${fmt0(Number(period.total_allocations) || 0)} / ${fmt0(Number(period.total_spent) || 0)}`)
+                    .join(" ; ")}`}
+                >
+                  {barPeriods.map((period) => {
+                    const a = Number(period.total_allocations) || 0;
+                    const s = Number(period.total_spent) || 0;
+                    return (
+                      <div key={period.id} className="env-bars__col">
+                        <div className="env-bars__plot">
+                          <i title={`${t.colAlloc} ${fmt0(a)}`} style={{ height: `${Math.max(1, (a / barMax) * 100)}%`, background: "var(--e-chart-a)" }} />
+                          <i title={`${t.colSpent} ${fmt0(s)}`} style={{ height: `${Math.max(1, (s / barMax) * 100)}%`, background: "var(--e-chart-b)" }} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 800 }}>{monthOf(period.period_start)}</span>
+                        <span style={{ fontSize: 11, color: s > a ? "var(--dsh-bad-ink)" : "var(--dsh-muted)", textAlign: "center" }}>
+                          {Math.round(s).toLocaleString(numberLocale)} / {Math.round(a).toLocaleString(numberLocale)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="env-panel">
+              <b className="env-panel__title">{t.periods}</b>
               {periodLoading ? (
-                <p className="mt-2 text-sm text-[var(--muted)]">{copy.loading}</p>
+                <div className="env-skel" style={{ height: 120 }} />
               ) : periodError ? (
-                <p className="mt-2 text-sm text-red-600">{periodError}</p>
+                <span className="env-err">{periodError}</span>
               ) : periods.length === 0 ? (
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  {copy.noPeriodsYet}
-                </p>
+                <span className="env-panel__empty">{t.noPeriods}</span>
               ) : (
-                <div className="mt-2 overflow-hidden rounded-2xl border border-[var(--border)]">
-	                  <table className="w-full text-start text-sm">
-	                    <thead className="bg-[var(--surface-2)] text-xs text-[var(--muted)]">
+                <div style={{ overflowX: "auto" }}>
+                  <table className="env-table">
+                    <thead>
                       <tr>
-                        <th className="px-3 py-2">{copy.period}</th>
-                        <th className="px-3 py-2">{copy.allocated}</th>
-                        <th className="px-3 py-2">{copy.spent}</th>
-                        <th className="px-3 py-2">{copy.closing}</th>
+                        <th>{t.colPeriod}</th>
+                        <th>{t.colAlloc}</th>
+                        <th>{t.colSpent}</th>
+                        <th>{t.colClose}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                      {periods.map((period) => (
-                        <tr key={period.id}>
-                          <td className="px-3 py-2 text-xs text-[var(--muted)]">
-	                            {formatLocalDate(period.period_start, locale)} → {formatLocalDate(period.period_end, locale)}
-	                          </td>
-	                          <td className="px-3 py-2">
-	                            {formatMoneyWithCurrency(period.total_allocations)}
-	                          </td>
-	                          <td className="px-3 py-2">
-	                            {formatMoneyWithCurrency(period.total_spent)}
-	                          </td>
-	                          <td className="px-3 py-2 font-semibold">
-	                            {formatMoneyWithCurrency(period.closing_balance)}
-	                          </td>
-                        </tr>
-                      ))}
+                    <tbody>
+                      {periods.map((period, index) => {
+                        const close = Number(period.closing_balance) || 0;
+                        return (
+                          <tr key={period.id} style={{ fontWeight: index === 0 ? 800 : 500 }}>
+                            <td>
+                              {periodLabel(period.period_start, period.period_end)}
+                              {index === 0 ? ` ${t.inProgress}` : ""}
+                            </td>
+                            <td>{Math.round(Number(period.total_allocations) || 0).toLocaleString(numberLocale)}</td>
+                            <td>{Math.round(Number(period.total_spent) || 0).toLocaleString(numberLocale)}</td>
+                            <td style={{ color: close < 0 ? "var(--dsh-bad-ink)" : undefined }}>
+                              {Math.round(close).toLocaleString(numberLocale)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
+          </>
+        ) : null}
 
-            <div className="envelope-detail-enter" style={{ animationDelay: "180ms" }}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                  {copy.recentActivity}
-                </p>
-                <Button
-                  size="sm"
-                  variant="danger"
+        {drawerTab === "tx" ? (
+          <div className="env-panel" style={{ gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 6 }}>
+              <b className="env-panel__title" style={{ flex: 1 }}>{t.activity}</b>
+              {envelopeActivity.length > 0 ? (
+                <button
                   type="button"
-                  onClick={handleDeleteAllEnvelopeActivity}
-                  disabled={activityDeletingAll || envelopeActivity.length === 0}
+                  className="env-btn"
+                  style={{ height: 32, fontSize: 12, fontWeight: 800, background: "var(--dsh-bad-soft)", color: "var(--dsh-bad-ink)" }}
+                  onClick={() => setPurgeOpen(true)}
                 >
-                  {activityDeletingAll ? copy.deleting : copy.deleteAll}
-                </Button>
-              </div>
-              {envelopeActivity.length === 0 ? (
-	                <p className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--muted)]">
-	                  {copy.noActivityYet}
-	                </p>
-              ) : (
-                <div className="mt-2 divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)]">
-                  {envelopeActivity.map((tx) => (
-                    <div key={tx.id} className="px-4 py-3 text-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium">
-                          {tx.category_name ?? "-"}
-                        </span>
-                        <div className="flex items-center gap-2">
-	                          <span>{formatMoneyWithCurrency(tx.amount)}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            type="button"
-                            onClick={() => handleDeleteEnvelopeActivity(tx.id)}
-                            disabled={activityDeletingId === tx.id}
-                          >
-                            {copy.delete}
-                          </Button>
-                        </div>
-                      </div>
-                      <p className="text-xs text-[var(--muted)]">
-	                        {formatLocalDate(tx.occurred_on, locale)} · {tx.description ?? copy.noDescription}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+                  {t.purgeAll}
+                </button>
+              ) : null}
             </div>
-
-            <div className="envelope-detail-enter" style={{ animationDelay: "240ms" }}>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.transferLogs}
-              </p>
-              {transferLoading ? (
-                <p className="mt-2 text-sm text-[var(--muted)]">{copy.loading}</p>
-              ) : transferError ? (
-                <p className="mt-2 text-sm text-red-600">{transferError}</p>
-              ) : transferLogs.length === 0 ? (
-	                <p className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--muted)]">
-	                  {copy.noTransfers}
-	                </p>
-              ) : (
-                <div className="mt-2 divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)]">
-                  {transferLogs.map((log) => {
-                    const isIncoming = log.to_envelope_id === selectedEnvelope?.id;
-                    const targetName =
-                      localizeEnvelopeName(envelopeMap.get(log.to_envelope_id) ?? copy.cash);
-                    return (
-                      <div key={log.id} className="px-4 py-3 text-sm">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-medium">
-                            {isIncoming
-                              ? copy.transferFrom(localizeEnvelopeName(log.from_envelope_name))
-                              : copy.transferTo(targetName)}
-                          </span>
-	                          <span>{formatMoneyWithCurrency(log.amount)}</span>
-                        </div>
-                        <p className="text-xs text-[var(--muted)]">
-	                          {formatLocalDate(log.period_start, locale)} → {formatLocalDate(log.period_end, locale)}
-                        </p>
-                      </div>
-                    );
-                  })}
+            {envelopeActivity.length === 0 ? <span className="env-panel__empty">{t.noTx}</span> : null}
+            {envelopeActivity.map((tx) => {
+              const label = tx.description || tx.category_name || "—";
+              return (
+                <div key={tx.id} className="env-line">
+                  <span className="env-line__date">{shortDate(tx.occurred_on)}</span>
+                  <span className="env-line__main">
+                    <span>{label}</span>
+                    <span>{tx.category_name}</span>
+                  </span>
+                  <b style={{ fontSize: 14, color: tx.type === "income" ? "var(--dsh-brand)" : "var(--dsh-bad-ink)" }}>
+                    {tx.type === "income" ? "+" : "−"}
+                    {fmt(Math.abs(Number(tx.amount) || 0))}
+                  </b>
+                  <button
+                    type="button"
+                    className="env-iconbtn"
+                    aria-label={`${t.delete} ${label}`}
+                    title={`${t.delete} ${label}`}
+                    disabled={activityDeletingId === tx.id}
+                    onClick={() => setTxDeleteTarget({ id: tx.id, label })}
+                  >
+                    {activityDeletingId === tx.id ? (
+                      <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Trash2 size={15} aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
-              )}
-            </div>
-
-            <div className="envelope-detail-enter" style={{ animationDelay: "300ms" }}>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {copy.manualCorrections}
-              </p>
-              {adjustmentLoading ? (
-                <p className="mt-2 text-sm text-[var(--muted)]">{copy.loading}</p>
-              ) : adjustmentError ? (
-                <p className="mt-2 text-sm text-red-600">{adjustmentError}</p>
-              ) : adjustmentLogs.length === 0 ? (
-	                <p className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--muted)]">
-	                  {copy.noCorrections}
-	                </p>
-              ) : (
-                <div className="mt-2 divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)]">
-                  {adjustmentLogs.map((log) => (
-                    <div key={log.id} className="px-4 py-3 text-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium">
-                          {copy.manualCorrectionLabel}
-                        </span>
-	                        <span>{formatMoneyWithCurrency(log.new_balance)}</span>
-                      </div>
-                      <p className="text-xs text-[var(--muted)]">
-	                        {formatDateTime(log.created_at, locale)} · {formatLocalDate(log.period_start, locale)} →{" "}
-	                        {formatLocalDate(log.period_end, locale)}
-                      </p>
-                      <p className="text-xs text-[var(--muted)]">
-                        {copy.previousNewDelta(
-	                          formatMoneyWithCurrency(log.previous_balance),
-	                          formatMoneyWithCurrency(log.new_balance),
-	                          formatMoneyWithCurrency(log.delta)
-                        )}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-        </DrawerContent>
-      </Drawer>
+        ) : null}
+
+        {drawerTab === "log" ? (
+          <>
+            <div className="env-panel" style={{ gap: 4 }}>
+              <b className="env-panel__title" style={{ paddingBottom: 6 }}>{t.transfers}</b>
+              {transferLoading ? (
+                <div className="env-skel" style={{ height: 80 }} />
+              ) : transferError ? (
+                <span className="env-err">{transferError}</span>
+              ) : transferLogs.length === 0 ? (
+                <span className="env-panel__empty">{t.noTransfers}</span>
+              ) : (
+                transferLogs.map((log) => {
+                  const incoming = log.to_envelope_id === selectedEnvelope?.id;
+                  const other = incoming
+                    ? localizeEnvelopeName(log.from_envelope_name)
+                    : localizeEnvelopeName(envelopeMap.get(log.to_envelope_id) ?? copy.cash);
+                  const amount = Number(log.amount) || 0;
+                  return (
+                    <div key={log.id} className="env-line" style={{ flexWrap: "nowrap" }}>
+                      <span className="env-line__date">{shortDate(log.period_end)}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>
+                        {incoming ? copy.transferFrom(other) : copy.transferTo(other)}
+                      </span>
+                      <b style={{ fontSize: 14, color: incoming ? "var(--dsh-brand)" : "var(--dsh-bad-ink)" }}>
+                        {incoming ? "+" : "−"}
+                        {fmt(Math.abs(amount))}
+                      </b>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="env-panel" style={{ gap: 4 }}>
+              <b className="env-panel__title" style={{ paddingBottom: 6 }}>{t.fixLog}</b>
+              {adjustmentLoading ? (
+                <div className="env-skel" style={{ height: 80 }} />
+              ) : adjustmentError ? (
+                <span className="env-err">{adjustmentError}</span>
+              ) : adjustmentLogs.length === 0 ? (
+                <span className="env-panel__empty">{t.noFix}</span>
+              ) : (
+                adjustmentLogs.map((log) => {
+                  const delta = Number(log.delta) || 0;
+                  return (
+                    <div key={log.id} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 0", borderTop: "1px solid var(--dsh-line)" }}>
+                      <span style={{ display: "flex", gap: 8, fontSize: 13 }}>
+                        <b>{copy.manualCorrectionLabel}</b>
+                        <span style={{ color: "var(--dsh-muted)" }}>{formatDateTime(log.created_at, locale)}</span>
+                      </span>
+                      <span style={{ display: "flex", gap: 14, fontSize: 13, flexWrap: "wrap" }}>
+                        <span>{t.old} <b>{fmt(Number(log.previous_balance) || 0)}</b></span>
+                        <span>{t.nw} <b>{fmt(Number(log.new_balance) || 0)}</b></span>
+                        <span style={{ color: delta >= 0 ? "var(--dsh-brand)" : "var(--dsh-bad-ink)" }}>
+                          {t.delta} <b>{delta >= 0 ? "+" : "−"}{fmt(Math.abs(delta))}</b>
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </>
+        ) : null}
+      </EnvDrawer>
+
+      {/* ---------------- ajouter une enveloppe ---------------- */}
+      <EnvModal
+        open={createOpen}
+        title={t.add}
+        onClose={() => {
+          setCreateOpen(false);
+          setNewName("");
+          setNewIsDebt(false);
+          setNewIsDebtManual(false);
+          setError(null);
+        }}
+        dir={pageDir}
+        closeLabel={t.close}
+      >
+        <form
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleCreate();
+          }}
+        >
+          {isGuest ? (
+            <span style={{ fontSize: 13, fontWeight: 800, color: "var(--dsh-brand-ink)" }}>
+              {t.guestMode} · {t.quotaText(quotaUsed, quotaMax)}
+            </span>
+          ) : null}
+          <label className="env-field">
+            <span>{t.name}</span>
+            <input
+              className="env-input"
+              value={newName}
+              maxLength={40}
+              placeholder={t.namePh}
+              onChange={(event) => {
+                const value = event.target.value;
+                setNewName(value);
+                if (!newIsDebtManual) setNewIsDebt(looksLikeDebt(value));
+              }}
+            />
+          </label>
+          {newIsDebt && !newIsDebtManual ? (
+            <div className="env-note env-note--warn">
+              <b>{t.detected}</b> {t.detectedText}
+            </div>
+          ) : null}
+          <div role="radiogroup" aria-label={t.name} className="env-choice-grid">
+            {(
+              [
+                [false, t.normalKind, t.normalKindSub],
+                [true, t.debtKind, t.debtKindSub],
+              ] as const
+            ).map(([value, label, sub]) => (
+              <button
+                key={String(value)}
+                type="button"
+                role="radio"
+                aria-checked={newIsDebt === value}
+                className="env-choice"
+                onClick={() => {
+                  setNewIsDebt(value);
+                  setNewIsDebtManual(true);
+                }}
+              >
+                <b>{label}</b>
+                <span>{sub}</span>
+              </button>
+            ))}
+          </div>
+          {issueText ? <span role="alert" className="env-err">{issueText}</span> : null}
+          <button
+            type="submit"
+            className="env-btn env-btn--cta env-btn--lg"
+            disabled={isGuest && !guestEnvelopeQuota.allowed}
+            aria-busy={updating}
+          >
+            {updating ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+            {isGuest && !guestEnvelopeQuota.allowed ? t.quotaMsgFull : t.create}
+          </button>
+        </form>
+      </EnvModal>
+
+      {/* ---------------- paramètres avancés : packs ---------------- */}
+      <EnvModal open={advancedOpen} title={t.adv} onClose={() => setAdvancedOpen(false)} dir={pageDir} wide closeLabel={t.close}>
+        <p className="env-dlg__intro">{t.packsIntro}</p>
+        <div className="env-packs">
+          {localizedPresetPacks.map((pack) => {
+            const on = advancedPackKeys.includes(pack.key);
+            return (
+              <button
+                key={pack.key}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                className="env-choice"
+                style={{ gap: 6, padding: 14, borderRadius: 16 }}
+                onClick={() => handleAdvancedPackToggle(pack.key)}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="env-box" aria-hidden="true">{on ? <Check size={12} strokeWidth={3} /> : null}</span>
+                  <b style={{ fontSize: 15 }}>{pack.label}</b>
+                </span>
+                <span>{pack.envelopes.join(", ")}</span>
+              </button>
+            );
+          })}
+        </div>
+        <label className="env-field">
+          <span>{t.quickList}</span>
+          <textarea
+            className="env-input"
+            rows={2}
+            value={advancedCustomText}
+            placeholder={t.quickListPh}
+            onChange={(event) => setAdvancedCustomText(event.target.value)}
+          />
+        </label>
+        <div className="env-note">
+          <b>{t.advPreview(advToCreate.length)}</b>
+          {advSkipped.length > 0 ? (
+            <>
+              <br />
+              <span style={{ color: "var(--dsh-muted)" }}>{t.advSkipped(advSkipped.join(", "))}</span>
+            </>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className={advToCreate.length === 0 ? "env-btn env-btn--soft env-btn--lg" : "env-btn env-btn--cta env-btn--lg"}
+          disabled={advToCreate.length === 0}
+          aria-busy={advancedSaving}
+          onClick={() => void createNames(advToCreate)}
+        >
+          {advancedSaving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+          {t.advBtn(advToCreate.length)}
+        </button>
+      </EnvModal>
+
+      {/* ---------------- rollover collectif ---------------- */}
+      <EnvModal open={bulkRolloverOpen} title={t.rollBulk} onClose={() => setBulkRolloverOpen(false)} dir={pageDir} closeLabel={t.close}>
+        <p className="env-dlg__intro">{t.rollBulkIntro(endLabel)}</p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            className="env-chip"
+            onClick={() =>
+              setRollDraft(Object.fromEntries(sweepRows.map((info) => [info.env.id, true])))
+            }
+          >
+            {t.allOn}
+          </button>
+          <button
+            type="button"
+            className="env-chip"
+            onClick={() =>
+              setRollDraft(
+                Object.fromEntries(
+                  sweepRows.map((info) => [info.env.id, isRolloverOffForbiddenEnvelope(info.env)])
+                )
+              )
+            }
+          >
+            {t.allOff}
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {sweepRows.map((info) => {
+            const forbidden = isRolloverOffForbiddenEnvelope(info.env);
+            const on = rollDraft[info.env.id] ?? info.env.rollover_enabled;
+            const changed = on !== info.env.rollover_enabled;
+            return (
+              <button
+                key={info.env.id}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                aria-disabled={forbidden && on}
+                className="env-check-row"
+                onClick={() => {
+                  if (forbidden && on) return;
+                  setRollDraft((prev) => ({ ...prev, [info.env.id]: !on }));
+                }}
+              >
+                <span className="env-box" style={{ width: 22, height: 22 }} aria-hidden="true">
+                  {on ? <Check size={12} strokeWidth={3} /> : null}
+                </span>
+                <span>{info.name}</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: forbidden ? "var(--dsh-muted)" : changed ? "var(--dsh-brand)" : "var(--dsh-muted)",
+                  }}
+                >
+                  {forbidden ? t.lockedOn : on ? t.willCarry : t.willSweep}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className={rollChanges.length === 0 ? "env-btn env-btn--soft env-btn--lg" : "env-btn env-btn--cta env-btn--lg"}
+          disabled={rollChanges.length === 0}
+          aria-busy={bulkRolloverLoading}
+          onClick={() => void applyRollDraft()}
+        >
+          {bulkRolloverLoading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+          {t.rbBtn(rollChanges.length)}
+        </button>
+      </EnvModal>
+
+      {/* ---------------- aperçu de la clôture ---------------- */}
+      <EnvModal open={closingOpen} title={t.closingPreview} onClose={() => setClosingOpen(false)} dir={pageDir} wide closeLabel={t.close}>
+        <p className="env-dlg__intro">{t.closingIntro(endLabel)}</p>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {sweepRows.map((info) => {
+            const on = info.env.rollover_enabled;
+            const forbidden = isRolloverOffForbiddenEnvelope(info.env);
+            const result =
+              info.bal < 0 ? t.negCarried : on ? (forbidden ? t.lockedOn : t.carried) : t.swept(fmt(Math.max(0, info.bal)));
+            return (
+              <div key={info.env.id} className="env-line" style={{ ...sealStyle(info.seal), padding: "10px 0" }}>
+                <span className="env-dot env-ini" style={{ width: 10, height: 10 }} aria-hidden="true" />
+                <b style={{ flex: "1 1 120px", fontSize: 15 }}>{info.name}</b>
+                <span style={{ fontSize: 14, color: "var(--dsh-muted)" }}>{fmt(info.bal)}</span>
+                <button
+                  type="button"
+                  className="env-switch"
+                  aria-pressed={on}
+                  aria-label={`Rollover ${info.name}`}
+                  disabled={(forbidden && on) || rolloverUpdatingId === info.env.id}
+                  onClick={() => void handleToggleRollover(info.env, !on)}
+                >
+                  <span />
+                </button>
+                <span
+                  style={{
+                    width: 170,
+                    textAlign: "end",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: !on && info.bal > 0 ? "var(--dsh-brand)" : "var(--dsh-muted)",
+                  }}
+                >
+                  {result}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: "2px solid var(--dsh-ink)", fontSize: 16 }}>
+          <b>{t.toSavings}</b>
+          <b style={{ color: "var(--dsh-brand)" }}>+{fmt(sweepTotal)}</b>
+        </div>
+        <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>{t.sweepExcluded}</span>
+      </EnvModal>
+
+      {/* ---------------- allouer depuis Cash ---------------- */}
+      <EnvModal
+        open={Boolean(quickTarget)}
+        title={quickInfo ? `${t.qAlloc} · ${quickInfo.name}` : t.qAlloc}
+        onClose={() => setQuickTarget(null)}
+        dir={pageDir}
+        closeLabel={t.close}
+      >
+        <form
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitQuick();
+          }}
+        >
+          <p className="env-dlg__intro">{quickInfo ? t.quickHint(quickInfo.name, fmt(cashAvailable)) : ""}</p>
+          <label className="env-field">
+            <span>{t.amount}</span>
+            <input
+              className="env-input env-input--big"
+              inputMode="decimal"
+              value={quickAmount}
+              placeholder="0"
+              aria-invalid={Boolean(quickError)}
+              onChange={(event) => {
+                setQuickAmount(event.target.value);
+                setQuickError(null);
+              }}
+            />
+          </label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {quickChips.map((value) => (
+              <button key={value} type="button" className="env-chip" onClick={() => setQuickAmount(String(value))}>
+                {fmt0(value)}
+              </button>
+            ))}
+          </div>
+          {quickError ? <span role="alert" className="env-err">{quickError}</span> : null}
+          {Number.isFinite(quickValue) && quickValue > 0 ? (
+            <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>
+              {t.qPreview(fmt(cashAvailable), fmt(cashAvailable - quickValue))}
+            </span>
+          ) : null}
+          <button type="submit" className="env-btn env-btn--cta env-btn--lg" aria-busy={quickSaving}>
+            {quickSaving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+            {t.qBtn(Number.isFinite(quickValue) && quickValue > 0 ? fmt(quickValue) : fmt0(0))}
+          </button>
+        </form>
+      </EnvModal>
+
+      {/* ---------------- renommer ---------------- */}
+      <EnvModal
+        open={renameOpen}
+        title={copy.renameEnvelope}
+        onClose={() => {
+          setRenameOpen(false);
+          setEditingId(null);
+          setEditingName("");
+          setError(null);
+        }}
+        dir={pageDir}
+        closeLabel={t.close}
+      >
+        <form
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleUpdate();
+          }}
+        >
+          <input
+            className="env-input"
+            value={editingName}
+            maxLength={40}
+            aria-label={t.name}
+            placeholder={copy.newNamePlaceholder}
+            onChange={(event) => setEditingName(event.target.value)}
+          />
+          {editingCanDebt ? (
+            <div role="radiogroup" aria-label={t.name} className="env-choice-grid">
+              {(
+                [
+                  [false, t.normalKind, t.normalKindSub],
+                  [true, t.debtKind, t.debtKindSub],
+                ] as const
+              ).map(([value, label, sub]) => (
+                <button
+                  key={String(value)}
+                  type="button"
+                  role="radio"
+                  aria-checked={editingIsDebt === value}
+                  className="env-choice"
+                  onClick={() => setEditingIsDebt(value)}
+                >
+                  <b>{label}</b>
+                  <span>{sub}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {issueText ? <span role="alert" className="env-err">{issueText}</span> : null}
+          <button type="submit" className="env-btn env-btn--cta env-btn--lg" aria-busy={updating}>
+            {updating ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+            {t.save}
+          </button>
+        </form>
+      </EnvModal>
+
+      {/* ---------------- correction manuelle ---------------- */}
+      <EnvModal open={correctionOpen} title={copy.manualCorrection} onClose={() => setCorrectionOpen(false)} dir={pageDir} closeLabel={t.close}>
+        <ol aria-label={t.steps} className="env-steps" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          {t.fixSteps.map((label, index) => (
+            <li key={label} aria-current={(correctionStep === 3 ? 1 : 0) === index ? "step" : undefined}>
+              {label}
+            </li>
+          ))}
+        </ol>
+        {correctionStep !== 3 ? (
+          <form
+            style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleCorrectionContinue();
+            }}
+          >
+            <div className="env-note">
+              <b>{correctionInfo?.name}</b> · {copy.currentBalance} : <b>{fmt(correctionInfo?.bal ?? 0)}</b>
+            </div>
+            <label className="env-field">
+              <span>{t.newValue}</span>
+              <input
+                className="env-input"
+                style={{ height: 54, fontSize: 22, fontWeight: 800 }}
+                inputMode="decimal"
+                value={correctionValue}
+                placeholder="0,00"
+                aria-invalid={Boolean(correctionError)}
+                onChange={(event) => setCorrectionValue(event.target.value.replace(",", "."))}
+              />
+            </label>
+            {correctionError ? <span role="alert" className="env-err">{correctionError}</span> : null}
+            <button type="submit" className="env-btn env-btn--cta env-btn--lg">{t.next}</button>
+          </form>
+        ) : (
+          <>
+            <div className="env-cmp">
+              <div><span>{t.old}</span><b>{fmt(correctionInfo?.bal ?? 0)}</b></div>
+              <div><span>{t.nw}</span><b>{fmt(Number.isFinite(correctionNew) ? correctionNew : 0)}</b></div>
+              <div style={{ background: correctionDelta >= 0 ? "var(--dsh-brand-soft)" : "var(--dsh-bad-soft)" }}>
+                <span>{t.delta}</span>
+                <b style={{ color: correctionDelta >= 0 ? "var(--dsh-brand-ink)" : "var(--dsh-bad-ink)" }}>
+                  {correctionDelta >= 0 ? "+" : "−"}{fmt(Math.abs(correctionDelta))}
+                </b>
+              </div>
+            </div>
+            <p className="env-dlg__intro">{copy.manualCorrectionDesc}</p>
+            {correctionError ? <span role="alert" className="env-err">{correctionError}</span> : null}
+            <div className="env-row-actions">
+              <button type="button" className="env-btn env-btn--soft env-btn--lg" style={{ flex: 1 }} onClick={() => setCorrectionStep(2)}>
+                {t.back}
+              </button>
+              <button
+                type="button"
+                className="env-btn env-btn--cta env-btn--lg"
+                style={{ flex: 2 }}
+                aria-busy={correctionSaving}
+                onClick={() => void handleConfirmCorrection()}
+              >
+                {correctionSaving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+                {t.applyFix}
+              </button>
+            </div>
+          </>
+        )}
+      </EnvModal>
+
+      {/* ---------------- rollover d'une enveloppe ---------------- */}
+      <EnvModal
+        open={rolloverDialogOpen}
+        title={rolloverTarget ? `Rollover · ${localizeEnvelopeName(rolloverTarget.name)}` : "Rollover"}
+        onClose={() => {
+          setRolloverDialogOpen(false);
+          setRolloverTarget(null);
+        }}
+        dir={pageDir}
+        closeLabel={t.close}
+      >
+        {rolloverTarget && rollForbidden ? <div className="env-note env-note--warn">{t.rollLockedText}</div> : null}
+        {rolloverTarget
+          ? (
+              [
+                [true, t.rollOnTitle, copy.rolloverEnableBullets],
+                [false, t.rollOffTitle, copy.rolloverDisableBullets],
+              ] as const
+            ).map(([value, title, bullets]) => (
+              <div key={title} className={rolloverTarget.rollover_enabled === value ? "env-roll-opt is-on" : "env-roll-opt"}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <b>{title}</b>
+                  {rolloverTarget.rollover_enabled === value ? <span className="env-roll-opt__tag">{t.current}</span> : null}
+                </span>
+                {bullets.map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+              </div>
+            ))
+          : null}
+        {rolloverTarget ? <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>{copy.rolloverTransferInfo}</span> : null}
+        {rolloverTarget && !(rollForbidden && rolloverTarget.rollover_enabled) ? (
+          <button
+            type="button"
+            className="env-btn env-btn--cta env-btn--lg"
+            aria-busy={rolloverUpdatingId === rolloverTarget.id}
+            onClick={async () => {
+              await handleToggleRollover(rolloverTarget, rolloverNextValue);
+              setRolloverDialogOpen(false);
+              setRolloverTarget(null);
+            }}
+          >
+            {rolloverUpdatingId === rolloverTarget.id ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+            {t.rollSwitchTo(rolloverNextValue)}
+          </button>
+        ) : null}
+      </EnvModal>
+
+      {/* ---------------- supprimer une enveloppe ---------------- */}
+      <EnvModal
+        open={deleteOpen}
+        title={copy.deleteEnvelope}
+        onClose={() => {
+          setDeleteOpen(false);
+          setDeleteTarget(null);
+        }}
+        dir={pageDir}
+        closeLabel={t.close}
+      >
+        <span style={{ fontSize: 15, lineHeight: 1.55 }}>
+          {copy.transferFromEnvelope} : <b>{deleteTarget ? localizeEnvelopeName(deleteTarget.name) : ""}</b>
+        </span>
+        <div className="env-note env-note--muted">{copy.deleteEnvelopeDesc}</div>
+        <div className="env-row-actions">
+          <button
+            type="button"
+            className="env-btn env-btn--soft env-btn--lg"
+            onClick={() => {
+              setDeleteOpen(false);
+              setDeleteTarget(null);
+            }}
+          >
+            {t.cancel}
+          </button>
+          <button
+            type="button"
+            className="env-btn env-btn--danger env-btn--lg"
+            disabled={!deleteTarget}
+            aria-busy={updating}
+            onClick={() => {
+              if (!deleteTarget) return;
+              void handleDelete(deleteTarget).finally(() => {
+                setDeleteOpen(false);
+                setDeleteTarget(null);
+              });
+            }}
+          >
+            {updating ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
+            {t.delete}
+          </button>
+        </div>
+      </EnvModal>
+
+      {/* ---------------- supprimer des dépenses ---------------- */}
+      <EnvModal
+        open={purgeOpen || Boolean(txDeleteTarget)}
+        title={purgeOpen ? t.purgeAll : t.delete}
+        onClose={() => {
+          setPurgeOpen(false);
+          setTxDeleteTarget(null);
+        }}
+        dir={pageDir}
+        closeLabel={t.close}
+      >
+        <span style={{ fontSize: 15, lineHeight: 1.55 }}>
+          {purgeOpen
+            ? t.purgeText(envelopeActivity.length, selectedEnvelope ? localizeEnvelopeName(selectedEnvelope.name) : "")
+            : t.txDelText(txDeleteTarget?.label ?? "")}
+        </span>
+        <div className="env-row-actions">
+          <button
+            type="button"
+            className="env-btn env-btn--soft env-btn--lg"
+            onClick={() => {
+              setPurgeOpen(false);
+              setTxDeleteTarget(null);
+            }}
+          >
+            {t.cancel}
+          </button>
+          <button
+            type="button"
+            className="env-btn env-btn--danger env-btn--lg"
+            aria-busy={activityDeletingAll}
+            onClick={async () => {
+              if (purgeOpen) {
+                setPurgeOpen(false);
+                await handleDeleteAllEnvelopeActivity();
+              } else if (txDeleteTarget) {
+                const id = txDeleteTarget.id;
+                setTxDeleteTarget(null);
+                await handleDeleteEnvelopeActivity(id);
+              }
+            }}
+          >
+            {purgeOpen ? t.purgeAll : t.delete}
+          </button>
+        </div>
+      </EnvModal>
+
+      <EnvToastView toast={envToast} dir={pageDir} />
     </div>
   );
 }
