@@ -2183,47 +2183,6 @@ function AppLayoutContent({
             );
           })()}
 
-          <div
-            data-tour-mobile-backdrop
-            className={`fixed inset-0 z-40 bg-black/40 transition-opacity lg:hidden ${
-              mobileNavOpen ? "opacity-100" : "pointer-events-none opacity-0"
-            }`}
-            onClick={() => {
-              tourForcedNavRef.current = false;
-              setMobileNavOpen(false);
-            }}
-            aria-hidden={!mobileNavOpen}
-          />
-          <aside
-            data-tour-mobile-nav
-            className={`fixed top-0 z-50 h-full w-[270px] transform p-0 shadow-2xl transition-transform duration-300 lg:hidden ${
-              pageDir === "rtl" ? "right-0" : "left-0"
-            } ${
-              mobileNavOpen
-                ? "translate-x-0"
-                : pageDir === "rtl"
-                  ? "translate-x-full"
-                  : "-translate-x-full"
-            }`}
-            role="dialog"
-            aria-label={shellCopy.navigation}
-          >
-            <AppSidebar
-              user={user}
-              displayName={displayName}
-              initials={initials}
-              locale={locale}
-              streakDays={streakDays}
-              appVersionLabel={appVersionLabel}
-              onLogout={handleLogout}
-              isMobile
-              onCloseMobile={() => {
-                tourForcedNavRef.current = false;
-                setMobileNavOpen(false);
-              }}
-              betaAuthorized={betaAuthorized}
-            />
-          </aside>
 
           {/* Navigation du bas Android / iPad (TabNav & Plus sheet) */}
           <AppBottomNav user={user} locale={locale} streakDays={streakDays} />

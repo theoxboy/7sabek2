@@ -658,8 +658,10 @@ body.onboarding-route-ar-body a svg {
 }
 
 @media (max-width: 1023px) {
-  .sb-island:not(.is-mobile) {
-    display: none;
+  .sb-island,
+  .sb-island:not(.is-mobile),
+  .sb-island.is-mobile {
+    display: none !important;
   }
   .sb-main-island,
   .sb-main-island.closed,
@@ -669,26 +671,6 @@ body.onboarding-route-ar-body a svg {
     margin-right: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-  }
-  .sb-island.is-mobile {
-    display: flex;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 270px;
-    border-radius: 0;
-    z-index: 60;
-    border-top: none;
-    border-bottom: none;
-    border-left: none;
-    box-shadow: 0 0 35px rgba(0, 0, 0, 0.4);
-  }
-  [dir="rtl"] .sb-island.is-mobile {
-    left: auto;
-    right: 0;
-    border-right: none;
-    border-left: 1px solid var(--sb-line);
   }
 }
 
