@@ -1685,14 +1685,18 @@ export default function EnvelopesPage() {
   const t = ENV_COPY[locale];
   const numberLocale = locale === "en" ? "en-US" : "fr-FR";
   const currency = locale === "ar" ? "درهم" : "DH";
-  const fmt = (value: number) =>
-    `${value < 0 ? "−" : ""}${Math.abs(value)
+  // Isole le nombre (signe compris) en LTR : sans ça, en arabe (RTL), « 1 234,56 »
+  // s'affiche « 234,56 1 » et le signe +/− passe du mauvais côté.
+  const ltr = (text: string) => `\u2066${text}\u2069`;
+  const num0 = (value: number) => ltr(Math.round(value).toLocaleString(numberLocale).replace(/[  ]/g, " "));
+  const fmt = (value: number, sign?: "+" | "−") =>
+    `${ltr(`${sign ?? (value < 0 ? "−" : "")}${Math.abs(value)
       .toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      .replace(/[  ]/g, " ")} ${currency}`;
+      .replace(/[  ]/g, " ")}`)} ${currency}`;
   const fmt0 = (value: number) =>
-    `${value < 0 ? "−" : ""}${Math.round(Math.abs(value))
+    `${ltr(`${value < 0 ? "−" : ""}${Math.round(Math.abs(value))
       .toLocaleString(numberLocale)
-      .replace(/[  ]/g, " ")} ${currency}`;
+      .replace(/[  ]/g, " ")}`)} ${currency}`;
   const parseAmount = (raw: string) => {
     const cleaned = raw.replace(/[\s  ]/g, "").replace(",", ".");
     return /^-?\d+(\.\d{1,2})?$/.test(cleaned) ? Number(cleaned) : Number.NaN;
@@ -1906,7 +1910,7 @@ export default function EnvelopesPage() {
     setCoveringId(info.env.id);
     try {
       await allocateFromCash(info.env, need);
-      toast({ title: `${info.name} : +${fmt(need)}`, variant: "success" });
+      toast({ title: `${info.name} : ${fmt(need, "+")}`, variant: "success" });
     } catch (err) {
       toast({ title: copy.updateFailed, description: err instanceof Error ? err.message : copy.unknownError, variant: "danger" });
     } finally {
@@ -1936,7 +1940,7 @@ export default function EnvelopesPage() {
     setQuickError(null);
     try {
       await allocateFromCash(quickTarget, value);
-      toast({ title: `${localizeEnvelopeName(quickTarget.name)} : +${fmt(value)}`, variant: "success" });
+      toast({ title: `${localizeEnvelopeName(quickTarget.name)} : ${fmt(value, "+")}`, variant: "success" });
       setQuickTarget(null);
     } catch (err) {
       setQuickError(err instanceof Error ? err.message : copy.unknownError);
@@ -2381,7 +2385,7 @@ export default function EnvelopesPage() {
               </button>
               <button type="button" className="sbk-tile" onClick={() => setClosingOpen(true)}>
                 <span className="sbk-tile__label">{t.sweepOn(endLabel)}</span>
-                <b className="sbk-tile__value">+{fmt(sweepTotal)}</b>
+                <b className="sbk-tile__value">{fmt(sweepTotal, "+")}</b>
                 <span className="sbk-tile__hint">{t.sweepHint(sweepEligible.length)}</span>
               </button>
             </div>
@@ -2402,7 +2406,7 @@ export default function EnvelopesPage() {
                 </div>
                 <div className="env-sav__box">
                   <span style={{ fontSize: 13, fontWeight: 700, opacity: 0.85 }}>{t.nextSweep(endLabel)}</span>
-                  <b style={{ fontSize: 26 }}>+{fmt(sweepTotal)}</b>
+                  <b style={{ fontSize: 26 }}>{fmt(sweepTotal, "+")}</b>
                   <span style={{ fontSize: 13, opacity: 0.9 }}>
                     {t.sweepCount(sweepEligible.length, sweepEligible.map((info) => info.name).join(locale === "ar" ? "، " : ", "))}
                   </span>
@@ -2682,7 +2686,7 @@ export default function EnvelopesPage() {
                         </div>
                         <span style={{ fontSize: 12, fontWeight: 800 }}>{monthOf(period.period_start)}</span>
                         <span style={{ fontSize: 11, color: s > a ? "var(--dsh-bad-ink)" : "var(--dsh-muted)", textAlign: "center" }}>
-                          {Math.round(s).toLocaleString(numberLocale)} / {Math.round(a).toLocaleString(numberLocale)}
+                          {num0(s)} / {num0(a)}
                         </span>
                       </div>
                     );
@@ -2719,10 +2723,10 @@ export default function EnvelopesPage() {
                               {periodLabel(period.period_start, period.period_end)}
                               {index === 0 ? ` ${t.inProgress}` : ""}
                             </td>
-                            <td>{Math.round(Number(period.total_allocations) || 0).toLocaleString(numberLocale)}</td>
-                            <td>{Math.round(Number(period.total_spent) || 0).toLocaleString(numberLocale)}</td>
+                            <td>{num0(Number(period.total_allocations) || 0)}</td>
+                            <td>{num0(Number(period.total_spent) || 0)}</td>
                             <td style={{ color: close < 0 ? "var(--dsh-bad-ink)" : undefined }}>
-                              {Math.round(close).toLocaleString(numberLocale)}
+                              {num0(close)}
                             </td>
                           </tr>
                         );
@@ -2761,8 +2765,7 @@ export default function EnvelopesPage() {
                     <span>{tx.category_name}</span>
                   </span>
                   <b style={{ fontSize: 14, color: tx.type === "income" ? "var(--dsh-brand)" : "var(--dsh-bad-ink)" }}>
-                    {tx.type === "income" ? "+" : "−"}
-                    {fmt(Math.abs(Number(tx.amount) || 0))}
+                    {fmt(Math.abs(Number(tx.amount) || 0), tx.type === "income" ? "+" : "−")}
                   </b>
                   <button
                     type="button"
@@ -2808,8 +2811,7 @@ export default function EnvelopesPage() {
                         {incoming ? copy.transferFrom(other) : copy.transferTo(other)}
                       </span>
                       <b style={{ fontSize: 14, color: incoming ? "var(--dsh-brand)" : "var(--dsh-bad-ink)" }}>
-                        {incoming ? "+" : "−"}
-                        {fmt(Math.abs(amount))}
+                        {fmt(Math.abs(amount), incoming ? "+" : "−")}
                       </b>
                     </div>
                   );
@@ -2837,7 +2839,7 @@ export default function EnvelopesPage() {
                         <span>{t.old} <b>{fmt(Number(log.previous_balance) || 0)}</b></span>
                         <span>{t.nw} <b>{fmt(Number(log.new_balance) || 0)}</b></span>
                         <span style={{ color: delta >= 0 ? "var(--dsh-brand)" : "var(--dsh-bad-ink)" }}>
-                          {t.delta} <b>{delta >= 0 ? "+" : "−"}{fmt(Math.abs(delta))}</b>
+                          {t.delta} <b>{fmt(Math.abs(delta), delta >= 0 ? "+" : "−")}</b>
                         </span>
                       </span>
                     </div>
@@ -3068,7 +3070,7 @@ export default function EnvelopesPage() {
             const on = info.env.rollover_enabled;
             const forbidden = isRolloverOffForbiddenEnvelope(info.env);
             const result =
-              info.bal < 0 ? t.negCarried : on ? (forbidden ? t.lockedOn : t.carried) : t.swept(fmt(Math.max(0, info.bal)));
+              info.bal < 0 ? t.negCarried : on ? (forbidden ? t.lockedOn : t.carried) : t.swept(fmt(Math.max(0, info.bal), "+"));
             return (
               <div key={info.env.id} className="env-line" style={{ ...sealStyle(info.seal), padding: "10px 0" }}>
                 <span className="env-dot env-ini" style={{ width: 10, height: 10 }} aria-hidden="true" />
@@ -3101,7 +3103,7 @@ export default function EnvelopesPage() {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: "2px solid var(--dsh-ink)", fontSize: 16 }}>
           <b>{t.toSavings}</b>
-          <b style={{ color: "var(--dsh-brand)" }}>+{fmt(sweepTotal)}</b>
+          <b style={{ color: "var(--dsh-brand)" }}>{fmt(sweepTotal, "+")}</b>
         </div>
         <span style={{ fontSize: 13, color: "var(--dsh-muted)" }}>{t.sweepExcluded}</span>
       </EnvModal>
@@ -3257,7 +3259,7 @@ export default function EnvelopesPage() {
               <div style={{ background: correctionDelta >= 0 ? "var(--dsh-brand-soft)" : "var(--dsh-bad-soft)" }}>
                 <span>{t.delta}</span>
                 <b style={{ color: correctionDelta >= 0 ? "var(--dsh-brand-ink)" : "var(--dsh-bad-ink)" }}>
-                  {correctionDelta >= 0 ? "+" : "−"}{fmt(Math.abs(correctionDelta))}
+                  {fmt(Math.abs(correctionDelta), correctionDelta >= 0 ? "+" : "−")}
                 </b>
               </div>
             </div>

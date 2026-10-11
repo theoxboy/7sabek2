@@ -27,6 +27,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.8.1",
+    date: "2026-10-11",
+    groups: [
+      {
+        kind: "fixed",
+        items: [
+          {
+            fr: "Page Enveloppes en arabe : les montants s'affichent maintenant dans le bon ordre, avec le signe + ou − au bon endroit.",
+            en: "Envelopes page in Arabic: amounts now display in the right order, with the + or − sign in the right place.",
+            ar: "صفحة الأظرفة بالعربية: المبالغ ولاو كيبانو بالترتيب الصحيح، والعلامة + ولا − فبلاصتها.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.8.0",
     date: "2026-10-10",
     groups: [
